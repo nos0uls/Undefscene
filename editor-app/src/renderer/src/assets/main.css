@@ -1,12 +1,14 @@
 @import './base.css';
 
+/*
+  Базовые стили для редактора.
+  Тут мы убираем "демо"-центрирование и делаем приложение на весь экран.
+*/
 body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin: 0;
+  height: 100vh;
+  width: 100vw;
   overflow: hidden;
-  background-image: url('./wavy-lines.svg');
-  background-size: cover;
   user-select: none;
 }
 
@@ -27,11 +29,258 @@ code {
 }
 
 #root {
+  height: 100vh;
+  width: 100vw;
+}
+
+/*
+  Основной grid каркас.
+  Размеры доков идут через CSS-переменные (их задаёт React).
+*/
+.editorRoot {
+  --leftDockWidth: 320px;
+  --rightDockWidth: 420px;
+  --bottomDockHeight: 220px;
+
+  display: grid;
+  grid-template-columns: var(--leftDockWidth) 1fr var(--rightDockWidth);
+  grid-template-rows: 30px 1fr var(--bottomDockHeight);
+  grid-template-areas:
+    'top top top'
+    'left center right'
+    'bottom bottom bottom';
+  height: 100vh;
+  width: 100vw;
+  background: var(--color-background);
+}
+
+.editorTopBar {
+  grid-area: top;
+  border-bottom: 1px solid var(--ev-c-gray-3);
+}
+
+.editorLeftDock {
+  grid-area: left;
+  border-right: 1px solid var(--ev-c-gray-3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.editorRightDock {
+  grid-area: right;
+  border-left: 1px solid var(--ev-c-gray-3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.editorCenter {
+  grid-area: center;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.editorBottomDock {
+  grid-area: bottom;
+  border-top: 1px solid var(--ev-c-gray-3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Заголовок слота (Dock 1 / Dock 2 / Dock 3). */
+.dockSlotHeader {
+  height: 28px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  background: var(--color-background-soft);
+  border-bottom: 1px solid var(--ev-c-gray-3);
+}
+
+.dockSlotTitle {
+  font-size: 12px;
+  color: var(--ev-c-text-2);
+  font-weight: 600;
+}
+
+.dockSlotMenuButton {
+  font-size: 12px;
+  color: var(--ev-c-text-1);
+  background: transparent;
+  border: 1px solid var(--ev-c-gray-3);
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.dockSlotMenuButton:hover {
+  background: var(--color-background-mute);
+}
+
+/*
+  Контейнер, который делит слот на 2 панели (вертикально).
+  В Milestone 1 это только внешний вид.
+*/
+.dockSlotSplit {
+  display: flex;
   flex-direction: column;
-  margin-bottom: 80px;
+  min-height: 0;
+  flex: 1;
+}
+
+.internalSplitter {
+  height: 4px;
+  background: var(--ev-c-gray-3);
+}
+
+/* Базовая панель (Actions/Text/Inspector/Logs). */
+.dockPanel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-background);
+}
+
+.dockPanelHeader {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  background: var(--color-background-soft);
+  border-bottom: 1px solid var(--ev-c-gray-3);
+}
+
+.dockPanelTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ev-c-text-1);
+}
+
+.dockPanelMenuButton {
+  width: 24px;
+  height: 22px;
+  background: transparent;
+  border: 1px solid var(--ev-c-gray-3);
+  border-radius: 6px;
+  color: var(--ev-c-text-1);
+  cursor: pointer;
+}
+
+.dockPanelMenuButton:hover {
+  background: var(--color-background-mute);
+}
+
+.dockPanelBody {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+}
+
+.centerCanvasHeader {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  background: var(--color-background-soft);
+  border-bottom: 1px solid var(--ev-c-gray-3);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.centerCanvasBody {
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.placeholderText {
+  font-size: 13px;
+  color: var(--ev-c-text-2);
+  line-height: 1.4;
+}
+
+/* Верхняя панель меню (как на скрине). */
+.topMenuBar {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  background: var(--color-background-soft);
+}
+
+.topMenuBarLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topMenuBarRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topMenuHint {
+  font-size: 12px;
+  color: var(--ev-c-text-3);
+}
+
+.topMenuBarItem {
+  position: relative;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ev-c-text-1);
+}
+
+.topMenuBarItem.isActive,
+.topMenuBarItem:hover {
+  background: var(--color-background-mute);
+}
+
+.topMenuDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 180px;
+  background: var(--color-background-soft);
+  border: 1px solid var(--ev-c-gray-3);
+  border-radius: 8px;
+  padding: 6px;
+  z-index: 50;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.topMenuDropdownItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.topMenuDropdownItem:hover {
+  background: var(--color-background-mute);
+}
+
+.topMenuDropdownLabel {
+  font-size: 12px;
+  color: var(--ev-c-text-1);
+}
+
+.topMenuDropdownShortcut {
+  font-size: 12px;
+  color: var(--ev-c-text-3);
 }
 
 .logo {
