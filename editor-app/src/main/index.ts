@@ -1,7 +1,21 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+
+// Simple dev/prod flag.
+// We avoid @electron-toolkit/utils here because it can resolve `electron` incorrectly
+// in some dev setups and crash before the app starts.
+const isDev = !app.isPackaged
+
+// In some Windows setups, `localhost` may resolve to IPv6 (::1) first.
+// Vite might only be listening on IPv4, which can cause ERR_CONNECTION_REFUSED.
+// This helper forces an IPv4 URL when we are in dev.
+function getDevRendererUrl(): string | undefined {
+  const url = process.env['ELECTRON_RENDERER_URL']
+  if (!url) return undefined
+
+  return url.replace('localhost', '127.0.0.1')
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -26,10 +40,26 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  // HMR for renderer base on electron-vite cli.
+  // HMR for renderer based on electron-vite CLI.
   // Load the remote URL for development or the local html file for production.
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  const devUrl = isDev ? getDevRendererUrl() : undefined
+  if (devUrl) {
+    // If the dev server isn't fully ready yet, Electron can fail the first load.
+    // In dev we do a few retries to avoid a crash loop.
+    let retryLeft = 20
+    mainWindow.webContents.on('did-fail-load', (_event, _errorCode, errorDescription) => {
+      if (retryLeft <= 0) return
+      if (typeof errorDescription === 'string' && !errorDescription.includes('ERR_CONNECTION_REFUSED')) {
+        return
+      }
+
+      retryLeft -= 1
+      setTimeout(() => {
+        mainWindow.loadURL(devUrl)
+      }, 250)
+    })
+
+    mainWindow.loadURL(devUrl)
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
@@ -39,14 +69,38 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  // Set app user model id for Windows notifications/taskbar grouping.
+  // In dev we use the current executable path to avoid Windows quirks.
+  if (process.platform === 'win32') {
+    app.setAppUserModelId(isDev ? process.execPath : 'com.electron')
+  }
 
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+  // Basic shortcuts.
+  // - Dev: F12 toggles DevTools.
+  // - Prod: blocks reload/devtools shortcuts.
   app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
+    const { webContents } = window
+
+    webContents.on('before-input-event', (event, input) => {
+      if (input.type !== 'keyDown') return
+
+      if (isDev) {
+        if (input.code === 'F12') {
+          if (webContents.isDevToolsOpened()) webContents.closeDevTools()
+          else webContents.openDevTools({ mode: 'undocked' })
+          event.preventDefault()
+        }
+        return
+      }
+
+      // Production: prevent reload and DevTools.
+      if (input.code === 'KeyR' && (input.control || input.meta)) {
+        event.preventDefault()
+      }
+      if (input.code === 'KeyI' && ((input.alt && input.meta) || (input.control && input.shift))) {
+        event.preventDefault()
+      }
+    })
   })
 
   // IPC test
