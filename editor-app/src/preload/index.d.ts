@@ -4,7 +4,7 @@ import { ElectronAPI } from '@electron-toolkit/preload'
 // Мы описываем его прямо тут, чтобы этот файл не зависел от alias путей
 // (иначе `tsc -p tsconfig.node.json` может не собрать проект).
 export type DockSlotId = 'left' | 'right' | 'bottom'
-export type PanelMode = 'docked' | 'floating'
+export type PanelMode = 'docked' | 'floating' | 'hidden'
 
 export type Vec2 = { x: number; y: number }
 export type Size = { width: number; height: number }

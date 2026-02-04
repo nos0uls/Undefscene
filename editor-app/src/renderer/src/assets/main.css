@@ -257,7 +257,8 @@ code {
   border: 1px solid var(--ev-c-gray-3);
   border-radius: 8px;
   padding: 6px;
-  z-index: 50;
+  z-index: 9999;
+  pointer-events: auto;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 

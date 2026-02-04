@@ -89,7 +89,12 @@ export function useLayoutState(): {
       .read()
       .then((loaded) => {
         if (cancelled) return
-        if (loaded) setLayout(loaded)
+
+        // Если файл существует, но формат старый/битый — не падаем.
+        // Просто используем дефолтную раскладку.
+        if (loaded && typeof loaded === 'object' && (loaded as any).schemaVersion === 1) {
+          setLayout(loaded as LayoutState)
+        }
         didLoadRef.current = true
       })
       .catch((err) => {

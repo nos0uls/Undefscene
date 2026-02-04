@@ -1,11 +1,14 @@
 export type DockSlotId = 'left' | 'right' | 'bottom'
-export type PanelMode = 'docked' | 'floating'
+export type PanelMode = 'docked' | 'floating' | 'hidden'
 
 export type Vec2 = { x: number; y: number }
 export type Size = { width: number; height: number }
 
 // Это состояние одной панели редактора (окошка).
-// Панель может быть прикреплена (docked) или плавать поверх (floating).
+// Панель может быть:
+// - docked: прикреплена к доку
+// - floating: плавает поверх
+// - hidden: скрыта (её можно вернуть через верхнее меню Panels)
 export interface PanelState {
   // Уникальный ID панели, чтобы мы могли сохранять/восстанавливать раскладку.
   id: string
