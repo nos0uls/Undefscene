@@ -90,6 +90,15 @@ code {
   flex-direction: column;
 }
 
+/* Подсветка док-зоны, когда мы тащим панель и "целимся" сюда. */
+.editorLeftDock.isDockDropTarget,
+.editorRightDock.isDockDropTarget,
+.editorBottomDock.isDockDropTarget {
+  outline: 2px solid rgba(120, 170, 255, 0.65);
+  outline-offset: -2px;
+  background: rgba(120, 170, 255, 0.06);
+}
+
 /* Заголовок слота (Dock 1 / Dock 2 / Dock 3). */
 .dockSlotHeader {
   height: 28px;
@@ -153,6 +162,62 @@ code {
   padding: 0 8px;
   background: var(--color-background-soft);
   border-bottom: 1px solid var(--ev-c-gray-3);
+  cursor: grab;
+}
+
+/* Когда панель используется как источник перетаскивания. */
+.dockPanel.isDragSource .dockPanelHeader {
+  cursor: grabbing;
+}
+
+/*
+  Слой, в котором живут плавающие панели.
+  Он всегда поверх grid, но мы не блокируем клики по интерфейсу,
+  потому что pointer-events выключены.
+*/
+.floatingLayer {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 5000;
+}
+
+/* Обёртка для каждой floating панели, чтобы задавать left/top/width/height. */
+.floatingPanel {
+  position: absolute;
+  pointer-events: auto;
+}
+
+/* Чуть более заметная рамка у плавающих панелей. */
+.dockPanel.isFloating {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* Призрак панели во время перетаскивания. */
+.dragGhost {
+  position: absolute;
+  pointer-events: none;
+  border: 1px dashed rgba(200, 220, 255, 0.8);
+  background: rgba(80, 100, 140, 0.18);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.dragGhostHeader {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(235, 240, 255, 0.95);
+  background: rgba(60, 70, 90, 0.25);
 }
 
 .dockPanelTitle {
