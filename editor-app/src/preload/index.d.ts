@@ -42,6 +42,21 @@ export interface LayoutState {
   lastSavedAtMs: number
 }
 
+// Типы runtime.json, чтобы renderer мог использовать API без alias путей.
+export type RuntimeNode = {
+  id: string
+  type: string
+  text?: string
+}
+
+export interface RuntimeState {
+  schemaVersion: 1
+  title: string
+  nodes: RuntimeNode[]
+  selectedNodeId: string | null
+  lastSavedAtMs: number
+}
+
 // API, которое мы отдаём в renderer через preload.
 export interface RendererApi {
   layout: {
@@ -50,6 +65,13 @@ export interface RendererApi {
 
     // Сохраняет layout.json.
     write: (next: LayoutState) => Promise<void>
+  }
+  runtime: {
+    // Читает runtime.json. Возвращает null, если файла нет.
+    read: () => Promise<RuntimeState | null>
+
+    // Сохраняет runtime.json.
+    write: (next: RuntimeState) => Promise<void>
   }
 }
 

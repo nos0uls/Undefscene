@@ -111,6 +111,11 @@ app.whenReady().then(() => {
   const layoutPath = join(app.getPath('userData'), 'layout.json')
   const layoutTmpPath = join(app.getPath('userData'), 'layout.json.tmp')
 
+  // --- IPC: Runtime persistence ---
+  // Этот файл хранит состояние runtime-json (узлы, выбранный элемент и т.д.).
+  const runtimePath = join(app.getPath('userData'), 'runtime.json')
+  const runtimeTmpPath = join(app.getPath('userData'), 'runtime.json.tmp')
+
   ipcMain.handle('layout.read', async () => {
     try {
       const raw = await readFile(layoutPath, 'utf-8')
@@ -118,6 +123,38 @@ app.whenReady().then(() => {
     } catch (err: any) {
       // Если файла нет — это не ошибка для пользователя.
       if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) return null
+      throw err
+    }
+  })
+
+  ipcMain.handle('runtime.read', async () => {
+    try {
+      const raw = await readFile(runtimePath, 'utf-8')
+      return JSON.parse(raw)
+    } catch (err: any) {
+      // Если файла нет — это не ошибка для пользователя.
+      if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) return null
+      throw err
+    }
+  })
+
+  ipcMain.handle('runtime.write', async (_event, nextRuntime) => {
+    // Атомарная запись:
+    // 1) пишем во временный файл
+    // 2) переименовываем на основной
+    const json = JSON.stringify(nextRuntime, null, 2)
+    await writeFile(runtimeTmpPath, json, 'utf-8')
+
+    try {
+      await rename(runtimeTmpPath, runtimePath)
+    } catch (err: any) {
+      // На Windows переименование может падать, если файл уже существует.
+      // Тогда удаляем старый файл и пробуем ещё раз.
+      if (err && (err.code === 'EEXIST' || err.code === 'EPERM')) {
+        await unlink(runtimePath).catch(() => undefined)
+        await rename(runtimeTmpPath, runtimePath)
+        return
+      }
       throw err
     }
   })

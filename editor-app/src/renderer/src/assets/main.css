@@ -52,6 +52,7 @@ code {
   height: 100vh;
   width: 100vw;
   background: var(--color-background);
+  position: relative;
 }
 
 .editorTopBar {
@@ -144,6 +145,43 @@ code {
 .internalSplitter {
   height: 4px;
   background: var(--ev-c-gray-3);
+  cursor: row-resize;
+}
+
+/*
+  Сплиттеры для изменения размеров доков.
+  Это тонкие полоски между зонами.
+*/
+.dockSplitter {
+  position: absolute;
+  z-index: 1500;
+  background: transparent;
+}
+
+.dockSplitterVertical {
+  top: 30px;
+  bottom: var(--bottomDockHeight);
+  width: 6px;
+  cursor: col-resize;
+}
+
+.dockSplitterHorizontal {
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: row-resize;
+}
+
+.dockSplitterLeft {
+  left: calc(var(--leftDockWidth) - 3px);
+}
+
+.dockSplitterRight {
+  left: calc(100% - var(--rightDockWidth) - 3px);
+}
+
+.dockSplitterBottom {
+  top: calc(100% - var(--bottomDockHeight) - 3px);
 }
 
 /* Базовая панель (Actions/Text/Inspector/Logs). */
@@ -189,6 +227,94 @@ code {
 .floatingPanel {
   position: absolute;
   pointer-events: auto;
+  overflow: visible;
+  display: flex;
+}
+
+/* Контент плавающей панели должен растягиваться по контейнеру. */
+.floatingPanel .dockPanel {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+}
+
+/* Заполняем фон внутри тела, чтобы он тянулся при ресайзе. */
+.floatingPanel .dockPanelBody {
+  background: var(--color-background);
+}
+
+/*
+  Невидимые зоны ресайза для плавающих панелей.
+  Это повторяет поведение окон в Windows: тянем за край или угол.
+*/
+.floatingResizeZone {
+  position: absolute;
+  pointer-events: auto;
+  z-index: 5;
+}
+
+.floatingResizeZone.resize-n {
+  left: 8px;
+  right: 8px;
+  top: -4px;
+  height: 10px;
+  cursor: ns-resize;
+}
+
+.floatingResizeZone.resize-s {
+  left: 8px;
+  right: 8px;
+  bottom: -4px;
+  height: 10px;
+  cursor: ns-resize;
+}
+
+.floatingResizeZone.resize-e {
+  top: 8px;
+  bottom: 8px;
+  right: -4px;
+  width: 10px;
+  cursor: ew-resize;
+}
+
+.floatingResizeZone.resize-w {
+  top: 8px;
+  bottom: 8px;
+  left: -4px;
+  width: 10px;
+  cursor: ew-resize;
+}
+
+.floatingResizeZone.resize-ne {
+  right: -4px;
+  top: -4px;
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
+}
+
+.floatingResizeZone.resize-nw {
+  left: -4px;
+  top: -4px;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+
+.floatingResizeZone.resize-se {
+  right: -4px;
+  bottom: -4px;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+
+.floatingResizeZone.resize-sw {
+  left: -4px;
+  bottom: -4px;
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
 }
 
 /* Чуть более заметная рамка у плавающих панелей. */
@@ -269,6 +395,112 @@ code {
   font-size: 13px;
   color: var(--ev-c-text-2);
   line-height: 1.4;
+}
+
+/* Базовые стили для runtime-json UI внутри панелей. */
+.runtimeSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.runtimeSectionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ev-c-text-3);
+}
+
+.runtimeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.runtimeButton {
+  background: var(--color-background-mute);
+  border: 1px solid var(--ev-c-gray-3);
+  color: var(--ev-c-text-1);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.runtimeButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.runtimeHint {
+  font-size: 12px;
+  color: var(--ev-c-text-2);
+}
+
+.runtimeList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.runtimeListItem {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--ev-c-gray-3);
+  background: transparent;
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.runtimeListItem.isActive {
+  border-color: rgba(120, 170, 255, 0.7);
+  color: var(--ev-c-text-1);
+  background: rgba(120, 170, 255, 0.12);
+}
+
+.runtimeTextarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  border-radius: 8px;
+  border: 1px solid var(--ev-c-gray-3);
+  background: var(--color-background);
+  color: var(--ev-c-text-1);
+  padding: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.runtimeField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ev-c-text-2);
+}
+
+.runtimeInput {
+  border-radius: 6px;
+  border: 1px solid var(--ev-c-gray-3);
+  background: var(--color-background);
+  color: var(--ev-c-text-1);
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.runtimeCode {
+  background: var(--color-background-mute);
+  border: 1px solid var(--ev-c-gray-3);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 11px;
+  color: var(--ev-c-text-2);
+  overflow: auto;
+  max-height: 200px;
 }
 
 /* Верхняя панель меню (как на скрине). */

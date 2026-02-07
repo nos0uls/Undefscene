@@ -3,7 +3,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 // Кастомные API для renderer.
 // Важно: renderer не должен напрямую иметь доступ к Node.js/fs.
-// Поэтому чтение/запись layout.json делаем через IPC.
+// Поэтому чтение/запись layout.json и runtime.json делаем через IPC.
 const api = {
   layout: {
     // Читаем layout.json (main решает где он лежит).
@@ -11,6 +11,13 @@ const api = {
 
     // Пишем layout.json атомарно (main сделает temp → rename).
     write: (next: unknown): Promise<unknown> => ipcRenderer.invoke('layout.write', next)
+  },
+  runtime: {
+    // Читаем runtime.json (main решает где он лежит).
+    read: (): Promise<unknown> => ipcRenderer.invoke('runtime.read'),
+
+    // Пишем runtime.json атомарно (main сделает temp → rename).
+    write: (next: unknown): Promise<unknown> => ipcRenderer.invoke('runtime.write', next)
   }
 }
 

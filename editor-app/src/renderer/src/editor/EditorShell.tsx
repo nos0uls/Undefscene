@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { DockPanel } from './DockPanel'
+import { FlowCanvas } from './FlowCanvas'
 import { TopMenuBar } from './TopMenuBar'
-import type { DockSlotId, Size, Vec2 } from './layoutTypes'
+import type { DockSlotId, LayoutState, Size, Vec2 } from './layoutTypes'
+import type { RuntimeNode } from './runtimeTypes'
 import { useLayoutState } from './useLayoutState'
+import { useRuntimeState } from './useRuntimeState'
 
 type DragState = {
   // Какая панель сейчас перетаскивается.
@@ -27,6 +30,41 @@ type DragState = {
   hoverSlot: DockSlotId | null
 }
 
+type ResizeKind =
+  | 'dock-left'
+  | 'dock-right'
+  | 'dock-bottom'
+  | 'split-left'
+  | 'split-right'
+  | 'float-n'
+  | 'float-s'
+  | 'float-e'
+  | 'float-w'
+  | 'float-ne'
+  | 'float-nw'
+  | 'float-se'
+  | 'float-sw'
+
+type ResizeDragState = {
+  // Какой тип ресайза мы делаем.
+  kind: ResizeKind
+
+  // ID pointer, чтобы не ловить чужие события.
+  pointerId: number
+
+  // Стартовая позиция курсора.
+  startX: number
+  startY: number
+
+  // Запоминаем размеры доков в момент старта.
+  startDockSizes: LayoutState['dockSizes']
+
+  // Для floating ресайза нам нужен ID панели и её стартовый размер.
+  panelId?: string
+  startPanelPosition?: Vec2 | null
+  startPanelSize?: Size | null
+}
+
 // Основной “каркас” редактора.
 // Здесь мы собираем все зоны: верхнее меню, левые/правые доки,
 // центральный холст и нижний лог.
@@ -35,6 +73,10 @@ export function EditorShell(): React.JSX.Element {
   // В Milestone 1 мы пока не даём пользователю двигать сплиттеры,
   // но размеры уже пробрасываем в CSS.
   const { layout, setLayout } = useLayoutState()
+
+  // Храним runtime-json (узлы, выбор, undo/redo).
+  // Это отдельное состояние, не связанное с layout.
+  const { runtime, setRuntime, undo, redo, canUndo, canRedo } = useRuntimeState()
 
   // Ссылки на DOM, чтобы делать hit-test док-зон.
   const rootRef = useRef<HTMLDivElement | null>(null)
@@ -46,11 +88,26 @@ export function EditorShell(): React.JSX.Element {
   // Так мы не пишем layout.json 60 раз в секунду.
   const [drag, setDrag] = useState<DragState | null>(null)
 
+  // Состояние ресайза (доки + floating панели).
+  const [resizeDrag, setResizeDrag] = useState<ResizeDragState | null>(null)
+
   // Сохраняем актуальный layout в ref, чтобы pointer handlers не ловили старое значение.
   const layoutRef = useRef(layout)
   useEffect(() => {
     layoutRef.current = layout
   }, [layout])
+
+  // Простая функция для ограничения чисел.
+  const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(value, max))
+
+  // Минимальные размеры, чтобы UI не "схлопывался".
+  const MIN_LEFT_WIDTH = 220
+  const MIN_RIGHT_WIDTH = 260
+  const MIN_BOTTOM_HEIGHT = 140
+  const MIN_CENTER_WIDTH = 360
+  const MIN_CENTER_HEIGHT = 220
+  const MIN_FLOAT_WIDTH = 240
+  const MIN_FLOAT_HEIGHT = 80
 
   // Список всех панелей, которые можно показать через меню.
   // Это замена старых кнопок "Open Any" над доками.
@@ -69,24 +126,6 @@ export function EditorShell(): React.JSX.Element {
     const p = layout.panels[panelId]
     if (!p) return false
     return p.mode !== 'hidden'
-  }
-
-  // Дефолтные слоты для панелей.
-  // Нужно, чтобы мы могли "вернуть" панель обратно, когда пользователь её открывает.
-  const getDefaultSlot = (panelId: string): 'left' | 'right' | 'bottom' => {
-    if (panelId === 'panel.actions' || panelId === 'panel.bookmarks') return 'left'
-    if (panelId === 'panel.text' || panelId === 'panel.inspector') return 'right'
-    return 'bottom'
-  }
-
-  // Позиция внутри слота по умолчанию.
-  // Например: Actions всегда сверху слева, Bookmarks снизу слева.
-  const getDefaultDockIndex = (panelId: string): number => {
-    if (panelId === 'panel.actions') return 0
-    if (panelId === 'panel.bookmarks') return 1
-    if (panelId === 'panel.text') return 0
-    if (panelId === 'panel.inspector') return 1
-    return 0
   }
 
   // Убираем ID панели из всех слотов.
@@ -155,26 +194,143 @@ export function EditorShell(): React.JSX.Element {
   // Пока что это просто заглушки, но так мы сможем переиспользовать их
   // и для docked, и для floating.
   const renderPanelContents = (panelId: string): React.JSX.Element => {
+    // Находим выбранный узел один раз, чтобы не повторять логику ниже.
+    const selectedNode = runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null
+
+    // Обновляем выбранный узел безопасно.
+    const updateNode = (nodeId: string, patch: Partial<RuntimeNode>) => {
+      setRuntime({
+        ...runtime,
+        nodes: runtime.nodes.map((node) => (node.id === nodeId ? { ...node, ...patch } : node))
+      })
+    }
+
+    // Создаём новый узел и сразу выбираем его.
+    const addNode = () => {
+      const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      const newNode: RuntimeNode = { id: newId, type: 'dialogue', text: '' }
+
+      setRuntime({
+        ...runtime,
+        nodes: [...runtime.nodes, newNode],
+        selectedNodeId: newId
+      })
+    }
+
+    // Меняем выделение узла.
+    const selectNode = (nodeId: string) => {
+      setRuntime({
+        ...runtime,
+        selectedNodeId: nodeId
+      })
+    }
+
     if (panelId === 'panel.actions') {
       return (
-        <div className="placeholderText">Здесь будет список действий катсцены (группы, параллельные блоки, и т.д.)</div>
+        <div className="runtimeSection">
+          <div className="runtimeSectionTitle">Actions</div>
+          <div className="runtimeRow">
+            <button className="runtimeButton" type="button" onClick={addNode}>
+              Add Node
+            </button>
+            <button className="runtimeButton" type="button" onClick={undo} disabled={!canUndo}>
+              Undo
+            </button>
+            <button className="runtimeButton" type="button" onClick={redo} disabled={!canRedo}>
+              Redo
+            </button>
+          </div>
+          <div className="runtimeHint">
+            Узлы будут добавляться в список слева. Это базовый прототип редактора.
+          </div>
+        </div>
       )
     }
 
     if (panelId === 'panel.bookmarks') {
-      return <div className="placeholderText">Здесь будут заголовки/закладки для быстрого перехода.</div>
+      return (
+        <div className="runtimeSection">
+          <div className="runtimeSectionTitle">Nodes</div>
+          {runtime.nodes.length === 0 ? (
+            <div className="runtimeHint">Пока нет узлов. Нажми “Add Node”.</div>
+          ) : (
+            <ul className="runtimeList">
+              {runtime.nodes.map((node) => (
+                <li key={node.id}>
+                  <button
+                    className={['runtimeListItem', node.id === runtime.selectedNodeId ? 'isActive' : '']
+                      .filter(Boolean)
+                      .join(' ')}
+                    type="button"
+                    onClick={() => selectNode(node.id)}
+                  >
+                    {node.type} · {node.id}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )
     }
 
     if (panelId === 'panel.text') {
-      return <div className="placeholderText">Здесь будет текст/реплики катсцены.</div>
+      return (
+        <div className="runtimeSection">
+          <div className="runtimeSectionTitle">Text</div>
+          {selectedNode ? (
+            <textarea
+              className="runtimeTextarea"
+              value={selectedNode.text ?? ''}
+              placeholder="Текст реплики..."
+              onChange={(event) => updateNode(selectedNode.id, { text: event.target.value })}
+            />
+          ) : (
+            <div className="runtimeHint">Выбери узел слева, чтобы редактировать текст.</div>
+          )}
+        </div>
+      )
     }
 
     if (panelId === 'panel.inspector') {
-      return <div className="placeholderText">Здесь будет инспектор выбранного узла.</div>
+      return (
+        <div className="runtimeSection">
+          <div className="runtimeSectionTitle">Inspector</div>
+          <label className="runtimeField">
+            <span>Scene title</span>
+            <input
+              className="runtimeInput"
+              value={runtime.title}
+              onChange={(event) => setRuntime({ ...runtime, title: event.target.value })}
+            />
+          </label>
+          {selectedNode ? (
+            <>
+              <label className="runtimeField">
+                <span>Node type</span>
+                <input
+                  className="runtimeInput"
+                  value={selectedNode.type}
+                  onChange={(event) => updateNode(selectedNode.id, { type: event.target.value })}
+                />
+              </label>
+              <div className="runtimeHint">ID: {selectedNode.id}</div>
+            </>
+          ) : (
+            <div className="runtimeHint">Нет выбранного узла.</div>
+          )}
+        </div>
+      )
     }
 
     if (panelId === 'panel.logs') {
-      return <div className="placeholderText">Здесь будут логи редактора и статус превью.</div>
+      return (
+        <div className="runtimeSection">
+          <div className="runtimeSectionTitle">Runtime JSON</div>
+          <div className="runtimeHint">runtime.json — основной файл катсцены (источник правды).</div>
+          <pre className="runtimeCode">{JSON.stringify(runtime, null, 2)}</pre>
+        </div>
+      )
     }
 
     return <div className="placeholderText">Unknown panel: {panelId}</div>
@@ -404,6 +560,10 @@ export function EditorShell(): React.JSX.Element {
       }
       removeFromAllSlots(nextDocked, panelId)
 
+      // Если панель была floating, запомним её последнюю позицию/размер.
+      const lastFloatingPosition = current.position ?? current.lastFloatingPosition ?? null
+      const lastFloatingSize = current.size ?? current.lastFloatingSize ?? null
+
       setLayout({
         ...layout,
         docked: nextDocked,
@@ -413,42 +573,273 @@ export function EditorShell(): React.JSX.Element {
             ...current,
             mode: 'hidden',
             lastDockedSlot: current.slot ?? current.lastDockedSlot ?? null,
-            slot: null
+            slot: null,
+            position: null,
+            size: null,
+            lastFloatingPosition,
+            lastFloatingSize
           }
         }
       })
       return
     }
 
-    // Открываем панель.
-    const defaultSlot = current.lastDockedSlot ?? getDefaultSlot(panelId)
-    const defaultIndex = getDefaultDockIndex(panelId)
+    // Открываем панель как floating (не ломаем док-раскладку).
+    const rootRect = rootRef.current?.getBoundingClientRect()
+    const fallbackSize = current.lastFloatingSize ?? { width: 360, height: 240 }
 
-    const nextDocked = {
-      left: [...layout.docked.left],
-      right: [...layout.docked.right],
-      bottom: [...layout.docked.bottom]
+    const clampedWidth = clamp(fallbackSize.width, MIN_FLOAT_WIDTH, rootRect?.width ?? fallbackSize.width)
+    const clampedHeight = clamp(fallbackSize.height, MIN_FLOAT_HEIGHT, rootRect?.height ?? fallbackSize.height)
+
+    // Стартовая позиция — либо последняя, либо центр экрана.
+    const defaultPosition: Vec2 = current.lastFloatingPosition ?? {
+      x: rootRect ? Math.max(12, (rootRect.width - clampedWidth) / 2) : 120,
+      y: rootRect ? Math.max(60, (rootRect.height - clampedHeight) / 2) : 80
     }
 
-    const nextPanels = { ...layout.panels }
-
-    removeFromAllSlots(nextDocked, panelId)
-    insertIntoSlot(nextDocked, defaultSlot, panelId, defaultIndex)
-    enforceSlotCapacity(nextDocked, nextPanels, defaultSlot, panelId)
+    const maxZ = Math.max(1, ...Object.values(layout.panels).map((p) => p.zIndex ?? 1))
 
     setLayout({
       ...layout,
-      docked: nextDocked,
       panels: {
-        ...nextPanels,
+        ...layout.panels,
         [panelId]: {
           ...current,
-          mode: 'docked',
-          slot: defaultSlot
+          mode: 'floating',
+          slot: null,
+          position: defaultPosition,
+          // Размер окна по умолчанию, чтобы панель сразу была видна.
+          size: { width: clampedWidth, height: clampedHeight },
+          zIndex: maxZ + 1
         }
       }
     })
   }
+
+  // Начинаем ресайз доков или floating панели.
+  const startResizeDrag = (kind: ResizeKind, panelId?: string) => (event: React.PointerEvent<HTMLElement>) => {
+    if (event.button !== 0) return
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    const currentLayout = layoutRef.current
+    const panel = panelId ? currentLayout.panels[panelId] : null
+
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // Если pointer capture недоступен, мы всё равно ловим события на window.
+    }
+
+    setResizeDrag({
+      kind,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startDockSizes: { ...currentLayout.dockSizes },
+      panelId,
+      startPanelPosition: panel?.position ?? null,
+      startPanelSize: panel?.size ?? null
+    })
+  }
+
+  // Пока мы ресайзим, обновляем размеры в layout.
+  useEffect(() => {
+    if (!resizeDrag) return
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerId !== resizeDrag.pointerId) return
+
+      const currentLayout = layoutRef.current
+      const rootRect = rootRef.current?.getBoundingClientRect()
+      if (!rootRect) return
+
+      const dx = event.clientX - resizeDrag.startX
+      const dy = event.clientY - resizeDrag.startY
+
+      if (resizeDrag.kind === 'dock-left') {
+        const maxLeft = Math.max(MIN_LEFT_WIDTH, rootRect.width - currentLayout.dockSizes.rightWidth - MIN_CENTER_WIDTH)
+        const nextLeftWidth = clamp(resizeDrag.startDockSizes.leftWidth + dx, MIN_LEFT_WIDTH, maxLeft)
+
+        setLayout({
+          ...currentLayout,
+          dockSizes: {
+            ...currentLayout.dockSizes,
+            leftWidth: nextLeftWidth
+          }
+        })
+        return
+      }
+
+      if (resizeDrag.kind === 'dock-right') {
+        const maxRight = Math.max(MIN_RIGHT_WIDTH, rootRect.width - currentLayout.dockSizes.leftWidth - MIN_CENTER_WIDTH)
+        const nextRightWidth = clamp(resizeDrag.startDockSizes.rightWidth - dx, MIN_RIGHT_WIDTH, maxRight)
+
+        setLayout({
+          ...currentLayout,
+          dockSizes: {
+            ...currentLayout.dockSizes,
+            rightWidth: nextRightWidth
+          }
+        })
+        return
+      }
+
+      if (resizeDrag.kind === 'dock-bottom') {
+        const topBarHeight = 30
+        const maxBottom = Math.max(
+          MIN_BOTTOM_HEIGHT,
+          rootRect.height - topBarHeight - MIN_CENTER_HEIGHT
+        )
+        const nextBottomHeight = clamp(resizeDrag.startDockSizes.bottomHeight - dy, MIN_BOTTOM_HEIGHT, maxBottom)
+
+        setLayout({
+          ...currentLayout,
+          dockSizes: {
+            ...currentLayout.dockSizes,
+            bottomHeight: nextBottomHeight
+          }
+        })
+        return
+      }
+
+      if (resizeDrag.kind === 'split-left') {
+        const leftRect = leftDockRef.current?.getBoundingClientRect()
+        if (!leftRect) return
+        const ratio = clamp((event.clientY - leftRect.top) / leftRect.height, 0.15, 0.85)
+
+        setLayout({
+          ...currentLayout,
+          dockSizes: {
+            ...currentLayout.dockSizes,
+            leftSplit: ratio
+          }
+        })
+        return
+      }
+
+      if (resizeDrag.kind === 'split-right') {
+        const rightRect = rightDockRef.current?.getBoundingClientRect()
+        if (!rightRect) return
+        const ratio = clamp((event.clientY - rightRect.top) / rightRect.height, 0.15, 0.85)
+
+        setLayout({
+          ...currentLayout,
+          dockSizes: {
+            ...currentLayout.dockSizes,
+            rightSplit: ratio
+          }
+        })
+        return
+      }
+
+      if (resizeDrag.kind.startsWith('float-') && resizeDrag.panelId) {
+        const panel = currentLayout.panels[resizeDrag.panelId]
+        if (!panel || !resizeDrag.startPanelSize || !resizeDrag.startPanelPosition) return
+
+        const maxWidth = Math.max(MIN_FLOAT_WIDTH, rootRect.width - 24)
+        const maxHeight = Math.max(MIN_FLOAT_HEIGHT, rootRect.height - 24)
+
+        // Определяем, какие стороны двигаются.
+        const affectsTop = resizeDrag.kind.includes('n')
+        const affectsBottom = resizeDrag.kind.includes('s')
+        const affectsLeft = resizeDrag.kind.includes('w')
+        const affectsRight = resizeDrag.kind.includes('e')
+
+        const startPos = resizeDrag.startPanelPosition
+        const startSize = resizeDrag.startPanelSize
+
+        let nextWidth = startSize.width
+        let nextHeight = startSize.height
+        let nextX = startPos.x
+        let nextY = startPos.y
+
+        if (affectsRight) {
+          nextWidth = startSize.width + dx
+        }
+
+        if (affectsBottom) {
+          nextHeight = startSize.height + dy
+        }
+
+        if (affectsLeft) {
+          nextWidth = startSize.width - dx
+          nextX = startPos.x + dx
+        }
+
+        if (affectsTop) {
+          nextHeight = startSize.height - dy
+          nextY = startPos.y + dy
+        }
+
+        // Ограничиваем размеры и корректируем позицию,
+        // чтобы панель не "прыгала" при достижении минимума.
+        const clampedWidth = clamp(nextWidth, MIN_FLOAT_WIDTH, maxWidth)
+        const clampedHeight = clamp(nextHeight, MIN_FLOAT_HEIGHT, maxHeight)
+
+        if (affectsLeft) {
+          nextX = startPos.x + (startSize.width - clampedWidth)
+        }
+
+        if (affectsTop) {
+          nextY = startPos.y + (startSize.height - clampedHeight)
+        }
+
+        const maxX = Math.max(0, rootRect.width - clampedWidth)
+        const maxY = Math.max(0, rootRect.height - clampedHeight)
+
+        nextX = clamp(nextX, 0, maxX)
+        nextY = clamp(nextY, 0, maxY)
+
+        setLayout({
+          ...currentLayout,
+          panels: {
+            ...currentLayout.panels,
+            [resizeDrag.panelId]: {
+              ...panel,
+              position: { x: nextX, y: nextY },
+              size: { width: clampedWidth, height: clampedHeight }
+            }
+          }
+        })
+      }
+    }
+
+    const onPointerUp = (event: PointerEvent) => {
+      if (event.pointerId !== resizeDrag.pointerId) return
+
+      const currentLayout = layoutRef.current
+
+      // Если это floating ресайз, запишем финальный размер как "последний".
+      if (resizeDrag.kind.startsWith('float-') && resizeDrag.panelId) {
+        const panel = currentLayout.panels[resizeDrag.panelId]
+        if (panel?.size && panel.position) {
+          setLayout({
+            ...currentLayout,
+            panels: {
+              ...currentLayout.panels,
+              [resizeDrag.panelId]: {
+                ...panel,
+                lastFloatingSize: panel.size,
+                lastFloatingPosition: panel.position
+              }
+            }
+          })
+        }
+      }
+
+      setResizeDrag(null)
+    }
+
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+    }
+  }, [resizeDrag, setLayout])
 
   const leftTopGrow = layout.dockSizes.leftSplit
   const leftBottomGrow = Math.max(0.001, 1 - layout.dockSizes.leftSplit)
@@ -509,7 +900,13 @@ export function EditorShell(): React.JSX.Element {
             </DockPanel>
           ) : null}
 
-          {leftDockedIds[0] && leftDockedIds[1] ? <div className="internalSplitter" aria-hidden="true" /> : null}
+          {leftDockedIds[0] && leftDockedIds[1] ? (
+            <div
+              className="internalSplitter"
+              aria-hidden="true"
+              onPointerDown={startResizeDrag('split-left')}
+            />
+          ) : null}
 
           {leftDockedIds[1] ? (
             <DockPanel
@@ -538,9 +935,17 @@ export function EditorShell(): React.JSX.Element {
       <main className="editorCenter">
         <div className="centerCanvasHeader">Node Editor</div>
         <div className="centerCanvasBody">
-          <div className="placeholderText">
-            Центральный холст. Позже здесь будет React Flow (или другой node editor).
-          </div>
+          {/* Основной холст: показываем ноды и выбор из runtime-json. */}
+          <FlowCanvas
+            runtimeNodes={runtime.nodes}
+            selectedNodeId={runtime.selectedNodeId}
+            onSelectNode={(nodeId) => {
+              setRuntime({
+                ...runtime,
+                selectedNodeId: nodeId
+              })
+            }}
+          />
         </div>
       </main>
 
@@ -571,7 +976,13 @@ export function EditorShell(): React.JSX.Element {
             </DockPanel>
           ) : null}
 
-          {rightDockedIds[0] && rightDockedIds[1] ? <div className="internalSplitter" aria-hidden="true" /> : null}
+          {rightDockedIds[0] && rightDockedIds[1] ? (
+            <div
+              className="internalSplitter"
+              aria-hidden="true"
+              onPointerDown={startResizeDrag('split-right')}
+            />
+          ) : null}
 
           {rightDockedIds[1] ? (
             <DockPanel
@@ -643,6 +1054,15 @@ export function EditorShell(): React.JSX.Element {
               <DockPanel title={p.title} className="isFloating" onHeaderPointerDown={startPanelDrag(panelId)}>
                 {renderPanelContents(panelId)}
               </DockPanel>
+              {/* Невидимые зоны для ресайза по краям и углам (как в Windows). */}
+              <div className="floatingResizeZone resize-n" onPointerDown={startResizeDrag('float-n', panelId)} />
+              <div className="floatingResizeZone resize-s" onPointerDown={startResizeDrag('float-s', panelId)} />
+              <div className="floatingResizeZone resize-e" onPointerDown={startResizeDrag('float-e', panelId)} />
+              <div className="floatingResizeZone resize-w" onPointerDown={startResizeDrag('float-w', panelId)} />
+              <div className="floatingResizeZone resize-ne" onPointerDown={startResizeDrag('float-ne', panelId)} />
+              <div className="floatingResizeZone resize-nw" onPointerDown={startResizeDrag('float-nw', panelId)} />
+              <div className="floatingResizeZone resize-se" onPointerDown={startResizeDrag('float-se', panelId)} />
+              <div className="floatingResizeZone resize-sw" onPointerDown={startResizeDrag('float-sw', panelId)} />
             </div>
           )
         })}
@@ -661,6 +1081,14 @@ export function EditorShell(): React.JSX.Element {
           </div>
         ) : null}
       </div>
+
+      {/* Сплиттеры для изменения размеров доков. */}
+      <div className="dockSplitter dockSplitterVertical dockSplitterLeft" onPointerDown={startResizeDrag('dock-left')} />
+      <div className="dockSplitter dockSplitterVertical dockSplitterRight" onPointerDown={startResizeDrag('dock-right')} />
+      <div
+        className="dockSplitter dockSplitterHorizontal dockSplitterBottom"
+        onPointerDown={startResizeDrag('dock-bottom')}
+      />
     </div>
   )
 }
