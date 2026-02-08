@@ -391,6 +391,13 @@ code {
   padding: 12px;
 }
 
+/* Контейнер холста React Flow, чтобы он занимал всю центральную область. */
+.flowCanvas {
+  width: 100%;
+  height: 100%;
+  background: #0a0e14;
+}
+
 .placeholderText {
   font-size: 13px;
   color: var(--ev-c-text-2);
@@ -420,17 +427,28 @@ code {
 
 .runtimeButton {
   background: var(--color-background-mute);
-  border: 1px solid var(--ev-c-gray-3);
+  border: 1px solid var(--ev-c-gray-2);
   color: var(--ev-c-text-1);
   font-size: 12px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   border-radius: 6px;
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.runtimeButton:hover {
+  background: var(--ev-c-gray-2);
+  border-color: var(--ev-c-gray-1);
 }
 
 .runtimeButton:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: default;
+}
+
+.runtimeButton:disabled:hover {
+  background: var(--color-background-mute);
+  border-color: var(--ev-c-gray-2);
 }
 
 .runtimeHint {
@@ -444,6 +462,13 @@ code {
   gap: 6px;
 }
 
+/* Скролл для длинных списков (палитра нод). */
+.runtimeListScrollable {
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .runtimeListItem {
   width: 100%;
   text-align: left;
@@ -454,12 +479,19 @@ code {
   padding: 6px 8px;
   border-radius: 6px;
   cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.runtimeListItem:hover {
+  background: var(--ev-c-accent-soft);
+  border-color: var(--ev-c-gray-2);
+  color: var(--ev-c-text-1);
 }
 
 .runtimeListItem.isActive {
-  border-color: rgba(120, 170, 255, 0.7);
+  border-color: var(--ev-c-accent);
   color: var(--ev-c-text-1);
-  background: rgba(120, 170, 255, 0.12);
+  background: var(--ev-c-accent-soft);
 }
 
 .runtimeTextarea {
@@ -490,6 +522,17 @@ code {
   color: var(--ev-c-text-1);
   padding: 6px 8px;
   font-size: 12px;
+  transition: border-color 0.15s;
+  outline: none;
+}
+
+.runtimeInput:focus {
+  border-color: var(--ev-c-accent);
+}
+
+.runtimeTextarea:focus {
+  border-color: var(--ev-c-accent);
+  outline: none;
 }
 
 .runtimeCode {
@@ -503,72 +546,76 @@ code {
   max-height: 200px;
 }
 
-/* Верхняя панель меню (как на скрине). */
+/* Верхняя панель меню. */
 .topMenuBar {
   height: 30px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 8px;
+  padding: 0 6px;
   background: var(--color-background-soft);
+  border-bottom: 1px solid var(--ev-c-gray-3);
+  -webkit-app-region: drag;
 }
 
 .topMenuBarLeft {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
+  -webkit-app-region: no-drag;
 }
 
+/* Правая часть меню — скрыта (хинты убраны). */
 .topMenuBarRight {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: none;
 }
 
 .topMenuHint {
-  font-size: 12px;
-  color: var(--ev-c-text-3);
+  display: none;
 }
 
 .topMenuBarItem {
   position: relative;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
   font-size: 12px;
-  font-weight: 600;
-  color: var(--ev-c-text-1);
+  font-weight: 500;
+  color: var(--ev-c-text-2);
+  transition: background 0.1s, color 0.1s;
 }
 
 .topMenuBarItem.isActive,
 .topMenuBarItem:hover {
-  background: var(--color-background-mute);
+  background: var(--ev-c-gray-3);
+  color: var(--ev-c-text-1);
 }
 
 .topMenuDropdown {
   position: absolute;
   top: 100%;
   left: 0;
-  margin-top: 4px;
-  min-width: 180px;
+  margin-top: 2px;
+  min-width: 200px;
   background: var(--color-background-soft);
-  border: 1px solid var(--ev-c-gray-3);
+  border: 1px solid var(--ev-c-gray-2);
   border-radius: 8px;
-  padding: 6px;
+  padding: 4px;
   z-index: 9999;
   pointer-events: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 .topMenuDropdownItem {
   display: flex;
   justify-content: space-between;
-  padding: 6px 8px;
-  border-radius: 6px;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 4px;
   cursor: pointer;
+  transition: background 0.1s;
 }
 
 .topMenuDropdownItem:hover {
-  background: var(--color-background-mute);
+  background: var(--ev-c-accent-soft);
 }
 
 .topMenuDropdownLabel {
@@ -577,8 +624,9 @@ code {
 }
 
 .topMenuDropdownShortcut {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--ev-c-text-3);
+  margin-left: 16px;
 }
 
 .logo {
@@ -710,9 +758,314 @@ code {
   }
 }
 
+/* ========== Кастомные ноды React Flow ========== */
+
+/* Контейнер кастомной ноды. */
+.customNode {
+  border: 1.5px solid var(--ev-c-gray-2);
+  border-radius: 8px;
+  background: #141920;
+  font-size: 12px;
+  color: var(--ev-c-text-1);
+  min-width: 140px;
+  max-width: 220px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+/* Заголовок ноды — цветная полоска сверху. */
+.customNodeHeader {
+  padding: 5px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Название типа ноды в заголовке. */
+.customNodeTitle {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Тело ноды: параметры и метка. */
+.customNodeBody {
+  padding: 6px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* Метка внутри ноды (текст/описание). */
+.customNodeLabel {
+  font-size: 11px;
+  color: var(--ev-c-text-2);
+  word-break: break-word;
+}
+
+/* Параметр ноды (одна строка). */
+.customNodeParam {
+  font-size: 11px;
+  color: var(--ev-c-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Кнопка внутри ноды (например, Add Branch для parallel). */
+.customNodeButton {
+  margin-top: 6px;
+  width: 100%;
+  border: 1px solid var(--ev-c-gray-2);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ev-c-text-1);
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.customNodeButton:hover {
+  background: var(--ev-c-accent-soft);
+  border-color: var(--ev-c-accent);
+}
+
+/* Точки соединения (handles). */
+.customHandle {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ev-c-gray-1);
+  border: 2px solid #1a1f28;
+  transition: background 0.12s, transform 0.12s;
+}
+
+.customHandle:hover {
+  background: var(--ev-c-accent);
+  transform: scale(1.25);
+}
+
+/* Зелёная точка для true-выхода (branch). */
+.customHandleTrue {
+  background: var(--ev-c-success);
+}
+
+/* Красная точка для false-выхода (branch). */
+.customHandleFalse {
+  background: var(--ev-c-error);
+}
+
+/* ========== /Кастомные ноды ========== */
+
 @media (max-width: 350px) {
   .tip,
   .actions {
     display: none;
   }
 }
+
+/* ========== React Flow Controls + MiniMap ========== */
+
+/* Кнопки управления холстом (zoom in/out, fit view). */
+.react-flow__controls {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid var(--ev-c-gray-2) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  background: var(--color-background-soft) !important;
+}
+
+.react-flow__controls-button {
+  background: var(--color-background-soft) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--ev-c-gray-3) !important;
+  fill: var(--ev-c-text-2) !important;
+  color: var(--ev-c-text-2) !important;
+  width: 28px !important;
+  height: 28px !important;
+  padding: 5px !important;
+  transition: background 0.12s, fill 0.12s !important;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--ev-c-gray-3) !important;
+  fill: var(--ev-c-text-1) !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
+/* MiniMap стилизация. */
+.react-flow__minimap {
+  background: var(--color-background-soft) !important;
+  border: 1px solid var(--ev-c-gray-2) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Рёбра на холсте. */
+.react-flow__edge-path {
+  stroke: var(--ev-c-gray-1) !important;
+  stroke-width: 2 !important;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--ev-c-accent) !important;
+}
+
+/* ========== /React Flow Controls + MiniMap ========== */
+
+/* ========== Preferences Modal ========== */
+
+/* Затемняющий фон модалки. */
+.prefsOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+/* Тело модалки. */
+.prefsModal {
+  width: 420px;
+  max-height: 80vh;
+  background: var(--color-background-soft);
+  border: 1px solid var(--ev-c-gray-2);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Заголовок модалки. */
+.prefsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--ev-c-gray-3);
+}
+
+.prefsTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ev-c-text-1);
+}
+
+.prefsCloseBtn {
+  background: transparent;
+  border: none;
+  color: var(--ev-c-text-3);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.prefsCloseBtn:hover {
+  background: var(--ev-c-gray-3);
+  color: var(--ev-c-text-1);
+}
+
+/* Тело модалки — контент со скроллом. */
+.prefsBody {
+  padding: 16px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Секция настроек (General, Canvas, Editor). */
+.prefsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prefsSectionTitle {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ev-c-text-3);
+  margin-bottom: 2px;
+}
+
+/* Поле настроек (label + input). */
+.prefsField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--ev-c-text-1);
+  gap: 12px;
+}
+
+.prefsField.prefsCheckbox {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+/* Input/select внутри модалки. */
+.prefsInput {
+  background: var(--color-background);
+  border: 1px solid var(--ev-c-gray-3);
+  border-radius: 6px;
+  color: var(--ev-c-text-1);
+  padding: 5px 8px;
+  font-size: 12px;
+  min-width: 100px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.prefsInput:focus {
+  border-color: var(--ev-c-accent);
+}
+
+.prefsInput:disabled {
+  opacity: 0.5;
+}
+
+.prefsHint {
+  font-size: 11px;
+  color: var(--ev-c-text-3);
+  font-style: italic;
+}
+
+/* ========== /Preferences Modal ========== */
+
+/* ========== Custom Scrollbar ========== */
+
+/* Тонкие тёмные скроллбары для всего приложения. */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ev-c-gray-2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ev-c-gray-1);
+}
+
+/* ========== /Custom Scrollbar ========== */

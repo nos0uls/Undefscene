@@ -23,12 +23,45 @@ export type TopMenuBarProps = {
 
   // Переключение видимости панели.
   togglePanel: (panelId: string) => void
+
+  // Открытие GameMaker проекта (.yyp).
+  onOpenProject: () => void
+
+  // Экспорт катсцены в JSON для движка.
+  onExport: () => void
+
+  // Операции с файлом сцены.
+  onNew: () => void
+  onOpenScene: () => void
+  onSave: () => void
+  onSaveAs: () => void
+
+  // Edit.
+  onUndo: () => void
+  onRedo: () => void
+
+  // View.
+  onResetLayout: () => void
+  onToggleLogs: () => void
+
+  // Help.
+  onAbout: () => void
+
+  // Выход.
+  onExit: () => void
+
+  // Настройки.
+  onPreferences: () => void
 }
 
 // Верхняя панель меню, как в классических desktop IDE.
 // Меню раскрывается по наведению мыши (hover).
 export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
-  const { panels, isPanelVisible, togglePanel } = props
+  const {
+    panels, isPanelVisible, togglePanel,
+    onOpenProject, onExport, onNew, onOpenScene, onSave, onSaveAs,
+    onUndo, onRedo, onResetLayout, onToggleLogs, onAbout, onExit, onPreferences
+  } = props
 
   // Ссылка на весь top bar.
   // Нужна, чтобы мы могли определить "кликнули снаружи" или нет.
@@ -53,33 +86,39 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
         id: 'file',
         label: 'File',
         entries: [
-          { id: 'openProject', label: 'Open Project...', shortcut: 'Ctrl+O' },
-          { id: 'save', label: 'Save', shortcut: 'Ctrl+S' },
-          { id: 'saveAs', label: 'Save As...' },
-          { id: 'exit', label: 'Exit' }
+          { id: 'new', label: 'New Scene', shortcut: 'Ctrl+N', onSelect: onNew },
+          { id: 'openScene', label: 'Open Scene...', onSelect: onOpenScene },
+          // Открываем .yyp и подгружаем ресурсы.
+          { id: 'openProject', label: 'Open Project (.yyp)...', shortcut: 'Ctrl+O', onSelect: onOpenProject },
+          { id: 'save', label: 'Save', shortcut: 'Ctrl+S', onSelect: onSave },
+          { id: 'saveAs', label: 'Save As...', onSelect: onSaveAs },
+          // Экспорт графа в JSON для движка.
+          { id: 'export', label: 'Export to Game...', shortcut: 'Ctrl+E', onSelect: onExport },
+          { id: 'preferences', label: 'Preferences...', onSelect: onPreferences },
+          { id: 'exit', label: 'Exit', onSelect: onExit }
         ]
       },
       {
         id: 'edit',
         label: 'Edit',
         entries: [
-          { id: 'undo', label: 'Undo', shortcut: 'Ctrl+Z' },
-          { id: 'redo', label: 'Redo', shortcut: 'Ctrl+Y' }
+          { id: 'undo', label: 'Undo', shortcut: 'Ctrl+Z', onSelect: onUndo },
+          { id: 'redo', label: 'Redo', shortcut: 'Ctrl+Y', onSelect: onRedo }
         ]
       },
       {
         id: 'view',
         label: 'View',
         entries: [
-          { id: 'resetLayout', label: 'Reset Layout' },
-          { id: 'toggleLogs', label: 'Toggle Logs' }
+          { id: 'resetLayout', label: 'Reset Layout', onSelect: onResetLayout },
+          { id: 'toggleLogs', label: 'Toggle Logs', onSelect: onToggleLogs }
         ]
       },
       panelsMenu,
       {
         id: 'help',
         label: 'Help',
-        entries: [{ id: 'about', label: 'About' }]
+        entries: [{ id: 'about', label: 'About', onSelect: onAbout }]
       }
     ]
   }, [isPanelVisible, panels, togglePanel])

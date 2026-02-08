@@ -23,8 +23,7 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
-    "@xyflow/react": "^12.10.0",
-    "reactflow": "^11.11.4"
+    "@xyflow/react": "^12.10.0"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

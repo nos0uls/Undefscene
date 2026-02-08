@@ -47,14 +47,53 @@ export type RuntimeNode = {
   id: string
   type: string
   text?: string
+  // Позиция ноды на холсте.
+  position?: { x: number; y: number }
+  // Параметры ноды (seconds, target, x, y и т.д.).
+  params?: Record<string, unknown>
+}
+
+// Связь между двумя нодами на холсте.
+export type RuntimeEdge = {
+  id: string
+  source: string
+  // ID handle на source (нужно для multi-выходов: branch/parallel).
+  sourceHandle?: string
+  target: string
+  // ID handle на target (нужно для multi-входов: parallel join).
+  targetHandle?: string
+  // Пауза на линии (в секундах). Это заменяет отдельную wait-ноду.
+  waitSeconds?: number
 }
 
 export interface RuntimeState {
   schemaVersion: 1
   title: string
   nodes: RuntimeNode[]
+  edges: RuntimeEdge[]
   selectedNodeId: string | null
+  selectedEdgeId: string | null
   lastSavedAtMs: number
+}
+
+// Ресурсы из .yyp (для autocomplete и проверки).
+export type ProjectResources = {
+  yypPath: string
+  projectDir: string
+  sprites: string[]
+  objects: string[]
+  sounds: string[]
+  rooms: string[]
+}
+
+// Настройки движка катсцен (из cutscene_engine_settings.json).
+export type EngineSettings = {
+  found: boolean
+  defaultFps: number
+  strictMode: boolean
+  defaultActorObject: string
+  branchConditions: string[]
+  runFunctions: string[]
 }
 
 // API, которое мы отдаём в renderer через preload.
@@ -72,6 +111,36 @@ export interface RendererApi {
 
     // Сохраняет runtime.json.
     write: (next: RuntimeState) => Promise<void>
+  }
+
+  // Работа с GameMaker проектом (.yyp).
+  project: {
+    // Открывает .yyp и возвращает список ресурсов.
+    open: () => Promise<ProjectResources | null>
+  }
+
+  // Операции с файлом сцены (Open, Save, Save As).
+  scene: {
+    save: (filePath: string, jsonString: string) => Promise<{ saved: boolean; filePath: string }>
+    saveAs: (jsonString: string) => Promise<{ saved: boolean; filePath?: string }>
+    open: () => Promise<{ filePath: string; content: string } | null>
+  }
+
+  // Чтение настроек движка (whitelists) из datafiles/ проекта.
+  settings: {
+    readEngine: (projectDir: string) => Promise<EngineSettings>
+  }
+
+  // Экспорт катсцены в JSON-файл для движка.
+  export: {
+    save: (jsonString: string) => Promise<{ saved: boolean; filePath?: string }>
+  }
+
+  // Preview v2 (сейчас отключён). Оставляем API-заглушку, чтобы сборка не падала.
+  preview: {
+    getPaths: () => Promise<unknown>
+    readStatus: () => Promise<unknown>
+    writeControl: (control: unknown) => Promise<unknown>
   }
 }
 

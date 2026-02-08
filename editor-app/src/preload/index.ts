@@ -18,6 +18,32 @@ const api = {
 
     // Пишем runtime.json атомарно (main сделает temp → rename).
     write: (next: unknown): Promise<unknown> => ipcRenderer.invoke('runtime.write', next)
+  },
+  // Работа с GameMaker проектом (.yyp).
+  project: {
+    // Открываем .yyp через main процесс.
+    open: (): Promise<unknown> => ipcRenderer.invoke('project.open')
+  },
+  // Операции с файлом сцены (New, Open, Save, Save As).
+  scene: {
+    save: (filePath: string, jsonString: string): Promise<unknown> => ipcRenderer.invoke('scene.save', filePath, jsonString),
+    saveAs: (jsonString: string): Promise<unknown> => ipcRenderer.invoke('scene.saveAs', jsonString),
+    open: (): Promise<unknown> => ipcRenderer.invoke('scene.open')
+  },
+  // Чтение настроек движка (whitelists и т.д.) из datafiles/ проекта.
+  settings: {
+    readEngine: (projectDir: string): Promise<unknown> => ipcRenderer.invoke('settings.readEngine', projectDir)
+  },
+  // Экспорт катсцены в JSON-файл для движка.
+  export: {
+    save: (jsonString: string): Promise<unknown> => ipcRenderer.invoke('export.save', jsonString)
+  },
+  // Preview v2 сейчас отключён.
+  // Возвращаем понятную ошибку, чтобы случайный вызов не ломал приложение.
+  preview: {
+    getPaths: (): Promise<unknown> => Promise.reject(new Error('Preview disabled')),
+    readStatus: (): Promise<unknown> => Promise.reject(new Error('Preview disabled')),
+    writeControl: (_control: unknown): Promise<unknown> => Promise.reject(new Error('Preview disabled'))
   }
 }
 

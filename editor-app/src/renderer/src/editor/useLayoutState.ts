@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { LayoutState } from './layoutTypes'
 
 // Создаём дефолтную раскладку, чтобы редактор всегда стартовал одинаково.
-function createDefaultLayout(): LayoutState {
+export function createDefaultLayout(): LayoutState {
   return {
     schemaVersion: 1,
     dockSizes: {

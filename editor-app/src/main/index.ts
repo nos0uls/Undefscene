@@ -1,12 +1,62 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { readFile, writeFile, rename, unlink } from 'fs/promises'
-import { join } from 'path'
+import { join, dirname } from 'path'
 import icon from '../../resources/icon.png?asset'
 
 // Simple dev/prod flag.
 // We avoid @electron-toolkit/utils here because it can resolve `electron` incorrectly
 // in some dev setups and crash before the app starts.
 const isDev = !app.isPackaged
+
+// Парсим .yyp и собираем базовые списки ресурсов.
+// Это нужно для autocomplete и валидации в инспекторе.
+async function parseYypResources(yypPath: string) {
+  const projectDir = dirname(yypPath)
+  const raw = await readFile(yypPath, 'utf-8')
+  // GameMaker .yyp использует нестандартный JSON с trailing commas.
+  // Убираем их, чтобы JSON.parse() не падал.
+  const cleaned = raw.replace(/,\s*([\]}])/g, '$1')
+  const data = JSON.parse(cleaned) as { resources?: Array<{ id?: { name?: string; path?: string } }> }
+
+  const sprites = new Set<string>()
+  const objects = new Set<string>()
+  const sounds = new Set<string>()
+  const rooms = new Set<string>()
+
+  // Пробегаемся по ресурсам .yyp и читаем их .yy файлы.
+  for (const res of data.resources ?? []) {
+    const resPath = res?.id?.path
+    if (!resPath) continue
+
+    const fullPath = join(projectDir, resPath)
+    try {
+      const resRaw = await readFile(fullPath, 'utf-8')
+      // .yy файлы тоже содержат trailing commas.
+      const resClean = resRaw.replace(/,\s*([\]}])/g, '$1')
+      const resData = JSON.parse(resClean) as { name?: string; resourceType?: string; modelName?: string }
+      const resType = resData.resourceType ?? resData.modelName
+      const resName = resData.name ?? res.id?.name
+      if (!resType || !resName) continue
+
+      if (resType === 'GMSprite') sprites.add(resName)
+      if (resType === 'GMObject') objects.add(resName)
+      if (resType === 'GMSound') sounds.add(resName)
+      if (resType === 'GMRoom') rooms.add(resName)
+    } catch (err) {
+      // Пропускаем битые/удалённые ресурсы, чтобы не падать.
+      continue
+    }
+  }
+
+  return {
+    yypPath,
+    projectDir,
+    sprites: [...sprites].sort(),
+    objects: [...objects].sort(),
+    sounds: [...sounds].sort(),
+    rooms: [...rooms].sort()
+  }
+}
 
 // In some Windows setups, `localhost` may resolve to IPv6 (::1) first.
 // Vite might only be listening on IPv4, which can cause ERR_CONNECTION_REFUSED.
@@ -29,6 +79,25 @@ function createWindow(): void {
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
+    }
+  })
+
+  // --- IPC: GameMaker project (.yyp) ---
+  ipcMain.handle('project.open', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Open GameMaker Project',
+      properties: ['openFile'],
+      filters: [{ name: 'GameMaker Project', extensions: ['yyp'] }]
+    })
+
+    if (result.canceled || result.filePaths.length === 0) return null
+
+    const yypPath = result.filePaths[0]
+    try {
+      return await parseYypResources(yypPath)
+    } catch (err) {
+      console.warn('Failed to parse .yyp:', err)
+      return null
     }
   })
 
@@ -178,6 +247,76 @@ app.whenReady().then(() => {
       }
       throw err
     }
+  })
+
+  // IPC: Чтение cutscene_engine_settings.json из datafiles/ проекта.
+  // Возвращает whitelists для branch conditions и run functions.
+  ipcMain.handle('settings.readEngine', async (_event, projectDir: string) => {
+    const settingsPath = join(projectDir, 'datafiles', 'cutscene_engine_settings.json')
+    try {
+      const raw = await readFile(settingsPath, 'utf-8')
+      const data = JSON.parse(raw) as Record<string, unknown>
+      return {
+        found: true,
+        defaultFps: typeof data.default_fps === 'number' ? data.default_fps : 30,
+        strictMode: typeof data.strict_mode_default === 'boolean' ? data.strict_mode_default : false,
+        defaultActorObject: typeof data.default_actor_object === 'string' ? data.default_actor_object : '',
+        branchConditions: Array.isArray((data.whitelist as any)?.branch_conditions)
+          ? (data.whitelist as any).branch_conditions as string[]
+          : [],
+        runFunctions: Array.isArray((data.whitelist as any)?.run_functions)
+          ? (data.whitelist as any).run_functions as string[]
+          : []
+      }
+    } catch {
+      // Файл не найден — это нормально, просто возвращаем пустые списки.
+      return { found: false, defaultFps: 30, strictMode: false, defaultActorObject: '', branchConditions: [], runFunctions: [] }
+    }
+  })
+
+  // IPC: Экспорт катсцены в JSON-файл для движка.
+  ipcMain.handle('export.save', async (_event, jsonString: string) => {
+    const result = await dialog.showSaveDialog({
+      title: 'Export Cutscene',
+      defaultPath: 'cutscene.json',
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    })
+
+    if (result.canceled || !result.filePath) return { saved: false }
+
+    await writeFile(result.filePath, jsonString, 'utf-8')
+    return { saved: true, filePath: result.filePath }
+  })
+
+  // IPC: Сохранить сцену как... (Save As — показываем диалог выбора файла).
+  ipcMain.handle('scene.saveAs', async (_event, jsonString: string) => {
+    const result = await dialog.showSaveDialog({
+      title: 'Save Scene As',
+      defaultPath: 'scene.usc.json',
+      filters: [{ name: 'Undefscene', extensions: ['usc.json', 'json'] }]
+    })
+    if (result.canceled || !result.filePath) return { saved: false }
+    await writeFile(result.filePath, jsonString, 'utf-8')
+    return { saved: true, filePath: result.filePath }
+  })
+
+  // IPC: Сохранить сцену в известный путь (без диалога).
+  ipcMain.handle('scene.save', async (_event, filePath: string, jsonString: string) => {
+    await writeFile(filePath, jsonString, 'utf-8')
+    return { saved: true, filePath }
+  })
+
+  // IPC: Открыть файл сцены (.usc.json / .json).
+  ipcMain.handle('scene.open', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Open Scene',
+      filters: [{ name: 'Undefscene', extensions: ['usc.json', 'json'] }],
+      properties: ['openFile']
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    const filePath = result.filePaths[0]
+    const raw = await readFile(filePath, 'utf-8')
+    return { filePath, content: raw }
   })
 
   // IPC test
