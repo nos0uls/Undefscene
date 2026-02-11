@@ -12,6 +12,7 @@ import { compileGraph, stripExport } from './compileGraph'
 import { validateGraph, type ValidationResult } from './validateGraph'
 import { PreferencesModal } from './PreferencesModal'
 import { SearchableSelect } from './SearchableSelect'
+import { UpdateNotification } from './UpdateNotification'
 
 type DragState = {
   // Какая панель сейчас перетаскивается.
@@ -2565,6 +2566,9 @@ export function EditorShell(): React.JSX.Element {
         } as CSSProperties
       }
     >
+      {/* Уведомление об обновлении (показывается только когда есть новая версия). */}
+      <UpdateNotification />
+
       <header className="editorTopBar">
         <TopMenuBar
           panels={allPanels}
@@ -2585,6 +2589,11 @@ export function EditorShell(): React.JSX.Element {
             })
           }}
           onToggleLogs={() => togglePanel('panel.logs')}
+          onCheckUpdates={() => {
+            window.api.updater.check().then((version) => {
+              if (!version) alert('No updates available.')
+            })
+          }}
           onAbout={() => alert('Undefscene Editor v1.0\nCutscene node editor for GameMaker.')}
           onExit={() => window.close()}
           onPreferences={() => setPreferencesOpen(true)}

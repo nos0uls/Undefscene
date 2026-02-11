@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { readFile, writeFile, rename, unlink, readdir } from 'fs/promises'
 import { join, dirname, basename } from 'path'
 import icon from '../../resources/icon.png?asset'
+import { initAutoUpdater } from './updater'
 
 // Simple dev/prod flag.
 // We avoid @electron-toolkit/utils here because it can resolve `electron` incorrectly
@@ -143,6 +144,13 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+
+    // Автообновление запускаем только в production.
+    if (!isDev) {
+      // Portable сборка устанавливает эту env-переменную.
+      const isPortable = !!process.env.PORTABLE_EXECUTABLE_DIR
+      initAutoUpdater(mainWindow, isPortable)
+    }
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {

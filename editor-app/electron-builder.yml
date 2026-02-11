@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: editor-app
+appId: com.undefscene.editor
+productName: Undefscene Editor
 directories:
   buildResources: build
 files:
@@ -11,33 +11,54 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+
+# --- Windows ---
 win:
-  executableName: editor-app
+  executableName: UndefsceneEditor
+  icon: build/icon.ico
+  # Не требуем подпись кода (для unsigned dev-билдов).
+  signAndEditExecutable: false
+  forceCodeSigning: false
+  target:
+    - nsis
+    - portable
+
+# NSIS installer — стандартная установка с ярлыками.
 nsis:
-  artifactName: ${name}-${version}-setup.${ext}
-  shortcutName: ${productName}
-  uninstallDisplayName: ${productName}
+  artifactName: UndefsceneEditor-${version}-setup.${ext}
+  shortcutName: Undefscene Editor
+  uninstallDisplayName: Undefscene Editor
   createDesktopShortcut: always
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+# Portable — один .exe без установки.
+portable:
+  artifactName: UndefsceneEditor-${version}-portable.${ext}
+
+# --- macOS ---
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
 dmg:
-  artifactName: ${name}-${version}.${ext}
+  artifactName: UndefsceneEditor-${version}.${ext}
+
+# --- Linux ---
 linux:
   target:
     - AppImage
-    - snap
-    - deb
-  maintainer: electronjs.org
-  category: Utility
+  maintainer: nos0uls
+  category: Development
 appImage:
-  artifactName: ${name}-${version}.${ext}
+  artifactName: UndefsceneEditor-${version}.${ext}
+
 npmRebuild: false
+
+# Auto-update через GitHub Releases.
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  owner: nos0uls
+  repo: Undefscene

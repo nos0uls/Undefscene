@@ -1,10 +1,10 @@
 {
-  "name": "editor-app",
+  "name": "undefscene-editor",
   "version": "1.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "description": "Cutscene editor for Undefinedtale — visual node-based graph editor",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "nos0uls",
+  "homepage": "https://github.com/nos0uls/Undefscene",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
@@ -23,7 +23,8 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
-    "@xyflow/react": "^12.10.0"
+    "@xyflow/react": "^12.10.0",
+    "electron-updater": "^6.7.3"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

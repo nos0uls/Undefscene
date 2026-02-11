@@ -42,6 +42,27 @@ const api = {
   export: {
     save: (jsonString: string): Promise<unknown> => ipcRenderer.invoke('export.save', jsonString)
   },
+  // Автообновление: проверка, установка, подписка на события.
+  updater: {
+    check: (): Promise<unknown> => ipcRenderer.invoke('updater:check'),
+    install: (): Promise<unknown> => ipcRenderer.invoke('updater:install'),
+    // Подписка на события обновления от main процесса.
+    onUpdateAvailable: (cb: (info: { version: string; releaseNotes: string }) => void) => {
+      ipcRenderer.on('updater:update-available', (_e, info) => cb(info))
+    },
+    onUpdateNotAvailable: (cb: () => void) => {
+      ipcRenderer.on('updater:update-not-available', () => cb())
+    },
+    onDownloadProgress: (cb: (progress: { percent: number }) => void) => {
+      ipcRenderer.on('updater:download-progress', (_e, progress) => cb(progress))
+    },
+    onUpdateDownloaded: (cb: () => void) => {
+      ipcRenderer.on('updater:update-downloaded', () => cb())
+    },
+    onError: (cb: (msg: string) => void) => {
+      ipcRenderer.on('updater:error', (_e, msg) => cb(msg))
+    }
+  },
   // Preview v2 сейчас отключён.
   // Возвращаем понятную ошибку, чтобы случайный вызов не ломал приложение.
   preview: {

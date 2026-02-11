@@ -147,6 +147,17 @@ export interface RendererApi {
     save: (jsonString: string) => Promise<{ saved: boolean; filePath?: string }>
   }
 
+  // Автообновление: проверка, установка, подписка на события.
+  updater: {
+    check: () => Promise<string | null>
+    install: () => Promise<void>
+    onUpdateAvailable: (cb: (info: { version: string; releaseNotes: string }) => void) => void
+    onUpdateNotAvailable: (cb: () => void) => void
+    onDownloadProgress: (cb: (progress: { percent: number }) => void) => void
+    onUpdateDownloaded: (cb: () => void) => void
+    onError: (cb: (msg: string) => void) => void
+  }
+
   // Preview v2 (сейчас отключён). Оставляем API-заглушку, чтобы сборка не падала.
   preview: {
     getPaths: () => Promise<unknown>

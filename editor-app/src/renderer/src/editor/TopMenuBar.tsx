@@ -46,6 +46,7 @@ export type TopMenuBarProps = {
 
   // Help.
   onAbout: () => void
+  onCheckUpdates?: () => void
 
   // Выход.
   onExit: () => void
@@ -60,7 +61,7 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
   const {
     panels, isPanelVisible, togglePanel,
     onOpenProject, onExport, onNew, onOpenScene, onSave, onSaveAs,
-    onUndo, onRedo, onResetLayout, onToggleLogs, onAbout, onExit, onPreferences
+    onUndo, onRedo, onResetLayout, onToggleLogs, onAbout, onCheckUpdates, onExit, onPreferences
   } = props
 
   // Ссылка на весь top bar.
@@ -118,7 +119,10 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
       {
         id: 'help',
         label: 'Help',
-        entries: [{ id: 'about', label: 'About', onSelect: onAbout }]
+        entries: [
+          { id: 'checkUpdates', label: 'Check for Updates...', onSelect: onCheckUpdates },
+          { id: 'about', label: 'About', onSelect: onAbout }
+        ]
       }
     ]
   }, [isPanelVisible, panels, togglePanel])
