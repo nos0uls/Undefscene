@@ -86,6 +86,12 @@ export type ProjectResources = {
   rooms: string[]
 }
 
+// Информация о .yarn файле: имя файла и список нод внутри.
+export type YarnFileInfo = {
+  file: string
+  nodes: string[]
+}
+
 // Настройки движка катсцен (из cutscene_engine_settings.json).
 export type EngineSettings = {
   found: boolean
@@ -129,6 +135,11 @@ export interface RendererApi {
   // Чтение настроек движка (whitelists) из datafiles/ проекта.
   settings: {
     readEngine: (projectDir: string) => Promise<EngineSettings>
+  }
+
+  // Сканирование .yarn файлов в datafiles/ проекта.
+  yarn: {
+    scan: (projectDir: string) => Promise<YarnFileInfo[]>
   }
 
   // Экспорт катсцены в JSON-файл для движка.

@@ -59,6 +59,57 @@ export function compileGraph(state: RuntimeState): CompileResult {
   // Множество посещённых нод — защита от бесконечных циклов.
   const visited = new Set<string>()
 
+  // Создаём action-обёртку, которая запускает вложенные actions только если условие true.
+  // Сейчас условие читаем ТОЛЬКО из global переменных.
+  // Поддерживаем два режима: skip (пропустить) и wait_until_true (ждать).
+  function wrapWithEdgeCondition(edge: RuntimeEdge, inner: CompiledAction[]): CompiledAction[] {
+    if (!edge.conditionEnabled) return inner
+
+    const rawVar = String(edge.conditionVar ?? '').trim()
+    const equals = String(edge.conditionEquals ?? '')
+
+    if (!rawVar) return inner
+
+    // Убираем "global." если пользователь случайно вставил.
+    const varName = rawVar.startsWith('global.') ? rawVar.slice('global.'.length) : rawVar
+
+    const ifFalse = edge.conditionIfFalse ?? 'skip'
+
+    const guard: CompiledAction = {
+      type: 'guard_global',
+      var: varName,
+      equals,
+      if_false: ifFalse,
+      actions: inner
+    }
+
+    // Если wait_until_true — добавляем поля end-condition.
+    if (ifFalse === 'wait_until_true') {
+      const stopWhen = edge.stopWaitingWhen ?? 'none'
+      guard.stop_when = stopWhen
+
+      if (stopWhen === 'global_var') {
+        const endVar = String(edge.endConditionVar ?? '').trim()
+        const endVarClean = endVar.startsWith('global.') ? endVar.slice('global.'.length) : endVar
+        if (endVarClean) {
+          guard.end_var = endVarClean
+          guard.end_equals = String(edge.endConditionEquals ?? '')
+        }
+      } else if (stopWhen === 'node_reached') {
+        const nodeName = String(edge.endNodeName ?? '').trim()
+        if (nodeName) {
+          guard.end_node = nodeName
+        }
+      } else if (stopWhen === 'timeout') {
+        if (typeof edge.endTimeoutSeconds === 'number' && edge.endTimeoutSeconds > 0) {
+          guard.end_timeout = edge.endTimeoutSeconds
+        }
+      }
+    }
+
+    return [guard]
+  }
+
   // Рекурсивный обход: собираем actions начиная с nodeId.
   function walkFrom(nodeId: string): CompileResult {
     // Защита от циклов.
@@ -73,6 +124,16 @@ export function compileGraph(state: RuntimeState): CompileResult {
     }
 
     const actions: CompiledAction[] = []
+
+    // Служебный action: говорим движку, что мы "дошли" до этой ноды.
+    // Это нужно для stop_when = "node_reached".
+    // Важно: используем именно node.name, потому что в UI end-node выбирается по имени.
+    if (node.type !== 'parallel_join') {
+      const nodeName = String(node.name ?? '').trim()
+      if (nodeName) {
+        actions.push({ type: 'mark_node', name: nodeName })
+      }
+    }
 
     // start и end не генерируют действий — это маркеры графа.
     if (node.type === 'start' || node.type === 'end') {
@@ -147,7 +208,11 @@ export function compileGraph(state: RuntimeState): CompileResult {
 
       // Если на ребре есть waitSeconds — добавляем wait-действие.
       if (typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0) {
-        actions.push({ type: 'wait', seconds: edge.waitSeconds })
+        const waitAction: CompiledAction = { type: 'wait', seconds: edge.waitSeconds }
+
+        // Условие на ребре влияет только на wait-таймер.
+        // То есть: если condition false, мы просто пропускаем ожидание, но переход всё равно происходит.
+        actions.push(...wrapWithEdgeCondition(edge, [waitAction]))
       }
 
       const next = walkFrom(edge.target)
@@ -173,35 +238,66 @@ export function compileGraph(state: RuntimeState): CompileResult {
       (e) => e.sourceHandle !== '__pair' && e.targetHandle !== '__pair'
     )
 
-    const branchActions: CompiledAction[][] = []
+    // Важно: после обновления движка, ветка parallel может быть:
+    // - одним action-объектом
+    // - или sequence: массив action-объектов
+    // Поэтому `actions` — это список, где каждый элемент = ветка.
+    const parallelBranches: Array<CompiledAction | CompiledAction[]> = []
 
     for (const branchId of branches) {
-      // Ищем ребро с sourceHandle, совпадающим с branchId.
-      const edge = outs.find((e) => e.sourceHandle === branchId)
+      // В UI handles для parallel рисуются как `out_${branchId}` и `in_${branchId}`.
+      const expectedSourceHandle = `out_${branchId}`
+
+      // Ищем ребро с sourceHandle, совпадающим с нужной веткой.
+      const edge = outs.find((e) => e.sourceHandle === expectedSourceHandle)
       if (!edge) {
-        // Пустая ветка — допустимо.
-        branchActions.push([])
+        // Пустая ветка — допустимо, просто ничего не добавляем.
         continue
       }
 
-      const actions: CompiledAction[] = []
-
-      // wait на ребре.
-      if (typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0) {
-        actions.push({ type: 'wait', seconds: edge.waitSeconds })
-      }
-
-      // Обходим ветку до parallel_join.
+      // Обходим ветку до parallel_join и получаем список действий.
       const branchResult = walkBranchUntil(edge.target, joinId)
       if (!branchResult.ok) return branchResult
-      actions.push(...branchResult.actions)
 
-      branchActions.push(actions)
+      // Собираем sequence для этой ветки.
+      // Если на ребре есть waitSeconds — делаем wait первым действием в sequence.
+      const seq: CompiledAction[] = []
+      if (typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0) {
+        const waitAction: CompiledAction = { type: 'wait', seconds: edge.waitSeconds }
+        // Условие на ребре влияет только на wait (если wait есть).
+        seq.push(...wrapWithEdgeCondition(edge, [waitAction]))
+      }
+
+      seq.push(...branchResult.actions)
+
+      // Если waitSeconds НЕТ, но condition включён — значит мы "гейтим" всю ветку.
+      // То есть: ветка просто не запускается, если condition false.
+      const shouldGateWholeBranch =
+        edge.conditionEnabled && !(typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0)
+
+      // Если в ветке ничего нет (ни wait, ни действий) — пропускаем.
+      if (seq.length === 0) {
+        continue
+      }
+
+      if (shouldGateWholeBranch) {
+        parallelBranches.push(...wrapWithEdgeCondition(edge, seq))
+        continue
+      }
+
+      // Если sequence из 1 элемента — можно хранить как один объект.
+      // Если элементов больше — это sequence-массив.
+      if (seq.length === 1) {
+        parallelBranches.push(seq[0])
+      } else {
+        parallelBranches.push(seq)
+      }
     }
 
     const parallelAction: CompiledAction = {
       type: 'parallel',
-      branches: branchActions
+      // Ключ `actions` соответствует `cutscene_load_json.gml`.
+      actions: parallelBranches
     }
 
     return { ok: true, actions: [parallelAction] }
@@ -225,6 +321,15 @@ export function compileGraph(state: RuntimeState): CompileResult {
 
     const actions: CompiledAction[] = []
 
+    // Служебный action: отмечаем достижение ноды.
+    // В parallel ветках walkFrom не вызывается, поэтому дублируем логику здесь.
+    if (node.type !== 'parallel_join') {
+      const nodeName = String(node.name ?? '').trim()
+      if (nodeName) {
+        actions.push({ type: 'mark_node', name: nodeName })
+      }
+    }
+
     if (node.type !== 'start' && node.type !== 'end' && node.type !== 'parallel_join') {
       actions.push(nodeToAction(node))
     }
@@ -234,15 +339,29 @@ export function compileGraph(state: RuntimeState): CompileResult {
       (e) => e.sourceHandle !== '__pair' && e.targetHandle !== '__pair'
     )
 
-    if (outs.length === 1) {
-      const edge = outs[0]
-      if (typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0) {
-        actions.push({ type: 'wait', seconds: edge.waitSeconds })
+    // Ветку parallel мы считаем “линейной”: в ней нельзя ветвиться.
+    // И главное: ветка ДОЛЖНА дойти до join, иначе parallel не сможет корректно завершиться.
+    if (outs.length === 0) {
+      return {
+        ok: false,
+        error: `Parallel branch reached dead-end at node "${nodeId}" before join "${stopNodeId}".`
       }
-      const next = walkBranchUntil(edge.target, stopNodeId)
-      if (!next.ok) return next
-      actions.push(...next.actions)
     }
+
+    if (outs.length > 1) {
+      return {
+        ok: false,
+        error: `Parallel branch has a split at node "${nodeId}" (${outs.length} outgoing edges). Branches must be linear.`
+      }
+    }
+
+    const edge = outs[0]
+    if (typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0) {
+      actions.push({ type: 'wait', seconds: edge.waitSeconds })
+    }
+    const next = walkBranchUntil(edge.target, stopNodeId)
+    if (!next.ok) return next
+    actions.push(...next.actions)
 
     return { ok: true, actions }
   }
@@ -294,11 +413,48 @@ export function compileGraph(state: RuntimeState): CompileResult {
   function nodeToAction(node: RuntimeNode): CompiledAction {
     const action: CompiledAction = { type: node.type }
 
+    // Спец-логика для run_function.
+    // В движке ключ называется `function`, а в редакторе раньше использовался `function_name`.
+    // Также `args` в UI хранится как строка JSON, а движок ждёт JSON-массив.
+    if (node.type === 'run_function') {
+      const fn =
+        (typeof node.params?.function_name === 'string' && node.params.function_name) ||
+        (typeof node.params?.function === 'string' && node.params.function) ||
+        ''
+
+      if (fn) action.function = fn
+
+      const rawArgs = node.params?.args
+
+      if (Array.isArray(rawArgs)) {
+        action.args = rawArgs
+      } else if (typeof rawArgs === 'string') {
+        const trimmed = rawArgs.trim()
+        if (trimmed.length > 0) {
+          try {
+            const parsed = JSON.parse(trimmed) as unknown
+            if (Array.isArray(parsed)) {
+              action.args = parsed
+            } else {
+              // Если пользователь ввёл не массив — оборачиваем в массив, чтобы движку было проще.
+              action.args = [parsed]
+            }
+          } catch {
+            // Если JSON битый — просто не добавляем args (валидация это подсветит отдельно).
+          }
+        }
+      }
+
+      return action
+    }
+
     // Копируем все параметры ноды (кроме editor-only полей).
     if (node.params) {
       for (const [key, value] of Object.entries(node.params)) {
         // Пропускаем editor-only поля (branches, joinId, pairId).
         if (['branches', 'joinId', 'pairId'].includes(key)) continue
+        // Эти поля мы уже обработали выше.
+        if (node.type === 'run_function' && ['function_name', 'function', 'args'].includes(key)) continue
         if (value !== undefined && value !== null && value !== '') {
           action[key] = value
         }

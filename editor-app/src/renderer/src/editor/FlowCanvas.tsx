@@ -30,11 +30,15 @@ type FlowCanvasProps = {
   // ID выбранного узла (для подсветки и инспектора).
   selectedNodeId: string | null
 
+  // ID выбранных нод (мультивыделение).
+  selectedNodeIds: string[]
+
   // ID выбранной связи.
   selectedEdgeId: string | null
 
-  // Коллбек, когда пользователь выбирает узел.
-  onSelectNode: (nodeId: string | null) => void
+  // Коллбек, когда пользователь выбирает одну или несколько нод.
+  // Пустой массив = снять выделение.
+  onSelectNodes: (nodeIds: string[]) => void
 
   // Коллбек, когда пользователь выбирает связь.
   onSelectEdge: (edgeId: string | null) => void
@@ -54,11 +58,14 @@ type FlowCanvasProps = {
   // Коллбек: удалить ноду и все её связи (ПКМ по ноде).
   onNodeDelete: (nodeId: string) => void
 
-  // Коллбек: создать новую ноду в указанной позиции (ЛКМ по холсту).
+  // Коллбек: создать новую ноду в указанной позиции (MMB по холсту).
   onPaneClickCreate: (x: number, y: number) => void
 
   // Коллбек: удалить связь (ПКМ по связи).
   onEdgeDelete: (edgeId: string) => void
+
+  // Коллбек: двойной клик по ребру — выбрать и сфокусировать wait input.
+  onEdgeDoubleClick?: (edgeId: string) => void
 }
 
 // Внутренний компонент холста (нужен useReactFlow, который работает только внутри ReactFlowProvider).
@@ -66,8 +73,9 @@ const FlowCanvasInner = ({
   runtimeNodes,
   runtimeEdges,
   selectedNodeId,
+  selectedNodeIds,
   selectedEdgeId,
-  onSelectNode,
+  onSelectNodes,
   onSelectEdge,
   onNodePositionChange,
   onEdgeAdd,
@@ -75,7 +83,8 @@ const FlowCanvasInner = ({
   onParallelAddBranch,
   onNodeDelete,
   onPaneClickCreate,
-  onEdgeDelete
+  onEdgeDelete,
+  onEdgeDoubleClick
 }: FlowCanvasProps): React.JSX.Element => {
   // Нужен для конвертации экранных координат в координаты холста.
   const { screenToFlowPosition } = useReactFlow()
@@ -96,15 +105,16 @@ const FlowCanvasInner = ({
       sourcePosition: Position.Right,
       data: {
         // Метка для отображения в ноде.
-        label: node.text && node.text.length > 0 ? node.text : node.type,
+        label: node.name && node.name.length > 0 ? node.name : node.type,
         // Параметры ноды (для кастомных компонентов).
         params: node.params ?? {},
         // Коллбек для parallel — не сохраняем в runtime.json, это чисто UI.
         onAddParallelBranch: onParallelAddBranch
       },
-      selected: node.id === selectedNodeId
+      // Поддерживаем и single-select, и multi-select.
+      selected: node.id === selectedNodeId || selectedNodeIds.includes(node.id)
     }))
-  }, [runtimeNodes, selectedNodeId, onParallelAddBranch])
+  }, [runtimeNodes, selectedNodeId, selectedNodeIds, onParallelAddBranch])
 
   // Строим связи React Flow из runtime-данных.
   const initialEdges = useMemo<Edge[]>(() => {
@@ -214,16 +224,42 @@ const FlowCanvasInner = ({
   // ПКМ по холсту — React Flow сам панорамирует (panOnDrag={[2]).
   const handlePaneClick = useCallback(
     (event: React.MouseEvent) => {
-      // Только ЛКМ (button === 0) создаёт ноду.
-      if (event.button !== 0) return
-
       // Если только что создали связь — игнорируем этот клик и сбрасываем флаг.
       if (justConnectedRef.current) {
         justConnectedRef.current = false
         return
       }
 
-      // Конвертируем экранные координаты в координаты холста.
+      // ЛКМ по пустому месту: просто снимаем выделение.
+      // Создание ноды перенесли на MMB.
+      if (event.button === 0) {
+        onSelectEdge(null)
+        onSelectNodes([])
+      }
+    },
+    [onSelectEdge, onSelectNodes]
+  )
+
+  // MMB по холсту — создаём новую ноду.
+  // Используем MouseDown, потому что "click" обычно срабатывает только для ЛКМ.
+  const handleMouseDown = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      // Только MMB.
+      if (event.button !== 1) return
+
+      // Разрешаем создание ноды только если клик пришёл по пустому месту (pane).
+      const target = event.target as HTMLElement | null
+      const clickedPane = !!target?.closest('.react-flow__pane')
+      if (!clickedPane) return
+
+      // Если только что создали связь — игнорируем.
+      if (justConnectedRef.current) {
+        justConnectedRef.current = false
+        return
+      }
+
+      event.preventDefault()
+
       const flowPosition = screenToFlowPosition({
         x: event.clientX,
         y: event.clientY
@@ -239,6 +275,8 @@ const FlowCanvasInner = ({
       className="flowCanvas"
       // Запрещаем стандартное контекстное меню браузера на холсте.
       onContextMenu={(e) => e.preventDefault()}
+      // MMB по пустому месту — создаём ноду.
+      onMouseDown={handleMouseDown}
     >
       <ReactFlow
         nodes={nodes}
@@ -252,24 +290,40 @@ const FlowCanvasInner = ({
         proOptions={{ hideAttribution: true }}
         // Панорамирование холста — только ПКМ (кнопка 2).
         panOnDrag={[2]}
+
+        // ЛКМ drag по пустому месту — рамка выделения (area select).
+        selectionOnDrag
         // ЛКМ по ноде — выбираем.
         onNodeClick={(_, node) => {
           onSelectEdge(null)
-          onSelectNode(node.id)
+          onSelectNodes([node.id])
         }}
         // ПКМ по ноде — удаляем.
         onNodeContextMenu={handleNodeContextMenu}
         onEdgeClick={(_, edge) => {
           if ((edge as any).selectable === false) return
-          onSelectNode(null)
+          onSelectNodes([])
           onSelectEdge(edge.id)
         }}
         // ПКМ по связи — удаляем.
         onEdgeContextMenu={(_, edge) => {
           onEdgeDelete(edge.id)
         }}
+        // Двойной клик по ребру — выбираем и фокусируем wait input.
+        onEdgeDoubleClick={(_, edge) => {
+          if ((edge as any).selectable === false) return
+          onSelectNodes([])
+          onSelectEdge(edge.id)
+          onEdgeDoubleClick?.(edge.id)
+        }}
         // ЛКМ по холсту — создаём ноду.
         onPaneClick={handlePaneClick}
+
+        // Когда пользователь выделяет рамкой — синхронизируем мультивыделение.
+        onSelectionChange={(sel) => {
+          const ids = (sel?.nodes ?? []).map((n: any) => String(n.id))
+          onSelectNodes(ids)
+        }}
       >
         <Background color="#262b2f" gap={18} size={1} />
         <MiniMap

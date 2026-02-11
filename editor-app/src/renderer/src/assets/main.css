@@ -229,6 +229,8 @@ code {
   pointer-events: auto;
   overflow: visible;
   display: flex;
+  /* Размеры учитывают границы, чтобы панели не "усаживались". */
+  box-sizing: border-box;
 }
 
 /* Контент плавающей панели должен растягиваться по контейнеру. */
@@ -236,6 +238,8 @@ code {
   width: 100%;
   height: 100%;
   flex: 1;
+  /* Наследуем правильный расчёт размеров. */
+  box-sizing: border-box;
 }
 
 /* Заполняем фон внутри тела, чтобы он тянулся при ресайзе. */
@@ -451,9 +455,12 @@ code {
   border-color: var(--ev-c-gray-2);
 }
 
+/* Подсказка/хинт в панелях. Уменьшен визуальный вес, чтобы не отвлекать. */
 .runtimeHint {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--ev-c-text-2);
+  opacity: 0.55;
+  line-height: 1.35;
 }
 
 .runtimeList {
@@ -834,19 +841,35 @@ code {
   border-color: var(--ev-c-accent);
 }
 
-/* Точки соединения (handles). */
+/* Точки соединения (handles).
+   Увеличены до 14px для удобства клика.
+   Невидимый ::after расширяет зону попадания до 28px. */
 .customHandle {
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: var(--ev-c-gray-1);
   border: 2px solid #1a1f28;
-  transition: background 0.12s, transform 0.12s;
+  transition: background 0.15s, box-shadow 0.15s;
+  /* Не используем transform для hover, чтобы центр не прыгал. */
+  position: relative;
+}
+
+/* Невидимая зона попадания вокруг handle — 28×28px. */
+.customHandle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
 }
 
 .customHandle:hover {
   background: var(--ev-c-accent);
-  transform: scale(1.25);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
 }
 
 /* Зелёная точка для true-выхода (branch). */

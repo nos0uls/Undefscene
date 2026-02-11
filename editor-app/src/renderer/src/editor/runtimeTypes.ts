@@ -5,6 +5,10 @@ export type RuntimeNode = {
   // Тип узла (например, реплика, выбор, пауза).
   type: string
 
+  // Имя ноды (то, что видит пользователь в списках и на самой ноде).
+  // Это НЕ текст диалога — текст диалога лежит в поле `text` ниже.
+  name?: string
+
   // Текст реплики, если это диалоговый узел.
   text?: string
 
@@ -34,6 +38,38 @@ export type RuntimeEdge = {
 
   // Пауза на линии (в секундах). Это заменяет отдельную wait-ноду.
   waitSeconds?: number
+
+  // --- Условие на ребре (Edge Condition) ---
+  // Галочка: включить/выключить условие на этом ребре.
+  conditionEnabled?: boolean
+
+  // Имя глобальной переменной (без "global.", просто ключ).
+  conditionVar?: string
+
+  // Значение, которое должно совпасть (сравниваем как строку).
+  conditionEquals?: string
+
+  // Что делать, если условие false:
+  // "skip" — пропустить wait/ветку и идти дальше.
+  // "wait_until_true" — ждать, пока условие станет true.
+  conditionIfFalse?: 'skip' | 'wait_until_true'
+
+  // --- Когда прекратить ожидание (только для wait_until_true) ---
+  // "none" — ждать бесконечно (пока условие не станет true).
+  // "global_var" — прекратить, когда другая global-переменная примет нужное значение.
+  // "node_reached" — прекратить, когда катсцена дойдёт до определённой ноды.
+  // "timeout" — прекратить через N секунд.
+  stopWaitingWhen?: 'none' | 'global_var' | 'node_reached' | 'timeout'
+
+  // Поля для end-condition типа "global_var".
+  endConditionVar?: string
+  endConditionEquals?: string
+
+  // Поле для end-condition типа "node_reached" (имя ноды).
+  endNodeName?: string
+
+  // Поле для end-condition типа "timeout" (секунды).
+  endTimeoutSeconds?: number
 }
 
 // Основное состояние runtime-json, которое мы будем сохранять в файл.
@@ -53,6 +89,11 @@ export type RuntimeState = {
   // ID выбранного узла (для инспектора).
   selectedNodeId: string | null
 
+  // Мультивыделение нод на холсте.
+  // Если выделена 1 нода — она будет и в selectedNodeId, и в selectedNodeIds.
+  // Если выделено несколько — selectedNodeId будет null, а список будет тут.
+  selectedNodeIds: string[]
+
   // ID выбранной связи (для инспектора линий).
   selectedEdgeId: string | null
 
@@ -67,10 +108,10 @@ export const createDefaultRuntimeState = (): RuntimeState => {
     title: 'Untitled Cutscene',
     // Стартовые узлы — демо разных типов, чтобы холст не был пустым.
     nodes: [
-      { id: 'n-start', type: 'start', position: { x: 50, y: 180 } },
-      { id: 'n-dialogue', type: 'dialogue', text: 'Hello!', position: { x: 360, y: 120 }, params: { file: 'intro.yarn', node: 'Greeting' } },
-      { id: 'n-move', type: 'move', position: { x: 360, y: 260 }, params: { target: 'actor:npc', x: 320, y: 240, speed_px_sec: 60 } },
-      { id: 'n-end', type: 'end', position: { x: 650, y: 180 } }
+      { id: 'n-start', type: 'start', name: 'Start', position: { x: 50, y: 180 } },
+      { id: 'n-dialogue', type: 'dialogue', name: 'Node', text: 'Hello!', position: { x: 360, y: 120 }, params: { file: 'intro.yarn', node: 'Greeting' } },
+      { id: 'n-move', type: 'move', name: 'Node (0)', position: { x: 360, y: 260 }, params: { target: 'actor:npc', x: 320, y: 240, speed_px_sec: 60 } },
+      { id: 'n-end', type: 'end', name: 'End', position: { x: 650, y: 180 } }
     ],
     // Стартовые связи между узлами.
     edges: [
@@ -81,6 +122,7 @@ export const createDefaultRuntimeState = (): RuntimeState => {
       { id: 'e-move-end', source: 'n-move', target: 'n-end' }
     ],
     selectedNodeId: null,
+    selectedNodeIds: [],
     selectedEdgeId: null,
     lastSavedAtMs: 0
   }
@@ -105,6 +147,11 @@ export const parseRuntimeState = (raw: unknown): RuntimeState | null => {
       const node: RuntimeNode = {
         id: candidateNode.id,
         type: candidateNode.type
+      }
+
+      // Имя — опционально.
+      if (typeof candidateNode.name === 'string') {
+        node.name = candidateNode.name
       }
 
       // Текст — опционально.
@@ -153,6 +200,43 @@ export const parseRuntimeState = (raw: unknown): RuntimeState | null => {
         edge.waitSeconds = ce.waitSeconds
       }
 
+      // Condition — опционально.
+      if (typeof (ce as any).conditionEnabled === 'boolean') {
+        edge.conditionEnabled = (ce as any).conditionEnabled
+      }
+      if (typeof (ce as any).conditionVar === 'string') {
+        edge.conditionVar = (ce as any).conditionVar
+      }
+      if (typeof (ce as any).conditionEquals === 'string') {
+        edge.conditionEquals = (ce as any).conditionEquals
+      }
+
+      // Поведение при false: skip или wait_until_true.
+      const ifFalse = (ce as any).conditionIfFalse
+      if (ifFalse === 'skip' || ifFalse === 'wait_until_true') {
+        edge.conditionIfFalse = ifFalse
+      }
+
+      // Когда прекратить ожидание (для wait_until_true).
+      const stopWhen = (ce as any).stopWaitingWhen
+      if (stopWhen === 'none' || stopWhen === 'global_var' || stopWhen === 'node_reached' || stopWhen === 'timeout') {
+        edge.stopWaitingWhen = stopWhen
+      }
+
+      // End-condition поля.
+      if (typeof (ce as any).endConditionVar === 'string') {
+        edge.endConditionVar = (ce as any).endConditionVar
+      }
+      if (typeof (ce as any).endConditionEquals === 'string') {
+        edge.endConditionEquals = (ce as any).endConditionEquals
+      }
+      if (typeof (ce as any).endNodeName === 'string') {
+        edge.endNodeName = (ce as any).endNodeName
+      }
+      if (typeof (ce as any).endTimeoutSeconds === 'number' && (ce as any).endTimeoutSeconds >= 0) {
+        edge.endTimeoutSeconds = (ce as any).endTimeoutSeconds
+      }
+
       edges.push(edge)
     }
   }
@@ -163,6 +247,10 @@ export const parseRuntimeState = (raw: unknown): RuntimeState | null => {
     nodes,
     edges,
     selectedNodeId: typeof candidate.selectedNodeId === 'string' ? candidate.selectedNodeId : null,
+    // selectedNodeIds — новое поле. Если его нет, но есть selectedNodeId — делаем массив из одного элемента.
+    selectedNodeIds: Array.isArray((candidate as any).selectedNodeIds)
+      ? ((candidate as any).selectedNodeIds as unknown[]).filter((v) => typeof v === 'string') as string[]
+      : (typeof candidate.selectedNodeId === 'string' ? [candidate.selectedNodeId] : []),
     selectedEdgeId: typeof (candidate as any).selectedEdgeId === 'string' ? (candidate as any).selectedEdgeId : null,
     lastSavedAtMs: typeof candidate.lastSavedAtMs === 'number' ? candidate.lastSavedAtMs : 0
   }

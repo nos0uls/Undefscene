@@ -1,6 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
-import { readFile, writeFile, rename, unlink } from 'fs/promises'
-import { join, dirname } from 'path'
+import { readFile, writeFile, rename, unlink, readdir } from 'fs/promises'
+import { join, dirname, basename } from 'path'
 import icon from '../../resources/icon.png?asset'
 
 // Simple dev/prod flag.
@@ -56,6 +56,46 @@ async function parseYypResources(yypPath: string) {
     sounds: [...sounds].sort(),
     rooms: [...rooms].sort()
   }
+}
+
+// Сканируем datafiles/ на .yarn файлы и извлекаем имена нод.
+// Yarn формат: каждая нода начинается с "title: <name>" после "---".
+// Возвращаем массив { file: имя файла, nodes: массив имён нод }.
+async function scanYarnFiles(projectDir: string): Promise<Array<{ file: string; nodes: string[] }>> {
+  const datafilesDir = join(projectDir, 'datafiles')
+  let files: string[]
+  try {
+    const entries = await readdir(datafilesDir)
+    files = entries.filter((f) => f.endsWith('.yarn'))
+  } catch {
+    // Папки datafiles/ нет — это нормально.
+    return []
+  }
+
+  const result: Array<{ file: string; nodes: string[] }> = []
+
+  for (const file of files) {
+    try {
+      const raw = await readFile(join(datafilesDir, file), 'utf-8')
+      const nodes: string[] = []
+
+      // Ищем строки "title: <name>" — это заголовки нод в Yarn Spinner формате.
+      for (const line of raw.split('\n')) {
+        const trimmed = line.trim()
+        if (trimmed.startsWith('title:')) {
+          const name = trimmed.slice('title:'.length).trim()
+          if (name) nodes.push(name)
+        }
+      }
+
+      result.push({ file: basename(file, '.yarn'), nodes })
+    } catch {
+      // Битый файл — пропускаем.
+      continue
+    }
+  }
+
+  return result
 }
 
 // In some Windows setups, `localhost` may resolve to IPv6 (::1) first.
@@ -271,6 +311,16 @@ app.whenReady().then(() => {
     } catch {
       // Файл не найден — это нормально, просто возвращаем пустые списки.
       return { found: false, defaultFps: 30, strictMode: false, defaultActorObject: '', branchConditions: [], runFunctions: [] }
+    }
+  })
+
+  // IPC: Сканирование .yarn файлов в datafiles/ проекта.
+  // Возвращает массив { file, nodes } для autocomplete в диалоговых нодах.
+  ipcMain.handle('yarn.scan', async (_event, projectDir: string) => {
+    try {
+      return await scanYarnFiles(projectDir)
+    } catch {
+      return []
     }
   })
 

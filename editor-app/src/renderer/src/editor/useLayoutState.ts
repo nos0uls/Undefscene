@@ -25,7 +25,8 @@ export function createDefaultLayout(): LayoutState {
         slot: 'left',
         position: null,
         size: null,
-        zIndex: 1
+        zIndex: 1,
+        collapsed: false
       },
       'panel.bookmarks': {
         id: 'panel.bookmarks',
@@ -34,7 +35,8 @@ export function createDefaultLayout(): LayoutState {
         slot: 'left',
         position: null,
         size: null,
-        zIndex: 1
+        zIndex: 1,
+        collapsed: false
       },
       'panel.text': {
         id: 'panel.text',
@@ -43,7 +45,8 @@ export function createDefaultLayout(): LayoutState {
         slot: 'right',
         position: null,
         size: null,
-        zIndex: 1
+        zIndex: 1,
+        collapsed: false
       },
       'panel.inspector': {
         id: 'panel.inspector',
@@ -52,7 +55,8 @@ export function createDefaultLayout(): LayoutState {
         slot: 'right',
         position: null,
         size: null,
-        zIndex: 1
+        zIndex: 1,
+        collapsed: false
       },
       'panel.logs': {
         id: 'panel.logs',
@@ -61,7 +65,8 @@ export function createDefaultLayout(): LayoutState {
         slot: 'bottom',
         position: null,
         size: null,
-        zIndex: 1
+        zIndex: 1,
+        collapsed: false
       }
     },
     lastSavedAtMs: 0

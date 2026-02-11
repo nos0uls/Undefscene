@@ -290,6 +290,7 @@ export function ParallelJoinNode(props: any): React.JSX.Element {
 }
 
 // Ветвление по условию: вход, выход true (вверху справа), выход false (внизу справа).
+// Увеличена высота и разнесены handles для удобства.
 export function BranchNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const condition = data.params?.condition ?? ''
   return (
@@ -305,23 +306,55 @@ export function BranchNode({ data, selected }: CutsceneNodeProps): React.JSX.Ele
             position={Position.Right}
             id="out_true"
             className="customHandle customHandleTrue"
-            style={{ top: '35%' }}
+            style={{ top: '25%' }}
           />
+          {/* Метка TRUE рядом с handle */}
+          <span
+            style={{
+              position: 'absolute',
+              right: 18,
+              top: '25%',
+              transform: 'translateY(-50%)',
+              fontSize: 9,
+              fontWeight: 700,
+              color: 'var(--ev-c-success)',
+              letterSpacing: '0.04em',
+              pointerEvents: 'none',
+              userSelect: 'none'
+            }}
+          >
+            TRUE
+          </span>
+
           {/* Выход "false" — нижняя правая точка */}
           <Handle
             type="source"
             position={Position.Right}
             id="out_false"
             className="customHandle customHandleFalse"
-            style={{ top: '65%' }}
+            style={{ top: '75%' }}
           />
+          {/* Метка FALSE рядом с handle */}
+          <span
+            style={{
+              position: 'absolute',
+              right: 18,
+              top: '75%',
+              transform: 'translateY(-50%)',
+              fontSize: 9,
+              fontWeight: 700,
+              color: 'var(--ev-c-error)',
+              letterSpacing: '0.04em',
+              pointerEvents: 'none',
+              userSelect: 'none'
+            }}
+          >
+            FALSE
+          </span>
         </>
       }
     >
       {condition && <div className="customNodeParam">{String(condition)}</div>}
-      <div className="customNodeParam" style={{ fontSize: 10, opacity: 0.6 }}>
-        ✓ true &nbsp; ✗ false
-      </div>
     </BaseNode>
   )
 }

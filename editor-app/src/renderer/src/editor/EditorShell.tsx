@@ -4,13 +4,14 @@ import { DockPanel } from './DockPanel'
 import { FlowCanvas } from './FlowCanvas'
 import { TopMenuBar } from './TopMenuBar'
 import type { DockSlotId, LayoutState, Size, Vec2 } from './layoutTypes'
-import type { RuntimeNode } from './runtimeTypes'
+import type { RuntimeEdge, RuntimeNode } from './runtimeTypes'
 import { useLayoutState } from './useLayoutState'
 import { useProjectResources } from './useProjectResources'
 import { useRuntimeState } from './useRuntimeState'
 import { compileGraph, stripExport } from './compileGraph'
 import { validateGraph, type ValidationResult } from './validateGraph'
 import { PreferencesModal } from './PreferencesModal'
+import { SearchableSelect } from './SearchableSelect'
 
 type DragState = {
   // Какая панель сейчас перетаскивается.
@@ -19,20 +20,17 @@ type DragState = {
   // Какой pointerId мы захватили (нужно, чтобы не ловить чужие события).
   pointerId: number
 
-  // Смещение курсора относительно левого верхнего угла панели.
-  // Нужно, чтобы панель "прилипала" к курсору одинаково.
-  grabOffset: Vec2
-
   // Размер панели во время перетаскивания.
   // Мы берём его из DOM в момент старта.
   size: Size
 
-  // Текущая позиция "призрака" панели в координатах editorRoot.
-  ghostPosition: Vec2
-
-  // Куда пользователь сейчас "целится" (подсветка дока).
-  hoverSlot: DockSlotId | null
+  // Смещение курсора относительно левого верхнего угла панели.
+  // Нужно, чтобы панель "прилипала" к курсору одинаково.
+  grabOffset: Vec2
 }
+
+// Высота шапки панели в свернутом состоянии.
+const COLLAPSED_HEADER_HEIGHT = 28
 
 type ResizeKind =
   | 'dock-left'
@@ -69,6 +67,15 @@ type ResizeDragState = {
   startPanelSize?: Size | null
 }
 
+// Состояние модалки, которая появляется, когда имя ноды уже занято.
+// Мы не блокируем дубликаты, но по умолчанию предлагаем безопасное уникальное имя.
+type NameConflictModalState = {
+  nodeId: string
+  previousName: string
+  conflictingWithNodeId: string
+  value: string
+}
+
 // Основной “каркас” редактора.
 // Здесь мы собираем все зоны: верхнее меню, левые/правые доки,
 // центральный холст и нижний лог.
@@ -83,7 +90,7 @@ export function EditorShell(): React.JSX.Element {
   const { runtime, setRuntime, undo, redo, canUndo, canRedo } = useRuntimeState()
 
   // Ресурсы GameMaker проекта (для autocomplete и валидации) + настройки движка.
-  const { resources, engineSettings, openProject } = useProjectResources()
+  const { resources, engineSettings, yarnFiles, openProject } = useProjectResources()
 
   // Путь к текущему файлу сцены (null = ещё не сохранялась / новая).
   const [sceneFilePath, setSceneFilePath] = useState<string | null>(null)
@@ -93,6 +100,62 @@ export function EditorShell(): React.JSX.Element {
 
   // Реактивная валидация графа — пересчитывается при каждом изменении runtime.
   const validation: ValidationResult = useMemo(() => validateGraph(runtime), [runtime])
+
+  // Активная вкладка в Logs панели: Errors / Warnings / Tips.
+  const [logsTab, setLogsTab] = useState<'errors' | 'warnings' | 'tips'>('errors')
+
+  // Активная вкладка в bottom dock (id панели). Если null — показываем первую.
+  const [activeBottomTabId, setActiveBottomTabId] = useState<string | null>(null)
+
+  // Выбранная нода (нужна, чтобы синхронизировать поле имени и показывать модалки).
+  const selectedNodeForName = runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null
+
+  // Текущее значение в поле “Node name”.
+  // Мы держим его отдельно, чтобы не переписывать runtime на каждый символ.
+  const [pendingNodeName, setPendingNodeName] = useState('')
+
+  // Модалка для конфликтов имени ноды.
+  const [nameConflictModal, setNameConflictModal] = useState<NameConflictModalState | null>(null)
+  const nameConflictOkRef = useRef<HTMLButtonElement | null>(null)
+
+  // Простой генератор уникального имени.
+  // Если имя уже занято — добавляем постфикс ` (0)`, ` (1)` и т.д.
+  const suggestUniqueNodeName = (baseName: string, takenNames: Set<string>): string => {
+    const trimmed = baseName.trim()
+    if (!trimmed) return ''
+    if (!takenNames.has(trimmed)) return trimmed
+    let i = 0
+    while (takenNames.has(`${trimmed} (${i})`)) i++
+    return `${trimmed} (${i})`
+  }
+
+  // Когда пользователь выбирает другую ноду — обновляем поле имени.
+  useEffect(() => {
+    setPendingNodeName(selectedNodeForName?.name ?? '')
+  }, [selectedNodeForName?.id])
+
+  // Когда модалка открывается — ставим фокус на кнопку OK.
+  // Так можно быстро подтвердить стандартный вариант.
+  useEffect(() => {
+    if (!nameConflictModal) return
+    const t = window.setTimeout(() => {
+      nameConflictOkRef.current?.focus()
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [nameConflictModal])
+
+  // Закрытие модалки по Esc.
+  useEffect(() => {
+    if (!nameConflictModal) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      setPendingNodeName(nameConflictModal.previousName)
+      setNameConflictModal(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [nameConflictModal])
 
   // Добавляем новую ветку в параллель (start+join).
   // Мы меняем branches сразу в двух нодах, чтобы handles совпадали.
@@ -136,6 +199,65 @@ export function EditorShell(): React.JSX.Element {
   // Состояние ресайза (доки + floating панели).
   const [resizeDrag, setResizeDrag] = useState<ResizeDragState | null>(null)
 
+  // Ref на DOM-элемент "призрака" панели.
+  // Мы двигаем его напрямую через style, минуя React state,
+  // чтобы не вызывать ререндер всего EditorShell на каждый кадр.
+  const ghostRef = useRef<HTMLDivElement | null>(null)
+
+  // Последний hoverSlot, чтобы onPointerUp мог его прочитать.
+  const hoverSlotRef = useRef<DockSlotId | null>(null)
+
+  // Обновляем позицию призрака и подсветку доков напрямую через DOM.
+  // Это полностью обходит React reconciliation — никаких setState.
+  const updateDragPreviewDOM = (ghostPos: Vec2 | null, hoverSlot: DockSlotId | null) => {
+    // Двигаем призрак.
+    const ghost = ghostRef.current
+    if (ghost) {
+      if (ghostPos) {
+        ghost.style.left = `${ghostPos.x}px`
+        ghost.style.top = `${ghostPos.y}px`
+        ghost.style.display = 'block'
+      } else {
+        ghost.style.display = 'none'
+      }
+    }
+
+    // Обновляем подсветку док-зон через classList.
+    const prev = hoverSlotRef.current
+    if (prev !== hoverSlot) {
+      // Убираем подсветку с предыдущего слота.
+      if (prev === 'left') leftDockRef.current?.classList.remove('isDockDropTarget')
+      if (prev === 'right') rightDockRef.current?.classList.remove('isDockDropTarget')
+      if (prev === 'bottom') bottomDockRef.current?.classList.remove('isDockDropTarget')
+
+      // Добавляем подсветку на новый слот.
+      if (hoverSlot === 'left') leftDockRef.current?.classList.add('isDockDropTarget')
+      if (hoverSlot === 'right') rightDockRef.current?.classList.add('isDockDropTarget')
+      if (hoverSlot === 'bottom') bottomDockRef.current?.classList.add('isDockDropTarget')
+
+      hoverSlotRef.current = hoverSlot
+    }
+  }
+
+  // Храним requestAnimationFrame id для плавного drag.
+  const dragRafRef = useRef<number | null>(null)
+
+  // Последнее значение превью, которое мы хотим отрендерить.
+  const pendingGhostPosRef = useRef<Vec2 | null>(null)
+  const pendingHoverSlotRef = useRef<DockSlotId | null>(null)
+
+  // Планируем обновление превью в requestAnimationFrame.
+  // Это снижает количество DOM-записей до 1 раза за кадр.
+  const scheduleDragPreview = (ghostPos: Vec2 | null, hoverSlot: DockSlotId | null) => {
+    pendingGhostPosRef.current = ghostPos
+    pendingHoverSlotRef.current = hoverSlot
+    if (dragRafRef.current !== null) return
+    dragRafRef.current = window.requestAnimationFrame(() => {
+      dragRafRef.current = null
+      updateDragPreviewDOM(pendingGhostPosRef.current, pendingHoverSlotRef.current)
+    })
+  }
+
   // Сохраняем актуальный layout в ref, чтобы pointer handlers не ловили старое значение.
   const layoutRef = useRef(layout)
   useEffect(() => {
@@ -155,6 +277,21 @@ export function EditorShell(): React.JSX.Element {
 
   // Ref на кнопку Export (чтобы вызвать из хоткея).
   const exportRef = useRef<(() => void) | null>(null)
+
+  // --- Clipboard для Ctrl+C / Ctrl+V / Ctrl+X ---
+  // Мы храним копию выделенных нод + внутренних рёбер.
+  // Вставка создаёт новые id и сдвигает позиции.
+  type ClipboardPayload = {
+    nodes: RuntimeNode[]
+    edges: RuntimeEdge[]
+  }
+  const clipboardRef = useRef<ClipboardPayload | null>(null)
+  const pasteSerialRef = useRef(0)
+
+  // Ref на input "Wait on edge" — для автофокуса при двойном клике по ребру.
+  const edgeWaitInputRef = useRef<HTMLInputElement | null>(null)
+  // Флаг: нужно ли сфокусировать wait input после следующего рендера.
+  const shouldFocusEdgeWaitRef = useRef(false)
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -202,15 +339,184 @@ export function EditorShell(): React.JSX.Element {
       // Delete — удалить выбранную ноду (если фокус не в поле ввода).
       if (e.key === 'Delete' && !isInput) {
         const rt = runtimeRef.current
-        if (!rt.selectedNodeId) return
+        const ids = (rt.selectedNodeIds?.length ? rt.selectedNodeIds : (rt.selectedNodeId ? [rt.selectedNodeId] : []))
+        if (ids.length === 0) return
         e.preventDefault()
+
+        const toDelete = new Set(ids)
         setRuntimeRef.current({
           ...rt,
-          nodes: rt.nodes.filter((n) => n.id !== rt.selectedNodeId),
-          edges: rt.edges.filter((edge) => edge.source !== rt.selectedNodeId && edge.target !== rt.selectedNodeId),
+          nodes: rt.nodes.filter((n) => !toDelete.has(n.id)),
+          edges: rt.edges.filter((edge) => !toDelete.has(edge.source) && !toDelete.has(edge.target)),
           selectedNodeId: null,
+          selectedNodeIds: [],
           selectedEdgeId: null
         })
+      }
+
+      // Ctrl+C — копировать выделенные ноды и внутренние рёбра.
+      if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+        if (isInput) return
+        const rt = runtimeRef.current
+        const selected = (rt.selectedNodeIds?.length ? rt.selectedNodeIds : (rt.selectedNodeId ? [rt.selectedNodeId] : []))
+        if (selected.length === 0) return
+        e.preventDefault()
+
+        // Собираем множество выбранных нод.
+        // Для parallel добавляем пару (start+join), чтобы вставка не ломала граф.
+        const selectedSet = new Set<string>(selected)
+        for (const id of [...selectedSet]) {
+          const n = rt.nodes.find((x) => x.id === id)
+          if (!n) continue
+          if (n.type === 'parallel_start') {
+            const joinId = typeof n.params?.joinId === 'string' ? (n.params.joinId as string) : ''
+            if (joinId) selectedSet.add(joinId)
+          }
+          if (n.type === 'parallel_join') {
+            const pairId = typeof n.params?.pairId === 'string' ? (n.params.pairId as string) : ''
+            if (pairId) selectedSet.add(pairId)
+          }
+        }
+
+        const nodes = rt.nodes
+          .filter((n) => selectedSet.has(n.id))
+          .map((n) => JSON.parse(JSON.stringify(n)) as RuntimeNode)
+
+        const edges = rt.edges
+          // Копируем только внутренние рёбра (если обе стороны внутри выделения).
+          .filter((ed) => selectedSet.has(ed.source) && selectedSet.has(ed.target))
+          .map((ed) => JSON.parse(JSON.stringify(ed)) as RuntimeEdge)
+
+        clipboardRef.current = { nodes, edges }
+        pasteSerialRef.current = 0
+        return
+      }
+
+      // Ctrl+X — вырезать (копировать + удалить).
+      if (e.ctrlKey && (e.key === 'x' || e.key === 'X')) {
+        if (isInput) return
+        const rt = runtimeRef.current
+        const selected = (rt.selectedNodeIds?.length ? rt.selectedNodeIds : (rt.selectedNodeId ? [rt.selectedNodeId] : []))
+        if (selected.length === 0) return
+        e.preventDefault()
+
+        // Сначала делаем копию (логика как в Ctrl+C).
+        const selectedSet = new Set<string>(selected)
+        for (const id of [...selectedSet]) {
+          const n = rt.nodes.find((x) => x.id === id)
+          if (!n) continue
+          if (n.type === 'parallel_start') {
+            const joinId = typeof n.params?.joinId === 'string' ? (n.params.joinId as string) : ''
+            if (joinId) selectedSet.add(joinId)
+          }
+          if (n.type === 'parallel_join') {
+            const pairId = typeof n.params?.pairId === 'string' ? (n.params.pairId as string) : ''
+            if (pairId) selectedSet.add(pairId)
+          }
+        }
+
+        const nodes = rt.nodes
+          .filter((n) => selectedSet.has(n.id))
+          .map((n) => JSON.parse(JSON.stringify(n)) as RuntimeNode)
+
+        const edges = rt.edges
+          .filter((ed) => selectedSet.has(ed.source) && selectedSet.has(ed.target))
+          .map((ed) => JSON.parse(JSON.stringify(ed)) as RuntimeEdge)
+
+        clipboardRef.current = { nodes, edges }
+        pasteSerialRef.current = 0
+
+        // Потом удаляем.
+        setRuntimeRef.current({
+          ...rt,
+          nodes: rt.nodes.filter((n) => !selectedSet.has(n.id)),
+          edges: rt.edges.filter((ed) => !selectedSet.has(ed.source) && !selectedSet.has(ed.target)),
+          selectedNodeId: null,
+          selectedNodeIds: [],
+          selectedEdgeId: null
+        })
+        return
+      }
+
+      // Ctrl+V — вставить.
+      if (e.ctrlKey && (e.key === 'v' || e.key === 'V')) {
+        if (isInput) return
+        const rt = runtimeRef.current
+        const payload = clipboardRef.current
+        if (!payload || payload.nodes.length === 0) return
+        e.preventDefault()
+
+        // Делаем небольшой сдвиг, чтобы вставка была видна.
+        pasteSerialRef.current += 1
+        const dx = 40 * pasteSerialRef.current
+        const dy = 40 * pasteSerialRef.current
+
+        // Генерируем новые id и собираем map старый->новый.
+        const idMap = new Map<string, string>()
+        const now = Date.now()
+        for (let i = 0; i < payload.nodes.length; i++) {
+          idMap.set(payload.nodes[i].id, `node-${now}-${i}-${Math.floor(Math.random() * 1000)}`)
+        }
+
+        // Для имён делаем авто-уникализацию, чтобы не плодить одинаковые названия.
+        const takenNames = new Set(
+          rt.nodes
+            .map((n) => String(n.name ?? '').trim())
+            .filter((v) => v.length > 0)
+        )
+
+        const newNodes: RuntimeNode[] = payload.nodes.map((n) => {
+          const newId = idMap.get(n.id) ?? n.id
+
+          const baseName = String(n.name ?? '').trim() || 'Node'
+          const uniqueName = suggestUniqueNodeName(baseName, takenNames)
+          takenNames.add(uniqueName)
+
+          const next: RuntimeNode = {
+            ...n,
+            id: newId,
+            name: uniqueName,
+            position: n.position ? { x: n.position.x + dx, y: n.position.y + dy } : n.position
+          }
+
+          // Фиксим ссылки внутри parallel пары.
+          if (next.type === 'parallel_start') {
+            const joinId = typeof next.params?.joinId === 'string' ? (next.params.joinId as string) : ''
+            if (joinId && idMap.has(joinId)) {
+              next.params = { ...(next.params ?? {}), joinId: idMap.get(joinId) }
+            }
+          }
+          if (next.type === 'parallel_join') {
+            const pairId = typeof next.params?.pairId === 'string' ? (next.params.pairId as string) : ''
+            if (pairId && idMap.has(pairId)) {
+              next.params = { ...(next.params ?? {}), pairId: idMap.get(pairId) }
+            }
+          }
+
+          return next
+        })
+
+        const newEdges: RuntimeEdge[] = payload.edges.map((ed, i) => {
+          const src = idMap.get(ed.source) ?? ed.source
+          const tgt = idMap.get(ed.target) ?? ed.target
+          return {
+            ...ed,
+            id: `edge-${now}-${i}-${Math.floor(Math.random() * 1000)}`,
+            source: src,
+            target: tgt
+          }
+        })
+
+        const pastedIds = newNodes.map((n) => n.id)
+        setRuntimeRef.current({
+          ...rt,
+          nodes: [...rt.nodes, ...newNodes],
+          edges: [...rt.edges, ...newEdges],
+          selectedNodeId: pastedIds.length === 1 ? pastedIds[0] : null,
+          selectedNodeIds: pastedIds,
+          selectedEdgeId: null
+        })
+        return
       }
     }
 
@@ -339,6 +645,51 @@ export function EditorShell(): React.JSX.Element {
     return p.mode !== 'hidden'
   }
 
+  // Сворачиваем/разворачиваем панель.
+  // Для floating сохраняем старую высоту, чтобы потом восстановить.
+  const togglePanelCollapse = (panelId: string) => {
+    const panel = layout.panels[panelId]
+    if (!panel) return
+
+    const nextCollapsed = !panel.collapsed
+    const currentSize = panel.size ?? panel.lastFloatingSize ?? { width: 360, height: 240 }
+
+    const nextPanelState =
+      panel.mode === 'floating'
+        ? {
+            ...panel,
+            collapsed: nextCollapsed,
+            size: nextCollapsed
+              ? { width: currentSize.width, height: COLLAPSED_HEADER_HEIGHT }
+              : panel.lastFloatingSize ?? currentSize,
+            lastFloatingSize: nextCollapsed ? currentSize : panel.lastFloatingSize
+          }
+        : {
+            ...panel,
+            collapsed: nextCollapsed
+          }
+
+    setLayout({
+      ...layout,
+      panels: {
+        ...layout.panels,
+        [panelId]: nextPanelState
+      }
+    })
+  }
+
+  // Готовим стиль для док-панели, если она свёрнута.
+  const getDockedPanelStyle = (panelId: string, baseStyle?: CSSProperties): CSSProperties | undefined => {
+    const isCollapsed = Boolean(layout.panels[panelId]?.collapsed)
+    if (!isCollapsed) return baseStyle
+    return {
+      ...(baseStyle ?? {}),
+      flexGrow: 0,
+      flexBasis: COLLAPSED_HEADER_HEIGHT,
+      height: COLLAPSED_HEADER_HEIGHT
+    }
+  }
+
   // Убираем ID панели из всех слотов.
   const removeFromAllSlots = (nextDocked: typeof layout.docked, panelId: string) => {
     nextDocked.left = nextDocked.left.filter((id) => id !== panelId)
@@ -361,8 +712,8 @@ export function EditorShell(): React.JSX.Element {
   }
 
   // Сколько панелей может жить в одном слоте.
-  // Слева/справа — 2, внизу — 1.
-  const getSlotCapacity = (slot: DockSlotId): number => (slot === 'bottom' ? 1 : 2)
+  // Слева/справа — 2, внизу — до 3 (переключаются вкладками).
+  const getSlotCapacity = (slot: DockSlotId): number => (slot === 'bottom' ? 3 : 2)
 
   // Если слот переполнен, то "лишние" панели мы скрываем.
   // Так они пропадают и с экрана, и из меню Panels (чекбоксы снимаются).
@@ -416,6 +767,163 @@ export function EditorShell(): React.JSX.Element {
       })
     }
 
+    // Убираем служебные поля parallel из params, чтобы не оставлять мусор.
+    const stripParallelParams = (params?: RuntimeNode['params']) => {
+      if (!params) return undefined
+      const { joinId, pairId, branches, ...rest } = params
+      return rest
+    }
+
+    // Удаляем пару parallel (start/join) и внутреннее ребро __pair.
+    // Это нужно, когда пользователь меняет тип параллельной ноды на обычную.
+    const removeParallelPair = (node: RuntimeNode, nodes: RuntimeNode[], edges: RuntimeEdge[]) => {
+      // Определяем, где находится вторая нода пары.
+      const joinId = typeof node.params?.joinId === 'string' ? node.params.joinId : ''
+      const pairId = typeof node.params?.pairId === 'string' ? node.params.pairId : ''
+      const counterpartId = node.type === 'parallel_start' ? joinId : node.type === 'parallel_join' ? pairId : ''
+
+      if (!counterpartId) {
+        return { nodes, edges }
+      }
+
+      // Удаляем вторую ноду пары и все её рёбра.
+      const nextNodes = nodes.filter((n) => n.id !== counterpartId)
+      const nextEdges = edges.filter((e) => {
+        const isPairEdge =
+          e.source === node.id &&
+          e.target === counterpartId &&
+          e.sourceHandle === '__pair' &&
+          e.targetHandle === '__pair'
+        return e.source !== counterpartId && e.target !== counterpartId && !isPairEdge
+      })
+
+      return { nodes: nextNodes, edges: nextEdges }
+    }
+
+    // Меняем тип ноды с учётом special-case для parallel.
+    // Тут мы создаём/удаляем пару start/join и внутреннее ребро.
+    const changeNodeType = (nodeId: string, nextType: string) => {
+      const currentNode = runtime.nodes.find((node) => node.id === nodeId)
+      if (!currentNode) return
+
+      // Готовим набор занятых имён, чтобы не создавать дубликаты.
+      const takenNames = new Set(
+        runtime.nodes
+          .filter((n) => n.id !== nodeId)
+          .map((n) => String(n.name ?? '').trim())
+          .filter((v) => v.length > 0)
+      )
+
+      // Сначала чистим старую пару, если нода была parallel.
+      let nextNodes = runtime.nodes
+      let nextEdges = runtime.edges
+      if (currentNode.type === 'parallel_start' || currentNode.type === 'parallel_join') {
+        const cleaned = removeParallelPair(currentNode, nextNodes, nextEdges)
+        nextNodes = cleaned.nodes
+        nextEdges = cleaned.edges
+      }
+
+      // Позиция для новой join-ноды — справа от выбранной.
+      const anchorPos = currentNode.position ?? { x: 100, y: 150 }
+
+      if (nextType === 'parallel_start') {
+        const joinId = `pjoin-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+        const joinName = suggestUniqueNodeName('Node', takenNames)
+
+        // Обновляем текущую ноду в start.
+        nextNodes = nextNodes.map((node) =>
+          node.id === nodeId
+            ? {
+                ...node,
+                type: 'parallel_start',
+                params: { joinId, branches: ['b0'] }
+              }
+            : node
+        )
+
+        // Добавляем join-ноду пары.
+        nextNodes = [
+          ...nextNodes,
+          {
+            id: joinId,
+            type: 'parallel_join',
+            name: joinName,
+            position: { x: anchorPos.x + 300, y: anchorPos.y },
+            params: { pairId: nodeId, branches: ['b0'] }
+          }
+        ]
+
+        // Добавляем внутреннее ребро между парой.
+        nextEdges = [
+          ...nextEdges,
+          {
+            id: `edge-pair-${nodeId}-${joinId}`,
+            source: nodeId,
+            sourceHandle: '__pair',
+            target: joinId,
+            targetHandle: '__pair'
+          }
+        ]
+      } else {
+        // Обычная нода: просто меняем тип и чистим parallel-поля.
+        nextNodes = nextNodes.map((node) =>
+          node.id === nodeId
+            ? {
+                ...node,
+                type: nextType,
+                params: stripParallelParams(node.params)
+              }
+            : node
+        )
+      }
+
+      setRuntime({
+        ...runtime,
+        nodes: nextNodes,
+        edges: nextEdges
+      })
+    }
+
+    // Пробуем применить новое имя ноды.
+    // Если имя занято — показываем предупреждение с предложением ` (0)`.
+    const commitNodeName = (nodeId: string, nextNameRaw: string) => {
+      const nextName = nextNameRaw.trim()
+
+      // Пустое имя разрешаем (это просто warning в validateGraph).
+      if (!nextName) {
+        updateNode(nodeId, { name: '' })
+        return
+      }
+
+      const prev = runtime.nodes.find((n) => n.id === nodeId)?.name ?? ''
+
+      // Собираем занятые имена (кроме текущей ноды).
+      const taken = new Set(
+        runtime.nodes
+          .filter((n) => n.id !== nodeId)
+          .map((n) => String(n.name ?? '').trim())
+          .filter((v) => v.length > 0)
+      )
+
+      // Если конфликта нет — применяем сразу.
+      if (!taken.has(nextName)) {
+        updateNode(nodeId, { name: nextName })
+        return
+      }
+
+      // Конфликт есть: дубликаты разрешены, но предупреждаем.
+      // По умолчанию предлагаем уникальное имя с постфиксом.
+      const conflictingWithNodeId = runtime.nodes.find((n) => n.id !== nodeId && String(n.name ?? '').trim() === nextName)?.id ?? ''
+      const suggested = suggestUniqueNodeName(nextName, taken)
+
+      setNameConflictModal({
+        nodeId,
+        previousName: prev,
+        conflictingWithNodeId,
+        value: suggested
+      })
+    }
+
     // Обновляем один параметр в selectedNode.params.
     const updateNodeParam = (nodeId: string, key: string, value: unknown) => {
       const target = runtime.nodes.find((node) => node.id === nodeId)
@@ -440,6 +948,13 @@ export function EditorShell(): React.JSX.Element {
     const addNode = (type: string) => {
       const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 
+      // Готовим набор занятых имён, чтобы дать новой ноде уникальное имя.
+      const takenNames = new Set(
+        runtime.nodes
+          .map((n) => String(n.name ?? '').trim())
+          .filter((v) => v.length > 0)
+      )
+
       // Берём позицию активного узла или последнего узла в списке.
       const anchor = runtime.nodes.find((n) => n.id === runtime.selectedNodeId)
         ?? runtime.nodes[runtime.nodes.length - 1]
@@ -452,9 +967,14 @@ export function EditorShell(): React.JSX.Element {
         const startId = `pstart-${Date.now()}-${Math.floor(Math.random() * 1000)}`
         const joinId = `pjoin-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 
+        const startName = suggestUniqueNodeName('Node', takenNames)
+        takenNames.add(startName)
+        const joinName = suggestUniqueNodeName('Node', takenNames)
+
         const startNode: RuntimeNode = {
           id: startId,
           type: 'parallel_start',
+          name: startName,
           position: { x: anchorPos.x + 250, y: anchorPos.y },
           params: { joinId, branches: ['b0'] }
         }
@@ -462,6 +982,7 @@ export function EditorShell(): React.JSX.Element {
         const joinNode: RuntimeNode = {
           id: joinId,
           type: 'parallel_join',
+          name: joinName,
           position: { x: anchorPos.x + 550, y: anchorPos.y },
           params: { pairId: startId, branches: ['b0'] }
         }
@@ -492,6 +1013,7 @@ export function EditorShell(): React.JSX.Element {
       const newNode: RuntimeNode = {
         id: newId,
         type,
+        name: suggestUniqueNodeName('Node', takenNames),
         text: '',
         position: { x: anchorPos.x + 250, y: anchorPos.y }
       }
@@ -589,7 +1111,7 @@ export function EditorShell(): React.JSX.Element {
                     type="button"
                     onClick={() => selectNode(node.id)}
                   >
-                    {node.type} · {node.id}
+                    {String(node.name ?? '').trim() ? String(node.name) : node.type} · {node.id}
                   </button>
                 </li>
               ))}
@@ -672,7 +1194,7 @@ export function EditorShell(): React.JSX.Element {
                 <select
                   className="runtimeInput"
                   value={selectedNode.type}
-                  onChange={(event) => updateNode(selectedNode.id, { type: event.target.value })}
+                  onChange={(event) => changeNodeType(selectedNode.id, event.target.value)}
                 >
                   {nodeTypes.map((t) => (
                     <option key={t} value={t}>{t}</option>
@@ -684,12 +1206,18 @@ export function EditorShell(): React.JSX.Element {
                 </select>
               </label>
               <label className="runtimeField">
-                <span>Text / Label</span>
+                <span>Node name</span>
                 <input
                   className="runtimeInput"
-                  value={selectedNode.text ?? ''}
-                  placeholder="Node label..."
-                  onChange={(event) => updateNode(selectedNode.id, { text: event.target.value })}
+                  value={pendingNodeName}
+                  placeholder="Node"
+                  onChange={(event) => setPendingNodeName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return
+                    event.preventDefault()
+                    commitNodeName(selectedNode.id, pendingNodeName)
+                  }}
+                  onBlur={() => commitNodeName(selectedNode.id, pendingNodeName)}
                 />
               </label>
 
@@ -895,38 +1423,18 @@ export function EditorShell(): React.JSX.Element {
                   </label>
                   <label className="runtimeField">
                     <span>Sprite / Object</span>
-                    {spriteOrObjectOptions.length > 0 ? (
-                      <select
-                        className="runtimeInput"
-                        value={String((selectedNode.params?.sprite_or_object as string) ?? '')}
-                        onChange={(event) => updateNodeParam(selectedNode.id, 'sprite_or_object', event.target.value)}
-                        style={
-                          // Валидация: красная рамка, если ресурс не найден в .yyp.
-                          (selectedNode.params?.sprite_or_object && !spriteOrObjectOptions.includes(String(selectedNode.params.sprite_or_object)))
-                            ? { borderColor: '#e05050' }
-                            : undefined
-                        }
-                      >
-                        <option value="">-- Select --</option>
-                        {spriteOrObjectOptions.map((name) => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
-                        {/* Если текущее значение не в списке — показываем его тоже */}
-                        {(() => {
-                          const val = String(selectedNode.params?.sprite_or_object ?? '')
-                          return val && !spriteOrObjectOptions.includes(val)
-                            ? <option value={val}>{val} (not found)</option>
-                            : null
-                        })()}
-                      </select>
-                    ) : (
-                      <input
-                        className="runtimeInput"
-                        placeholder="obj_actor / spr_..."
-                        value={String((selectedNode.params?.sprite_or_object as string) ?? '')}
-                        onChange={(event) => updateNodeParam(selectedNode.id, 'sprite_or_object', event.target.value)}
-                      />
-                    )}
+                    <SearchableSelect
+                      className="runtimeInput"
+                      options={spriteOrObjectOptions}
+                      value={String((selectedNode.params?.sprite_or_object as string) ?? '')}
+                      onChange={(v) => updateNodeParam(selectedNode.id, 'sprite_or_object', v)}
+                      placeholder="obj_actor / spr_..."
+                      style={
+                        (selectedNode.params?.sprite_or_object && !spriteOrObjectOptions.includes(String(selectedNode.params.sprite_or_object)))
+                          ? { borderColor: '#e05050' }
+                          : undefined
+                      }
+                    />
                   </label>
                   <label className="runtimeField">
                     <span>X</span>
@@ -976,36 +1484,18 @@ export function EditorShell(): React.JSX.Element {
                   </label>
                   <label className="runtimeField">
                     <span>Sprite</span>
-                    {spriteOptions.length > 0 ? (
-                      <select
-                        className="runtimeInput"
-                        value={String((selectedNode.params?.sprite as string) ?? '')}
-                        onChange={(event) => updateNodeParam(selectedNode.id, 'sprite', event.target.value)}
-                        style={
-                          (selectedNode.params?.sprite && !spriteOptions.includes(String(selectedNode.params.sprite)))
-                            ? { borderColor: '#e05050' }
-                            : undefined
-                        }
-                      >
-                        <option value="">-- Select --</option>
-                        {spriteOptions.map((name) => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
-                        {(() => {
-                          const val = String(selectedNode.params?.sprite ?? '')
-                          return val && !spriteOptions.includes(val)
-                            ? <option value={val}>{val} (not found)</option>
-                            : null
-                        })()}
-                      </select>
-                    ) : (
-                      <input
-                        className="runtimeInput"
-                        placeholder="spr_..."
-                        value={String((selectedNode.params?.sprite as string) ?? '')}
-                        onChange={(event) => updateNodeParam(selectedNode.id, 'sprite', event.target.value)}
-                      />
-                    )}
+                    <SearchableSelect
+                      className="runtimeInput"
+                      options={spriteOptions}
+                      value={String((selectedNode.params?.sprite as string) ?? '')}
+                      onChange={(v) => updateNodeParam(selectedNode.id, 'sprite', v)}
+                      placeholder="spr_..."
+                      style={
+                        (selectedNode.params?.sprite && !spriteOptions.includes(String(selectedNode.params.sprite)))
+                          ? { borderColor: '#e05050' }
+                          : undefined
+                      }
+                    />
                   </label>
                   <label className="runtimeField">
                     <span>Image Index</span>
@@ -1031,29 +1521,39 @@ export function EditorShell(): React.JSX.Element {
                 </>
               )}
 
-              {/* --- dialogue: file, node --- */}
-              {selectedNode.type === 'dialogue' && (
-                <>
-                  <label className="runtimeField">
-                    <span>File</span>
-                    <input
-                      className="runtimeInput"
-                      placeholder="dialogue.yarn"
-                      value={String((selectedNode.params?.file as string) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'file', event.target.value)}
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Node</span>
-                    <input
-                      className="runtimeInput"
-                      placeholder="Intro"
-                      value={String((selectedNode.params?.node as string) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'node', event.target.value)}
-                    />
-                  </label>
-                </>
-              )}
+              {/* --- dialogue: file, node (autocomplete из .yarn файлов) --- */}
+              {selectedNode.type === 'dialogue' && (() => {
+                // Список имён .yarn файлов для autocomplete.
+                const yarnFileOptions = yarnFiles.map((y) => y.file)
+                // Ноды из выбранного файла (для autocomplete поля Node).
+                const currentFile = String(selectedNode.params?.file ?? '')
+                const yarnNodeOptions = yarnFiles.find((y) => y.file === currentFile)?.nodes ?? []
+
+                return (
+                  <>
+                    <label className="runtimeField">
+                      <span>File</span>
+                      <SearchableSelect
+                        className="runtimeInput"
+                        options={yarnFileOptions}
+                        value={currentFile}
+                        onChange={(v) => updateNodeParam(selectedNode.id, 'file', v)}
+                        placeholder="dialogue"
+                      />
+                    </label>
+                    <label className="runtimeField">
+                      <span>Node</span>
+                      <SearchableSelect
+                        className="runtimeInput"
+                        options={yarnNodeOptions}
+                        value={String((selectedNode.params?.node as string) ?? '')}
+                        onChange={(v) => updateNodeParam(selectedNode.id, 'node', v)}
+                        placeholder="Intro"
+                      />
+                    </label>
+                  </>
+                )
+              })()}
 
               {/* --- camera_track: target, seconds, offset_x, offset_y --- */}
               {selectedNode.type === 'camera_track' && (
@@ -1191,31 +1691,13 @@ export function EditorShell(): React.JSX.Element {
               {selectedNode.type === 'branch' && (
                 <label className="runtimeField">
                   <span>Condition</span>
-                  {(engineSettings?.branchConditions?.length ?? 0) > 0 ? (
-                    <select
-                      className="runtimeInput"
-                      value={String((selectedNode.params?.condition as string) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'condition', event.target.value)}
-                    >
-                      <option value="">-- Select --</option>
-                      {engineSettings!.branchConditions.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                      {(() => {
-                        const val = String(selectedNode.params?.condition ?? '')
-                        return val && !engineSettings!.branchConditions.includes(val)
-                          ? <option value={val}>{val} (custom)</option>
-                          : null
-                      })()}
-                    </select>
-                  ) : (
-                    <input
-                      className="runtimeInput"
-                      placeholder="e.g. has_item_key"
-                      value={String((selectedNode.params?.condition as string) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'condition', event.target.value)}
-                    />
-                  )}
+                  <SearchableSelect
+                    className="runtimeInput"
+                    options={engineSettings?.branchConditions ?? []}
+                    value={String((selectedNode.params?.condition as string) ?? '')}
+                    onChange={(v) => updateNodeParam(selectedNode.id, 'condition', v)}
+                    placeholder="e.g. has_item_key"
+                  />
                 </label>
               )}
 
@@ -1224,31 +1706,13 @@ export function EditorShell(): React.JSX.Element {
                 <>
                   <label className="runtimeField">
                     <span>Function Name</span>
-                    {(engineSettings?.runFunctions?.length ?? 0) > 0 ? (
-                      <select
-                        className="runtimeInput"
-                        value={String((selectedNode.params?.function_name as string) ?? '')}
-                        onChange={(event) => updateNodeParam(selectedNode.id, 'function_name', event.target.value)}
-                      >
-                        <option value="">-- Select --</option>
-                        {engineSettings!.runFunctions.map((f) => (
-                          <option key={f} value={f}>{f}</option>
-                        ))}
-                        {(() => {
-                          const val = String(selectedNode.params?.function_name ?? '')
-                          return val && !engineSettings!.runFunctions.includes(val)
-                            ? <option value={val}>{val} (custom)</option>
-                            : null
-                        })()}
-                      </select>
-                    ) : (
-                      <input
-                        className="runtimeInput"
-                        placeholder="my_cutscene_func"
-                        value={String((selectedNode.params?.function_name as string) ?? '')}
-                        onChange={(event) => updateNodeParam(selectedNode.id, 'function_name', event.target.value)}
-                      />
-                    )}
+                    <SearchableSelect
+                      className="runtimeInput"
+                      options={engineSettings?.runFunctions ?? []}
+                      value={String((selectedNode.params?.function as string) ?? (selectedNode.params?.function_name as string) ?? '')}
+                      onChange={(v) => updateNodeParam(selectedNode.id, 'function', v)}
+                      placeholder="my_cutscene_func"
+                    />
                   </label>
                   <label className="runtimeField">
                     <span>Args (JSON)</span>
@@ -1282,6 +1746,14 @@ export function EditorShell(): React.JSX.Element {
               <label className="runtimeField">
                 <span>Wait on edge (seconds)</span>
                 <input
+                  ref={(el) => {
+                    edgeWaitInputRef.current = el
+                    // Если стоит флаг автофокуса — фокусируемся сразу при маунте.
+                    if (el && shouldFocusEdgeWaitRef.current) {
+                      shouldFocusEdgeWaitRef.current = false
+                      requestAnimationFrame(() => el.focus())
+                    }
+                  }}
                   className="runtimeInput"
                   type="number"
                   step="0.1"
@@ -1296,6 +1768,153 @@ export function EditorShell(): React.JSX.Element {
                   }}
                 />
               </label>
+
+              {/* Condition на ребре: галочка включает условие. */}
+              <label className="runtimeField" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={!!selectedEdge.conditionEnabled}
+                  onChange={(event) => {
+                    const enabled = event.target.checked
+                    if (enabled) {
+                      updateEdge(selectedEdge.id, {
+                        conditionEnabled: true,
+                        conditionVar: selectedEdge.conditionVar ?? '',
+                        conditionEquals: selectedEdge.conditionEquals ?? '',
+                        conditionIfFalse: selectedEdge.conditionIfFalse ?? 'skip',
+                        stopWaitingWhen: selectedEdge.stopWaitingWhen ?? 'none'
+                      })
+                    } else {
+                      updateEdge(selectedEdge.id, { conditionEnabled: false })
+                    }
+                  }}
+                />
+                <span>Condition</span>
+              </label>
+
+              {/* Поля условия показываем только если condition включён. */}
+              {selectedEdge.conditionEnabled ? (
+                <>
+                  <label className="runtimeField">
+                    <span>Variable (global key)</span>
+                    <input
+                      className="runtimeInput"
+                      placeholder="e.g. has_key"
+                      value={String(selectedEdge.conditionVar ?? '')}
+                      onChange={(event) => updateEdge(selectedEdge.id, { conditionVar: event.target.value })}
+                    />
+                  </label>
+                  <label className="runtimeField">
+                    <span>Equals</span>
+                    <input
+                      className="runtimeInput"
+                      placeholder="e.g. true / 1 / done"
+                      value={String(selectedEdge.conditionEquals ?? '')}
+                      onChange={(event) => updateEdge(selectedEdge.id, { conditionEquals: event.target.value })}
+                    />
+                  </label>
+
+                  {/* Что делать, если условие false. */}
+                  <label className="runtimeField">
+                    <span>If false</span>
+                    <select
+                      className="runtimeInput"
+                      value={selectedEdge.conditionIfFalse ?? 'skip'}
+                      onChange={(event) => {
+                        const val = event.target.value as 'skip' | 'wait_until_true'
+                        updateEdge(selectedEdge.id, {
+                          conditionIfFalse: val,
+                          // При переключении на skip — сбрасываем поля ожидания.
+                          stopWaitingWhen: val === 'skip' ? undefined : (selectedEdge.stopWaitingWhen ?? 'none')
+                        })
+                      }}
+                    >
+                      <option value="skip">skip (пропустить)</option>
+                      <option value="wait_until_true">wait until true (ждать)</option>
+                    </select>
+                  </label>
+
+                  {/* Если wait_until_true — показываем настройки прекращения ожидания. */}
+                  {selectedEdge.conditionIfFalse === 'wait_until_true' ? (
+                    <>
+                      <label className="runtimeField">
+                        <span>Stop waiting when</span>
+                        <select
+                          className="runtimeInput"
+                          value={selectedEdge.stopWaitingWhen ?? 'none'}
+                          onChange={(event) => updateEdge(selectedEdge.id, {
+                            stopWaitingWhen: event.target.value as 'none' | 'global_var' | 'node_reached' | 'timeout'
+                          })}
+                        >
+                          <option value="none">none (ждать бесконечно)</option>
+                          <option value="global_var">global variable</option>
+                          <option value="node_reached">node reached</option>
+                          <option value="timeout">timeout</option>
+                        </select>
+                      </label>
+
+                      {/* Поля для end-condition: global_var */}
+                      {selectedEdge.stopWaitingWhen === 'global_var' ? (
+                        <>
+                          <label className="runtimeField">
+                            <span>End Variable (global key)</span>
+                            <input
+                              className="runtimeInput"
+                              placeholder="e.g. cutscene_abort"
+                              value={String(selectedEdge.endConditionVar ?? '')}
+                              onChange={(event) => updateEdge(selectedEdge.id, { endConditionVar: event.target.value })}
+                            />
+                          </label>
+                          <label className="runtimeField">
+                            <span>End Equals</span>
+                            <input
+                              className="runtimeInput"
+                              placeholder="e.g. true"
+                              value={String(selectedEdge.endConditionEquals ?? '')}
+                              onChange={(event) => updateEdge(selectedEdge.id, { endConditionEquals: event.target.value })}
+                            />
+                          </label>
+                        </>
+                      ) : null}
+
+                      {/* Поля для end-condition: node_reached */}
+                      {selectedEdge.stopWaitingWhen === 'node_reached' ? (
+                        <label className="runtimeField">
+                          <span>Node name</span>
+                          <input
+                            className="runtimeInput"
+                            placeholder="e.g. End"
+                            value={String(selectedEdge.endNodeName ?? '')}
+                            onChange={(event) => updateEdge(selectedEdge.id, { endNodeName: event.target.value })}
+                          />
+                        </label>
+                      ) : null}
+
+                      {/* Поля для end-condition: timeout */}
+                      {selectedEdge.stopWaitingWhen === 'timeout' ? (
+                        <label className="runtimeField">
+                          <span>Timeout (seconds)</span>
+                          <input
+                            className="runtimeInput"
+                            type="number"
+                            step="0.1"
+                            placeholder="5"
+                            value={String(selectedEdge.endTimeoutSeconds ?? '')}
+                            onChange={(event) => {
+                              const v = event.target.value
+                              if (v === '') {
+                                updateEdge(selectedEdge.id, { endTimeoutSeconds: undefined })
+                              } else {
+                                updateEdge(selectedEdge.id, { endTimeoutSeconds: Math.max(0, Number(v)) })
+                              }
+                            }}
+                          />
+                        </label>
+                      ) : null}
+                    </>
+                  ) : null}
+                </>
+              ) : null}
             </>
           ) : null}
 
@@ -1316,45 +1935,87 @@ export function EditorShell(): React.JSX.Element {
     }
 
     if (panelId === 'panel.logs') {
+      // Считаем количество записей по категориям.
+      const errorEntries = validation.entries.filter((e) => e.severity === 'error')
+      const warnEntries = validation.entries.filter((e) => e.severity === 'warn')
+      const tipEntries = validation.entries.filter((e) => e.severity === 'tip')
+
+      // Какие записи показываем в текущей вкладке.
+      const visibleEntries =
+        logsTab === 'errors' ? errorEntries : logsTab === 'warnings' ? warnEntries : tipEntries
+
+      // Цвета и иконки для каждого типа.
+      const severityStyle: Record<string, { color: string; bg: string; icon: string }> = {
+        error: { color: '#e05050', bg: 'rgba(224,80,80,0.08)', icon: '✖' },
+        warn: { color: '#d4a017', bg: 'rgba(212,160,23,0.08)', icon: '⚠' },
+        tip: { color: '#58a6ff', bg: 'rgba(88,166,255,0.06)', icon: '💡' }
+      }
+
       return (
         <div className="runtimeSection">
-          {/* --- Валидация графа --- */}
-          <div className="runtimeSectionTitle">
-            Validation
-            {validation.entries.length === 0
-              ? ' ✓'
-              : ` (${validation.entries.filter((e) => e.severity === 'error').length} errors, ${validation.entries.filter((e) => e.severity === 'warn').length} warnings)`}
+          {/* --- Вкладки: Errors / Warnings / Tips --- */}
+          <div style={{ display: 'flex', gap: 0, marginBottom: 6, borderBottom: '1px solid var(--ev-c-gray-3)' }}>
+            {([
+              { key: 'errors' as const, label: 'Errors', count: errorEntries.length, color: '#e05050' },
+              { key: 'warnings' as const, label: 'Warnings', count: warnEntries.length, color: '#d4a017' },
+              { key: 'tips' as const, label: 'Tips', count: tipEntries.length, color: '#58a6ff' }
+            ]).map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setLogsTab(tab.key)}
+                style={{
+                  flex: 1,
+                  padding: '5px 8px',
+                  fontSize: 11,
+                  fontWeight: logsTab === tab.key ? 700 : 400,
+                  color: logsTab === tab.key ? tab.color : 'var(--ev-c-text-2)',
+                  background: logsTab === tab.key ? 'rgba(255,255,255,0.04)' : 'transparent',
+                  border: 'none',
+                  borderBottom: logsTab === tab.key ? `2px solid ${tab.color}` : '2px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'color 0.12s, background 0.12s'
+                }}
+              >
+                {tab.label} {tab.count > 0 ? `(${tab.count})` : ''}
+              </button>
+            ))}
           </div>
-          {validation.entries.length === 0 ? (
-            <div className="runtimeHint" style={{ color: '#6c6' }}>No issues found.</div>
+
+          {/* --- Записи текущей вкладки --- */}
+          {visibleEntries.length === 0 ? (
+            <div className="runtimeHint" style={{ color: '#6c6' }}>
+              {logsTab === 'errors' ? 'No errors.' : logsTab === 'warnings' ? 'No warnings.' : 'No tips.'}
+            </div>
           ) : (
             <div style={{ maxHeight: 260, overflowY: 'auto' }}>
-              {validation.entries.map((entry, i) => (
-                <div
-                  key={i}
-                  style={{
-                    padding: '3px 6px',
-                    marginBottom: 2,
-                    fontSize: 12,
-                    borderLeft: `3px solid ${entry.severity === 'error' ? '#e05050' : '#d4a017'}`,
-                    background: entry.severity === 'error' ? 'rgba(224,80,80,0.08)' : 'rgba(212,160,23,0.08)',
-                    cursor: entry.nodeId ? 'pointer' : undefined
-                  }}
-                  onClick={() => {
-                    // Клик по записи с nodeId — выбираем эту ноду на холсте.
-                    if (entry.nodeId) {
-                      setRuntime({ ...runtime, selectedNodeId: entry.nodeId, selectedEdgeId: null })
-                    } else if (entry.edgeId) {
-                      setRuntime({ ...runtime, selectedNodeId: null, selectedEdgeId: entry.edgeId })
-                    }
-                  }}
-                >
-                  <span style={{ fontWeight: 600, color: entry.severity === 'error' ? '#e05050' : '#d4a017' }}>
-                    {entry.severity === 'error' ? '✖' : '⚠'}
-                  </span>{' '}
-                  {entry.message}
-                </div>
-              ))}
+              {visibleEntries.map((entry, i) => {
+                const s = severityStyle[entry.severity] ?? severityStyle.warn
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      padding: '3px 6px',
+                      marginBottom: 2,
+                      fontSize: 12,
+                      borderLeft: `3px solid ${s.color}`,
+                      background: s.bg,
+                      cursor: entry.nodeId || entry.edgeId ? 'pointer' : undefined
+                    }}
+                    onClick={() => {
+                      // Клик по записи — выбираем ноду или ребро на холсте.
+                      if (entry.nodeId) {
+                        setRuntime({ ...runtime, selectedNodeId: entry.nodeId, selectedNodeIds: [entry.nodeId], selectedEdgeId: null })
+                      } else if (entry.edgeId) {
+                        setRuntime({ ...runtime, selectedNodeId: null, selectedNodeIds: [], selectedEdgeId: entry.edgeId })
+                      }
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, color: s.color }}>{s.icon}</span>{' '}
+                    {entry.message}
+                  </div>
+                )
+              })}
             </div>
           )}
 
@@ -1471,10 +2132,11 @@ export function EditorShell(): React.JSX.Element {
       panelId,
       pointerId: event.pointerId,
       grabOffset,
-      size,
-      ghostPosition,
-      hoverSlot
+      size
     })
+
+    // Сразу обновляем превью, чтобы призрак появился без задержек.
+    scheduleDragPreview(ghostPosition, hoverSlot)
   }
 
   // Пока пользователь тащит панель, мы обновляем "призрак" и подсветку дока.
@@ -1487,11 +2149,8 @@ export function EditorShell(): React.JSX.Element {
       const ghostPosition = getFloatingPositionAtPoint(event.clientX, event.clientY, drag.grabOffset)
       const hoverSlot = getHoverSlotAtPoint(event.clientX, event.clientY)
 
-      setDrag((prev) => {
-        if (!prev) return prev
-        if (prev.pointerId !== event.pointerId) return prev
-        return { ...prev, ghostPosition, hoverSlot }
-      })
+      // Обновляем только превью, чтобы не трясти всё дерево.
+      scheduleDragPreview(ghostPosition, hoverSlot)
     }
 
     const onPointerUp = (event: PointerEvent) => {
@@ -1501,6 +2160,7 @@ export function EditorShell(): React.JSX.Element {
       const currentPanel = currentLayout.panels[drag.panelId]
       if (!currentPanel) {
         setDrag(null)
+        updateDragPreviewDOM(null, null)
         return
       }
 
@@ -1541,6 +2201,7 @@ export function EditorShell(): React.JSX.Element {
         })
 
         setDrag(null)
+        updateDragPreviewDOM(null, null)
         return
       }
 
@@ -1568,6 +2229,7 @@ export function EditorShell(): React.JSX.Element {
       })
 
       setDrag(null)
+      updateDragPreviewDOM(null, null)
     }
 
     window.addEventListener('pointermove', onPointerMove)
@@ -1931,7 +2593,7 @@ export function EditorShell(): React.JSX.Element {
 
       <aside
         ref={leftDockRef}
-        className={['editorLeftDock', drag?.hoverSlot === 'left' ? 'isDockDropTarget' : ''].filter(Boolean).join(' ')}
+        className="editorLeftDock"
       >
         <div className="dockSlotSplit dockSlotSplitLeft">
           {leftDockedIds[0] ? (
@@ -1945,12 +2607,14 @@ export function EditorShell(): React.JSX.Element {
                   .filter(Boolean)
                   .join(' ')
               }
-              style={{
+              style={getDockedPanelStyle(leftDockedIds[0], {
                 flexGrow: leftDockedIds.length >= 2 ? leftTopGrow : 1,
                 flexBasis: 0,
                 minHeight: 0
-              }}
+              })}
               onHeaderPointerDown={startPanelDrag(leftDockedIds[0])}
+              collapsed={layout.panels[leftDockedIds[0]]?.collapsed}
+              onToggleCollapse={() => togglePanelCollapse(leftDockedIds[0])}
             >
               {renderPanelContents(leftDockedIds[0])}
             </DockPanel>
@@ -1975,12 +2639,14 @@ export function EditorShell(): React.JSX.Element {
                   .filter(Boolean)
                   .join(' ')
               }
-              style={{
+              style={getDockedPanelStyle(leftDockedIds[1], {
                 flexGrow: leftDockedIds.length >= 2 ? leftBottomGrow : 1,
                 flexBasis: 0,
                 minHeight: 0
-              }}
+              })}
               onHeaderPointerDown={startPanelDrag(leftDockedIds[1])}
+              collapsed={layout.panels[leftDockedIds[1]]?.collapsed}
+              onToggleCollapse={() => togglePanelCollapse(leftDockedIds[1])}
             >
               {renderPanelContents(leftDockedIds[1])}
             </DockPanel>
@@ -1996,11 +2662,13 @@ export function EditorShell(): React.JSX.Element {
             runtimeNodes={runtime.nodes}
             runtimeEdges={runtime.edges}
             selectedNodeId={runtime.selectedNodeId}
+            selectedNodeIds={runtime.selectedNodeIds}
             selectedEdgeId={runtime.selectedEdgeId}
-            onSelectNode={(nodeId) => {
+            onSelectNodes={(nodeIds) => {
               setRuntime({
                 ...runtime,
-                selectedNodeId: nodeId,
+                selectedNodeId: nodeIds.length === 1 ? nodeIds[0] : null,
+                selectedNodeIds: nodeIds,
                 selectedEdgeId: null
               })
             }}
@@ -2008,6 +2676,7 @@ export function EditorShell(): React.JSX.Element {
               setRuntime({
                 ...runtime,
                 selectedNodeId: null,
+                selectedNodeIds: [],
                 selectedEdgeId: edgeId
               })
             }}
@@ -2038,11 +2707,13 @@ export function EditorShell(): React.JSX.Element {
             onParallelAddBranch={onParallelAddBranch}
             onNodeDelete={(nodeId) => {
               // ПКМ по ноде — удаляем ноду и все связанные рёбра.
+              const nextSelectedNodeIds = (runtime.selectedNodeIds ?? []).filter((id) => id !== nodeId)
               setRuntime({
                 ...runtime,
                 nodes: runtime.nodes.filter((n) => n.id !== nodeId),
                 edges: runtime.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
                 selectedNodeId: runtime.selectedNodeId === nodeId ? null : runtime.selectedNodeId,
+                selectedNodeIds: nextSelectedNodeIds,
                 selectedEdgeId: null
               })
             }}
@@ -2050,6 +2721,15 @@ export function EditorShell(): React.JSX.Element {
               // ЛКМ по холсту — создаём новую ноду в позиции курсора.
               // По умолчанию тип 'dialogue' (самый частый), можно сменить в Inspector.
               const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+
+              // Генерируем уникальное имя “Node”, чтобы новый узел не конфликтовал с другими.
+              const takenNames = new Set(
+                runtime.nodes
+                  .map((n) => String(n.name ?? '').trim())
+                  .filter((v) => v.length > 0)
+              )
+              const newName = suggestUniqueNodeName('Node', takenNames)
+
               setRuntime({
                 ...runtime,
                 nodes: [
@@ -2057,11 +2737,13 @@ export function EditorShell(): React.JSX.Element {
                   {
                     id: newId,
                     type: 'dialogue',
+                    name: newName,
                     text: '',
                     position: { x, y }
                   }
                 ],
                 selectedNodeId: newId,
+                selectedNodeIds: [newId],
                 selectedEdgeId: null
               })
             }}
@@ -2073,13 +2755,17 @@ export function EditorShell(): React.JSX.Element {
                 selectedEdgeId: runtime.selectedEdgeId === edgeId ? null : runtime.selectedEdgeId
               })
             }}
+            onEdgeDoubleClick={() => {
+              // Двойной клик по ребру — после рендера фокусируем wait input.
+              shouldFocusEdgeWaitRef.current = true
+            }}
           />
         </div>
       </main>
 
       <aside
         ref={rightDockRef}
-        className={['editorRightDock', drag?.hoverSlot === 'right' ? 'isDockDropTarget' : ''].filter(Boolean).join(' ')}
+        className="editorRightDock"
       >
         <div className="dockSlotSplit dockSlotSplitRight">
           {rightDockedIds[0] ? (
@@ -2093,12 +2779,14 @@ export function EditorShell(): React.JSX.Element {
                   .filter(Boolean)
                   .join(' ')
               }
-              style={{
+              style={getDockedPanelStyle(rightDockedIds[0], {
                 flexGrow: rightDockedIds.length >= 2 ? rightTopGrow : 1,
                 flexBasis: 0,
                 minHeight: 0
-              }}
+              })}
               onHeaderPointerDown={startPanelDrag(rightDockedIds[0])}
+              collapsed={layout.panels[rightDockedIds[0]]?.collapsed}
+              onToggleCollapse={() => togglePanelCollapse(rightDockedIds[0])}
             >
               {renderPanelContents(rightDockedIds[0])}
             </DockPanel>
@@ -2123,12 +2811,14 @@ export function EditorShell(): React.JSX.Element {
                   .filter(Boolean)
                   .join(' ')
               }
-              style={{
+              style={getDockedPanelStyle(rightDockedIds[1], {
                 flexGrow: rightDockedIds.length >= 2 ? rightBottomGrow : 1,
                 flexBasis: 0,
                 minHeight: 0
-              }}
+              })}
               onHeaderPointerDown={startPanelDrag(rightDockedIds[1])}
+              collapsed={layout.panels[rightDockedIds[1]]?.collapsed}
+              onToggleCollapse={() => togglePanelCollapse(rightDockedIds[1])}
             >
               {renderPanelContents(rightDockedIds[1])}
             </DockPanel>
@@ -2138,21 +2828,69 @@ export function EditorShell(): React.JSX.Element {
 
       <section
         ref={bottomDockRef}
-        className={
-          ['editorBottomDock', drag?.hoverSlot === 'bottom' ? 'isDockDropTarget' : ''].filter(Boolean).join(' ')
-        }
+        className="editorBottomDock"
       >
-        {bottomDockedIds[0] ? (
-          <DockPanel
-            title={layout.panels[bottomDockedIds[0]]?.title ?? bottomDockedIds[0]}
-            className={['dockPanelLogs', drag?.panelId === bottomDockedIds[0] ? 'isDragSource' : '']
-              .filter(Boolean)
-              .join(' ')}
-            onHeaderPointerDown={startPanelDrag(bottomDockedIds[0])}
-          >
-            {renderPanelContents(bottomDockedIds[0])}
-          </DockPanel>
-        ) : null}
+        {bottomDockedIds.length > 0 ? (() => {
+          // Определяем активную вкладку: если сохранённая не в списке — берём первую.
+          const activeId = (activeBottomTabId && bottomDockedIds.includes(activeBottomTabId))
+            ? activeBottomTabId
+            : bottomDockedIds[0]
+
+          return (
+            <>
+              {/* Таб-бар показываем только если панелей > 1. */}
+              {bottomDockedIds.length > 1 && (
+                <div style={{
+                  display: 'flex',
+                  gap: 0,
+                  borderBottom: '1px solid var(--ev-c-gray-3)',
+                  background: 'var(--color-background-soft)',
+                  flexShrink: 0
+                }}>
+                  {bottomDockedIds.map((panelId) => (
+                    <button
+                      key={panelId}
+                      type="button"
+                      onClick={() => setActiveBottomTabId(panelId)}
+                      onPointerDown={(e) => {
+                        // ПКМ — начинаем drag панели из таба.
+                        if (e.button === 0 && e.detail >= 2) return
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '4px 8px',
+                        fontSize: 11,
+                        fontWeight: panelId === activeId ? 700 : 400,
+                        color: panelId === activeId ? 'var(--ev-c-text-1)' : 'var(--ev-c-text-2)',
+                        background: panelId === activeId ? 'rgba(255,255,255,0.04)' : 'transparent',
+                        border: 'none',
+                        borderBottom: panelId === activeId ? '2px solid var(--ev-c-accent)' : '2px solid transparent',
+                        cursor: 'pointer',
+                        transition: 'color 0.12s, background 0.12s'
+                      }}
+                    >
+                      {layout.panels[panelId]?.title ?? panelId}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Контент активной вкладки. */}
+              <DockPanel
+                title={layout.panels[activeId]?.title ?? activeId}
+                className={['dockPanelLogs', drag?.panelId === activeId ? 'isDragSource' : '']
+                  .filter(Boolean)
+                  .join(' ')}
+                style={getDockedPanelStyle(activeId)}
+                onHeaderPointerDown={startPanelDrag(activeId)}
+                collapsed={layout.panels[activeId]?.collapsed}
+                onToggleCollapse={() => togglePanelCollapse(activeId)}
+              >
+                {renderPanelContents(activeId)}
+              </DockPanel>
+            </>
+          )
+        })() : null}
       </section>
 
       {/*
@@ -2179,7 +2917,13 @@ export function EditorShell(): React.JSX.Element {
                 zIndex: p.zIndex
               }}
             >
-              <DockPanel title={p.title} className="isFloating" onHeaderPointerDown={startPanelDrag(panelId)}>
+              <DockPanel
+                title={p.title}
+                className="isFloating"
+                onHeaderPointerDown={startPanelDrag(panelId)}
+                collapsed={p.collapsed}
+                onToggleCollapse={() => togglePanelCollapse(panelId)}
+              >
                 {renderPanelContents(panelId)}
               </DockPanel>
               {/* Невидимые зоны для ресайза по краям и углам (как в Windows). */}
@@ -2195,19 +2939,21 @@ export function EditorShell(): React.JSX.Element {
           )
         })}
 
-        {drag ? (
-          <div
-            className="dragGhost"
-            style={{
-              left: `${drag.ghostPosition.x}px`,
-              top: `${drag.ghostPosition.y}px`,
-              width: `${drag.size.width}px`,
-              height: `${drag.size.height}px`
-            }}
-          >
-            <div className="dragGhostHeader">{layout.panels[drag.panelId]?.title ?? drag.panelId}</div>
+        {/* Призрак панели всегда в DOM, но скрыт когда не тащим.
+            Позиция и видимость управляются через ref напрямую, минуя React. */}
+        <div
+          ref={ghostRef}
+          className="dragGhost"
+          style={{
+            display: 'none',
+            width: drag ? `${drag.size.width}px` : undefined,
+            height: drag ? `${drag.size.height}px` : undefined
+          }}
+        >
+          <div className="dragGhostHeader">
+            {drag ? (layout.panels[drag.panelId]?.title ?? drag.panelId) : ''}
           </div>
-        ) : null}
+        </div>
       </div>
 
       {/* Сплиттеры для изменения размеров доков. */}
@@ -2220,6 +2966,87 @@ export function EditorShell(): React.JSX.Element {
 
       {/* Модалка настроек. */}
       <PreferencesModal open={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
+
+      {/*
+        Модалка предупреждения о конфликте имени ноды.
+        Дубликаты разрешены, но по умолчанию мы предлагаем уникальный вариант.
+      */}
+      {nameConflictModal ? (
+        <div
+          className="prefsOverlay"
+          onClick={() => {
+            setPendingNodeName(nameConflictModal.previousName)
+            setNameConflictModal(null)
+          }}
+        >
+          <div className="prefsModal" onClick={(e) => e.stopPropagation()}>
+            <div className="prefsHeader">
+              <span className="prefsTitle">Duplicate node name</span>
+              <button
+                className="prefsCloseBtn"
+                onClick={() => {
+                  setPendingNodeName(nameConflictModal.previousName)
+                  setNameConflictModal(null)
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="prefsBody">
+              <div className="prefsHint">
+                This name is already used by another node{nameConflictModal.conflictingWithNodeId ? ` (${nameConflictModal.conflictingWithNodeId})` : ''}.
+                Duplicates are allowed, but it can be confusing.
+              </div>
+
+              <label className="prefsField">
+                <span>Name</span>
+                <input
+                  className="prefsInput"
+                  value={nameConflictModal.value}
+                  onChange={(e) =>
+                    setNameConflictModal({
+                      ...nameConflictModal,
+                      value: e.target.value
+                    })
+                  }
+                />
+              </label>
+
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
+                <button
+                  className="runtimeButton"
+                  type="button"
+                  onClick={() => {
+                    setPendingNodeName(nameConflictModal.previousName)
+                    setNameConflictModal(null)
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  ref={nameConflictOkRef}
+                  className="runtimeButton"
+                  type="button"
+                  onClick={() => {
+                    const v = nameConflictModal.value
+                    setPendingNodeName(v)
+                    setRuntime({
+                      ...runtime,
+                      nodes: runtime.nodes.map((n) =>
+                        n.id === nameConflictModal.nodeId ? { ...n, name: v.trim() } : n
+                      )
+                    })
+                    setNameConflictModal(null)
+                  }}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

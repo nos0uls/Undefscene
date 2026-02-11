@@ -34,6 +34,10 @@ const api = {
   settings: {
     readEngine: (projectDir: string): Promise<unknown> => ipcRenderer.invoke('settings.readEngine', projectDir)
   },
+  // Сканирование .yarn файлов в datafiles/ проекта.
+  yarn: {
+    scan: (projectDir: string): Promise<unknown> => ipcRenderer.invoke('yarn.scan', projectDir)
+  },
   // Экспорт катсцены в JSON-файл для движка.
   export: {
     save: (jsonString: string): Promise<unknown> => ipcRenderer.invoke('export.save', jsonString)

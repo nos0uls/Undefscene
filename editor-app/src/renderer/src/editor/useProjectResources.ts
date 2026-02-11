@@ -20,13 +20,20 @@ export type EngineSettings = {
   runFunctions: string[]
 }
 
-// Хук для загрузки и хранения ресурсов GameMaker проекта + настроек движка.
+// Информация о .yarn файле: имя файла (без расширения) и список нод внутри.
+export type YarnFileInfo = {
+  file: string
+  nodes: string[]
+}
+
+// Хук для загрузки и хранения ресурсов GameMaker проекта + настроек движка + yarn файлов.
 export const useProjectResources = () => {
   const [resources, setResources] = useState<ProjectResources | null>(null)
   const [engineSettings, setEngineSettings] = useState<EngineSettings | null>(null)
+  const [yarnFiles, setYarnFiles] = useState<YarnFileInfo[]>([])
 
   // Открываем .yyp через IPC и сохраняем ресурсы в состояние.
-  // Также пытаемся прочитать cutscene_engine_settings.json из datafiles/.
+  // Также пытаемся прочитать cutscene_engine_settings.json и .yarn файлы из datafiles/.
   const openProject = async () => {
     try {
       const result = await window.api.project.open()
@@ -42,11 +49,19 @@ export const useProjectResources = () => {
           // Если не удалось — не страшно, работаем без whitelists.
           setEngineSettings(null)
         }
+
+        // Сканируем .yarn файлы для autocomplete в dialogue нодах.
+        try {
+          const yarn = await window.api.yarn.scan(res.projectDir) as YarnFileInfo[]
+          setYarnFiles(yarn)
+        } catch {
+          setYarnFiles([])
+        }
       }
     } catch (err) {
       console.warn('Failed to open .yyp project:', err)
     }
   }
 
-  return { resources, engineSettings, openProject }
+  return { resources, engineSettings, yarnFiles, openProject }
 }

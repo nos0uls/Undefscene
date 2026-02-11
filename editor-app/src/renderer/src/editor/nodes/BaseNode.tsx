@@ -99,7 +99,9 @@ export function BaseNode({
       className="customNode"
       style={{
         borderColor: selected ? '#fff' : color,
-        minWidth: 140
+        minWidth: 140,
+        // Branch нода выше, чтобы TRUE/FALSE handles были хорошо разнесены.
+        minHeight: nodeType === 'branch' ? 90 : undefined
       }}
     >
       {/* Заголовок ноды с цветной полоской */}

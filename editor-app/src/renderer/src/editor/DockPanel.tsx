@@ -14,15 +14,24 @@ export type DockPanelProps = PropsWithChildren<{
   // Сюда мы пробрасываем начало перетаскивания панели.
   // Событие приходит только при нажатии на шапку панели.
   onHeaderPointerDown?: (event: ReactPointerEvent<HTMLElement>) => void
+
+  // Свёрнута ли панель (показываем только шапку).
+  collapsed?: boolean
+
+  // Коллбек для сворачивания/разворачивания панели.
+  onToggleCollapse?: () => void
 }>
 
 // Простая базовая панель для доков.
 // Позже мы добавим сюда drag-start на шапке и контекстное меню.
 export function DockPanel(props: DockPanelProps): React.JSX.Element {
-  const { title, className, style, onHeaderPointerDown, children } = props
+  const { title, className, style, onHeaderPointerDown, collapsed, onToggleCollapse, children } = props
 
   return (
-    <section className={['dockPanel', className].filter(Boolean).join(' ')} style={style}>
+    <section
+      className={['dockPanel', collapsed ? 'isCollapsed' : '', className].filter(Boolean).join(' ')}
+      style={style}
+    >
       <header className="dockPanelHeader" onPointerDown={onHeaderPointerDown}>
         <div className="dockPanelTitle">{title}</div>
         <button
@@ -30,11 +39,16 @@ export function DockPanel(props: DockPanelProps): React.JSX.Element {
           type="button"
           aria-label="panel menu"
           onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleCollapse?.()
+          }}
         >
-          ▾
+          {collapsed ? '▸' : '▾'}
         </button>
       </header>
-      <div className="dockPanelBody">{children}</div>
+      {/* Тело панели скрываем, когда она свёрнута. */}
+      {!collapsed ? <div className="dockPanelBody">{children}</div> : null}
     </section>
   )
 }
