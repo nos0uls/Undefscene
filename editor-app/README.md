@@ -1,6 +1,6 @@
 # editor-app
 
-An Electron application with React and TypeScript
+Editor for cutscenes
 
 ## Recommended IDE Setup
 
