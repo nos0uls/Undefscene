@@ -33,14 +33,22 @@ jobs:
         with:
           version: 10
           add_to_path: true  # Обязательно для Windows
+          standalone: true
 
-      # Гарантируем, что PNPM_HOME попадает в PATH на Windows.
+      # Гарантируем, что PNPM_HOME попадает в PATH на Windows до первого pnpm вызова и сохраняется для следующих шагов.
       - name: Export pnpm to PATH
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          if (-not $env:PNPM_HOME) {
+            Write-Error "PNPM_HOME is empty"
+          }
           echo "PNPM_HOME=$env:PNPM_HOME"
+          # prepend PNPM_HOME to PATH for current session
+          $env:PATH = "$env:PNPM_HOME;" + $env:PATH
+          # persist for subsequent steps
           echo "$env:PNPM_HOME" >> $env:GITHUB_PATH
+          echo "Updated PATH: $env:PATH"
           pnpm --version
 
       # Синхронизируем версию сборки с git-тегом (vX.Y.Z -> X.Y.Z), чтобы артефакты и latest.yml имели правильный version.
