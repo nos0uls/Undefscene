@@ -32,6 +32,10 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 10
+          standalone: true
+
+      - name: Check pnpm
+        run: pnpm --version
 
       # Синхронизируем версию сборки с git-тегом (vX.Y.Z -> X.Y.Z), чтобы артефакты и latest.yml имели правильный version.
       - name: Set version from tag
