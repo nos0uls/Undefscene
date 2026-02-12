@@ -1,6 +1,6 @@
 # editor-app
 
-Editor for cutscenes
+Editor for cutscenes for our AU
 
 ## Recommended IDE Setup
 
