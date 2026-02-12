@@ -2674,14 +2674,38 @@ export function EditorShell(): React.JSX.Element {
             selectedNodeIds={runtime.selectedNodeIds}
             selectedEdgeId={runtime.selectedEdgeId}
             onSelectNodes={(nodeIds) => {
+              // Важно: React Flow может звать onSelectionChange даже когда выделение не поменялось.
+              // Если мы будем каждый раз делать setRuntime, получится бесконечный цикл рендера.
+              const nextSelectedNodeId = nodeIds.length === 1 ? nodeIds[0] : null
+              const sameIds =
+                (runtime.selectedNodeIds?.length ?? 0) === nodeIds.length &&
+                nodeIds.every((id, i) => runtime.selectedNodeIds?.[i] === id)
+
+              if (
+                runtime.selectedEdgeId === null &&
+                runtime.selectedNodeId === nextSelectedNodeId &&
+                sameIds
+              ) {
+                return
+              }
+
               setRuntime({
                 ...runtime,
-                selectedNodeId: nodeIds.length === 1 ? nodeIds[0] : null,
+                selectedNodeId: nextSelectedNodeId,
                 selectedNodeIds: nodeIds,
                 selectedEdgeId: null
               })
             }}
             onSelectEdge={(edgeId) => {
+              // Аналогично: не делаем setRuntime, если edge уже выбран.
+              if (
+                runtime.selectedEdgeId === edgeId &&
+                runtime.selectedNodeId === null &&
+                (runtime.selectedNodeIds?.length ?? 0) === 0
+              ) {
+                return
+              }
+
               setRuntime({
                 ...runtime,
                 selectedNodeId: null,
