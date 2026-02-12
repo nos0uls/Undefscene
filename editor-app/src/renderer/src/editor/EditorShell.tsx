@@ -2590,9 +2590,26 @@ export function EditorShell(): React.JSX.Element {
           }}
           onToggleLogs={() => togglePanel('panel.logs')}
           onCheckUpdates={() => {
-            window.api.updater.check().then((version) => {
-              if (!version) alert('No updates available.')
-            })
+            window.api.updater
+              .check()
+              .then((res) => {
+                if (res.status === 'available') {
+                  alert(`Update available: v${res.version}`)
+                  return
+                }
+
+                if (res.status === 'none') {
+                  alert('No updates available.')
+                  return
+                }
+
+                alert(`Update check failed: ${res.message}`)
+              })
+              .catch((err) => {
+                // Если IPC-хэндлер не зарегистрирован или что-то пошло не так — покажем ошибку.
+                const msg = err instanceof Error ? err.message : String(err)
+                alert(`Update check failed: ${msg}`)
+              })
           }}
           onAbout={() => alert('Undefscene Editor v1.0\nCutscene node editor for GameMaker.')}
           onExit={() => window.close()}

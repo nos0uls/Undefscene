@@ -4,7 +4,7 @@
 // Для portable — только уведомляет пользователя (через IPC).
 
 import { autoUpdater } from 'electron-updater'
-import { BrowserWindow, ipcMain } from 'electron'
+import { BrowserWindow, ipcMain, app } from 'electron'
 
 // Флаг: приложение запущено как portable (нет installer).
 // В portable режиме мы НЕ запускаем auto-install, только проверяем наличие обновления.
@@ -61,10 +61,24 @@ export function initAutoUpdater(mainWindow: BrowserWindow, portable: boolean): v
   // Ручная проверка обновлений (например, из меню Help → Check for Updates).
   ipcMain.handle('updater:check', async () => {
     try {
+      // checkForUpdates() возвращает updateInfo даже если обновления нет,
+      // поэтому мы сравниваем версию релиза с текущей версией приложения.
       const result = await autoUpdater.checkForUpdates()
-      return result?.updateInfo?.version ?? null
-    } catch {
-      return null
+      const currentVersion = app.getVersion()
+      const nextVersion = result?.updateInfo?.version ?? null
+
+      if (!nextVersion) {
+        return { status: 'none' as const }
+      }
+
+      // Если версия релиза равна текущей — значит обновления нет.
+      if (nextVersion === currentVersion) {
+        return { status: 'none' as const }
+      }
+
+      return { status: 'available' as const, version: nextVersion }
+    } catch (err) {
+      return { status: 'error' as const, message: err instanceof Error ? err.message : 'Unknown error' }
     }
   })
 
@@ -75,6 +89,10 @@ export function initAutoUpdater(mainWindow: BrowserWindow, portable: boolean): v
 
   // Первая проверка при запуске — с задержкой, чтобы окно успело загрузиться.
   setTimeout(() => {
+    // В dev (когда приложение не упаковано) electron-updater обычно не работает.
+    // Поэтому автопроверку делаем только в packaged режиме.
+    if (!app.isPackaged) return
+
     autoUpdater.checkForUpdates().catch(() => {
       // Сеть может быть недоступна — игнорируем.
     })

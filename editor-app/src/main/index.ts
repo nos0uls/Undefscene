@@ -145,12 +145,12 @@ function createWindow(): void {
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
 
-    // Автообновление запускаем только в production.
-    if (!isDev) {
-      // Portable сборка устанавливает эту env-переменную.
-      const isPortable = !!process.env.PORTABLE_EXECUTABLE_DIR
-      initAutoUpdater(mainWindow, isPortable)
-    }
+    // Подключаем автообновление.
+    // Даже в dev полезно зарегистрировать IPC-хэндлеры, чтобы кнопка "Check for Updates"
+    // не "молчала" и могла показать ошибку/статус.
+    // Portable сборка устанавливает эту env-переменную.
+    const isPortable = !!process.env.PORTABLE_EXECUTABLE_DIR
+    initAutoUpdater(mainWindow, isPortable)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {

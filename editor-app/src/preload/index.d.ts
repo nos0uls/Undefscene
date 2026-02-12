@@ -92,6 +92,12 @@ export type YarnFileInfo = {
   nodes: string[]
 }
 
+// Результат ручной проверки обновлений.
+export type UpdaterCheckResult =
+  | { status: 'available'; version: string }
+  | { status: 'none' }
+  | { status: 'error'; message: string }
+
 // Настройки движка катсцен (из cutscene_engine_settings.json).
 export type EngineSettings = {
   found: boolean
@@ -149,7 +155,7 @@ export interface RendererApi {
 
   // Автообновление: проверка, установка, подписка на события.
   updater: {
-    check: () => Promise<string | null>
+    check: () => Promise<UpdaterCheckResult>
     install: () => Promise<void>
     onUpdateAvailable: (cb: (info: { version: string; releaseNotes: string }) => void) => void
     onUpdateNotAvailable: (cb: () => void) => void
