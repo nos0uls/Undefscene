@@ -34,6 +34,10 @@ jobs:
           version: 10
           standalone: true
 
+      # На Windows runners pnpm иногда не попадает в PATH. Ставим глобально как запасной вариант.
+      - name: Fallback install pnpm globally
+        run: npm install -g pnpm@10
+
       - name: Check pnpm
         run: pnpm --version
 
