@@ -34,9 +34,20 @@ export const useRuntimeState = () => {
         if (cancelled) return
         const parsed = parseRuntimeState(loaded)
 
+        const base = parsed ?? defaultRuntime
+        // При загрузке всегда сбрасываем выделение, чтобы избежать
+        // потенциально "битых" selection-полей, которые могут вызывать
+        // зацикливание рендера.
+        const present = {
+          ...base,
+          selectedNodeId: null,
+          selectedNodeIds: [],
+          selectedEdgeId: null
+        }
+
         setHistory({
           past: [],
-          present: parsed ?? defaultRuntime,
+          present,
           future: []
         })
         didLoadRef.current = true

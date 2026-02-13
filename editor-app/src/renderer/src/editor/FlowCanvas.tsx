@@ -87,10 +87,16 @@ const FlowCanvasInner = ({
   onEdgeDoubleClick
 }: FlowCanvasProps): React.JSX.Element => {
   // Нужен для конвертации экранных координат в координаты холста.
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, getNodes } = useReactFlow()
 
   // Флаг, чтобы игнорировать следующий клик по холсту после создания связи.
   const justConnectedRef = useRef(false)
+
+  // Этот флаг нужен, чтобы не словить цикл выделения.
+  // Когда мы сами снимаем выделение (клик по пустому месту), React Flow может
+  // на мгновение прислать старое выделение обратно через onSelectionChange.
+  // Мы игнорируем такие события, пока не увидим пустое выделение.
+  const ignoreSelectionUntilEmptyRef = useRef(false)
   // Строим узлы React Flow из runtime-данных.
   const initialNodes = useMemo<Node[]>(() => {
     return runtimeNodes.map((node, index) => ({
@@ -114,7 +120,7 @@ const FlowCanvasInner = ({
       // Поддерживаем и single-select, и multi-select.
       selected: node.id === selectedNodeId || selectedNodeIds.includes(node.id)
     }))
-  }, [runtimeNodes, selectedNodeId, selectedNodeIds, onParallelAddBranch])
+  }, [runtimeNodes, selectedNodeId, selectedNodeIds])
 
   // Строим связи React Flow из runtime-данных.
   const initialEdges = useMemo<Edge[]>(() => {
@@ -168,14 +174,59 @@ const FlowCanvasInner = ({
     (changes: NodeChange[]) => {
       onNodesChange(changes)
 
-      // Когда пользователь отпустил узел — сохраняем его позицию в runtime.
-      for (const change of changes) {
-        if (change.type === 'position' && change.dragging === false && change.position) {
-          positionCallbackRef.current(change.id, change.position.x, change.position.y)
+      // Если закончили drag хотя бы одной ноды — сохраняем позиции всех выделенных.
+      const didStopDragging = changes.some((c) => c.type === 'position' && c.dragging === false)
+
+      if (didStopDragging) {
+        // Берём актуальные позиции прямо из стора React Flow.
+        // Так мы точно увидим, куда реально уехали все выделенные ноды.
+        const latestNodes = getNodes()
+
+        const idsToSave = new Set<string>()
+        for (const id of selectedNodeIds ?? []) idsToSave.add(id)
+        if (selectedNodeId) idsToSave.add(selectedNodeId)
+
+        // На всякий случай добавляем все ноды, которые React Flow отметил как "dragging=false".
+        for (const c of changes) {
+          if (c.type === 'position' && c.dragging === false) {
+            idsToSave.add(c.id)
+          }
         }
+
+        for (const id of idsToSave) {
+          const flowNode = latestNodes.find((n) => n.id === id)
+          if (!flowNode) continue
+
+          const nextPos = flowNode.position
+          const runtimeNode = runtimeNodes.find((n) => n.id === id)
+          const prevPos = runtimeNode?.position
+
+          if (prevPos && prevPos.x === nextPos.x && prevPos.y === nextPos.y) {
+            continue
+          }
+
+          positionCallbackRef.current(id, nextPos.x, nextPos.y)
+        }
+
+        return
+      }
+
+      for (const change of changes) {
+        if (change.type !== 'position' || change.dragging !== false || !change.position) {
+          continue
+        }
+
+        const runtimeNode = runtimeNodes.find((n) => n.id === change.id)
+        const prevPos = runtimeNode?.position
+
+        if (prevPos && prevPos.x === change.position.x && prevPos.y === change.position.y) {
+          continue
+        }
+
+        positionCallbackRef.current(change.id, change.position.x, change.position.y)
       }
     },
-    [onNodesChange]
+    [getNodes, onNodesChange, runtimeNodes, selectedNodeId, selectedNodeIds]
   )
 
   // При соединении нод — создаём ребро и сообщаем runtime.
@@ -233,6 +284,9 @@ const FlowCanvasInner = ({
       // ЛКМ по пустому месту: просто снимаем выделение.
       // Создание ноды перенесли на MMB.
       if (event.button === 0) {
+        // Включаем защиту от "отката" выделения через onSelectionChange.
+        // Это особенно важно, когда уже выделено несколько нод.
+        ignoreSelectionUntilEmptyRef.current = true
         onSelectEdge(null)
         onSelectNodes([])
       }
@@ -320,8 +374,33 @@ const FlowCanvasInner = ({
         onPaneClick={handlePaneClick}
 
         // Когда пользователь выделяет рамкой — синхронизируем мультивыделение.
+        // Дополнительно защищаемся от бесконечного цикла: не вызываем onSelectNodes,
+        // если фактическое выделение не изменилось относительно пропсов.
         onSelectionChange={(sel) => {
           const ids = (sel?.nodes ?? []).map((n: any) => String(n.id))
+
+          // Если мы сами пытаемся снять выделение — игнорируем события,
+          // пока React Flow не пришлёт пустое выделение.
+          if (ignoreSelectionUntilEmptyRef.current) {
+            if (ids.length === 0) {
+              ignoreSelectionUntilEmptyRef.current = false
+            }
+            return
+          }
+
+          const nextSelectedNodeId = ids.length === 1 ? ids[0] : null
+          const prevIds = selectedNodeIds ?? []
+
+          const sameLength = prevIds.length === ids.length
+          const sameSet =
+            sameLength &&
+            ids.every((id) => prevIds.includes(id)) &&
+            prevIds.every((id) => ids.includes(id))
+
+          if (sameSet && selectedNodeId === nextSelectedNodeId) {
+            return
+          }
+
           onSelectNodes(ids)
         }}
       >
