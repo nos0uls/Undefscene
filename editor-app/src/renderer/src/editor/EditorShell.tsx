@@ -1006,7 +1006,11 @@ export function EditorShell(): React.JSX.Element {
           ...runtime,
           nodes: [...runtime.nodes, startNode, joinNode],
           edges: [...runtime.edges, ...extraEdges, pairEdge],
-          selectedNodeId: startId
+          // Важно: держим selection-поля согласованными,
+          // иначе React Flow может зациклиться на onSelectionChange.
+          selectedNodeId: startId,
+          selectedNodeIds: [startId],
+          selectedEdgeId: null
         })
         return
       }
@@ -1028,7 +1032,11 @@ export function EditorShell(): React.JSX.Element {
         ...runtime,
         nodes: [...runtime.nodes, newNode],
         edges: newEdges,
-        selectedNodeId: newId
+        // Важно: при создании новой ноды сбрасываем мультивыделение и выбранное ребро.
+        // Иначе React Flow может попытаться "вернуть" старое выделение и уйти в цикл.
+        selectedNodeId: newId,
+        selectedNodeIds: [newId],
+        selectedEdgeId: null
       })
     }
 
@@ -1036,7 +1044,10 @@ export function EditorShell(): React.JSX.Element {
     const selectNode = (nodeId: string) => {
       setRuntime({
         ...runtime,
-        selectedNodeId: nodeId
+        // Держим оба поля (single + multi) синхронно.
+        selectedNodeId: nodeId,
+        selectedNodeIds: [nodeId],
+        selectedEdgeId: null
       })
     }
 
@@ -2730,13 +2741,16 @@ export function EditorShell(): React.JSX.Element {
                 selectedEdgeId: edgeId
               })
             }}
-            onNodePositionChange={(nodeId, x, y) => {
-              // Сохраняем позицию узла после перетаскивания в runtime.
+            onNodePositionChange={(changes) => {
+              // Сохраняем позиции узлов после перетаскивания в runtime.
+              // changes — массив, чтобы при мультидраге все позиции обновились за один setRuntime.
+              const posMap = new Map(changes.map((c) => [c.id, { x: c.x, y: c.y }]))
               setRuntime({
                 ...runtime,
-                nodes: runtime.nodes.map((n) =>
-                  n.id === nodeId ? { ...n, position: { x, y } } : n
-                )
+                nodes: runtime.nodes.map((n) => {
+                  const newPos = posMap.get(n.id)
+                  return newPos ? { ...n, position: newPos } : n
+                })
               })
             }}
             onEdgeAdd={(edge) => {

@@ -6,6 +6,7 @@ import {
   Controls,
   MiniMap,
   Position,
+  SelectionMode,
   addEdge,
   useEdgesState,
   useNodesState,
@@ -43,8 +44,9 @@ type FlowCanvasProps = {
   // Коллбек, когда пользователь выбирает связь.
   onSelectEdge: (edgeId: string | null) => void
 
-  // Коллбек, когда пользователь перетащил узел — сохраняем позицию в runtime.
-  onNodePositionChange: (nodeId: string, x: number, y: number) => void
+  // Коллбек, когда пользователь перетащил узлы — сохраняем позиции в runtime.
+  // Массив, чтобы при мультидраге все позиции обновились за один вызов.
+  onNodePositionChange: (changes: Array<{ id: string; x: number; y: number }>) => void
 
   // Коллбек, когда пользователь создал новую связь.
   onEdgeAdd: (edge: RuntimeEdge) => void
@@ -97,7 +99,20 @@ const FlowCanvasInner = ({
   // на мгновение прислать старое выделение обратно через onSelectionChange.
   // Мы игнорируем такие события, пока не увидим пустое выделение.
   const ignoreSelectionUntilEmptyRef = useRef(false)
+
+  // Refs для актуального состояния выделения.
+  // Нужны, чтобы коллбеки (onSelectionChange, handleNodesChange) всегда видели
+  // свежие значения, а не устаревшие замыкания (stale closures).
+  const selectedNodeIdRef = useRef(selectedNodeId)
+  const selectedNodeIdsRef = useRef(selectedNodeIds)
+  const selectedEdgeIdRef = useRef(selectedEdgeId)
+  selectedNodeIdRef.current = selectedNodeId
+  selectedNodeIdsRef.current = selectedNodeIds
+  selectedEdgeIdRef.current = selectedEdgeId
+
   // Строим узлы React Flow из runtime-данных.
+  // ВАЖНО: НЕ включаем selected сюда — выделение синхронизируем отдельным эффектом.
+  // Это разрывает цикл: runtime → initialNodes → setNodes → StoreUpdater → onSelectionChange → setRuntime.
   const initialNodes = useMemo<Node[]>(() => {
     return runtimeNodes.map((node, index) => ({
       id: node.id,
@@ -116,13 +131,12 @@ const FlowCanvasInner = ({
         params: node.params ?? {},
         // Коллбек для parallel — не сохраняем в runtime.json, это чисто UI.
         onAddParallelBranch: onParallelAddBranch
-      },
-      // Поддерживаем и single-select, и multi-select.
-      selected: node.id === selectedNodeId || selectedNodeIds.includes(node.id)
+      }
     }))
-  }, [runtimeNodes, selectedNodeId, selectedNodeIds])
+  }, [runtimeNodes])
 
   // Строим связи React Flow из runtime-данных.
+  // Аналогично нодам — без selected, чтобы не создавать петлю.
   const initialEdges = useMemo<Edge[]>(() => {
     return runtimeEdges.map((e) => {
       const isInternalPair = e.sourceHandle === '__pair' && e.targetHandle === '__pair'
@@ -133,9 +147,6 @@ const FlowCanvasInner = ({
         sourceHandle: e.sourceHandle,
         target: e.target,
         targetHandle: e.targetHandle,
-
-        // Подсветка выбранного ребра.
-        selected: e.id === selectedEdgeId,
 
         // Показываем wait прямо на линии.
         label: typeof e.waitSeconds === 'number' ? `${e.waitSeconds}s` : undefined,
@@ -148,26 +159,74 @@ const FlowCanvasInner = ({
         selectable: !isInternalPair
       }
     })
-  }, [runtimeEdges, selectedEdgeId])
+  }, [runtimeEdges])
 
   // Локальное состояние узлов React Flow.
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   // Локальное состояние связей между узлами.
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
 
-  // Синхронизируем локальные узлы, когда runtime меняется извне.
+  // Синхронизируем данные нод (без выделения) когда runtime меняется.
   useEffect(() => {
-    setNodes(initialNodes)
+    setNodes((prev) => {
+      // Сохраняем текущее выделение React Flow при обновлении данных.
+      const selectionMap = new Map<string, boolean>()
+      for (const n of prev) {
+        if (n.selected) selectionMap.set(n.id, true)
+      }
+      return initialNodes.map((n) => ({
+        ...n,
+        selected: selectionMap.get(n.id) ?? false
+      }))
+    })
   }, [initialNodes, setNodes])
 
-  // Синхронизируем локальные ребра, когда runtime меняется извне.
+  // Синхронизируем данные рёбер (без выделения) когда runtime меняется.
   useEffect(() => {
-    setEdges(initialEdges)
+    setEdges((prev) => {
+      const selectionMap = new Map<string, boolean>()
+      for (const e of prev) {
+        if (e.selected) selectionMap.set(e.id, true)
+      }
+      return initialEdges.map((e) => ({
+        ...e,
+        selected: selectionMap.get(e.id) ?? false
+      }))
+    })
   }, [initialEdges, setEdges])
+
+  // Отдельно синхронизируем выделение нод, когда selection в runtime меняется.
+  // Это разделение — ключ к отсутствию бесконечного цикла.
+  useEffect(() => {
+    const nodeIdSet = new Set(selectedNodeIds ?? [])
+    if (selectedNodeId) nodeIdSet.add(selectedNodeId)
+    setNodes((prev) =>
+      prev.map((n) => {
+        const shouldSelect = nodeIdSet.has(n.id)
+        if (n.selected === shouldSelect) return n
+        return { ...n, selected: shouldSelect }
+      })
+    )
+  }, [selectedNodeId, selectedNodeIds, setNodes])
+
+  // Отдельно синхронизируем выделение рёбер.
+  useEffect(() => {
+    setEdges((prev) =>
+      prev.map((e) => {
+        const shouldSelect = e.id === selectedEdgeId
+        if (e.selected === shouldSelect) return e
+        return { ...e, selected: shouldSelect }
+      })
+    )
+  }, [selectedEdgeId, setEdges])
 
   // Ref чтобы не пересоздавать коллбек при каждом рендере.
   const positionCallbackRef = useRef(onNodePositionChange)
   positionCallbackRef.current = onNodePositionChange
+
+  // Ref для runtimeNodes, чтобы handleNodesChange не зависел от замыкания.
+  const runtimeNodesRef = useRef(runtimeNodes)
+  runtimeNodesRef.current = runtimeNodes
 
   // Обёртка над onNodesChange: ловим конец перетаскивания и сохраняем позицию.
   const handleNodesChange = useCallback(
@@ -179,54 +238,67 @@ const FlowCanvasInner = ({
 
       if (didStopDragging) {
         // Берём актуальные позиции прямо из стора React Flow.
-        // Так мы точно увидим, куда реально уехали все выделенные ноды.
         const latestNodes = getNodes()
+        const currentRuntimeNodes = runtimeNodesRef.current
 
+        // Используем refs, чтобы не зависеть от замыкания.
         const idsToSave = new Set<string>()
-        for (const id of selectedNodeIds ?? []) idsToSave.add(id)
-        if (selectedNodeId) idsToSave.add(selectedNodeId)
+        for (const id of selectedNodeIdsRef.current ?? []) idsToSave.add(id)
+        if (selectedNodeIdRef.current) idsToSave.add(selectedNodeIdRef.current)
 
-        // На всякий случай добавляем все ноды, которые React Flow отметил как "dragging=false".
+        // Добавляем все ноды, которые React Flow отметил как "dragging=false".
         for (const c of changes) {
           if (c.type === 'position' && c.dragging === false) {
             idsToSave.add(c.id)
           }
         }
 
+        // Собираем все реально изменённые позиции в один массив.
+        const batch: Array<{ id: string; x: number; y: number }> = []
         for (const id of idsToSave) {
           const flowNode = latestNodes.find((n) => n.id === id)
           if (!flowNode) continue
 
           const nextPos = flowNode.position
-          const runtimeNode = runtimeNodes.find((n) => n.id === id)
+          const runtimeNode = currentRuntimeNodes.find((n) => n.id === id)
           const prevPos = runtimeNode?.position
 
           if (prevPos && prevPos.x === nextPos.x && prevPos.y === nextPos.y) {
             continue
           }
 
-          positionCallbackRef.current(id, nextPos.x, nextPos.y)
+          batch.push({ id, x: nextPos.x, y: nextPos.y })
+        }
+
+        if (batch.length > 0) {
+          positionCallbackRef.current(batch)
         }
 
         return
       }
 
+      // Одиночный drag (fallback).
+      const singleBatch: Array<{ id: string; x: number; y: number }> = []
       for (const change of changes) {
         if (change.type !== 'position' || change.dragging !== false || !change.position) {
           continue
         }
 
-        const runtimeNode = runtimeNodes.find((n) => n.id === change.id)
+        const runtimeNode = runtimeNodesRef.current.find((n) => n.id === change.id)
         const prevPos = runtimeNode?.position
 
         if (prevPos && prevPos.x === change.position.x && prevPos.y === change.position.y) {
           continue
         }
 
-        positionCallbackRef.current(change.id, change.position.x, change.position.y)
+        singleBatch.push({ id: change.id, x: change.position.x, y: change.position.y })
+      }
+
+      if (singleBatch.length > 0) {
+        positionCallbackRef.current(singleBatch)
       }
     },
-    [getNodes, onNodesChange, runtimeNodes, selectedNodeId, selectedNodeIds]
+    [getNodes, onNodesChange]
   )
 
   // При соединении нод — создаём ребро и сообщаем runtime.
@@ -347,6 +419,8 @@ const FlowCanvasInner = ({
 
         // ЛКМ drag по пустому месту — рамка выделения (area select).
         selectionOnDrag
+        // Режим выделения: достаточно задеть кусочек ноды, не нужно полное покрытие.
+        selectionMode={SelectionMode.Partial}
         // ЛКМ по ноде — выбираем.
         onNodeClick={(_, node) => {
           onSelectEdge(null)
@@ -388,8 +462,11 @@ const FlowCanvasInner = ({
             return
           }
 
+          // Используем refs, чтобы всегда сравнивать с актуальным состоянием,
+          // а не с устаревшим замыканием (stale closure). Это ключ к отсутствию петли.
           const nextSelectedNodeId = ids.length === 1 ? ids[0] : null
-          const prevIds = selectedNodeIds ?? []
+          const prevIds = selectedNodeIdsRef.current ?? []
+          const currentNodeId = selectedNodeIdRef.current
 
           const sameLength = prevIds.length === ids.length
           const sameSet =
@@ -397,7 +474,7 @@ const FlowCanvasInner = ({
             ids.every((id) => prevIds.includes(id)) &&
             prevIds.every((id) => ids.includes(id))
 
-          if (sameSet && selectedNodeId === nextSelectedNodeId) {
+          if (sameSet && currentNodeId === nextSelectedNodeId) {
             return
           }
 
