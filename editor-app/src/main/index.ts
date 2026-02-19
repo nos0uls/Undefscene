@@ -124,23 +124,7 @@ function createWindow(): void {
   })
 
   // --- IPC: GameMaker project (.yyp) ---
-  ipcMain.handle('project.open', async () => {
-    const result = await dialog.showOpenDialog({
-      title: 'Open GameMaker Project',
-      properties: ['openFile'],
-      filters: [{ name: 'GameMaker Project', extensions: ['yyp'] }]
-    })
-
-    if (result.canceled || result.filePaths.length === 0) return null
-
-    const yypPath = result.filePaths[0]
-    try {
-      return await parseYypResources(yypPath)
-    } catch (err) {
-      console.warn('Failed to parse .yyp:', err)
-      return null
-    }
-  })
+  // Moved to app.whenReady to avoid duplicate registration on re-create.
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -192,6 +176,25 @@ app.whenReady().then(() => {
   if (process.platform === 'win32') {
     app.setAppUserModelId(isDev ? process.execPath : 'com.electron')
   }
+
+  // --- IPC: GameMaker project (.yyp) ---
+  ipcMain.handle('project.open', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Open GameMaker Project',
+      properties: ['openFile'],
+      filters: [{ name: 'GameMaker Project', extensions: ['yyp'] }]
+    })
+
+    if (result.canceled || result.filePaths.length === 0) return null
+
+    const yypPath = result.filePaths[0]
+    try {
+      return await parseYypResources(yypPath)
+    } catch (err) {
+      console.warn('Failed to parse .yyp:', err)
+      return null
+    }
+  })
 
   // Basic shortcuts.
   // - Dev: F12 toggles DevTools.

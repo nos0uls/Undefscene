@@ -18,18 +18,46 @@ export function UpdateNotification(): React.JSX.Element | null {
 
   // Подписываемся на события обновления из main процесса (один раз).
   useEffect(() => {
-    window.api.updater.onUpdateAvailable((info) => {
-      setStatus({ kind: 'available', version: info.version })
-    })
-    window.api.updater.onDownloadProgress((progress) => {
-      setStatus({ kind: 'downloading', percent: progress.percent })
-    })
-    window.api.updater.onUpdateDownloaded(() => {
-      setStatus({ kind: 'ready' })
-    })
-    window.api.updater.onError((msg) => {
-      setStatus({ kind: 'error', message: msg })
-    })
+    // Храним функции отписки, если API их возвращает (в нашем случае preload не возвращает, 
+    // но мы можем обернуть это в removeListener, если бы API позволял).
+    // Поскольку preload использует ipcRenderer.on, нам нужно иметь способ сделать removeListener.
+    // В текущем preload.ts мы просто делаем .on(...). 
+    // Хорошей практикой было бы возвращать unsubscribe функцию из preload.
+    
+    // В текущей реализации preload (см. ниже) мы просто вешаем слушатели.
+    // Чтобы сделать cleanup честно, нужно доработать preload.
+    // Пока что оставим как есть, так как UpdateNotification монтируется один раз в Layout.
+    // Но для чистоты добавим пустой return, или переделаем API.
+    
+    // Подписываемся на события обновления из main процесса (один раз).
+    const cleanups: Array<() => void> = []
+
+    // В preload.ts мы добавили возврат функций отписки.
+    // Собираем их, чтобы вызвать при размонтировании.
+    cleanups.push(
+      window.api.updater.onUpdateAvailable((info) => {
+        setStatus({ kind: 'available', version: info.version })
+      }) as unknown as () => void
+    )
+    cleanups.push(
+      window.api.updater.onDownloadProgress((progress) => {
+        setStatus({ kind: 'downloading', percent: progress.percent })
+      }) as unknown as () => void
+    )
+    cleanups.push(
+      window.api.updater.onUpdateDownloaded(() => {
+        setStatus({ kind: 'ready' })
+      }) as unknown as () => void
+    )
+    cleanups.push(
+      window.api.updater.onError((msg) => {
+        setStatus({ kind: 'error', message: msg })
+      }) as unknown as () => void
+    )
+
+    return () => {
+      cleanups.forEach((fn) => fn && fn())
+    }
   }, [])
 
   // Ничего не показываем, если нет обновлений.

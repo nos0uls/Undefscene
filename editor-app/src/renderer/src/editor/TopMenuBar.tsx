@@ -120,12 +120,32 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
         id: 'help',
         label: 'Help',
         entries: [
-          { id: 'checkUpdates', label: 'Check for Updates...', onSelect: onCheckUpdates },
+          ...(onCheckUpdates
+            ? [{ id: 'checkUpdates', label: 'Check for Updates...', onSelect: onCheckUpdates }]
+            : []),
           { id: 'about', label: 'About', onSelect: onAbout }
         ]
       }
     ]
-  }, [isPanelVisible, panels, togglePanel])
+  }, [
+    isPanelVisible,
+    panels,
+    togglePanel,
+    onNew,
+    onOpenScene,
+    onOpenProject,
+    onSave,
+    onSaveAs,
+    onExport,
+    onPreferences,
+    onExit,
+    onUndo,
+    onRedo,
+    onResetLayout,
+    onToggleLogs,
+    onCheckUpdates,
+    onAbout
+  ])
 
   // Какая вкладка сейчас “раскрыта”.
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
@@ -178,8 +198,12 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
       </div>
 
       <div className="topMenuBarRight">
-        <div className="topMenuHint">Ctrl+S Save</div>
-        <div className="topMenuHint">Ctrl+Z Undo</div>
+        <button className="topMenuHint" type="button" onClick={onSave} title="Save Project">
+          Ctrl+S Save
+        </button>
+        <button className="topMenuHint" type="button" onClick={onUndo} title="Undo Action">
+          Ctrl+Z Undo
+        </button>
       </div>
     </div>
   )

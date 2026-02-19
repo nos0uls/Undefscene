@@ -47,20 +47,31 @@ const api = {
     check: (): Promise<unknown> => ipcRenderer.invoke('updater:check'),
     install: (): Promise<unknown> => ipcRenderer.invoke('updater:install'),
     // Подписка на события обновления от main процесса.
+    // Возвращаем функцию отписки (cleanup).
     onUpdateAvailable: (cb: (info: { version: string; releaseNotes: string }) => void) => {
-      ipcRenderer.on('updater:update-available', (_e, info) => cb(info))
+      const listener = (_e: any, info: any) => cb(info)
+      ipcRenderer.on('updater:update-available', listener)
+      return () => ipcRenderer.removeListener('updater:update-available', listener)
     },
     onUpdateNotAvailable: (cb: () => void) => {
-      ipcRenderer.on('updater:update-not-available', () => cb())
+      const listener = () => cb()
+      ipcRenderer.on('updater:update-not-available', listener)
+      return () => ipcRenderer.removeListener('updater:update-not-available', listener)
     },
     onDownloadProgress: (cb: (progress: { percent: number }) => void) => {
-      ipcRenderer.on('updater:download-progress', (_e, progress) => cb(progress))
+      const listener = (_e: any, progress: any) => cb(progress)
+      ipcRenderer.on('updater:download-progress', listener)
+      return () => ipcRenderer.removeListener('updater:download-progress', listener)
     },
     onUpdateDownloaded: (cb: () => void) => {
-      ipcRenderer.on('updater:update-downloaded', () => cb())
+      const listener = () => cb()
+      ipcRenderer.on('updater:update-downloaded', listener)
+      return () => ipcRenderer.removeListener('updater:update-downloaded', listener)
     },
     onError: (cb: (msg: string) => void) => {
-      ipcRenderer.on('updater:error', (_e, msg) => cb(msg))
+      const listener = (_e: any, msg: any) => cb(msg)
+      ipcRenderer.on('updater:error', listener)
+      return () => ipcRenderer.removeListener('updater:error', listener)
     }
   },
   // Preview v2 сейчас отключён.

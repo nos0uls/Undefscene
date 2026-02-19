@@ -1076,9 +1076,6 @@ export function EditorShell(): React.JSX.Element {
         <div className="runtimeSection">
           <div className="runtimeSectionTitle">Actions</div>
           <div className="runtimeRow">
-            <button className="runtimeButton" type="button" onClick={() => addNode('dialogue')}>
-              Add Dialogue Node
-            </button>
             <button className="runtimeButton" type="button" onClick={undo} disabled={!canUndo}>
               Undo
             </button>
