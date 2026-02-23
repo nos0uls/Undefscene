@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RuntimeState } from './runtimeTypes'
 import { createDefaultRuntimeState, parseRuntimeState } from './runtimeTypes'
 
@@ -78,8 +78,18 @@ export const useRuntimeState = () => {
   }, [history.present])
 
   // Обновляем текущее состояние и кладём старое в историю.
-  const setRuntime = (next: RuntimeState) => {
+  // useCallback с пустыми зависимостями — setHistory из useState стабилен,
+  // поэтому setRuntime тоже стабилен между рендерами.
+  // Это критически важно: без стабильного setRuntime каждый рендер EditorShell
+  // пересоздаёт onParallelAddBranch → пересоздаёт зависимости useEffect в FlowCanvas
+  // → лишние вызовы setNodes → потенциальный бесконечный цикл.
+  const setRuntime = useCallback((nextOrUpdater: RuntimeState | ((prev: RuntimeState) => RuntimeState)) => {
     setHistory((prev) => {
+      const nextState = typeof nextOrUpdater === 'function' ? nextOrUpdater(prev.present) : nextOrUpdater
+      
+      // Если состояние не изменилось, не создаем запись в истории
+      if (nextState === prev.present) return prev
+
       const nextPast = [...prev.past, prev.present]
       if (nextPast.length > MAX_HISTORY) {
         nextPast.shift()
@@ -87,14 +97,14 @@ export const useRuntimeState = () => {
 
       return {
         past: nextPast,
-        present: next,
+        present: nextState,
         future: []
       }
     })
-  }
+  }, [])
 
   // Undo: возвращаемся назад по истории.
-  const undo = () => {
+  const undo = useCallback(() => {
     setHistory((prev) => {
       if (prev.past.length === 0) return prev
       const previous = prev.past[prev.past.length - 1]
@@ -105,10 +115,10 @@ export const useRuntimeState = () => {
         future: [prev.present, ...prev.future]
       }
     })
-  }
+  }, [])
 
   // Redo: возвращаем отменённое изменение.
-  const redo = () => {
+  const redo = useCallback(() => {
     setHistory((prev) => {
       if (prev.future.length === 0) return prev
       const next = prev.future[0]
@@ -119,7 +129,7 @@ export const useRuntimeState = () => {
         future: nextFuture
       }
     })
-  }
+  }, [])
 
   return {
     runtime: history.present,

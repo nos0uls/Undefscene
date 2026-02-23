@@ -110,6 +110,25 @@ const FlowCanvasInner = ({
   selectedNodeIdsRef.current = selectedNodeIds
   selectedEdgeIdRef.current = selectedEdgeId
 
+  // Стабилизируем все внешние коллбеки, чтобы не пересоздавать ReactFlow props
+  // на каждом рендере и не триггерить лишние store.setState внутри xyflow.
+  const onSelectNodesRef = useRef(onSelectNodes)
+  const onSelectEdgeRef = useRef(onSelectEdge)
+  const onEdgeAddRef = useRef(onEdgeAdd)
+  const onEdgeRemoveRef = useRef(onEdgeRemove)
+  const onNodeDeleteRef = useRef(onNodeDelete)
+  const onPaneClickCreateRef = useRef(onPaneClickCreate)
+  const onEdgeDeleteRef = useRef(onEdgeDelete)
+  const onEdgeDoubleClickRef = useRef(onEdgeDoubleClick)
+  onSelectNodesRef.current = onSelectNodes
+  onSelectEdgeRef.current = onSelectEdge
+  onEdgeAddRef.current = onEdgeAdd
+  onEdgeRemoveRef.current = onEdgeRemove
+  onNodeDeleteRef.current = onNodeDelete
+  onPaneClickCreateRef.current = onPaneClickCreate
+  onEdgeDeleteRef.current = onEdgeDelete
+  onEdgeDoubleClickRef.current = onEdgeDoubleClick
+
   // Строим узлы React Flow из runtime-данных.
   // ВАЖНО: НЕ включаем selected сюда — выделение синхронизируем отдельным эффектом.
   // Это разрывает цикл: runtime → initialNodes → setNodes → StoreUpdater → onSelectionChange → setRuntime.
@@ -133,7 +152,7 @@ const FlowCanvasInner = ({
         onAddParallelBranch: onParallelAddBranch
       }
     }))
-  }, [runtimeNodes])
+  }, [runtimeNodes, onParallelAddBranch])
 
   // Строим связи React Flow из runtime-данных.
   // Аналогично нодам — без selected, чтобы не создавать петлю.
@@ -200,24 +219,30 @@ const FlowCanvasInner = ({
   useEffect(() => {
     const nodeIdSet = new Set(selectedNodeIds ?? [])
     if (selectedNodeId) nodeIdSet.add(selectedNodeId)
-    setNodes((prev) =>
-      prev.map((n) => {
+    setNodes((prev) => {
+      let changed = false
+      const next = prev.map((n) => {
         const shouldSelect = nodeIdSet.has(n.id)
         if (n.selected === shouldSelect) return n
+        changed = true
         return { ...n, selected: shouldSelect }
       })
-    )
+      return changed ? next : prev
+    })
   }, [selectedNodeId, selectedNodeIds, setNodes])
 
   // Отдельно синхронизируем выделение рёбер.
   useEffect(() => {
-    setEdges((prev) =>
-      prev.map((e) => {
+    setEdges((prev) => {
+      let changed = false
+      const next = prev.map((e) => {
         const shouldSelect = e.id === selectedEdgeId
         if (e.selected === shouldSelect) return e
+        changed = true
         return { ...e, selected: shouldSelect }
       })
-    )
+      return changed ? next : prev
+    })
   }, [selectedEdgeId, setEdges])
 
   // Ref чтобы не пересоздавать коллбек при каждом рендере.
@@ -313,11 +338,11 @@ const FlowCanvasInner = ({
         targetHandle: connection.targetHandle ?? undefined
       }
       setEdges((prev) => addEdge(connection, prev))
-      onEdgeAdd(newEdge)
+      onEdgeAddRef.current(newEdge)
       // Устанавливаем флаг, чтобы следующий клик по холсту не создавал ноду.
       justConnectedRef.current = true
     },
-    [setEdges, onEdgeAdd]
+    [setEdges]
   )
 
   // При удалении рёбер — сообщаем runtime.
@@ -327,20 +352,20 @@ const FlowCanvasInner = ({
 
       for (const change of changes) {
         if (change.type === 'remove') {
-          onEdgeRemove(change.id)
+          onEdgeRemoveRef.current(change.id)
         }
       }
     },
-    [onEdgesChange, onEdgeRemove]
+    [onEdgesChange]
   )
 
   // ПКМ по ноде — удаляем её и все связанные рёбра.
   const handleNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
       event.preventDefault()
-      onNodeDelete(node.id)
+      onNodeDeleteRef.current(node.id)
     },
-    [onNodeDelete]
+    []
   )
 
   // ЛКМ по холсту — создаём новую ноду в позиции курсора.
@@ -359,11 +384,11 @@ const FlowCanvasInner = ({
         // Включаем защиту от "отката" выделения через onSelectionChange.
         // Это особенно важно, когда уже выделено несколько нод.
         ignoreSelectionUntilEmptyRef.current = true
-        onSelectEdge(null)
-        onSelectNodes([])
+        onSelectEdgeRef.current(null)
+        onSelectNodesRef.current([])
       }
     },
-    [onSelectEdge, onSelectNodes]
+    []
   )
 
   // MMB по холсту — создаём новую ноду.
@@ -391,10 +416,63 @@ const FlowCanvasInner = ({
         y: event.clientY
       })
 
-      onPaneClickCreate(flowPosition.x, flowPosition.y)
+      onPaneClickCreateRef.current(flowPosition.x, flowPosition.y)
     },
-    [screenToFlowPosition, onPaneClickCreate]
+    [screenToFlowPosition]
   )
+
+  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    onSelectEdgeRef.current(null)
+    onSelectNodesRef.current([node.id])
+  }, [])
+
+  const handleEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
+    if ((edge as any).selectable === false) return
+    onSelectNodesRef.current([])
+    onSelectEdgeRef.current(edge.id)
+  }, [])
+
+  const handleEdgeContextMenu = useCallback((_: React.MouseEvent, edge: Edge) => {
+    onEdgeDeleteRef.current(edge.id)
+  }, [])
+
+  const handleEdgeDoubleClick = useCallback((_: React.MouseEvent, edge: Edge) => {
+    if ((edge as any).selectable === false) return
+    onSelectNodesRef.current([])
+    onSelectEdgeRef.current(edge.id)
+    onEdgeDoubleClickRef.current?.(edge.id)
+  }, [])
+
+  const handleSelectionChange = useCallback((sel: any) => {
+    const ids = (sel?.nodes ?? []).map((n: any) => String(n.id))
+
+    // Если мы сами пытаемся снять выделение — игнорируем события,
+    // пока React Flow не пришлёт пустое выделение.
+    if (ignoreSelectionUntilEmptyRef.current) {
+      if (ids.length === 0) {
+        ignoreSelectionUntilEmptyRef.current = false
+      }
+      return
+    }
+
+    // Используем refs, чтобы всегда сравнивать с актуальным состоянием,
+    // а не с устаревшим замыканием (stale closure). Это ключ к отсутствию петли.
+    const nextSelectedNodeId = ids.length === 1 ? ids[0] : null
+    const prevIds = selectedNodeIdsRef.current ?? []
+    const currentNodeId = selectedNodeIdRef.current
+
+    const sameLength = prevIds.length === ids.length
+    const sameSet =
+      sameLength &&
+      ids.every((id) => prevIds.includes(id)) &&
+      prevIds.every((id) => ids.includes(id))
+
+    if (sameSet && currentNodeId === nextSelectedNodeId) {
+      return
+    }
+
+    onSelectNodesRef.current(ids)
+  }, [])
 
   return (
     <div
@@ -422,64 +500,21 @@ const FlowCanvasInner = ({
         // Режим выделения: достаточно задеть кусочек ноды, не нужно полное покрытие.
         selectionMode={SelectionMode.Partial}
         // ЛКМ по ноде — выбираем.
-        onNodeClick={(_, node) => {
-          onSelectEdge(null)
-          onSelectNodes([node.id])
-        }}
+        onNodeClick={handleNodeClick}
         // ПКМ по ноде — удаляем.
         onNodeContextMenu={handleNodeContextMenu}
-        onEdgeClick={(_, edge) => {
-          if ((edge as any).selectable === false) return
-          onSelectNodes([])
-          onSelectEdge(edge.id)
-        }}
+        onEdgeClick={handleEdgeClick}
         // ПКМ по связи — удаляем.
-        onEdgeContextMenu={(_, edge) => {
-          onEdgeDelete(edge.id)
-        }}
+        onEdgeContextMenu={handleEdgeContextMenu}
         // Двойной клик по ребру — выбираем и фокусируем wait input.
-        onEdgeDoubleClick={(_, edge) => {
-          if ((edge as any).selectable === false) return
-          onSelectNodes([])
-          onSelectEdge(edge.id)
-          onEdgeDoubleClick?.(edge.id)
-        }}
+        onEdgeDoubleClick={handleEdgeDoubleClick}
         // ЛКМ по холсту — создаём ноду.
         onPaneClick={handlePaneClick}
 
         // Когда пользователь выделяет рамкой — синхронизируем мультивыделение.
         // Дополнительно защищаемся от бесконечного цикла: не вызываем onSelectNodes,
         // если фактическое выделение не изменилось относительно пропсов.
-        onSelectionChange={(sel) => {
-          const ids = (sel?.nodes ?? []).map((n: any) => String(n.id))
-
-          // Если мы сами пытаемся снять выделение — игнорируем события,
-          // пока React Flow не пришлёт пустое выделение.
-          if (ignoreSelectionUntilEmptyRef.current) {
-            if (ids.length === 0) {
-              ignoreSelectionUntilEmptyRef.current = false
-            }
-            return
-          }
-
-          // Используем refs, чтобы всегда сравнивать с актуальным состоянием,
-          // а не с устаревшим замыканием (stale closure). Это ключ к отсутствию петли.
-          const nextSelectedNodeId = ids.length === 1 ? ids[0] : null
-          const prevIds = selectedNodeIdsRef.current ?? []
-          const currentNodeId = selectedNodeIdRef.current
-
-          const sameLength = prevIds.length === ids.length
-          const sameSet =
-            sameLength &&
-            ids.every((id) => prevIds.includes(id)) &&
-            prevIds.every((id) => ids.includes(id))
-
-          if (sameSet && currentNodeId === nextSelectedNodeId) {
-            return
-          }
-
-          onSelectNodes(ids)
-        }}
+        onSelectionChange={handleSelectionChange}
       >
         <Background color="#262b2f" gap={18} size={1} />
         <MiniMap

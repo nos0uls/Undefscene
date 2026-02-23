@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import type { CSSProperties } from 'react'
 import { DockPanel } from './DockPanel'
 import { FlowCanvas } from './FlowCanvas'
@@ -160,32 +160,34 @@ export function EditorShell(): React.JSX.Element {
 
   // Добавляем новую ветку в параллель (start+join).
   // Мы меняем branches сразу в двух нодах, чтобы handles совпадали.
-  const onParallelAddBranch = (parallelStartId: string) => {
-    const startNode = runtime.nodes.find((n) => n.id === parallelStartId)
-    if (!startNode) return
-    const joinId = typeof startNode.params?.joinId === 'string' ? (startNode.params?.joinId as string) : ''
-    const joinNode = runtime.nodes.find((n) => n.id === joinId)
-    if (!joinNode) return
+  const onParallelAddBranch = useCallback((parallelStartId: string) => {
+    setRuntime((prevRuntime) => {
+      const startNode = prevRuntime.nodes.find((n) => n.id === parallelStartId)
+      if (!startNode) return prevRuntime
+      const joinId = typeof startNode.params?.joinId === 'string' ? (startNode.params?.joinId as string) : ''
+      const joinNode = prevRuntime.nodes.find((n) => n.id === joinId)
+      if (!joinNode) return prevRuntime
 
-    const branches = (Array.isArray(startNode.params?.branches) ? startNode.params?.branches : ['b0']) as string[]
-    const newBranchId = `b${branches.length}`
-    const nextBranches = [...branches, newBranchId]
+      const branches = (Array.isArray(startNode.params?.branches) ? startNode.params?.branches : ['b0']) as string[]
+      const newBranchId = `b${branches.length}`
+      const nextBranches = [...branches, newBranchId]
 
-    const nextNodes = runtime.nodes.map((n) => {
-      if (n.id === startNode.id) {
-        return { ...n, params: { ...(n.params ?? {}), branches: nextBranches } }
+      const nextNodes = prevRuntime.nodes.map((n) => {
+        if (n.id === startNode.id) {
+          return { ...n, params: { ...(n.params ?? {}), branches: nextBranches } }
+        }
+        if (n.id === joinNode.id) {
+          return { ...n, params: { ...(n.params ?? {}), branches: nextBranches } }
+        }
+        return n
+      })
+
+      return {
+        ...prevRuntime,
+        nodes: nextNodes
       }
-      if (n.id === joinNode.id) {
-        return { ...n, params: { ...(n.params ?? {}), branches: nextBranches } }
-      }
-      return n
     })
-
-    setRuntime({
-      ...runtime,
-      nodes: nextNodes
-    })
-  }
+  }, [setRuntime])
 
   // Ссылки на DOM, чтобы делать hit-test док-зон.
   const rootRef = useRef<HTMLDivElement | null>(null)
@@ -2702,9 +2704,12 @@ export function EditorShell(): React.JSX.Element {
               // Важно: React Flow может звать onSelectionChange даже когда выделение не поменялось.
               // Если мы будем каждый раз делать setRuntime, получится бесконечный цикл рендера.
               const nextSelectedNodeId = nodeIds.length === 1 ? nodeIds[0] : null
-              const sameIds =
-                (runtime.selectedNodeIds?.length ?? 0) === nodeIds.length &&
-                nodeIds.every((id, i) => runtime.selectedNodeIds?.[i] === id)
+              
+              const currentIds = runtime.selectedNodeIds ?? []
+              const sameLength = currentIds.length === nodeIds.length
+              const sameIds = sameLength && 
+                nodeIds.every((id) => currentIds.includes(id)) && 
+                currentIds.every((id) => nodeIds.includes(id))
 
               if (
                 runtime.selectedEdgeId === null &&
