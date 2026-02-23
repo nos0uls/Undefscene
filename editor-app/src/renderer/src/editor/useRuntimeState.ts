@@ -83,25 +83,29 @@ export const useRuntimeState = () => {
   // Это критически важно: без стабильного setRuntime каждый рендер EditorShell
   // пересоздаёт onParallelAddBranch → пересоздаёт зависимости useEffect в FlowCanvas
   // → лишние вызовы setNodes → потенциальный бесконечный цикл.
-  const setRuntime = useCallback((nextOrUpdater: RuntimeState | ((prev: RuntimeState) => RuntimeState)) => {
-    setHistory((prev) => {
-      const nextState = typeof nextOrUpdater === 'function' ? nextOrUpdater(prev.present) : nextOrUpdater
-      
-      // Если состояние не изменилось, не создаем запись в истории
-      if (nextState === prev.present) return prev
+  const setRuntime = useCallback(
+    (nextOrUpdater: RuntimeState | ((prev: RuntimeState) => RuntimeState)) => {
+      setHistory((prev) => {
+        const nextState =
+          typeof nextOrUpdater === 'function' ? nextOrUpdater(prev.present) : nextOrUpdater
 
-      const nextPast = [...prev.past, prev.present]
-      if (nextPast.length > MAX_HISTORY) {
-        nextPast.shift()
-      }
+        // Если состояние не изменилось, не создаем запись в истории
+        if (nextState === prev.present) return prev
 
-      return {
-        past: nextPast,
-        present: nextState,
-        future: []
-      }
-    })
-  }, [])
+        const nextPast = [...prev.past, prev.present]
+        if (nextPast.length > MAX_HISTORY) {
+          nextPast.shift()
+        }
+
+        return {
+          past: nextPast,
+          present: nextState,
+          future: []
+        }
+      })
+    },
+    []
+  )
 
   // Undo: возвращаемся назад по истории.
   const undo = useCallback(() => {

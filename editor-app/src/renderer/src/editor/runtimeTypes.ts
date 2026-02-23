@@ -109,8 +109,21 @@ export const createDefaultRuntimeState = (): RuntimeState => {
     // Стартовые узлы — демо разных типов, чтобы холст не был пустым.
     nodes: [
       { id: 'n-start', type: 'start', name: 'Start', position: { x: 50, y: 180 } },
-      { id: 'n-dialogue', type: 'dialogue', name: 'Node', text: 'Hello!', position: { x: 360, y: 120 }, params: { file: 'intro.yarn', node: 'Greeting' } },
-      { id: 'n-move', type: 'move', name: 'Node (0)', position: { x: 360, y: 260 }, params: { target: 'actor:npc', x: 320, y: 240, speed_px_sec: 60 } },
+      {
+        id: 'n-dialogue',
+        type: 'dialogue',
+        name: 'Node',
+        text: 'Hello!',
+        position: { x: 360, y: 120 },
+        params: { file: 'intro.yarn', node: 'Greeting' }
+      },
+      {
+        id: 'n-move',
+        type: 'move',
+        name: 'Node (0)',
+        position: { x: 360, y: 260 },
+        params: { target: 'actor:npc', x: 320, y: 240, speed_px_sec: 60 }
+      },
       { id: 'n-end', type: 'end', name: 'End', position: { x: 650, y: 180 } }
     ],
     // Стартовые связи между узлами.
@@ -183,7 +196,12 @@ export const parseRuntimeState = (raw: unknown): RuntimeState | null => {
     for (const rawEdge of rawEdges) {
       if (!rawEdge || typeof rawEdge !== 'object') continue
       const ce = rawEdge as Partial<RuntimeEdge>
-      if (typeof ce.id !== 'string' || typeof ce.source !== 'string' || typeof ce.target !== 'string') continue
+      if (
+        typeof ce.id !== 'string' ||
+        typeof ce.source !== 'string' ||
+        typeof ce.target !== 'string'
+      )
+        continue
 
       const edge: RuntimeEdge = {
         id: ce.id,
@@ -219,7 +237,12 @@ export const parseRuntimeState = (raw: unknown): RuntimeState | null => {
 
       // Когда прекратить ожидание (для wait_until_true).
       const stopWhen = (ce as any).stopWaitingWhen
-      if (stopWhen === 'none' || stopWhen === 'global_var' || stopWhen === 'node_reached' || stopWhen === 'timeout') {
+      if (
+        stopWhen === 'none' ||
+        stopWhen === 'global_var' ||
+        stopWhen === 'node_reached' ||
+        stopWhen === 'timeout'
+      ) {
         edge.stopWaitingWhen = stopWhen
       }
 
@@ -249,9 +272,16 @@ export const parseRuntimeState = (raw: unknown): RuntimeState | null => {
     selectedNodeId: typeof candidate.selectedNodeId === 'string' ? candidate.selectedNodeId : null,
     // selectedNodeIds — новое поле. Если его нет, но есть selectedNodeId — делаем массив из одного элемента.
     selectedNodeIds: Array.isArray((candidate as any).selectedNodeIds)
-      ? ((candidate as any).selectedNodeIds as unknown[]).filter((v) => typeof v === 'string') as string[]
-      : (typeof candidate.selectedNodeId === 'string' ? [candidate.selectedNodeId] : []),
-    selectedEdgeId: typeof (candidate as any).selectedEdgeId === 'string' ? (candidate as any).selectedEdgeId : null,
+      ? (((candidate as any).selectedNodeIds as unknown[]).filter(
+          (v) => typeof v === 'string'
+        ) as string[])
+      : typeof candidate.selectedNodeId === 'string'
+        ? [candidate.selectedNodeId]
+        : [],
+    selectedEdgeId:
+      typeof (candidate as any).selectedEdgeId === 'string'
+        ? (candidate as any).selectedEdgeId
+        : null,
     lastSavedAtMs: typeof candidate.lastSavedAtMs === 'number' ? candidate.lastSavedAtMs : 0
   }
 }

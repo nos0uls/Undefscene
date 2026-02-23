@@ -11,9 +11,7 @@ export type CompiledAction = {
 }
 
 // Результат компиляции: либо успех с actions[], либо ошибка.
-export type CompileResult =
-  | { ok: true; actions: CompiledAction[] }
-  | { ok: false; error: string }
+export type CompileResult = { ok: true; actions: CompiledAction[] } | { ok: false; error: string }
 
 // Результат strip-export: чистый JSON для движка.
 export type ExportedCutscene = {
@@ -231,7 +229,9 @@ export function compileGraph(state: RuntimeState): CompileResult {
   // Компилируем parallel: собираем ветки между parallel_start и parallel_join.
   function compileParallel(startNode: RuntimeNode): CompileResult {
     const joinId = typeof startNode.params?.joinId === 'string' ? startNode.params.joinId : ''
-    const branches = Array.isArray(startNode.params?.branches) ? (startNode.params.branches as string[]) : ['b0']
+    const branches = Array.isArray(startNode.params?.branches)
+      ? (startNode.params.branches as string[])
+      : ['b0']
 
     // Собираем исходящие рёбра parallel_start (кроме __pair).
     const outs = (outEdges.get(startNode.id) ?? []).filter(
@@ -378,8 +378,8 @@ export function compileGraph(state: RuntimeState): CompileResult {
     const trueEdge = outs.find((e) => e.sourceHandle === 'out_true') ?? outs[0]
     const falseEdge = outs.find((e) => e.sourceHandle === 'out_false') ?? outs[1]
 
-    let trueActions: CompiledAction[] = []
-    let falseActions: CompiledAction[] = []
+    const trueActions: CompiledAction[] = []
+    const falseActions: CompiledAction[] = []
 
     if (trueEdge) {
       if (typeof trueEdge.waitSeconds === 'number' && trueEdge.waitSeconds > 0) {
@@ -454,7 +454,8 @@ export function compileGraph(state: RuntimeState): CompileResult {
         // Пропускаем editor-only поля (branches, joinId, pairId).
         if (['branches', 'joinId', 'pairId'].includes(key)) continue
         // Эти поля мы уже обработали выше.
-        if (node.type === 'run_function' && ['function_name', 'function', 'args'].includes(key)) continue
+        if (node.type === 'run_function' && ['function_name', 'function', 'args'].includes(key))
+          continue
         if (value !== undefined && value !== null && value !== '') {
           action[key] = value
         }

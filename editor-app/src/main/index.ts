@@ -17,7 +17,9 @@ async function parseYypResources(yypPath: string) {
   // GameMaker .yyp использует нестандартный JSON с trailing commas.
   // Убираем их, чтобы JSON.parse() не падал.
   const cleaned = raw.replace(/,\s*([\]}])/g, '$1')
-  const data = JSON.parse(cleaned) as { resources?: Array<{ id?: { name?: string; path?: string } }> }
+  const data = JSON.parse(cleaned) as {
+    resources?: Array<{ id?: { name?: string; path?: string } }>
+  }
 
   const sprites = new Set<string>()
   const objects = new Set<string>()
@@ -34,7 +36,11 @@ async function parseYypResources(yypPath: string) {
       const resRaw = await readFile(fullPath, 'utf-8')
       // .yy файлы тоже содержат trailing commas.
       const resClean = resRaw.replace(/,\s*([\]}])/g, '$1')
-      const resData = JSON.parse(resClean) as { name?: string; resourceType?: string; modelName?: string }
+      const resData = JSON.parse(resClean) as {
+        name?: string
+        resourceType?: string
+        modelName?: string
+      }
       const resType = resData.resourceType ?? resData.modelName
       const resName = resData.name ?? res.id?.name
       if (!resType || !resName) continue
@@ -62,7 +68,9 @@ async function parseYypResources(yypPath: string) {
 // Сканируем datafiles/ на .yarn файлы и извлекаем имена нод.
 // Yarn формат: каждая нода начинается с "title: <name>" после "---".
 // Возвращаем массив { file: имя файла, nodes: массив имён нод }.
-async function scanYarnFiles(projectDir: string): Promise<Array<{ file: string; nodes: string[] }>> {
+async function scanYarnFiles(
+  projectDir: string
+): Promise<Array<{ file: string; nodes: string[] }>> {
   const datafilesDir = join(projectDir, 'datafiles')
   let files: string[]
   try {
@@ -151,7 +159,10 @@ function createWindow(): void {
     let retryLeft = 20
     mainWindow.webContents.on('did-fail-load', (_event, _errorCode, errorDescription) => {
       if (retryLeft <= 0) return
-      if (typeof errorDescription === 'string' && !errorDescription.includes('ERR_CONNECTION_REFUSED')) {
+      if (
+        typeof errorDescription === 'string' &&
+        !errorDescription.includes('ERR_CONNECTION_REFUSED')
+      ) {
         return
       }
 
@@ -310,18 +321,27 @@ app.whenReady().then(() => {
       return {
         found: true,
         defaultFps: typeof data.default_fps === 'number' ? data.default_fps : 30,
-        strictMode: typeof data.strict_mode_default === 'boolean' ? data.strict_mode_default : false,
-        defaultActorObject: typeof data.default_actor_object === 'string' ? data.default_actor_object : '',
+        strictMode:
+          typeof data.strict_mode_default === 'boolean' ? data.strict_mode_default : false,
+        defaultActorObject:
+          typeof data.default_actor_object === 'string' ? data.default_actor_object : '',
         branchConditions: Array.isArray((data.whitelist as any)?.branch_conditions)
-          ? (data.whitelist as any).branch_conditions as string[]
+          ? ((data.whitelist as any).branch_conditions as string[])
           : [],
         runFunctions: Array.isArray((data.whitelist as any)?.run_functions)
-          ? (data.whitelist as any).run_functions as string[]
+          ? ((data.whitelist as any).run_functions as string[])
           : []
       }
     } catch {
       // Файл не найден — это нормально, просто возвращаем пустые списки.
-      return { found: false, defaultFps: 30, strictMode: false, defaultActorObject: '', branchConditions: [], runFunctions: [] }
+      return {
+        found: false,
+        defaultFps: 30,
+        strictMode: false,
+        defaultActorObject: '',
+        branchConditions: [],
+        runFunctions: []
+      }
     }
   })
 

@@ -43,7 +43,7 @@ export const useProjectResources = () => {
 
         // Пытаемся загрузить настройки движка из проекта.
         try {
-          const settings = await window.api.settings.readEngine(res.projectDir) as EngineSettings
+          const settings = (await window.api.settings.readEngine(res.projectDir)) as EngineSettings
           setEngineSettings(settings)
         } catch {
           // Если не удалось — не страшно, работаем без whitelists.
@@ -52,7 +52,7 @@ export const useProjectResources = () => {
 
         // Сканируем .yarn файлы для autocomplete в dialogue нодах.
         try {
-          const yarn = await window.api.yarn.scan(res.projectDir) as YarnFileInfo[]
+          const yarn = (await window.api.yarn.scan(res.projectDir)) as YarnFileInfo[]
           setYarnFiles(yarn)
         } catch {
           setYarnFiles([])

@@ -4,13 +4,13 @@ import type { ReactNode } from 'react'
 // Цвета для разных категорий нод.
 // Так пользователь сразу видит, к какой группе относится нода.
 export const NODE_COLORS: Record<string, string> = {
-  flow: '#5b8def',       // start, end, wait
-  movement: '#e8a838',   // move, follow_path, set_position
-  actor: '#6ecf72',      // actor_create, actor_destroy
-  visual: '#c77dff',     // animate, set_facing, set_depth
-  dialogue: '#ff6b8a',   // dialogue
-  camera: '#4ecdc4',     // camera_track, camera_pan
-  logic: '#ff9f43',      // parallel, branch, run_function
+  flow: '#5b8def', // start, end, wait
+  movement: '#e8a838', // move, follow_path, set_position
+  actor: '#6ecf72', // actor_create, actor_destroy
+  visual: '#c77dff', // animate, set_facing, set_depth
+  dialogue: '#ff6b8a', // dialogue
+  camera: '#4ecdc4', // camera_track, camera_pan
+  logic: '#ff9f43' // parallel, branch, run_function
 }
 
 // Маппинг типа ноды → категория (для цвета).
@@ -31,7 +31,7 @@ export const NODE_CATEGORY: Record<string, string> = {
   camera_pan: 'camera',
   parallel: 'logic',
   branch: 'logic',
-  run_function: 'logic',
+  run_function: 'logic'
 }
 
 // Короткие метки для типов нод (отображаются в заголовке).
@@ -52,7 +52,7 @@ export const NODE_LABELS: Record<string, string> = {
   camera_pan: 'Camera Pan',
   parallel: 'Parallel',
   branch: 'Branch',
-  run_function: 'Run Function',
+  run_function: 'Run Function'
 }
 
 // Пропсы для базовой ноды: тип, метка, дочерние элементы, порты.
@@ -116,14 +116,10 @@ export function BaseNode({
       </div>
 
       {/* Входной порт (слева) */}
-      {hasInput && (
-        <Handle type="target" position={Position.Left} className="customHandle" />
-      )}
+      {hasInput && <Handle type="target" position={Position.Left} className="customHandle" />}
 
       {/* Выходной порт (справа) */}
-      {hasOutput && (
-        <Handle type="source" position={Position.Right} className="customHandle" />
-      )}
+      {hasOutput && <Handle type="source" position={Position.Right} className="customHandle" />}
 
       {/* Дополнительные порты (для branch и т.д.) */}
       {extraHandles}

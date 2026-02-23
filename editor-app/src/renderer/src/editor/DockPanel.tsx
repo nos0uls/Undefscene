@@ -25,7 +25,8 @@ export type DockPanelProps = PropsWithChildren<{
 // Простая базовая панель для доков.
 // Позже мы добавим сюда drag-start на шапке и контекстное меню.
 export function DockPanel(props: DockPanelProps): React.JSX.Element {
-  const { title, className, style, onHeaderPointerDown, collapsed, onToggleCollapse, children } = props
+  const { title, className, style, onHeaderPointerDown, collapsed, onToggleCollapse, children } =
+    props
 
   return (
     <section

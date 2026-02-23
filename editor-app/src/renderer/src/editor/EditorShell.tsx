@@ -109,7 +109,8 @@ export function EditorShell(): React.JSX.Element {
   const [activeBottomTabId, setActiveBottomTabId] = useState<string | null>(null)
 
   // Выбранная нода (нужна, чтобы синхронизировать поле имени и показывать модалки).
-  const selectedNodeForName = runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null
+  const selectedNodeForName =
+    runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null
 
   // Текущее значение в поле “Node name”.
   // Мы держим его отдельно, чтобы не переписывать runtime на каждый символ.
@@ -160,34 +161,40 @@ export function EditorShell(): React.JSX.Element {
 
   // Добавляем новую ветку в параллель (start+join).
   // Мы меняем branches сразу в двух нодах, чтобы handles совпадали.
-  const onParallelAddBranch = useCallback((parallelStartId: string) => {
-    setRuntime((prevRuntime) => {
-      const startNode = prevRuntime.nodes.find((n) => n.id === parallelStartId)
-      if (!startNode) return prevRuntime
-      const joinId = typeof startNode.params?.joinId === 'string' ? (startNode.params?.joinId as string) : ''
-      const joinNode = prevRuntime.nodes.find((n) => n.id === joinId)
-      if (!joinNode) return prevRuntime
+  const onParallelAddBranch = useCallback(
+    (parallelStartId: string) => {
+      setRuntime((prevRuntime) => {
+        const startNode = prevRuntime.nodes.find((n) => n.id === parallelStartId)
+        if (!startNode) return prevRuntime
+        const joinId =
+          typeof startNode.params?.joinId === 'string' ? (startNode.params?.joinId as string) : ''
+        const joinNode = prevRuntime.nodes.find((n) => n.id === joinId)
+        if (!joinNode) return prevRuntime
 
-      const branches = (Array.isArray(startNode.params?.branches) ? startNode.params?.branches : ['b0']) as string[]
-      const newBranchId = `b${branches.length}`
-      const nextBranches = [...branches, newBranchId]
+        const branches = (
+          Array.isArray(startNode.params?.branches) ? startNode.params?.branches : ['b0']
+        ) as string[]
+        const newBranchId = `b${branches.length}`
+        const nextBranches = [...branches, newBranchId]
 
-      const nextNodes = prevRuntime.nodes.map((n) => {
-        if (n.id === startNode.id) {
-          return { ...n, params: { ...(n.params ?? {}), branches: nextBranches } }
+        const nextNodes = prevRuntime.nodes.map((n) => {
+          if (n.id === startNode.id) {
+            return { ...n, params: { ...(n.params ?? {}), branches: nextBranches } }
+          }
+          if (n.id === joinNode.id) {
+            return { ...n, params: { ...(n.params ?? {}), branches: nextBranches } }
+          }
+          return n
+        })
+
+        return {
+          ...prevRuntime,
+          nodes: nextNodes
         }
-        if (n.id === joinNode.id) {
-          return { ...n, params: { ...(n.params ?? {}), branches: nextBranches } }
-        }
-        return n
       })
-
-      return {
-        ...prevRuntime,
-        nodes: nextNodes
-      }
-    })
-  }, [setRuntime])
+    },
+    [setRuntime]
+  )
 
   // Ссылки на DOM, чтобы делать hit-test док-зон.
   const rootRef = useRef<HTMLDivElement | null>(null)
@@ -342,7 +349,11 @@ export function EditorShell(): React.JSX.Element {
       // Delete — удалить выбранную ноду (если фокус не в поле ввода).
       if (e.key === 'Delete' && !isInput) {
         const rt = runtimeRef.current
-        const ids = (rt.selectedNodeIds?.length ? rt.selectedNodeIds : (rt.selectedNodeId ? [rt.selectedNodeId] : []))
+        const ids = rt.selectedNodeIds?.length
+          ? rt.selectedNodeIds
+          : rt.selectedNodeId
+            ? [rt.selectedNodeId]
+            : []
         if (ids.length === 0) return
         e.preventDefault()
 
@@ -350,7 +361,9 @@ export function EditorShell(): React.JSX.Element {
         setRuntimeRef.current({
           ...rt,
           nodes: rt.nodes.filter((n) => !toDelete.has(n.id)),
-          edges: rt.edges.filter((edge) => !toDelete.has(edge.source) && !toDelete.has(edge.target)),
+          edges: rt.edges.filter(
+            (edge) => !toDelete.has(edge.source) && !toDelete.has(edge.target)
+          ),
           selectedNodeId: null,
           selectedNodeIds: [],
           selectedEdgeId: null
@@ -361,7 +374,11 @@ export function EditorShell(): React.JSX.Element {
       if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
         if (isInput) return
         const rt = runtimeRef.current
-        const selected = (rt.selectedNodeIds?.length ? rt.selectedNodeIds : (rt.selectedNodeId ? [rt.selectedNodeId] : []))
+        const selected = rt.selectedNodeIds?.length
+          ? rt.selectedNodeIds
+          : rt.selectedNodeId
+            ? [rt.selectedNodeId]
+            : []
         if (selected.length === 0) return
         e.preventDefault()
 
@@ -399,7 +416,11 @@ export function EditorShell(): React.JSX.Element {
       if (e.ctrlKey && (e.key === 'x' || e.key === 'X')) {
         if (isInput) return
         const rt = runtimeRef.current
-        const selected = (rt.selectedNodeIds?.length ? rt.selectedNodeIds : (rt.selectedNodeId ? [rt.selectedNodeId] : []))
+        const selected = rt.selectedNodeIds?.length
+          ? rt.selectedNodeIds
+          : rt.selectedNodeId
+            ? [rt.selectedNodeId]
+            : []
         if (selected.length === 0) return
         e.preventDefault()
 
@@ -433,7 +454,9 @@ export function EditorShell(): React.JSX.Element {
         setRuntimeRef.current({
           ...rt,
           nodes: rt.nodes.filter((n) => !selectedSet.has(n.id)),
-          edges: rt.edges.filter((ed) => !selectedSet.has(ed.source) && !selectedSet.has(ed.target)),
+          edges: rt.edges.filter(
+            (ed) => !selectedSet.has(ed.source) && !selectedSet.has(ed.target)
+          ),
           selectedNodeId: null,
           selectedNodeIds: [],
           selectedEdgeId: null
@@ -463,9 +486,7 @@ export function EditorShell(): React.JSX.Element {
 
         // Для имён делаем авто-уникализацию, чтобы не плодить одинаковые названия.
         const takenNames = new Set(
-          rt.nodes
-            .map((n) => String(n.name ?? '').trim())
-            .filter((v) => v.length > 0)
+          rt.nodes.map((n) => String(n.name ?? '').trim()).filter((v) => v.length > 0)
         )
 
         const newNodes: RuntimeNode[] = payload.nodes.map((n) => {
@@ -484,13 +505,15 @@ export function EditorShell(): React.JSX.Element {
 
           // Фиксим ссылки внутри parallel пары.
           if (next.type === 'parallel_start') {
-            const joinId = typeof next.params?.joinId === 'string' ? (next.params.joinId as string) : ''
+            const joinId =
+              typeof next.params?.joinId === 'string' ? (next.params.joinId as string) : ''
             if (joinId && idMap.has(joinId)) {
               next.params = { ...(next.params ?? {}), joinId: idMap.get(joinId) }
             }
           }
           if (next.type === 'parallel_join') {
-            const pairId = typeof next.params?.pairId === 'string' ? (next.params.pairId as string) : ''
+            const pairId =
+              typeof next.params?.pairId === 'string' ? (next.params.pairId as string) : ''
             if (pairId && idMap.has(pairId)) {
               next.params = { ...(next.params ?? {}), pairId: idMap.get(pairId) }
             }
@@ -547,7 +570,10 @@ export function EditorShell(): React.JSX.Element {
     }
     const exported = stripExport(runtime, result.actions)
     const jsonString = JSON.stringify(exported, null, 2)
-    const saveResult = await window.api.export.save(jsonString) as { saved: boolean; filePath?: string }
+    const saveResult = (await window.api.export.save(jsonString)) as {
+      saved: boolean
+      filePath?: string
+    }
     if (saveResult.saved) {
       alert(`Exported to:\n${saveResult.filePath}`)
     }
@@ -565,7 +591,10 @@ export function EditorShell(): React.JSX.Element {
   // Save As: показываем диалог, сохраняем, запоминаем путь.
   const handleSaveAs = async () => {
     const jsonString = serializeScene()
-    const result = await window.api.scene.saveAs(jsonString) as { saved: boolean; filePath?: string }
+    const result = (await window.api.scene.saveAs(jsonString)) as {
+      saved: boolean
+      filePath?: string
+    }
     if (result.saved && result.filePath) {
       setSceneFilePath(result.filePath)
     }
@@ -583,7 +612,7 @@ export function EditorShell(): React.JSX.Element {
 
   // Open Scene: открываем .usc.json / .json файл и загружаем в runtime.
   const handleOpenScene = async () => {
-    const result = await window.api.scene.open() as { filePath: string; content: string } | null
+    const result = (await window.api.scene.open()) as { filePath: string; content: string } | null
     if (!result) return
     try {
       const parsed = JSON.parse(result.content)
@@ -618,7 +647,8 @@ export function EditorShell(): React.JSX.Element {
   newRef.current = handleNew
 
   // Простая функция для ограничения чисел.
-  const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(value, max))
+  const clamp = (value: number, min: number, max: number): number =>
+    Math.max(min, Math.min(value, max))
 
   // Минимальные размеры, чтобы UI не "схлопывался".
   const MIN_LEFT_WIDTH = 220
@@ -664,7 +694,7 @@ export function EditorShell(): React.JSX.Element {
             collapsed: nextCollapsed,
             size: nextCollapsed
               ? { width: currentSize.width, height: COLLAPSED_HEADER_HEIGHT }
-              : panel.lastFloatingSize ?? currentSize,
+              : (panel.lastFloatingSize ?? currentSize),
             lastFloatingSize: nextCollapsed ? currentSize : panel.lastFloatingSize
           }
         : {
@@ -682,7 +712,10 @@ export function EditorShell(): React.JSX.Element {
   }
 
   // Готовим стиль для док-панели, если она свёрнута.
-  const getDockedPanelStyle = (panelId: string, baseStyle?: CSSProperties): CSSProperties | undefined => {
+  const getDockedPanelStyle = (
+    panelId: string,
+    baseStyle?: CSSProperties
+  ): CSSProperties | undefined => {
     const isCollapsed = Boolean(layout.panels[panelId]?.collapsed)
     if (!isCollapsed) return baseStyle
     return {
@@ -735,7 +768,11 @@ export function EditorShell(): React.JSX.Element {
     let overflowIds = list.slice(capacity)
 
     // Если есть "предпочтительная" панель, гарантируем, что она останется в слоте.
-    if (preferredPanelId && list.includes(preferredPanelId) && !keepIds.includes(preferredPanelId)) {
+    if (
+      preferredPanelId &&
+      list.includes(preferredPanelId) &&
+      !keepIds.includes(preferredPanelId)
+    ) {
       keepIds = [...keepIds.slice(0, capacity - 1), preferredPanelId]
       overflowIds = list.filter((id) => !keepIds.includes(id))
     }
@@ -783,7 +820,8 @@ export function EditorShell(): React.JSX.Element {
       // Определяем, где находится вторая нода пары.
       const joinId = typeof node.params?.joinId === 'string' ? node.params.joinId : ''
       const pairId = typeof node.params?.pairId === 'string' ? node.params.pairId : ''
-      const counterpartId = node.type === 'parallel_start' ? joinId : node.type === 'parallel_join' ? pairId : ''
+      const counterpartId =
+        node.type === 'parallel_start' ? joinId : node.type === 'parallel_join' ? pairId : ''
 
       if (!counterpartId) {
         return { nodes, edges }
@@ -916,7 +954,9 @@ export function EditorShell(): React.JSX.Element {
 
       // Конфликт есть: дубликаты разрешены, но предупреждаем.
       // По умолчанию предлагаем уникальное имя с постфиксом.
-      const conflictingWithNodeId = runtime.nodes.find((n) => n.id !== nodeId && String(n.name ?? '').trim() === nextName)?.id ?? ''
+      const conflictingWithNodeId =
+        runtime.nodes.find((n) => n.id !== nodeId && String(n.name ?? '').trim() === nextName)
+          ?.id ?? ''
       const suggested = suggestUniqueNodeName(nextName, taken)
 
       setNameConflictModal({
@@ -953,15 +993,14 @@ export function EditorShell(): React.JSX.Element {
 
       // Готовим набор занятых имён, чтобы дать новой ноде уникальное имя.
       const takenNames = new Set(
-        runtime.nodes
-          .map((n) => String(n.name ?? '').trim())
-          .filter((v) => v.length > 0)
+        runtime.nodes.map((n) => String(n.name ?? '').trim()).filter((v) => v.length > 0)
       )
 
       // Берём позицию активного узла или последнего узла в списке.
-      const anchor = runtime.nodes.find((n) => n.id === runtime.selectedNodeId)
-        ?? runtime.nodes[runtime.nodes.length - 1]
-        ?? null
+      const anchor =
+        runtime.nodes.find((n) => n.id === runtime.selectedNodeId) ??
+        runtime.nodes[runtime.nodes.length - 1] ??
+        null
 
       const anchorPos = anchor?.position ?? { x: 100, y: 150 }
 
@@ -1086,15 +1125,13 @@ export function EditorShell(): React.JSX.Element {
             </button>
           </div>
           {/* Палитра нод — кликом добавляем ноду на холст. */}
-          <div className="runtimeSectionTitle" style={{ marginTop: 6 }}>Node Palette</div>
+          <div className="runtimeSectionTitle" style={{ marginTop: 6 }}>
+            Node Palette
+          </div>
           <ul className="runtimeList runtimeListScrollable">
             {palette.map((type) => (
               <li key={type}>
-                <button
-                  className="runtimeListItem"
-                  type="button"
-                  onClick={() => addNode(type)}
-                >
+                <button className="runtimeListItem" type="button" onClick={() => addNode(type)}>
                   {type}
                 </button>
               </li>
@@ -1116,7 +1153,10 @@ export function EditorShell(): React.JSX.Element {
               {runtime.nodes.map((node) => (
                 <li key={node.id}>
                   <button
-                    className={['runtimeListItem', node.id === runtime.selectedNodeId ? 'isActive' : '']
+                    className={[
+                      'runtimeListItem',
+                      node.id === runtime.selectedNodeId ? 'isActive' : ''
+                    ]
                       .filter(Boolean)
                       .join(' ')}
                     type="button"
@@ -1199,7 +1239,9 @@ export function EditorShell(): React.JSX.Element {
           </label>
           {selectedNode ? (
             <>
-              <div className="runtimeHint" style={{ opacity: 0.6 }}>ID: {selectedNode.id}</div>
+              <div className="runtimeHint" style={{ opacity: 0.6 }}>
+                ID: {selectedNode.id}
+              </div>
               <label className="runtimeField">
                 <span>Node type</span>
                 <select
@@ -1208,7 +1250,9 @@ export function EditorShell(): React.JSX.Element {
                   onChange={(event) => changeNodeType(selectedNode.id, event.target.value)}
                 >
                   {nodeTypes.map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
                   ))}
                   {/* Если текущий тип не в списке — показываем его тоже */}
                   {!nodeTypes.includes(selectedNode.type) && (
@@ -1244,7 +1288,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       placeholder="actor key / player"
                       value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'target', event.target.value)}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'target', event.target.value)
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1253,7 +1299,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       type="number"
                       value={String((selectedNode.params?.x as number) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'x', Number(event.target.value))}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'x', Number(event.target.value))
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1262,7 +1310,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       type="number"
                       value={String((selectedNode.params?.y as number) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'y', Number(event.target.value))}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'y', Number(event.target.value))
+                      }
                     />
                   </label>
                   {/* speed и collision только для move */}
@@ -1275,7 +1325,13 @@ export function EditorShell(): React.JSX.Element {
                           type="number"
                           placeholder="60"
                           value={String((selectedNode.params?.speed_px_sec as number) ?? '')}
-                          onChange={(event) => updateNodeParam(selectedNode.id, 'speed_px_sec', Number(event.target.value))}
+                          onChange={(event) =>
+                            updateNodeParam(
+                              selectedNode.id,
+                              'speed_px_sec',
+                              Number(event.target.value)
+                            )
+                          }
                         />
                       </label>
                       <label className="runtimeField">
@@ -1283,7 +1339,13 @@ export function EditorShell(): React.JSX.Element {
                         <select
                           className="runtimeInput"
                           value={String(selectedNode.params?.collision ?? 'false')}
-                          onChange={(event) => updateNodeParam(selectedNode.id, 'collision', event.target.value === 'true')}
+                          onChange={(event) =>
+                            updateNodeParam(
+                              selectedNode.id,
+                              'collision',
+                              event.target.value === 'true'
+                            )
+                          }
                         >
                           <option value="false">false</option>
                           <option value="true">true</option>
@@ -1303,7 +1365,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       placeholder="actor key / player"
                       value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'target', event.target.value)}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'target', event.target.value)
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1313,7 +1377,9 @@ export function EditorShell(): React.JSX.Element {
                       type="number"
                       placeholder="60"
                       value={String((selectedNode.params?.speed_px_sec as number) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'speed_px_sec', Number(event.target.value))}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'speed_px_sec', Number(event.target.value))
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1321,17 +1387,23 @@ export function EditorShell(): React.JSX.Element {
                     <select
                       className="runtimeInput"
                       value={String(selectedNode.params?.collision ?? 'false')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'collision', event.target.value === 'true')}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'collision', event.target.value === 'true')
+                      }
                     >
                       <option value="false">false</option>
                       <option value="true">true</option>
                     </select>
                   </label>
                   {/* --- Редактор точек пути (waypoints) --- */}
-                  <div className="runtimeSectionTitle" style={{ marginTop: 4 }}>Path Points</div>
+                  <div className="runtimeSectionTitle" style={{ marginTop: 4 }}>
+                    Path Points
+                  </div>
                   {(() => {
                     // Получаем текущий массив точек или создаём пустой.
-                    const points: { x: number; y: number }[] = Array.isArray(selectedNode.params?.points)
+                    const points: { x: number; y: number }[] = Array.isArray(
+                      selectedNode.params?.points
+                    )
                       ? (selectedNode.params.points as { x: number; y: number }[])
                       : []
 
@@ -1343,7 +1415,15 @@ export function EditorShell(): React.JSX.Element {
                     return (
                       <>
                         {points.map((pt, i) => (
-                          <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 2 }}>
+                          <div
+                            key={i}
+                            style={{
+                              display: 'flex',
+                              gap: 4,
+                              alignItems: 'center',
+                              marginBottom: 2
+                            }}
+                          >
                             <span style={{ fontSize: 11, opacity: 0.5, minWidth: 18 }}>#{i}</span>
                             <input
                               className="runtimeInput"
@@ -1378,7 +1458,9 @@ export function EditorShell(): React.JSX.Element {
                                 ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
                                 setPoints(next)
                               }}
-                            >↑</button>
+                            >
+                              ↑
+                            </button>
                             {/* Кнопка вниз */}
                             <button
                               style={{ fontSize: 11, padding: '0 4px', cursor: 'pointer' }}
@@ -1388,15 +1470,24 @@ export function EditorShell(): React.JSX.Element {
                                 ;[next[i], next[i + 1]] = [next[i + 1], next[i]]
                                 setPoints(next)
                               }}
-                            >↓</button>
+                            >
+                              ↓
+                            </button>
                             {/* Кнопка удалить точку */}
                             <button
-                              style={{ fontSize: 11, padding: '0 4px', cursor: 'pointer', color: '#e05050' }}
+                              style={{
+                                fontSize: 11,
+                                padding: '0 4px',
+                                cursor: 'pointer',
+                                color: '#e05050'
+                              }}
                               onClick={() => {
                                 const next = points.filter((_, idx) => idx !== i)
                                 setPoints(next)
                               }}
-                            >✕</button>
+                            >
+                              ✕
+                            </button>
                           </div>
                         ))}
                         {/* Кнопка добавить новую точку */}
@@ -1408,7 +1499,9 @@ export function EditorShell(): React.JSX.Element {
                             const newPt = last ? { x: last.x + 32, y: last.y } : { x: 0, y: 0 }
                             setPoints([...points, newPt])
                           }}
-                        >+ Add Point</button>
+                        >
+                          + Add Point
+                        </button>
                         {points.length === 0 && (
                           <div className="runtimeHint" style={{ opacity: 0.5, fontSize: 11 }}>
                             No waypoints yet. Click &quot;+ Add Point&quot; to start.
@@ -1429,7 +1522,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       placeholder="npc_guide"
                       value={String((selectedNode.params?.key as string) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'key', event.target.value)}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'key', event.target.value)
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1441,7 +1536,10 @@ export function EditorShell(): React.JSX.Element {
                       onChange={(v) => updateNodeParam(selectedNode.id, 'sprite_or_object', v)}
                       placeholder="obj_actor / spr_..."
                       style={
-                        (selectedNode.params?.sprite_or_object && !spriteOrObjectOptions.includes(String(selectedNode.params.sprite_or_object)))
+                        selectedNode.params?.sprite_or_object &&
+                        !spriteOrObjectOptions.includes(
+                          String(selectedNode.params.sprite_or_object)
+                        )
                           ? { borderColor: '#e05050' }
                           : undefined
                       }
@@ -1453,7 +1551,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       type="number"
                       value={String((selectedNode.params?.x as number) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'x', Number(event.target.value))}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'x', Number(event.target.value))
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1462,7 +1562,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       type="number"
                       value={String((selectedNode.params?.y as number) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'y', Number(event.target.value))}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'y', Number(event.target.value))
+                      }
                     />
                   </label>
                 </>
@@ -1476,7 +1578,9 @@ export function EditorShell(): React.JSX.Element {
                     className="runtimeInput"
                     placeholder="actor key"
                     value={String((selectedNode.params?.target as string) ?? '')}
-                    onChange={(event) => updateNodeParam(selectedNode.id, 'target', event.target.value)}
+                    onChange={(event) =>
+                      updateNodeParam(selectedNode.id, 'target', event.target.value)
+                    }
                   />
                 </label>
               )}
@@ -1490,7 +1594,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       placeholder="actor key / player"
                       value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'target', event.target.value)}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'target', event.target.value)
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1502,7 +1608,8 @@ export function EditorShell(): React.JSX.Element {
                       onChange={(v) => updateNodeParam(selectedNode.id, 'sprite', v)}
                       placeholder="spr_..."
                       style={
-                        (selectedNode.params?.sprite && !spriteOptions.includes(String(selectedNode.params.sprite)))
+                        selectedNode.params?.sprite &&
+                        !spriteOptions.includes(String(selectedNode.params.sprite))
                           ? { borderColor: '#e05050' }
                           : undefined
                       }
@@ -1515,7 +1622,9 @@ export function EditorShell(): React.JSX.Element {
                       type="number"
                       placeholder="0"
                       value={String((selectedNode.params?.image_index as number) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'image_index', Number(event.target.value))}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'image_index', Number(event.target.value))
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1526,45 +1635,48 @@ export function EditorShell(): React.JSX.Element {
                       step="0.1"
                       placeholder="1"
                       value={String((selectedNode.params?.image_speed as number) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'image_speed', Number(event.target.value))}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'image_speed', Number(event.target.value))
+                      }
                     />
                   </label>
                 </>
               )}
 
               {/* --- dialogue: file, node (autocomplete из .yarn файлов) --- */}
-              {selectedNode.type === 'dialogue' && (() => {
-                // Список имён .yarn файлов для autocomplete.
-                const yarnFileOptions = yarnFiles.map((y) => y.file)
-                // Ноды из выбранного файла (для autocomplete поля Node).
-                const currentFile = String(selectedNode.params?.file ?? '')
-                const yarnNodeOptions = yarnFiles.find((y) => y.file === currentFile)?.nodes ?? []
+              {selectedNode.type === 'dialogue' &&
+                (() => {
+                  // Список имён .yarn файлов для autocomplete.
+                  const yarnFileOptions = yarnFiles.map((y) => y.file)
+                  // Ноды из выбранного файла (для autocomplete поля Node).
+                  const currentFile = String(selectedNode.params?.file ?? '')
+                  const yarnNodeOptions = yarnFiles.find((y) => y.file === currentFile)?.nodes ?? []
 
-                return (
-                  <>
-                    <label className="runtimeField">
-                      <span>File</span>
-                      <SearchableSelect
-                        className="runtimeInput"
-                        options={yarnFileOptions}
-                        value={currentFile}
-                        onChange={(v) => updateNodeParam(selectedNode.id, 'file', v)}
-                        placeholder="dialogue"
-                      />
-                    </label>
-                    <label className="runtimeField">
-                      <span>Node</span>
-                      <SearchableSelect
-                        className="runtimeInput"
-                        options={yarnNodeOptions}
-                        value={String((selectedNode.params?.node as string) ?? '')}
-                        onChange={(v) => updateNodeParam(selectedNode.id, 'node', v)}
-                        placeholder="Intro"
-                      />
-                    </label>
-                  </>
-                )
-              })()}
+                  return (
+                    <>
+                      <label className="runtimeField">
+                        <span>File</span>
+                        <SearchableSelect
+                          className="runtimeInput"
+                          options={yarnFileOptions}
+                          value={currentFile}
+                          onChange={(v) => updateNodeParam(selectedNode.id, 'file', v)}
+                          placeholder="dialogue"
+                        />
+                      </label>
+                      <label className="runtimeField">
+                        <span>Node</span>
+                        <SearchableSelect
+                          className="runtimeInput"
+                          options={yarnNodeOptions}
+                          value={String((selectedNode.params?.node as string) ?? '')}
+                          onChange={(v) => updateNodeParam(selectedNode.id, 'node', v)}
+                          placeholder="Intro"
+                        />
+                      </label>
+                    </>
+                  )
+                })()}
 
               {/* --- camera_track: target, seconds, offset_x, offset_y --- */}
               {selectedNode.type === 'camera_track' && (
@@ -1575,7 +1687,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       placeholder="actor key / player"
                       value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'target', event.target.value)}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'target', event.target.value)
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1586,7 +1700,9 @@ export function EditorShell(): React.JSX.Element {
                       step="0.1"
                       placeholder="2"
                       value={String((selectedNode.params?.seconds as number) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1595,7 +1711,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       type="number"
                       value={String((selectedNode.params?.offset_x as number) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'offset_x', Number(event.target.value))}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'offset_x', Number(event.target.value))
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1604,7 +1722,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       type="number"
                       value={String((selectedNode.params?.offset_y as number) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'offset_y', Number(event.target.value))}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'offset_y', Number(event.target.value))
+                      }
                     />
                   </label>
                 </>
@@ -1619,7 +1739,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       type="number"
                       value={String((selectedNode.params?.x as number) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'x', Number(event.target.value))}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'x', Number(event.target.value))
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1628,7 +1750,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       type="number"
                       value={String((selectedNode.params?.y as number) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'y', Number(event.target.value))}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'y', Number(event.target.value))
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1639,7 +1763,9 @@ export function EditorShell(): React.JSX.Element {
                       step="0.1"
                       placeholder="1"
                       value={String((selectedNode.params?.seconds as number) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))
+                      }
                     />
                   </label>
                 </>
@@ -1654,7 +1780,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       placeholder="actor key / player"
                       value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'target', event.target.value)}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'target', event.target.value)
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1664,7 +1792,9 @@ export function EditorShell(): React.JSX.Element {
                       type="number"
                       placeholder="0"
                       value={String((selectedNode.params?.depth as number) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'depth', Number(event.target.value))}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'depth', Number(event.target.value))
+                      }
                     />
                   </label>
                 </>
@@ -1679,7 +1809,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       placeholder="actor key / player"
                       value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'target', event.target.value)}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'target', event.target.value)
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1687,7 +1819,9 @@ export function EditorShell(): React.JSX.Element {
                     <select
                       className="runtimeInput"
                       value={String((selectedNode.params?.direction as string) ?? 'right')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'direction', event.target.value)}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'direction', event.target.value)
+                      }
                     >
                       <option value="left">left</option>
                       <option value="right">right</option>
@@ -1720,7 +1854,11 @@ export function EditorShell(): React.JSX.Element {
                     <SearchableSelect
                       className="runtimeInput"
                       options={engineSettings?.runFunctions ?? []}
-                      value={String((selectedNode.params?.function as string) ?? (selectedNode.params?.function_name as string) ?? '')}
+                      value={String(
+                        (selectedNode.params?.function as string) ??
+                          (selectedNode.params?.function_name as string) ??
+                          ''
+                      )}
                       onChange={(v) => updateNodeParam(selectedNode.id, 'function', v)}
                       placeholder="my_cutscene_func"
                     />
@@ -1731,14 +1869,17 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       placeholder='["arg1", 42]'
                       value={String((selectedNode.params?.args as string) ?? '')}
-                      onChange={(event) => updateNodeParam(selectedNode.id, 'args', event.target.value)}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'args', event.target.value)
+                      }
                     />
                   </label>
                 </>
               )}
               {selectedNode.position && (
                 <div className="runtimeHint" style={{ opacity: 0.6 }}>
-                  Position: {Math.round(selectedNode.position.x)}, {Math.round(selectedNode.position.y)}
+                  Position: {Math.round(selectedNode.position.x)},{' '}
+                  {Math.round(selectedNode.position.y)}
                 </div>
               )}
               <div className="runtimeHint" style={{ opacity: 0.6 }}>
@@ -1752,8 +1893,12 @@ export function EditorShell(): React.JSX.Element {
           {/* Инспектор ребра: waitSeconds лежит прямо на линии. */}
           {selectedEdge ? (
             <>
-              <div className="runtimeSectionTitle" style={{ marginTop: 8 }}>Selected Edge</div>
-              <div className="runtimeHint" style={{ opacity: 0.6 }}>ID: {selectedEdge.id}</div>
+              <div className="runtimeSectionTitle" style={{ marginTop: 8 }}>
+                Selected Edge
+              </div>
+              <div className="runtimeHint" style={{ opacity: 0.6 }}>
+                ID: {selectedEdge.id}
+              </div>
               <label className="runtimeField">
                 <span>Wait on edge (seconds)</span>
                 <input
@@ -1781,7 +1926,10 @@ export function EditorShell(): React.JSX.Element {
               </label>
 
               {/* Condition на ребре: галочка включает условие. */}
-              <label className="runtimeField" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <label
+                className="runtimeField"
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              >
                 <input
                   type="checkbox"
                   checked={!!selectedEdge.conditionEnabled}
@@ -1812,7 +1960,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       placeholder="e.g. has_key"
                       value={String(selectedEdge.conditionVar ?? '')}
-                      onChange={(event) => updateEdge(selectedEdge.id, { conditionVar: event.target.value })}
+                      onChange={(event) =>
+                        updateEdge(selectedEdge.id, { conditionVar: event.target.value })
+                      }
                     />
                   </label>
                   <label className="runtimeField">
@@ -1821,7 +1971,9 @@ export function EditorShell(): React.JSX.Element {
                       className="runtimeInput"
                       placeholder="e.g. true / 1 / done"
                       value={String(selectedEdge.conditionEquals ?? '')}
-                      onChange={(event) => updateEdge(selectedEdge.id, { conditionEquals: event.target.value })}
+                      onChange={(event) =>
+                        updateEdge(selectedEdge.id, { conditionEquals: event.target.value })
+                      }
                     />
                   </label>
 
@@ -1836,7 +1988,8 @@ export function EditorShell(): React.JSX.Element {
                         updateEdge(selectedEdge.id, {
                           conditionIfFalse: val,
                           // При переключении на skip — сбрасываем поля ожидания.
-                          stopWaitingWhen: val === 'skip' ? undefined : (selectedEdge.stopWaitingWhen ?? 'none')
+                          stopWaitingWhen:
+                            val === 'skip' ? undefined : (selectedEdge.stopWaitingWhen ?? 'none')
                         })
                       }}
                     >
@@ -1853,9 +2006,15 @@ export function EditorShell(): React.JSX.Element {
                         <select
                           className="runtimeInput"
                           value={selectedEdge.stopWaitingWhen ?? 'none'}
-                          onChange={(event) => updateEdge(selectedEdge.id, {
-                            stopWaitingWhen: event.target.value as 'none' | 'global_var' | 'node_reached' | 'timeout'
-                          })}
+                          onChange={(event) =>
+                            updateEdge(selectedEdge.id, {
+                              stopWaitingWhen: event.target.value as
+                                | 'none'
+                                | 'global_var'
+                                | 'node_reached'
+                                | 'timeout'
+                            })
+                          }
                         >
                           <option value="none">none (ждать бесконечно)</option>
                           <option value="global_var">global variable</option>
@@ -1873,7 +2032,9 @@ export function EditorShell(): React.JSX.Element {
                               className="runtimeInput"
                               placeholder="e.g. cutscene_abort"
                               value={String(selectedEdge.endConditionVar ?? '')}
-                              onChange={(event) => updateEdge(selectedEdge.id, { endConditionVar: event.target.value })}
+                              onChange={(event) =>
+                                updateEdge(selectedEdge.id, { endConditionVar: event.target.value })
+                              }
                             />
                           </label>
                           <label className="runtimeField">
@@ -1882,7 +2043,11 @@ export function EditorShell(): React.JSX.Element {
                               className="runtimeInput"
                               placeholder="e.g. true"
                               value={String(selectedEdge.endConditionEquals ?? '')}
-                              onChange={(event) => updateEdge(selectedEdge.id, { endConditionEquals: event.target.value })}
+                              onChange={(event) =>
+                                updateEdge(selectedEdge.id, {
+                                  endConditionEquals: event.target.value
+                                })
+                              }
                             />
                           </label>
                         </>
@@ -1896,7 +2061,9 @@ export function EditorShell(): React.JSX.Element {
                             className="runtimeInput"
                             placeholder="e.g. End"
                             value={String(selectedEdge.endNodeName ?? '')}
-                            onChange={(event) => updateEdge(selectedEdge.id, { endNodeName: event.target.value })}
+                            onChange={(event) =>
+                              updateEdge(selectedEdge.id, { endNodeName: event.target.value })
+                            }
                           />
                         </label>
                       ) : null}
@@ -1916,7 +2083,9 @@ export function EditorShell(): React.JSX.Element {
                               if (v === '') {
                                 updateEdge(selectedEdge.id, { endTimeoutSeconds: undefined })
                               } else {
-                                updateEdge(selectedEdge.id, { endTimeoutSeconds: Math.max(0, Number(v)) })
+                                updateEdge(selectedEdge.id, {
+                                  endTimeoutSeconds: Math.max(0, Number(v))
+                                })
                               }
                             }}
                           />
@@ -1930,13 +2099,18 @@ export function EditorShell(): React.JSX.Element {
           ) : null}
 
           {/* Информация о подключённом .yyp проекте. */}
-          <div className="runtimeSectionTitle" style={{ marginTop: 8 }}>Project</div>
+          <div className="runtimeSectionTitle" style={{ marginTop: 8 }}>
+            Project
+          </div>
           {resources ? (
             <div className="runtimeHint">
               {resources.yypPath}
-              <br />Sprites: {resources.sprites.length}
-              <br />Objects: {resources.objects.length}
-              <br />Rooms: {resources.rooms.length}
+              <br />
+              Sprites: {resources.sprites.length}
+              <br />
+              Objects: {resources.objects.length}
+              <br />
+              Rooms: {resources.rooms.length}
             </div>
           ) : (
             <div className="runtimeHint">No project loaded. File → Open Project...</div>
@@ -1965,12 +2139,29 @@ export function EditorShell(): React.JSX.Element {
       return (
         <div className="runtimeSection">
           {/* --- Вкладки: Errors / Warnings / Tips --- */}
-          <div style={{ display: 'flex', gap: 0, marginBottom: 6, borderBottom: '1px solid var(--ev-c-gray-3)' }}>
-            {([
-              { key: 'errors' as const, label: 'Errors', count: errorEntries.length, color: '#e05050' },
-              { key: 'warnings' as const, label: 'Warnings', count: warnEntries.length, color: '#d4a017' },
+          <div
+            style={{
+              display: 'flex',
+              gap: 0,
+              marginBottom: 6,
+              borderBottom: '1px solid var(--ev-c-gray-3)'
+            }}
+          >
+            {[
+              {
+                key: 'errors' as const,
+                label: 'Errors',
+                count: errorEntries.length,
+                color: '#e05050'
+              },
+              {
+                key: 'warnings' as const,
+                label: 'Warnings',
+                count: warnEntries.length,
+                color: '#d4a017'
+              },
               { key: 'tips' as const, label: 'Tips', count: tipEntries.length, color: '#58a6ff' }
-            ]).map((tab) => (
+            ].map((tab) => (
               <button
                 key={tab.key}
                 type="button"
@@ -1983,7 +2174,8 @@ export function EditorShell(): React.JSX.Element {
                   color: logsTab === tab.key ? tab.color : 'var(--ev-c-text-2)',
                   background: logsTab === tab.key ? 'rgba(255,255,255,0.04)' : 'transparent',
                   border: 'none',
-                  borderBottom: logsTab === tab.key ? `2px solid ${tab.color}` : '2px solid transparent',
+                  borderBottom:
+                    logsTab === tab.key ? `2px solid ${tab.color}` : '2px solid transparent',
                   cursor: 'pointer',
                   transition: 'color 0.12s, background 0.12s'
                 }}
@@ -1996,7 +2188,11 @@ export function EditorShell(): React.JSX.Element {
           {/* --- Записи текущей вкладки --- */}
           {visibleEntries.length === 0 ? (
             <div className="runtimeHint" style={{ color: '#6c6' }}>
-              {logsTab === 'errors' ? 'No errors.' : logsTab === 'warnings' ? 'No warnings.' : 'No tips.'}
+              {logsTab === 'errors'
+                ? 'No errors.'
+                : logsTab === 'warnings'
+                  ? 'No warnings.'
+                  : 'No tips.'}
             </div>
           ) : (
             <div style={{ maxHeight: 260, overflowY: 'auto' }}>
@@ -2016,9 +2212,19 @@ export function EditorShell(): React.JSX.Element {
                     onClick={() => {
                       // Клик по записи — выбираем ноду или ребро на холсте.
                       if (entry.nodeId) {
-                        setRuntime({ ...runtime, selectedNodeId: entry.nodeId, selectedNodeIds: [entry.nodeId], selectedEdgeId: null })
+                        setRuntime({
+                          ...runtime,
+                          selectedNodeId: entry.nodeId,
+                          selectedNodeIds: [entry.nodeId],
+                          selectedEdgeId: null
+                        })
                       } else if (entry.edgeId) {
-                        setRuntime({ ...runtime, selectedNodeId: null, selectedNodeIds: [], selectedEdgeId: entry.edgeId })
+                        setRuntime({
+                          ...runtime,
+                          selectedNodeId: null,
+                          selectedNodeIds: [],
+                          selectedEdgeId: entry.edgeId
+                        })
                       }
                     }}
                   >
@@ -2032,7 +2238,9 @@ export function EditorShell(): React.JSX.Element {
 
           {/* --- Raw JSON (свёрнутый по умолчанию) --- */}
           <details style={{ marginTop: 8 }}>
-            <summary className="runtimeSectionTitle" style={{ cursor: 'pointer' }}>Runtime JSON</summary>
+            <summary className="runtimeSectionTitle" style={{ cursor: 'pointer' }}>
+              Runtime JSON
+            </summary>
             <pre className="runtimeCode">{JSON.stringify(runtime, null, 2)}</pre>
           </details>
         </div>
@@ -2073,7 +2281,12 @@ export function EditorShell(): React.JSX.Element {
   // Примерный индекс вставки панели в слот (вверх/вниз).
   // Пока мы делаем простую логику: в верхнюю половину — index 0, в нижнюю — в конец.
   const getInsertIndexForSlot = (slot: DockSlotId, clientY: number): number => {
-    const el = slot === 'left' ? leftDockRef.current : slot === 'right' ? rightDockRef.current : bottomDockRef.current
+    const el =
+      slot === 'left'
+        ? leftDockRef.current
+        : slot === 'right'
+          ? rightDockRef.current
+          : bottomDockRef.current
     const rect = el?.getBoundingClientRect() ?? null
     const currentDocked = layoutRef.current.docked[slot]
     const capacity = getSlotCapacity(slot)
@@ -2115,7 +2328,10 @@ export function EditorShell(): React.JSX.Element {
       : { x: 12, y: 12 }
 
     const size: Size = panelRect
-      ? { width: Math.max(120, Math.round(panelRect.width)), height: Math.max(80, Math.round(panelRect.height)) }
+      ? {
+          width: Math.max(120, Math.round(panelRect.width)),
+          height: Math.max(80, Math.round(panelRect.height))
+        }
       : { width: 320, height: 220 }
 
     const ghostPosition = getFloatingPositionAtPoint(event.clientX, event.clientY, grabOffset)
@@ -2157,7 +2373,11 @@ export function EditorShell(): React.JSX.Element {
     const onPointerMove = (event: PointerEvent) => {
       if (event.pointerId !== drag.pointerId) return
 
-      const ghostPosition = getFloatingPositionAtPoint(event.clientX, event.clientY, drag.grabOffset)
+      const ghostPosition = getFloatingPositionAtPoint(
+        event.clientX,
+        event.clientY,
+        drag.grabOffset
+      )
       const hoverSlot = getHoverSlotAtPoint(event.clientX, event.clientY)
 
       // Обновляем только превью, чтобы не трясти всё дерево.
@@ -2205,7 +2425,8 @@ export function EditorShell(): React.JSX.Element {
               position: null,
               size: null,
               lastDockedSlot: hoverSlot,
-              lastFloatingPosition: currentPanel.position ?? currentPanel.lastFloatingPosition ?? null,
+              lastFloatingPosition:
+                currentPanel.position ?? currentPanel.lastFloatingPosition ?? null,
               lastFloatingSize: currentPanel.size ?? currentPanel.lastFloatingSize ?? null
             }
           }
@@ -2217,7 +2438,11 @@ export function EditorShell(): React.JSX.Element {
       }
 
       // Вариант 2: оставляем floating.
-      const floatingPosition = getFloatingPositionAtPoint(event.clientX, event.clientY, drag.grabOffset)
+      const floatingPosition = getFloatingPositionAtPoint(
+        event.clientX,
+        event.clientY,
+        drag.grabOffset
+      )
       const maxZ = Math.max(1, ...Object.values(currentLayout.panels).map((p) => p.zIndex ?? 1))
 
       setLayout({
@@ -2295,8 +2520,16 @@ export function EditorShell(): React.JSX.Element {
     const rootRect = rootRef.current?.getBoundingClientRect()
     const fallbackSize = current.lastFloatingSize ?? { width: 360, height: 240 }
 
-    const clampedWidth = clamp(fallbackSize.width, MIN_FLOAT_WIDTH, rootRect?.width ?? fallbackSize.width)
-    const clampedHeight = clamp(fallbackSize.height, MIN_FLOAT_HEIGHT, rootRect?.height ?? fallbackSize.height)
+    const clampedWidth = clamp(
+      fallbackSize.width,
+      MIN_FLOAT_WIDTH,
+      rootRect?.width ?? fallbackSize.width
+    )
+    const clampedHeight = clamp(
+      fallbackSize.height,
+      MIN_FLOAT_HEIGHT,
+      rootRect?.height ?? fallbackSize.height
+    )
 
     // Стартовая позиция — либо последняя, либо центр экрана.
     const defaultPosition: Vec2 = current.lastFloatingPosition ?? {
@@ -2324,32 +2557,33 @@ export function EditorShell(): React.JSX.Element {
   }
 
   // Начинаем ресайз доков или floating панели.
-  const startResizeDrag = (kind: ResizeKind, panelId?: string) => (event: React.PointerEvent<HTMLElement>) => {
-    if (event.button !== 0) return
+  const startResizeDrag =
+    (kind: ResizeKind, panelId?: string) => (event: React.PointerEvent<HTMLElement>) => {
+      if (event.button !== 0) return
 
-    event.preventDefault()
-    event.stopPropagation()
+      event.preventDefault()
+      event.stopPropagation()
 
-    const currentLayout = layoutRef.current
-    const panel = panelId ? currentLayout.panels[panelId] : null
+      const currentLayout = layoutRef.current
+      const panel = panelId ? currentLayout.panels[panelId] : null
 
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId)
-    } catch {
-      // Если pointer capture недоступен, мы всё равно ловим события на window.
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId)
+      } catch {
+        // Если pointer capture недоступен, мы всё равно ловим события на window.
+      }
+
+      setResizeDrag({
+        kind,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startDockSizes: { ...currentLayout.dockSizes },
+        panelId,
+        startPanelPosition: panel?.position ?? null,
+        startPanelSize: panel?.size ?? null
+      })
     }
-
-    setResizeDrag({
-      kind,
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      startDockSizes: { ...currentLayout.dockSizes },
-      panelId,
-      startPanelPosition: panel?.position ?? null,
-      startPanelSize: panel?.size ?? null
-    })
-  }
 
   // Пока мы ресайзим, обновляем размеры в layout.
   useEffect(() => {
@@ -2366,8 +2600,15 @@ export function EditorShell(): React.JSX.Element {
       const dy = event.clientY - resizeDrag.startY
 
       if (resizeDrag.kind === 'dock-left') {
-        const maxLeft = Math.max(MIN_LEFT_WIDTH, rootRect.width - currentLayout.dockSizes.rightWidth - MIN_CENTER_WIDTH)
-        const nextLeftWidth = clamp(resizeDrag.startDockSizes.leftWidth + dx, MIN_LEFT_WIDTH, maxLeft)
+        const maxLeft = Math.max(
+          MIN_LEFT_WIDTH,
+          rootRect.width - currentLayout.dockSizes.rightWidth - MIN_CENTER_WIDTH
+        )
+        const nextLeftWidth = clamp(
+          resizeDrag.startDockSizes.leftWidth + dx,
+          MIN_LEFT_WIDTH,
+          maxLeft
+        )
 
         setLayout({
           ...currentLayout,
@@ -2380,8 +2621,15 @@ export function EditorShell(): React.JSX.Element {
       }
 
       if (resizeDrag.kind === 'dock-right') {
-        const maxRight = Math.max(MIN_RIGHT_WIDTH, rootRect.width - currentLayout.dockSizes.leftWidth - MIN_CENTER_WIDTH)
-        const nextRightWidth = clamp(resizeDrag.startDockSizes.rightWidth - dx, MIN_RIGHT_WIDTH, maxRight)
+        const maxRight = Math.max(
+          MIN_RIGHT_WIDTH,
+          rootRect.width - currentLayout.dockSizes.leftWidth - MIN_CENTER_WIDTH
+        )
+        const nextRightWidth = clamp(
+          resizeDrag.startDockSizes.rightWidth - dx,
+          MIN_RIGHT_WIDTH,
+          maxRight
+        )
 
         setLayout({
           ...currentLayout,
@@ -2399,7 +2647,11 @@ export function EditorShell(): React.JSX.Element {
           MIN_BOTTOM_HEIGHT,
           rootRect.height - topBarHeight - MIN_CENTER_HEIGHT
         )
-        const nextBottomHeight = clamp(resizeDrag.startDockSizes.bottomHeight - dy, MIN_BOTTOM_HEIGHT, maxBottom)
+        const nextBottomHeight = clamp(
+          resizeDrag.startDockSizes.bottomHeight - dy,
+          MIN_BOTTOM_HEIGHT,
+          maxBottom
+        )
 
         setLayout({
           ...currentLayout,
@@ -2560,7 +2812,9 @@ export function EditorShell(): React.JSX.Element {
   const bottomDockedIds = layout.docked.bottom.filter((id) => layout.panels[id]?.mode === 'docked')
 
   // Выбираем панели, которые сейчас floating.
-  const floatingPanelIds = Object.keys(layout.panels).filter((id) => layout.panels[id]?.mode === 'floating')
+  const floatingPanelIds = Object.keys(layout.panels).filter(
+    (id) => layout.panels[id]?.mode === 'floating'
+  )
 
   return (
     <div
@@ -2627,22 +2881,17 @@ export function EditorShell(): React.JSX.Element {
         />
       </header>
 
-      <aside
-        ref={leftDockRef}
-        className="editorLeftDock"
-      >
+      <aside ref={leftDockRef} className="editorLeftDock">
         <div className="dockSlotSplit dockSlotSplitLeft">
           {leftDockedIds[0] ? (
             <DockPanel
               title={layout.panels[leftDockedIds[0]]?.title ?? leftDockedIds[0]}
-              className={
-                [
-                  'dockPanelActions',
-                  drag?.panelId === leftDockedIds[0] ? 'isDragSource' : ''
-                ]
-                  .filter(Boolean)
-                  .join(' ')
-              }
+              className={[
+                'dockPanelActions',
+                drag?.panelId === leftDockedIds[0] ? 'isDragSource' : ''
+              ]
+                .filter(Boolean)
+                .join(' ')}
               style={getDockedPanelStyle(leftDockedIds[0], {
                 flexGrow: leftDockedIds.length >= 2 ? leftTopGrow : 1,
                 flexBasis: 0,
@@ -2667,14 +2916,12 @@ export function EditorShell(): React.JSX.Element {
           {leftDockedIds[1] ? (
             <DockPanel
               title={layout.panels[leftDockedIds[1]]?.title ?? leftDockedIds[1]}
-              className={
-                [
-                  'dockPanelBookmarks',
-                  drag?.panelId === leftDockedIds[1] ? 'isDragSource' : ''
-                ]
-                  .filter(Boolean)
-                  .join(' ')
-              }
+              className={[
+                'dockPanelBookmarks',
+                drag?.panelId === leftDockedIds[1] ? 'isDragSource' : ''
+              ]
+                .filter(Boolean)
+                .join(' ')}
               style={getDockedPanelStyle(leftDockedIds[1], {
                 flexGrow: leftDockedIds.length >= 2 ? leftBottomGrow : 1,
                 flexBasis: 0,
@@ -2704,11 +2951,12 @@ export function EditorShell(): React.JSX.Element {
               // Важно: React Flow может звать onSelectionChange даже когда выделение не поменялось.
               // Если мы будем каждый раз делать setRuntime, получится бесконечный цикл рендера.
               const nextSelectedNodeId = nodeIds.length === 1 ? nodeIds[0] : null
-              
+
               const currentIds = runtime.selectedNodeIds ?? []
               const sameLength = currentIds.length === nodeIds.length
-              const sameIds = sameLength && 
-                nodeIds.every((id) => currentIds.includes(id)) && 
+              const sameIds =
+                sameLength &&
+                nodeIds.every((id) => currentIds.includes(id)) &&
                 currentIds.every((id) => nodeIds.includes(id))
 
               if (
@@ -2773,7 +3021,9 @@ export function EditorShell(): React.JSX.Element {
             onParallelAddBranch={onParallelAddBranch}
             onNodeDelete={(nodeId) => {
               // ПКМ по ноде — удаляем ноду и все связанные рёбра.
-              const nextSelectedNodeIds = (runtime.selectedNodeIds ?? []).filter((id) => id !== nodeId)
+              const nextSelectedNodeIds = (runtime.selectedNodeIds ?? []).filter(
+                (id) => id !== nodeId
+              )
               setRuntime({
                 ...runtime,
                 nodes: runtime.nodes.filter((n) => n.id !== nodeId),
@@ -2790,9 +3040,7 @@ export function EditorShell(): React.JSX.Element {
 
               // Генерируем уникальное имя “Node”, чтобы новый узел не конфликтовал с другими.
               const takenNames = new Set(
-                runtime.nodes
-                  .map((n) => String(n.name ?? '').trim())
-                  .filter((v) => v.length > 0)
+                runtime.nodes.map((n) => String(n.name ?? '').trim()).filter((v) => v.length > 0)
               )
               const newName = suggestUniqueNodeName('Node', takenNames)
 
@@ -2829,22 +3077,17 @@ export function EditorShell(): React.JSX.Element {
         </div>
       </main>
 
-      <aside
-        ref={rightDockRef}
-        className="editorRightDock"
-      >
+      <aside ref={rightDockRef} className="editorRightDock">
         <div className="dockSlotSplit dockSlotSplitRight">
           {rightDockedIds[0] ? (
             <DockPanel
               title={layout.panels[rightDockedIds[0]]?.title ?? rightDockedIds[0]}
-              className={
-                [
-                  'dockPanelText',
-                  drag?.panelId === rightDockedIds[0] ? 'isDragSource' : ''
-                ]
-                  .filter(Boolean)
-                  .join(' ')
-              }
+              className={[
+                'dockPanelText',
+                drag?.panelId === rightDockedIds[0] ? 'isDragSource' : ''
+              ]
+                .filter(Boolean)
+                .join(' ')}
               style={getDockedPanelStyle(rightDockedIds[0], {
                 flexGrow: rightDockedIds.length >= 2 ? rightTopGrow : 1,
                 flexBasis: 0,
@@ -2869,14 +3112,12 @@ export function EditorShell(): React.JSX.Element {
           {rightDockedIds[1] ? (
             <DockPanel
               title={layout.panels[rightDockedIds[1]]?.title ?? rightDockedIds[1]}
-              className={
-                [
-                  'dockPanelInspector',
-                  drag?.panelId === rightDockedIds[1] ? 'isDragSource' : ''
-                ]
-                  .filter(Boolean)
-                  .join(' ')
-              }
+              className={[
+                'dockPanelInspector',
+                drag?.panelId === rightDockedIds[1] ? 'isDragSource' : ''
+              ]
+                .filter(Boolean)
+                .join(' ')}
               style={getDockedPanelStyle(rightDockedIds[1], {
                 flexGrow: rightDockedIds.length >= 2 ? rightBottomGrow : 1,
                 flexBasis: 0,
@@ -2892,71 +3133,78 @@ export function EditorShell(): React.JSX.Element {
         </div>
       </aside>
 
-      <section
-        ref={bottomDockRef}
-        className="editorBottomDock"
-      >
-        {bottomDockedIds.length > 0 ? (() => {
-          // Определяем активную вкладку: если сохранённая не в списке — берём первую.
-          const activeId = (activeBottomTabId && bottomDockedIds.includes(activeBottomTabId))
-            ? activeBottomTabId
-            : bottomDockedIds[0]
+      <section ref={bottomDockRef} className="editorBottomDock">
+        {bottomDockedIds.length > 0
+          ? (() => {
+              // Определяем активную вкладку: если сохранённая не в списке — берём первую.
+              const activeId =
+                activeBottomTabId && bottomDockedIds.includes(activeBottomTabId)
+                  ? activeBottomTabId
+                  : bottomDockedIds[0]
 
-          return (
-            <>
-              {/* Таб-бар показываем только если панелей > 1. */}
-              {bottomDockedIds.length > 1 && (
-                <div style={{
-                  display: 'flex',
-                  gap: 0,
-                  borderBottom: '1px solid var(--ev-c-gray-3)',
-                  background: 'var(--color-background-soft)',
-                  flexShrink: 0
-                }}>
-                  {bottomDockedIds.map((panelId) => (
-                    <button
-                      key={panelId}
-                      type="button"
-                      onClick={() => setActiveBottomTabId(panelId)}
-                      onPointerDown={(e) => {
-                        // ПКМ — начинаем drag панели из таба.
-                        if (e.button === 0 && e.detail >= 2) return
-                      }}
+              return (
+                <>
+                  {/* Таб-бар показываем только если панелей > 1. */}
+                  {bottomDockedIds.length > 1 && (
+                    <div
                       style={{
-                        flex: 1,
-                        padding: '4px 8px',
-                        fontSize: 11,
-                        fontWeight: panelId === activeId ? 700 : 400,
-                        color: panelId === activeId ? 'var(--ev-c-text-1)' : 'var(--ev-c-text-2)',
-                        background: panelId === activeId ? 'rgba(255,255,255,0.04)' : 'transparent',
-                        border: 'none',
-                        borderBottom: panelId === activeId ? '2px solid var(--ev-c-accent)' : '2px solid transparent',
-                        cursor: 'pointer',
-                        transition: 'color 0.12s, background 0.12s'
+                        display: 'flex',
+                        gap: 0,
+                        borderBottom: '1px solid var(--ev-c-gray-3)',
+                        background: 'var(--color-background-soft)',
+                        flexShrink: 0
                       }}
                     >
-                      {layout.panels[panelId]?.title ?? panelId}
-                    </button>
-                  ))}
-                </div>
-              )}
+                      {bottomDockedIds.map((panelId) => (
+                        <button
+                          key={panelId}
+                          type="button"
+                          onClick={() => setActiveBottomTabId(panelId)}
+                          onPointerDown={(e) => {
+                            // ПКМ — начинаем drag панели из таба.
+                            if (e.button === 0 && e.detail >= 2) return
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '4px 8px',
+                            fontSize: 11,
+                            fontWeight: panelId === activeId ? 700 : 400,
+                            color:
+                              panelId === activeId ? 'var(--ev-c-text-1)' : 'var(--ev-c-text-2)',
+                            background:
+                              panelId === activeId ? 'rgba(255,255,255,0.04)' : 'transparent',
+                            border: 'none',
+                            borderBottom:
+                              panelId === activeId
+                                ? '2px solid var(--ev-c-accent)'
+                                : '2px solid transparent',
+                            cursor: 'pointer',
+                            transition: 'color 0.12s, background 0.12s'
+                          }}
+                        >
+                          {layout.panels[panelId]?.title ?? panelId}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
-              {/* Контент активной вкладки. */}
-              <DockPanel
-                title={layout.panels[activeId]?.title ?? activeId}
-                className={['dockPanelLogs', drag?.panelId === activeId ? 'isDragSource' : '']
-                  .filter(Boolean)
-                  .join(' ')}
-                style={getDockedPanelStyle(activeId)}
-                onHeaderPointerDown={startPanelDrag(activeId)}
-                collapsed={layout.panels[activeId]?.collapsed}
-                onToggleCollapse={() => togglePanelCollapse(activeId)}
-              >
-                {renderPanelContents(activeId)}
-              </DockPanel>
-            </>
-          )
-        })() : null}
+                  {/* Контент активной вкладки. */}
+                  <DockPanel
+                    title={layout.panels[activeId]?.title ?? activeId}
+                    className={['dockPanelLogs', drag?.panelId === activeId ? 'isDragSource' : '']
+                      .filter(Boolean)
+                      .join(' ')}
+                    style={getDockedPanelStyle(activeId)}
+                    onHeaderPointerDown={startPanelDrag(activeId)}
+                    collapsed={layout.panels[activeId]?.collapsed}
+                    onToggleCollapse={() => togglePanelCollapse(activeId)}
+                  >
+                    {renderPanelContents(activeId)}
+                  </DockPanel>
+                </>
+              )
+            })()
+          : null}
       </section>
 
       {/*
@@ -2993,14 +3241,38 @@ export function EditorShell(): React.JSX.Element {
                 {renderPanelContents(panelId)}
               </DockPanel>
               {/* Невидимые зоны для ресайза по краям и углам (как в Windows). */}
-              <div className="floatingResizeZone resize-n" onPointerDown={startResizeDrag('float-n', panelId)} />
-              <div className="floatingResizeZone resize-s" onPointerDown={startResizeDrag('float-s', panelId)} />
-              <div className="floatingResizeZone resize-e" onPointerDown={startResizeDrag('float-e', panelId)} />
-              <div className="floatingResizeZone resize-w" onPointerDown={startResizeDrag('float-w', panelId)} />
-              <div className="floatingResizeZone resize-ne" onPointerDown={startResizeDrag('float-ne', panelId)} />
-              <div className="floatingResizeZone resize-nw" onPointerDown={startResizeDrag('float-nw', panelId)} />
-              <div className="floatingResizeZone resize-se" onPointerDown={startResizeDrag('float-se', panelId)} />
-              <div className="floatingResizeZone resize-sw" onPointerDown={startResizeDrag('float-sw', panelId)} />
+              <div
+                className="floatingResizeZone resize-n"
+                onPointerDown={startResizeDrag('float-n', panelId)}
+              />
+              <div
+                className="floatingResizeZone resize-s"
+                onPointerDown={startResizeDrag('float-s', panelId)}
+              />
+              <div
+                className="floatingResizeZone resize-e"
+                onPointerDown={startResizeDrag('float-e', panelId)}
+              />
+              <div
+                className="floatingResizeZone resize-w"
+                onPointerDown={startResizeDrag('float-w', panelId)}
+              />
+              <div
+                className="floatingResizeZone resize-ne"
+                onPointerDown={startResizeDrag('float-ne', panelId)}
+              />
+              <div
+                className="floatingResizeZone resize-nw"
+                onPointerDown={startResizeDrag('float-nw', panelId)}
+              />
+              <div
+                className="floatingResizeZone resize-se"
+                onPointerDown={startResizeDrag('float-se', panelId)}
+              />
+              <div
+                className="floatingResizeZone resize-sw"
+                onPointerDown={startResizeDrag('float-sw', panelId)}
+              />
             </div>
           )
         })}
@@ -3023,8 +3295,14 @@ export function EditorShell(): React.JSX.Element {
       </div>
 
       {/* Сплиттеры для изменения размеров доков. */}
-      <div className="dockSplitter dockSplitterVertical dockSplitterLeft" onPointerDown={startResizeDrag('dock-left')} />
-      <div className="dockSplitter dockSplitterVertical dockSplitterRight" onPointerDown={startResizeDrag('dock-right')} />
+      <div
+        className="dockSplitter dockSplitterVertical dockSplitterLeft"
+        onPointerDown={startResizeDrag('dock-left')}
+      />
+      <div
+        className="dockSplitter dockSplitterVertical dockSplitterRight"
+        onPointerDown={startResizeDrag('dock-right')}
+      />
       <div
         className="dockSplitter dockSplitterHorizontal dockSplitterBottom"
         onPointerDown={startResizeDrag('dock-bottom')}
@@ -3061,8 +3339,11 @@ export function EditorShell(): React.JSX.Element {
 
             <div className="prefsBody">
               <div className="prefsHint">
-                This name is already used by another node{nameConflictModal.conflictingWithNodeId ? ` (${nameConflictModal.conflictingWithNodeId})` : ''}.
-                Duplicates are allowed, but it can be confusing.
+                This name is already used by another node
+                {nameConflictModal.conflictingWithNodeId
+                  ? ` (${nameConflictModal.conflictingWithNodeId})`
+                  : ''}
+                . Duplicates are allowed, but it can be confusing.
               </div>
 
               <label className="prefsField">

@@ -91,7 +91,10 @@ export function validateGraph(state: RuntimeState): ValidationResult {
     entries.push({ severity: 'error', message: 'Graph has no "start" node.' })
   }
   if (startNodes.length > 1) {
-    entries.push({ severity: 'error', message: `Graph has ${startNodes.length} "start" nodes — only 1 is allowed.` })
+    entries.push({
+      severity: 'error',
+      message: `Graph has ${startNodes.length} "start" nodes — only 1 is allowed.`
+    })
   }
   if (endNodes.length === 0) {
     entries.push({ severity: 'error', message: 'Graph has no "end" node.' })
@@ -258,7 +261,9 @@ export function validateGraph(state: RuntimeState): ValidationResult {
     // --- 5. Проверяем parallel_start ↔ parallel_join пару ---
     if (node.type === 'parallel_start') {
       const joinId = typeof node.params?.joinId === 'string' ? node.params.joinId : ''
-      const branches = Array.isArray(node.params?.branches) ? (node.params?.branches as string[]) : ['b0']
+      const branches = Array.isArray(node.params?.branches)
+        ? (node.params?.branches as string[])
+        : ['b0']
       if (!joinId) {
         entries.push({
           severity: 'error',
@@ -335,7 +340,9 @@ export function validateGraph(state: RuntimeState): ValidationResult {
 
     if (node.type === 'parallel_join') {
       const pairId = typeof node.params?.pairId === 'string' ? node.params.pairId : ''
-      const branches = Array.isArray(node.params?.branches) ? (node.params?.branches as string[]) : ['b0']
+      const branches = Array.isArray(node.params?.branches)
+        ? (node.params?.branches as string[])
+        : ['b0']
       if (!pairId) {
         entries.push({
           severity: 'warn',

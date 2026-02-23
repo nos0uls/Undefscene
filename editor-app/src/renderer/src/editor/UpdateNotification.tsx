@@ -18,17 +18,17 @@ export function UpdateNotification(): React.JSX.Element | null {
 
   // Подписываемся на события обновления из main процесса (один раз).
   useEffect(() => {
-    // Храним функции отписки, если API их возвращает (в нашем случае preload не возвращает, 
+    // Храним функции отписки, если API их возвращает (в нашем случае preload не возвращает,
     // но мы можем обернуть это в removeListener, если бы API позволял).
     // Поскольку preload использует ipcRenderer.on, нам нужно иметь способ сделать removeListener.
-    // В текущем preload.ts мы просто делаем .on(...). 
+    // В текущем preload.ts мы просто делаем .on(...).
     // Хорошей практикой было бы возвращать unsubscribe функцию из preload.
-    
+
     // В текущей реализации preload (см. ниже) мы просто вешаем слушатели.
     // Чтобы сделать cleanup честно, нужно доработать preload.
     // Пока что оставим как есть, так как UpdateNotification монтируется один раз в Layout.
     // Но для чистоты добавим пустой return, или переделаем API.
-    
+
     // Подписываемся на события обновления из main процесса (один раз).
     const cleanups: Array<() => void> = []
 
@@ -86,14 +86,12 @@ export function UpdateNotification(): React.JSX.Element | null {
     >
       {/* Текст уведомления. */}
       {status.kind === 'available' && (
-        <span>Update available: <strong>v{status.version}</strong></span>
+        <span>
+          Update available: <strong>v{status.version}</strong>
+        </span>
       )}
-      {status.kind === 'downloading' && (
-        <span>Downloading update... {status.percent}%</span>
-      )}
-      {status.kind === 'ready' && (
-        <span>Update ready. Restart to install.</span>
-      )}
+      {status.kind === 'downloading' && <span>Downloading update... {status.percent}%</span>}
+      {status.kind === 'ready' && <span>Update ready. Restart to install.</span>}
       {status.kind === 'error' && (
         <span style={{ color: '#e05050' }}>Update error: {status.message}</span>
       )}

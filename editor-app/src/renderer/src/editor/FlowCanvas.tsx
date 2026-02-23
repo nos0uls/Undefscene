@@ -360,36 +360,30 @@ const FlowCanvasInner = ({
   )
 
   // ПКМ по ноде — удаляем её и все связанные рёбра.
-  const handleNodeContextMenu = useCallback(
-    (event: React.MouseEvent, node: Node) => {
-      event.preventDefault()
-      onNodeDeleteRef.current(node.id)
-    },
-    []
-  )
+  const handleNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+    event.preventDefault()
+    onNodeDeleteRef.current(node.id)
+  }, [])
 
   // ЛКМ по холсту — создаём новую ноду в позиции курсора.
   // ПКМ по холсту — React Flow сам панорамирует (panOnDrag={[2]).
-  const handlePaneClick = useCallback(
-    (event: React.MouseEvent) => {
-      // Если только что создали связь — игнорируем этот клик и сбрасываем флаг.
-      if (justConnectedRef.current) {
-        justConnectedRef.current = false
-        return
-      }
+  const handlePaneClick = useCallback((event: React.MouseEvent) => {
+    // Если только что создали связь — игнорируем этот клик и сбрасываем флаг.
+    if (justConnectedRef.current) {
+      justConnectedRef.current = false
+      return
+    }
 
-      // ЛКМ по пустому месту: просто снимаем выделение.
-      // Создание ноды перенесли на MMB.
-      if (event.button === 0) {
-        // Включаем защиту от "отката" выделения через onSelectionChange.
-        // Это особенно важно, когда уже выделено несколько нод.
-        ignoreSelectionUntilEmptyRef.current = true
-        onSelectEdgeRef.current(null)
-        onSelectNodesRef.current([])
-      }
-    },
-    []
-  )
+    // ЛКМ по пустому месту: просто снимаем выделение.
+    // Создание ноды перенесли на MMB.
+    if (event.button === 0) {
+      // Включаем защиту от "отката" выделения через onSelectionChange.
+      // Это особенно важно, когда уже выделено несколько нод.
+      ignoreSelectionUntilEmptyRef.current = true
+      onSelectEdgeRef.current(null)
+      onSelectNodesRef.current([])
+    }
+  }, [])
 
   // MMB по холсту — создаём новую ноду.
   // Используем MouseDown, потому что "click" обычно срабатывает только для ЛКМ.
@@ -494,7 +488,6 @@ const FlowCanvasInner = ({
         proOptions={{ hideAttribution: true }}
         // Панорамирование холста — только ПКМ (кнопка 2).
         panOnDrag={[2]}
-
         // ЛКМ drag по пустому месту — рамка выделения (area select).
         selectionOnDrag
         // Режим выделения: достаточно задеть кусочек ноды, не нужно полное покрытие.
@@ -510,19 +503,13 @@ const FlowCanvasInner = ({
         onEdgeDoubleClick={handleEdgeDoubleClick}
         // ЛКМ по холсту — создаём ноду.
         onPaneClick={handlePaneClick}
-
         // Когда пользователь выделяет рамкой — синхронизируем мультивыделение.
         // Дополнительно защищаемся от бесконечного цикла: не вызываем onSelectNodes,
         // если фактическое выделение не изменилось относительно пропсов.
         onSelectionChange={handleSelectionChange}
       >
         <Background color="#262b2f" gap={18} size={1} />
-        <MiniMap
-          zoomable
-          pannable
-          nodeColor="#7ea4ff"
-          maskColor="rgba(7, 10, 12, 0.6)"
-        />
+        <MiniMap zoomable pannable nodeColor="#7ea4ff" maskColor="rgba(7, 10, 12, 0.6)" />
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>

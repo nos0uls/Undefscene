@@ -46,7 +46,10 @@ ipcMain.handle('updater:check', async () => {
 
     return { status: 'available' as const, version: nextVersion }
   } catch (err) {
-    return { status: 'error' as const, message: err instanceof Error ? err.message : 'Unknown error' }
+    return {
+      status: 'error' as const,
+      message: err instanceof Error ? err.message : 'Unknown error'
+    }
   }
 })
 

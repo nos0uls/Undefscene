@@ -53,7 +53,9 @@ export function MoveNode({ data, selected }: CutsceneNodeProps): React.JSX.Eleme
   return (
     <BaseNode nodeType="move" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
-      <div className="customNodeParam">→ {String(x)}, {String(y)}</div>
+      <div className="customNodeParam">
+        → {String(x)}, {String(y)}
+      </div>
     </BaseNode>
   )
 }
@@ -78,7 +80,9 @@ export function SetPositionNode({ data, selected }: CutsceneNodeProps): React.JS
   return (
     <BaseNode nodeType="set_position" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
-      <div className="customNodeParam">@ {String(x)}, {String(y)}</div>
+      <div className="customNodeParam">
+        @ {String(x)}, {String(y)}
+      </div>
     </BaseNode>
   )
 }
@@ -181,7 +185,9 @@ export function CameraPanNode({ data, selected }: CutsceneNodeProps): React.JSX.
   const seconds = data.params?.seconds ?? '?'
   return (
     <BaseNode nodeType="camera_pan" selected={selected}>
-      <div className="customNodeParam">→ {String(x)}, {String(y)}</div>
+      <div className="customNodeParam">
+        → {String(x)}, {String(y)}
+      </div>
       <div className="customNodeParam">{String(seconds)}s</div>
     </BaseNode>
   )
@@ -218,7 +224,9 @@ export function ParallelStartNode(props: any): React.JSX.Element {
   const id = String(props?.id ?? '')
   const data = (props?.data ?? {}) as CutsceneNodeData
   const selected = Boolean(props?.selected)
-  const branches = (Array.isArray(data.params?.branches) ? data.params?.branches : ['b0']) as string[]
+  const branches = (
+    Array.isArray(data.params?.branches) ? data.params?.branches : ['b0']
+  ) as string[]
 
   return (
     <BaseNode
@@ -255,7 +263,9 @@ export function ParallelJoinNode(props: any): React.JSX.Element {
   const id = String(props?.id ?? '')
   const data = (props?.data ?? {}) as CutsceneNodeData
   const selected = Boolean(props?.selected)
-  const branches = (Array.isArray(data.params?.branches) ? data.params?.branches : ['b0']) as string[]
+  const branches = (
+    Array.isArray(data.params?.branches) ? data.params?.branches : ['b0']
+  ) as string[]
   const pairId = typeof data.params?.pairId === 'string' ? (data.params?.pairId as string) : ''
 
   return (

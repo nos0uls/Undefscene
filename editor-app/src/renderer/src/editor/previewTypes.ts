@@ -86,7 +86,10 @@ export const createRequestId = (): string => {
 }
 
 // Создаём команду превью.
-export const createPreviewControl = (command: PreviewCommand, requestId: string = createRequestId()): PreviewControl => {
+export const createPreviewControl = (
+  command: PreviewCommand,
+  requestId: string = createRequestId()
+): PreviewControl => {
   return {
     schemaVersion: 1,
     requestId,
@@ -121,7 +124,8 @@ export const parsePreviewStatus = (raw: unknown): PreviewStatus | null => {
 
   if (!['idle', 'working', 'ok', 'error'].includes(candidate.state)) return null
 
-  const activeRequestId = typeof candidate.activeRequestId === 'string' ? candidate.activeRequestId : null
+  const activeRequestId =
+    typeof candidate.activeRequestId === 'string' ? candidate.activeRequestId : null
 
   let lastResult: PreviewLastResult | null = null
   const rawLastResult: any = (candidate as any).lastResult

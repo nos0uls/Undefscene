@@ -12,7 +12,10 @@ type PreferencesModalProps = {
 }
 
 // Модальное окно с настройками редактора.
-export function PreferencesModal({ open, onClose }: PreferencesModalProps): React.JSX.Element | null {
+export function PreferencesModal({
+  open,
+  onClose
+}: PreferencesModalProps): React.JSX.Element | null {
   // Ссылка на overlay, чтобы ловить клики "снаружи".
   const overlayRef = useRef<HTMLDivElement | null>(null)
 
@@ -44,7 +47,9 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps): Reac
         {/* Заголовок */}
         <div className="prefsHeader">
           <span className="prefsTitle">Preferences</span>
-          <button className="prefsCloseBtn" onClick={onClose}>✕</button>
+          <button className="prefsCloseBtn" onClick={onClose}>
+            ✕
+          </button>
         </div>
 
         {/* Содержимое */}
@@ -66,7 +71,14 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps): Reac
             <div className="prefsSectionTitle">Canvas</div>
             <label className="prefsField">
               <span>Grid Size</span>
-              <input className="prefsInput" type="number" defaultValue={18} min={8} max={64} disabled />
+              <input
+                className="prefsInput"
+                type="number"
+                defaultValue={18}
+                min={8}
+                max={64}
+                disabled
+              />
             </label>
             <label className="prefsField prefsCheckbox">
               <input type="checkbox" defaultChecked disabled />

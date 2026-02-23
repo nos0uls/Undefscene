@@ -26,13 +26,16 @@ const api = {
   },
   // Операции с файлом сцены (New, Open, Save, Save As).
   scene: {
-    save: (filePath: string, jsonString: string): Promise<unknown> => ipcRenderer.invoke('scene.save', filePath, jsonString),
-    saveAs: (jsonString: string): Promise<unknown> => ipcRenderer.invoke('scene.saveAs', jsonString),
+    save: (filePath: string, jsonString: string): Promise<unknown> =>
+      ipcRenderer.invoke('scene.save', filePath, jsonString),
+    saveAs: (jsonString: string): Promise<unknown> =>
+      ipcRenderer.invoke('scene.saveAs', jsonString),
     open: (): Promise<unknown> => ipcRenderer.invoke('scene.open')
   },
   // Чтение настроек движка (whitelists и т.д.) из datafiles/ проекта.
   settings: {
-    readEngine: (projectDir: string): Promise<unknown> => ipcRenderer.invoke('settings.readEngine', projectDir)
+    readEngine: (projectDir: string): Promise<unknown> =>
+      ipcRenderer.invoke('settings.readEngine', projectDir)
   },
   // Сканирование .yarn файлов в datafiles/ проекта.
   yarn: {
@@ -79,7 +82,8 @@ const api = {
   preview: {
     getPaths: (): Promise<unknown> => Promise.reject(new Error('Preview disabled')),
     readStatus: (): Promise<unknown> => Promise.reject(new Error('Preview disabled')),
-    writeControl: (_control: unknown): Promise<unknown> => Promise.reject(new Error('Preview disabled'))
+    writeControl: (_control: unknown): Promise<unknown> =>
+      Promise.reject(new Error('Preview disabled'))
   }
 }
 

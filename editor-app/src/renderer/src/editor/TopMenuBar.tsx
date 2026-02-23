@@ -59,9 +59,23 @@ export type TopMenuBarProps = {
 // Меню раскрывается по наведению мыши (hover).
 export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
   const {
-    panels, isPanelVisible, togglePanel,
-    onOpenProject, onExport, onNew, onOpenScene, onSave, onSaveAs,
-    onUndo, onRedo, onResetLayout, onToggleLogs, onAbout, onCheckUpdates, onExit, onPreferences
+    panels,
+    isPanelVisible,
+    togglePanel,
+    onOpenProject,
+    onExport,
+    onNew,
+    onOpenScene,
+    onSave,
+    onSaveAs,
+    onUndo,
+    onRedo,
+    onResetLayout,
+    onToggleLogs,
+    onAbout,
+    onCheckUpdates,
+    onExit,
+    onPreferences
   } = props
 
   // Ссылка на весь top bar.
@@ -90,7 +104,12 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
           { id: 'new', label: 'New Scene', shortcut: 'Ctrl+N', onSelect: onNew },
           { id: 'openScene', label: 'Open Scene...', onSelect: onOpenScene },
           // Открываем .yyp и подгружаем ресурсы.
-          { id: 'openProject', label: 'Open Project (.yyp)...', shortcut: 'Ctrl+O', onSelect: onOpenProject },
+          {
+            id: 'openProject',
+            label: 'Open Project (.yyp)...',
+            shortcut: 'Ctrl+O',
+            onSelect: onOpenProject
+          },
           { id: 'save', label: 'Save', shortcut: 'Ctrl+S', onSelect: onSave },
           { id: 'saveAs', label: 'Save As...', onSelect: onSaveAs },
           // Экспорт графа в JSON для движка.
@@ -188,7 +207,9 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
                     onClick={() => e.onSelect?.()}
                   >
                     <span className="topMenuDropdownLabel">{e.label}</span>
-                    {e.shortcut ? <span className="topMenuDropdownShortcut">{e.shortcut}</span> : null}
+                    {e.shortcut ? (
+                      <span className="topMenuDropdownShortcut">{e.shortcut}</span>
+                    ) : null}
                   </div>
                 ))}
               </div>

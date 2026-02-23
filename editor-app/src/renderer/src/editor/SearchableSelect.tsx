@@ -55,9 +55,8 @@ export function SearchableSelect({
 
   // Фильтруем варианты по подстроке (регистронезависимо).
   const lowerQuery = query.toLowerCase()
-  const filtered = query.length > 0
-    ? options.filter((opt) => opt.toLowerCase().includes(lowerQuery))
-    : options
+  const filtered =
+    query.length > 0 ? options.filter((opt) => opt.toLowerCase().includes(lowerQuery)) : options
 
   // Закрываем список при клике вне компонента.
   useEffect(() => {
@@ -76,7 +75,7 @@ export function SearchableSelect({
     if (highlightIndex < 0 || !listRef.current) return
     const items = listRef.current.children
     if (items[highlightIndex]) {
-      (items[highlightIndex] as HTMLElement).scrollIntoView({ block: 'nearest' })
+      ;(items[highlightIndex] as HTMLElement).scrollIntoView({ block: 'nearest' })
     }
   }, [highlightIndex])
 

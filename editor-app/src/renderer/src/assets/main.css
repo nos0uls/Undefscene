@@ -437,7 +437,9 @@ code {
   padding: 6px 12px;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .runtimeButton:hover {
@@ -486,7 +488,10 @@ code {
   padding: 6px 8px;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    color 0.12s;
 }
 
 .runtimeListItem:hover {
@@ -587,7 +592,9 @@ code {
   font-size: 12px;
   font-weight: 500;
   color: var(--ev-c-text-2);
-  transition: background 0.1s, color 0.1s;
+  transition:
+    background 0.1s,
+    color 0.1s;
 }
 
 .topMenuBarItem.isActive,
@@ -778,7 +785,9 @@ code {
   max-width: 220px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   overflow: hidden;
-  transition: box-shadow 0.15s, border-color 0.15s;
+  transition:
+    box-shadow 0.15s,
+    border-color 0.15s;
 }
 
 /* Заголовок ноды — цветная полоска сверху. */
@@ -833,7 +842,9 @@ code {
   padding: 5px 8px;
   border-radius: 5px;
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
 }
 
 .customNodeButton:hover {
@@ -850,7 +861,9 @@ code {
   border-radius: 50%;
   background: var(--ev-c-gray-1);
   border: 2px solid #1a1f28;
-  transition: background 0.15s, box-shadow 0.15s;
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
   /* Не используем transform для hover, чтобы центр не прыгал. */
   position: relative;
 }
@@ -911,7 +924,9 @@ code {
   width: 28px !important;
   height: 28px !important;
   padding: 5px !important;
-  transition: background 0.12s, fill 0.12s !important;
+  transition:
+    background 0.12s,
+    fill 0.12s !important;
 }
 
 .react-flow__controls-button:hover {
@@ -993,7 +1008,9 @@ code {
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 4px;
-  transition: background 0.1s, color 0.1s;
+  transition:
+    background 0.1s,
+    color 0.1s;
 }
 
 .prefsCloseBtn:hover {

@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PreviewPaths, PreviewStatus } from './previewTypes'
-import { createPreviewControl, createRenderRoomPngControl, parsePreviewPaths, parsePreviewStatus } from './previewTypes'
+import {
+  createPreviewControl,
+  createRenderRoomPngControl,
+  parsePreviewPaths,
+  parsePreviewStatus
+} from './previewTypes'
 
 // Как часто мы опрашиваем статус превью (мс).
 const POLL_INTERVAL_MS = 750
@@ -100,7 +105,8 @@ export const usePreviewBridge = () => {
     return status.state
   }, [isStale, status])
 
-  const lastPngPath = status?.lastResult?.kind === 'render_room_png' ? status.lastResult.pngPath : null
+  const lastPngPath =
+    status?.lastResult?.kind === 'render_room_png' ? status.lastResult.pngPath : null
 
   return {
     status,
