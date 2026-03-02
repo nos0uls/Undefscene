@@ -369,6 +369,46 @@ export function BranchNode({ data, selected }: CutsceneNodeProps): React.JSX.Ele
   )
 }
 
+// --- Дополнительные Camera-ноды ---
+
+// Тряска камеры.
+export function CameraShakeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const seconds = data.params?.seconds ?? '?'
+  const magnitude = data.params?.magnitude ?? 4
+  return (
+    <BaseNode nodeType="camera_shake" selected={selected}>
+      <div className="customNodeParam">{String(seconds)}s</div>
+      <div className="customNodeParam">mag: {String(magnitude)}</div>
+    </BaseNode>
+  )
+}
+
+// --- Дополнительные Visual-ноды ---
+
+// Включить/выключить авто-поворот.
+export function AutoFacingNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const enabled = data.params?.enabled ?? true
+  return (
+    <BaseNode nodeType="auto_facing" selected={selected}>
+      <div className="customNodeParam">{String(target)}</div>
+      <div className="customNodeParam">{String(enabled)}</div>
+    </BaseNode>
+  )
+}
+
+// Включить/выключить авто-ходьбу.
+export function AutoWalkNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const enabled = data.params?.enabled ?? true
+  return (
+    <BaseNode nodeType="auto_walk" selected={selected}>
+      <div className="customNodeParam">{String(target)}</div>
+      <div className="customNodeParam">{String(enabled)}</div>
+    </BaseNode>
+  )
+}
+
 // Запуск функции/скрипта.
 export function RunFunctionNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const funcName = data.params?.function_name ?? data.params?.function ?? ''

@@ -31,7 +31,10 @@ export const NODE_CATEGORY: Record<string, string> = {
   camera_pan: 'camera',
   parallel: 'logic',
   branch: 'logic',
-  run_function: 'logic'
+  run_function: 'logic',
+  camera_shake: 'camera',
+  auto_facing: 'visual',
+  auto_walk: 'visual'
 }
 
 // Короткие метки для типов нод (отображаются в заголовке).
@@ -52,7 +55,10 @@ export const NODE_LABELS: Record<string, string> = {
   camera_pan: 'Camera Pan',
   parallel: 'Parallel',
   branch: 'Branch',
-  run_function: 'Run Function'
+  run_function: 'Run Function',
+  camera_shake: 'Camera Shake',
+  auto_facing: 'Auto Facing',
+  auto_walk: 'Auto Walk'
 }
 
 // Пропсы для базовой ноды: тип, метка, дочерние элементы, порты.

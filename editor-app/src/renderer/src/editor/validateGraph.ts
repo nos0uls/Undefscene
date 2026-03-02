@@ -43,7 +43,10 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   // В движке ключ называется `function`.
   // `function_name` оставляем для обратной совместимости со старыми сценами.
   run_function: [],
-  follow_path: ['target']
+  follow_path: ['target'],
+  camera_shake: [],
+  auto_facing: ['target'],
+  auto_walk: ['target']
 }
 
 // Главная функция валидации. Принимает текущее состояние графа.

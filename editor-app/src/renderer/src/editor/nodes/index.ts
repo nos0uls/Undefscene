@@ -18,7 +18,10 @@ import {
   ParallelStartNode,
   ParallelJoinNode,
   BranchNode,
-  RunFunctionNode
+  RunFunctionNode,
+  CameraShakeNode,
+  AutoFacingNode,
+  AutoWalkNode
 } from './CutsceneNodes'
 
 // Маппинг: тип ноды → React-компонент.
@@ -42,5 +45,8 @@ export const cutsceneNodeTypes = {
   parallel_start: ParallelStartNode,
   parallel_join: ParallelJoinNode,
   branch: BranchNode,
-  run_function: RunFunctionNode
+  run_function: RunFunctionNode,
+  camera_shake: CameraShakeNode,
+  auto_facing: AutoFacingNode,
+  auto_walk: AutoWalkNode
 } as const

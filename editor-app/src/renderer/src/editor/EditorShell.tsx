@@ -1110,7 +1110,10 @@ export function EditorShell(): React.JSX.Element {
         'run_function',
         'set_position',
         'set_depth',
-        'set_facing'
+        'set_facing',
+        'camera_shake',
+        'auto_facing',
+        'auto_walk'
       ]
 
       return (
