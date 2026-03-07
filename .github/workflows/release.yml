@@ -49,12 +49,19 @@ jobs:
           echo "Updated PATH: $env:PATH"
           pnpm --version
 
-      # Синхронизируем версию сборки с git-тегом (vX.Y.Z -> X.Y.Z), чтобы артефакты и latest.yml имели правильный version.
-      - name: Set version from tag
+      # Это важно, чтобы artifactName и latest.yml имели корректный номер версии и совпадали с Release-тегом.
+      - name: Set version from tag (Windows)
         if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
         run: |
-          cd editor-app
-          pnpm version ${GITHUB_REF_NAME#v} --no-git-tag-version
+          # Получаем имя тега из контекста (например, v1.0.3) и убираем префикс v, если он есть
+          $tag = '${{ github.ref_name }}'
+          $version = if ($tag.StartsWith('v')) { $tag.Substring(1) } else { $tag }
+
+          # Переходим в проект и записываем версию без попыток создавать коммиты/теги
+          Set-Location editor-app
+          pnpm version $version --no-git-tag-version
+      #endregion
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
@@ -73,6 +80,59 @@ jobs:
             editor-app/dist/UndefsceneEditor-*-setup.exe
             editor-app/dist/UndefsceneEditor-*-portable.exe
             editor-app/dist/latest.yml
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          standalone: true
+          run_install: false
+
+      #region Версию приложения синхронизируем с тегом (bash): vX.Y.Z -> X.Y.Z
+      - name: Set version from tag (macOS)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          cd editor-app
+          pnpm version "$version" --no-git-tag-version
+      #endregion
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+        working-directory: editor-app
+
+      - name: Build & Package
+        run: pnpm run build:mac
+        working-directory: editor-app
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            editor-app/dist/UndefsceneEditor-*.dmg
+            editor-app/dist/UndefsceneEditor-*.zip
+            editor-app/dist/latest-mac.yml
           draft: false
           prerelease: false
         env:
