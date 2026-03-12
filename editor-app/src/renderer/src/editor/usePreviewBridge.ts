@@ -14,7 +14,15 @@ const POLL_INTERVAL_MS = 750
 const STALE_AFTER_MS = 3000
 
 // Хук для обмена данными с превью-билдом через файлы.
-export const usePreviewBridge = () => {
+export const usePreviewBridge = (): {
+  status: PreviewStatus | null
+  statusLabel: string
+  isStale: boolean
+  paths: PreviewPaths | null
+  lastPngPath: string | null
+  renderRoomPng: (options?: { roomName?: string | null; outNameHint?: string | null }) => string
+  ping: () => string
+} => {
   const [status, setStatus] = useState<PreviewStatus | null>(null)
   const [isStale, setIsStale] = useState(false)
   const [paths, setPaths] = useState<PreviewPaths | null>(null)
@@ -23,30 +31,39 @@ export const usePreviewBridge = () => {
   const lastUpdateRef = useRef<number | null>(null)
 
   // Универсальная отправка команды.
-  const sendControl = (control: unknown) => {
+  const sendControl = (control: unknown): void => {
+    // Проверяем, что мы в Electron-контексте.
+    if (!window.api?.preview) return
+
     window.api.preview.writeControl(control).catch((err) => {
       console.warn('Failed to write preview_control.json:', err)
     })
   }
 
   // Просим GML отрендерить комнату/сцену в PNG.
-  const renderRoomPng = (options?: { roomName?: string | null; outNameHint?: string | null }) => {
+  const renderRoomPng = (options?: {
+    roomName?: string | null
+    outNameHint?: string | null
+  }): string => {
     const control = createRenderRoomPngControl(options)
     sendControl(control)
     return control.requestId
   }
 
   // Простейшая команда, чтобы проверить, что GML вообще читает control файл.
-  const ping = () => {
+  const ping = (): string => {
     const control = createPreviewControl({ kind: 'ping', params: {} })
     sendControl(control)
     return control.requestId
   }
 
   useEffect(() => {
+    // Проверяем, что мы в Electron-контексте.
+    if (!window.api?.preview) return
+
     let cancelled = false
 
-    const readPaths = async () => {
+    const readPaths = async (): Promise<void> => {
       try {
         const raw = await window.api.preview.getPaths()
         if (cancelled) return
@@ -58,7 +75,7 @@ export const usePreviewBridge = () => {
       }
     }
 
-    const readStatus = async () => {
+    const readStatus = async (): Promise<void> => {
       try {
         const raw = await window.api.preview.readStatus()
         if (cancelled) return

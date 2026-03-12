@@ -6,8 +6,8 @@ export function createDefaultLayout(): LayoutState {
   return {
     schemaVersion: 1,
     dockSizes: {
-      leftWidth: 320,
-      rightWidth: 420,
+      leftWidth: 240,
+      rightWidth: 300,
       bottomHeight: 220,
       leftSplit: 0.7,
       rightSplit: 0.55
@@ -40,7 +40,7 @@ export function createDefaultLayout(): LayoutState {
       },
       'panel.text': {
         id: 'panel.text',
-        title: 'Text',
+        title: 'Text Editor',
         mode: 'docked',
         slot: 'right',
         position: null,
@@ -86,6 +86,13 @@ export function useLayoutState(): {
   const didLoadRef = useRef(false)
 
   useEffect(() => {
+    // Проверяем, что мы в Electron-контексте (window.api доступен).
+    // В обычном браузере (IDE preview) API недоступен — используем дефолтную раскладку.
+    if (!window.api?.layout) {
+      didLoadRef.current = true
+      return
+    }
+
     let cancelled = false
 
     // Загружаем сохранённую раскладку из main процесса.
@@ -97,7 +104,11 @@ export function useLayoutState(): {
 
         // Если файл существует, но формат старый/битый — не падаем.
         // Просто используем дефолтную раскладку.
-        if (loaded && typeof loaded === 'object' && (loaded as any).schemaVersion === 1) {
+        if (
+          loaded &&
+          typeof loaded === 'object' &&
+          (loaded as Partial<LayoutState>).schemaVersion === 1
+        ) {
           setLayout(loaded as LayoutState)
         }
         didLoadRef.current = true
@@ -113,7 +124,8 @@ export function useLayoutState(): {
   }, [])
 
   useEffect(() => {
-    if (!didLoadRef.current) return
+    // Пропускаем, если ещё не загрузили или нет Electron API.
+    if (!didLoadRef.current || !window.api?.layout) return
 
     const saveTimer = window.setTimeout(() => {
       // Сохраняем раскладку, чтобы после перезапуска она восстановилась.

@@ -219,24 +219,24 @@ export const parseRuntimeState = (raw: unknown): RuntimeState | null => {
       }
 
       // Condition — опционально.
-      if (typeof (ce as any).conditionEnabled === 'boolean') {
-        edge.conditionEnabled = (ce as any).conditionEnabled
+      if (typeof ce.conditionEnabled === 'boolean') {
+        edge.conditionEnabled = ce.conditionEnabled
       }
-      if (typeof (ce as any).conditionVar === 'string') {
-        edge.conditionVar = (ce as any).conditionVar
+      if (typeof ce.conditionVar === 'string') {
+        edge.conditionVar = ce.conditionVar
       }
-      if (typeof (ce as any).conditionEquals === 'string') {
-        edge.conditionEquals = (ce as any).conditionEquals
+      if (typeof ce.conditionEquals === 'string') {
+        edge.conditionEquals = ce.conditionEquals
       }
 
       // Поведение при false: skip или wait_until_true.
-      const ifFalse = (ce as any).conditionIfFalse
+      const ifFalse = ce.conditionIfFalse
       if (ifFalse === 'skip' || ifFalse === 'wait_until_true') {
         edge.conditionIfFalse = ifFalse
       }
 
       // Когда прекратить ожидание (для wait_until_true).
-      const stopWhen = (ce as any).stopWaitingWhen
+      const stopWhen = ce.stopWaitingWhen
       if (
         stopWhen === 'none' ||
         stopWhen === 'global_var' ||
@@ -247,17 +247,17 @@ export const parseRuntimeState = (raw: unknown): RuntimeState | null => {
       }
 
       // End-condition поля.
-      if (typeof (ce as any).endConditionVar === 'string') {
-        edge.endConditionVar = (ce as any).endConditionVar
+      if (typeof ce.endConditionVar === 'string') {
+        edge.endConditionVar = ce.endConditionVar
       }
-      if (typeof (ce as any).endConditionEquals === 'string') {
-        edge.endConditionEquals = (ce as any).endConditionEquals
+      if (typeof ce.endConditionEquals === 'string') {
+        edge.endConditionEquals = ce.endConditionEquals
       }
-      if (typeof (ce as any).endNodeName === 'string') {
-        edge.endNodeName = (ce as any).endNodeName
+      if (typeof ce.endNodeName === 'string') {
+        edge.endNodeName = ce.endNodeName
       }
-      if (typeof (ce as any).endTimeoutSeconds === 'number' && (ce as any).endTimeoutSeconds >= 0) {
-        edge.endTimeoutSeconds = (ce as any).endTimeoutSeconds
+      if (typeof ce.endTimeoutSeconds === 'number' && ce.endTimeoutSeconds >= 0) {
+        edge.endTimeoutSeconds = ce.endTimeoutSeconds
       }
 
       edges.push(edge)
@@ -271,17 +271,12 @@ export const parseRuntimeState = (raw: unknown): RuntimeState | null => {
     edges,
     selectedNodeId: typeof candidate.selectedNodeId === 'string' ? candidate.selectedNodeId : null,
     // selectedNodeIds — новое поле. Если его нет, но есть selectedNodeId — делаем массив из одного элемента.
-    selectedNodeIds: Array.isArray((candidate as any).selectedNodeIds)
-      ? (((candidate as any).selectedNodeIds as unknown[]).filter(
-          (v) => typeof v === 'string'
-        ) as string[])
+    selectedNodeIds: Array.isArray(candidate.selectedNodeIds)
+      ? (candidate.selectedNodeIds.filter((v) => typeof v === 'string') as string[])
       : typeof candidate.selectedNodeId === 'string'
         ? [candidate.selectedNodeId]
         : [],
-    selectedEdgeId:
-      typeof (candidate as any).selectedEdgeId === 'string'
-        ? (candidate as any).selectedEdgeId
-        : null,
+    selectedEdgeId: typeof candidate.selectedEdgeId === 'string' ? candidate.selectedEdgeId : null,
     lastSavedAtMs: typeof candidate.lastSavedAtMs === 'number' ? candidate.lastSavedAtMs : 0
   }
 }

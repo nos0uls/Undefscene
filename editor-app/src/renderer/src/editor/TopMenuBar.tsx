@@ -1,3 +1,4 @@
+import { Undo2, Redo2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 export type PanelMenuItem = {
@@ -174,7 +175,7 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
 
     // Закрываем меню только когда пользователь кликнул снаружи.
     // Уход курсора (mouseleave) меню не закрывает.
-    const onPointerDownCapture = (ev: PointerEvent) => {
+    const onPointerDownCapture = (ev: PointerEvent): void => {
       const el = barRef.current
       if (!el) return
       if (el.contains(ev.target as Node)) return
@@ -219,11 +220,21 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
       </div>
 
       <div className="topMenuBarRight">
-        <button className="topMenuHint" type="button" onClick={onSave} title="Save Project">
-          Ctrl+S Save
+        <button
+          className="topMenuBarIconButton"
+          type="button"
+          onClick={onUndo}
+          title="Undo (Ctrl+Z)"
+        >
+          <Undo2 size={14} />
         </button>
-        <button className="topMenuHint" type="button" onClick={onUndo} title="Undo Action">
-          Ctrl+Z Undo
+        <button
+          className="topMenuBarIconButton"
+          type="button"
+          onClick={onRedo}
+          title="Redo (Ctrl+Y)"
+        >
+          <Redo2 size={14} />
         </button>
       </div>
     </div>

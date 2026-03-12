@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import type { CSSProperties } from 'react'
+
 import { DockPanel } from './DockPanel'
 import { FlowCanvas } from './FlowCanvas'
 import { TopMenuBar } from './TopMenuBar'
@@ -485,7 +487,7 @@ export function EditorShell(): React.JSX.Element {
         }
 
         // Для имён делаем авто-уникализацию, чтобы не плодить одинаковые названия.
-        const takenNames = new Set(
+        const takenNames = new Set<string>(
           rt.nodes.map((n) => String(n.name ?? '').trim()).filter((v) => v.length > 0)
         )
 
@@ -570,6 +572,13 @@ export function EditorShell(): React.JSX.Element {
     }
     const exported = stripExport(runtime, result.actions)
     const jsonString = JSON.stringify(exported, null, 2)
+
+    // Проверяем, что мы в Electron-контексте.
+    if (!window.api?.export) {
+      console.warn('Export API not available')
+      return
+    }
+
     const saveResult = (await window.api.export.save(jsonString)) as {
       saved: boolean
       filePath?: string
@@ -590,6 +599,12 @@ export function EditorShell(): React.JSX.Element {
 
   // Save As: показываем диалог, сохраняем, запоминаем путь.
   const handleSaveAs = async () => {
+    // Проверяем, что мы в Electron-контексте.
+    if (!window.api?.scene) {
+      console.warn('Scene API not available')
+      return
+    }
+
     const jsonString = serializeScene()
     const result = (await window.api.scene.saveAs(jsonString)) as {
       saved: boolean
@@ -602,6 +617,12 @@ export function EditorShell(): React.JSX.Element {
 
   // Save: если путь известен — сохраняем туда, иначе Save As.
   const handleSave = async () => {
+    // Проверяем, что мы в Electron-контексте.
+    if (!window.api?.scene) {
+      console.warn('Scene API not available')
+      return
+    }
+
     if (sceneFilePath) {
       const jsonString = serializeScene()
       await window.api.scene.save(sceneFilePath, jsonString)
@@ -612,6 +633,12 @@ export function EditorShell(): React.JSX.Element {
 
   // Open Scene: открываем .usc.json / .json файл и загружаем в runtime.
   const handleOpenScene = async () => {
+    // Проверяем, что мы в Electron-контексте.
+    if (!window.api?.scene) {
+      console.warn('Scene API not available')
+      return
+    }
+
     const result = (await window.api.scene.open()) as { filePath: string; content: string } | null
     if (!result) return
     try {
@@ -810,6 +837,7 @@ export function EditorShell(): React.JSX.Element {
     // Убираем служебные поля parallel из params, чтобы не оставлять мусор.
     const stripParallelParams = (params?: RuntimeNode['params']) => {
       if (!params) return undefined
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { joinId, pairId, branches, ...rest } = params
       return rest
     }
@@ -848,7 +876,7 @@ export function EditorShell(): React.JSX.Element {
       if (!currentNode) return
 
       // Готовим набор занятых имён, чтобы не создавать дубликаты.
-      const takenNames = new Set(
+      const takenNames = new Set<string>(
         runtime.nodes
           .filter((n) => n.id !== nodeId)
           .map((n) => String(n.name ?? '').trim())
@@ -992,7 +1020,7 @@ export function EditorShell(): React.JSX.Element {
       const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 
       // Готовим набор занятых имён, чтобы дать новой ноде уникальное имя.
-      const takenNames = new Set(
+      const takenNames = new Set<string>(
         runtime.nodes.map((n) => String(n.name ?? '').trim()).filter((v) => v.length > 0)
       )
 
@@ -2134,9 +2162,9 @@ export function EditorShell(): React.JSX.Element {
 
       // Цвета и иконки для каждого типа.
       const severityStyle: Record<string, { color: string; bg: string; icon: string }> = {
-        error: { color: '#e05050', bg: 'rgba(224,80,80,0.08)', icon: '✖' },
-        warn: { color: '#d4a017', bg: 'rgba(212,160,23,0.08)', icon: '⚠' },
-        tip: { color: '#58a6ff', bg: 'rgba(88,166,255,0.06)', icon: '💡' }
+        error: { color: '#e05050', bg: 'rgba(224,80,80,0.08)', icon: '●' },
+        warn: { color: '#d4a017', bg: 'rgba(212,160,23,0.08)', icon: '●' },
+        tip: { color: '#58a6ff', bg: 'rgba(88,166,255,0.06)', icon: '●' }
       }
 
       return (
@@ -2171,16 +2199,16 @@ export function EditorShell(): React.JSX.Element {
                 onClick={() => setLogsTab(tab.key)}
                 style={{
                   flex: 1,
-                  padding: '5px 8px',
-                  fontSize: 11,
-                  fontWeight: logsTab === tab.key ? 700 : 400,
+                  padding: '6px 8px',
+                  fontSize: 12,
+                  fontWeight: 500,
                   color: logsTab === tab.key ? tab.color : 'var(--ev-c-text-2)',
-                  background: logsTab === tab.key ? 'rgba(255,255,255,0.04)' : 'transparent',
+                  background: 'transparent',
                   border: 'none',
                   borderBottom:
                     logsTab === tab.key ? `2px solid ${tab.color}` : '2px solid transparent',
                   cursor: 'pointer',
-                  transition: 'color 0.12s, background 0.12s'
+                  transition: 'color 0.12s, border-color 0.12s'
                 }}
               >
                 {tab.label} {tab.count > 0 ? `(${tab.count})` : ''}
@@ -2343,7 +2371,10 @@ export function EditorShell(): React.JSX.Element {
     // Если мы тащим floating панель, поднимаем её наверх по zIndex.
     // Так она не окажется под другими окнами.
     if (currentPanel.mode === 'floating') {
-      const maxZ = Math.max(1, ...Object.values(layoutRef.current.panels).map((p) => p.zIndex ?? 1))
+      const panelValues = Object.values(layoutRef.current.panels) as Array<
+        LayoutState['panels'][string]
+      >
+      const maxZ = Math.max(1, ...panelValues.map((p) => p.zIndex ?? 1))
       if (currentPanel.zIndex < maxZ) {
         setLayout({
           ...layoutRef.current,
@@ -2446,7 +2477,8 @@ export function EditorShell(): React.JSX.Element {
         event.clientY,
         drag.grabOffset
       )
-      const maxZ = Math.max(1, ...Object.values(currentLayout.panels).map((p) => p.zIndex ?? 1))
+      const panelVals = Object.values(currentLayout.panels) as Array<LayoutState['panels'][string]>
+      const maxZ = Math.max(1, ...panelVals.map((p) => p.zIndex ?? 1))
 
       setLayout({
         ...currentLayout,
@@ -2827,9 +2859,9 @@ export function EditorShell(): React.JSX.Element {
         {
           // Ширины/высоты доков мы задаём через CSS-переменные,
           // чтобы потом было легко подключить drag-resize.
-          ['--leftDockWidth' as any]: `${layout.dockSizes.leftWidth}px`,
-          ['--rightDockWidth' as any]: `${layout.dockSizes.rightWidth}px`,
-          ['--bottomDockHeight' as any]: `${layout.dockSizes.bottomHeight}px`
+          ['--leftDockWidth' as string]: `${layout.dockSizes.leftWidth}px`,
+          ['--rightDockWidth' as string]: `${layout.dockSizes.rightWidth}px`,
+          ['--bottomDockHeight' as string]: `${layout.dockSizes.bottomHeight}px`
         } as CSSProperties
       }
     >
@@ -2857,6 +2889,12 @@ export function EditorShell(): React.JSX.Element {
           }}
           onToggleLogs={() => togglePanel('panel.logs')}
           onCheckUpdates={() => {
+            // Проверяем, что мы в Electron-контексте.
+            if (!window.api?.updater) {
+              console.warn('Updater API not available')
+              return
+            }
+
             window.api.updater
               .check()
               .then((res) => {
@@ -3042,7 +3080,7 @@ export function EditorShell(): React.JSX.Element {
               const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 
               // Генерируем уникальное имя “Node”, чтобы новый узел не конфликтовал с другими.
-              const takenNames = new Set(
+              const takenNames = new Set<string>(
                 runtime.nodes.map((n) => String(n.name ?? '').trim()).filter((v) => v.length > 0)
               )
               const newName = suggestUniqueNodeName('Node', takenNames)

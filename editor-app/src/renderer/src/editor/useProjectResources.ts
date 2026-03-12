@@ -27,14 +27,25 @@ export type YarnFileInfo = {
 }
 
 // Хук для загрузки и хранения ресурсов GameMaker проекта + настроек движка + yarn файлов.
-export const useProjectResources = () => {
+export const useProjectResources = (): {
+  resources: ProjectResources | null
+  engineSettings: EngineSettings | null
+  yarnFiles: YarnFileInfo[]
+  openProject: () => Promise<void>
+} => {
   const [resources, setResources] = useState<ProjectResources | null>(null)
   const [engineSettings, setEngineSettings] = useState<EngineSettings | null>(null)
   const [yarnFiles, setYarnFiles] = useState<YarnFileInfo[]>([])
 
   // Открываем .yyp через IPC и сохраняем ресурсы в состояние.
   // Также пытаемся прочитать cutscene_engine_settings.json и .yarn файлы из datafiles/.
-  const openProject = async () => {
+  const openProject = async (): Promise<void> => {
+    // Проверяем, что мы в Electron-контексте (window.api доступен).
+    if (!window.api?.project) {
+      console.warn('Project API not available (not in Electron context)')
+      return
+    }
+
     try {
       const result = await window.api.project.open()
       if (result && typeof result === 'object') {

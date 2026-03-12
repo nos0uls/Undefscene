@@ -29,6 +29,10 @@ export function UpdateNotification(): React.JSX.Element | null {
     // Пока что оставим как есть, так как UpdateNotification монтируется один раз в Layout.
     // Но для чистоты добавим пустой return, или переделаем API.
 
+    // Проверяем, что мы в Electron-контексте (window.api доступен).
+    // В обычном браузере (IDE preview) API недоступен — просто выходим.
+    if (!window.api?.updater) return
+
     // Подписываемся на события обновления из main процесса (один раз).
     const cleanups: Array<() => void> = []
 

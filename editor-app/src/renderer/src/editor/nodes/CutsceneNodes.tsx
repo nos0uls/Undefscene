@@ -201,7 +201,10 @@ export function CameraPanNode({ data, selected }: CutsceneNodeProps): React.JSX.
 // Каждая нода имеет кнопку "Add Branch", чтобы добавить ещё одну пару портов.
 
 // Вспомогательная функция: рисуем список handles по веткам.
-function renderParallelHandles(kind: 'source' | 'target', branchIds: string[]) {
+function renderParallelHandles(
+  kind: 'source' | 'target',
+  branchIds: string[]
+): React.JSX.Element[] {
   const count = Math.max(1, branchIds.length)
   return branchIds.map((branchId, i) => {
     const topPct = ((i + 1) / (count + 1)) * 100
@@ -220,10 +223,10 @@ function renderParallelHandles(kind: 'source' | 'target', branchIds: string[]) {
 }
 
 // Fork-нода: много выходов.
-export function ParallelStartNode(props: any): React.JSX.Element {
-  const id = String(props?.id ?? '')
-  const data = (props?.data ?? {}) as CutsceneNodeData
-  const selected = Boolean(props?.selected)
+export function ParallelStartNode(props: CutsceneNodeProps & { id?: string }): React.JSX.Element {
+  const id = String(props.id ?? '')
+  const data = props.data
+  const selected = Boolean(props.selected)
   const branches = (
     Array.isArray(data.params?.branches) ? data.params?.branches : ['b0']
   ) as string[]
@@ -259,14 +262,14 @@ export function ParallelStartNode(props: any): React.JSX.Element {
 }
 
 // Join-нода: много входов.
-export function ParallelJoinNode(props: any): React.JSX.Element {
-  const id = String(props?.id ?? '')
-  const data = (props?.data ?? {}) as CutsceneNodeData
-  const selected = Boolean(props?.selected)
+export function ParallelJoinNode(props: CutsceneNodeProps & { id?: string }): React.JSX.Element {
+  const id = String((props as { id?: string }).id ?? '')
+  const data = props.data
+  const selected = Boolean(props.selected)
   const branches = (
     Array.isArray(data.params?.branches) ? data.params?.branches : ['b0']
   ) as string[]
-  const pairId = typeof data.params?.pairId === 'string' ? (data.params?.pairId as string) : ''
+  const pairId = typeof data.params?.pairId === 'string' ? String(data.params?.pairId) : ''
 
   return (
     <BaseNode

@@ -2,6 +2,7 @@
 // Открывается из File → Preferences. Закрывается по Esc или кнопке Close.
 
 import { useEffect, useRef } from 'react'
+import { useTheme, type ThemeId } from './useTheme'
 
 // Пропсы модалки.
 type PreferencesModalProps = {
@@ -19,10 +20,13 @@ export function PreferencesModal({
   // Ссылка на overlay, чтобы ловить клики "снаружи".
   const overlayRef = useRef<HTMLDivElement | null>(null)
 
+  // Хук для управления темой.
+  const { theme, setTheme, themes } = useTheme()
+
   // Закрытие по Esc.
   useEffect(() => {
     if (!open) return
-    const onKeyDown = (e: KeyboardEvent) => {
+    const onKeyDown = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
         e.preventDefault()
         onClose()
@@ -54,16 +58,24 @@ export function PreferencesModal({
 
         {/* Содержимое */}
         <div className="prefsBody">
-          {/* --- Секция General --- */}
+          {/* --- Секция Appearance --- */}
           <div className="prefsSection">
-            <div className="prefsSectionTitle">General</div>
+            <div className="prefsSectionTitle">Appearance</div>
             <label className="prefsField">
               <span>Theme</span>
-              <select className="prefsInput" defaultValue="dark" disabled>
-                <option value="dark">Dark</option>
+              <select
+                className="prefsInput"
+                value={theme}
+                onChange={(e) => setTheme(e.target.value as ThemeId)}
+              >
+                {themes.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
               </select>
             </label>
-            <div className="prefsHint">More themes coming in future updates.</div>
+            <div className="prefsHint">{themes.find((t) => t.id === theme)?.description ?? ''}</div>
           </div>
 
           {/* --- Секция Canvas --- */}

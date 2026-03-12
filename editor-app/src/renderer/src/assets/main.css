@@ -18,6 +18,7 @@ code {
   border-radius: 2px;
   background-color: var(--color-background-mute);
   font-family:
+    'JetBrains Mono',
     ui-monospace,
     SFMono-Regular,
     SF Mono,
@@ -38,8 +39,8 @@ code {
   Размеры доков идут через CSS-переменные (их задаёт React).
 */
 .editorRoot {
-  --leftDockWidth: 320px;
-  --rightDockWidth: 420px;
+  --leftDockWidth: 240px;
+  --rightDockWidth: 300px;
   --bottomDockHeight: 220px;
 
   display: grid;
@@ -114,7 +115,8 @@ code {
 .dockSlotTitle {
   font-size: 12px;
   color: var(--ev-c-text-2);
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
 .dockSlotMenuButton {
@@ -323,10 +325,14 @@ code {
 
 /* Чуть более заметная рамка у плавающих панелей. */
 .dockPanel.isFloating {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.dockPanel.isFloating .dockPanelHeader {
+  background: var(--ev-c-black-mute);
 }
 
 /* Призрак панели во время перетаскивания. */
@@ -352,8 +358,9 @@ code {
 
 .dockPanelTitle {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--ev-c-text-1);
+  letter-spacing: 0.02em;
 }
 
 .dockPanelMenuButton {
@@ -399,7 +406,7 @@ code {
 .flowCanvas {
   width: 100%;
   height: 100%;
-  background: #0a0e14;
+  background: var(--canvas-bg, #0a0e14);
 }
 
 .placeholderText {
@@ -417,10 +424,9 @@ code {
 
 .runtimeSectionTitle {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--ev-c-text-3);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ev-c-text-2);
 }
 
 .runtimeRow {
@@ -573,12 +579,34 @@ code {
   display: flex;
   align-items: center;
   gap: 2px;
+  flex: 1;
   -webkit-app-region: no-drag;
 }
 
-/* Правая часть меню — скрыта (хинты убраны). */
 .topMenuBarRight {
-  display: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+}
+
+.topMenuBarIconButton {
+  background: transparent;
+  border: none;
+  color: var(--ev-c-text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.topMenuBarIconButton:hover {
+  background: var(--ev-c-gray-3);
+  color: var(--ev-c-text-1);
 }
 
 .topMenuHint {
@@ -772,75 +800,82 @@ code {
   }
 }
 
-/* ========== Кастомные ноды React Flow ========== */
+/* ========== Custom Nodes React Flow ========== */
 
-/* Контейнер кастомной ноды. */
+/* Container for custom node. */
 .customNode {
-  border: 1.5px solid var(--ev-c-gray-2);
-  border-radius: 8px;
-  background: #141920;
+  border: 1px solid var(--ev-c-gray-2);
+  border-radius: 6px;
+  background: var(--ev-c-black-soft);
   font-size: 12px;
   color: var(--ev-c-text-1);
   min-width: 140px;
   max-width: 220px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
   overflow: hidden;
   transition:
     box-shadow 0.15s,
     border-color 0.15s;
 }
 
-/* Заголовок ноды — цветная полоска сверху. */
+.customNode.isSelected {
+  border-color: var(--ev-c-accent);
+  box-shadow: 0 0 0 1px var(--ev-c-accent), 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* Header strip */
 .customNodeHeader {
-  padding: 5px 10px;
+  padding: 8px 10px 4px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
 }
 
-/* Название типа ноды в заголовке. */
+/* Title text */
 .customNodeTitle {
-  font-size: 10px;
-  font-weight: 700;
-  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
 }
 
-/* Тело ноды: параметры и метка. */
+/* Body container */
 .customNodeBody {
-  padding: 6px 10px 8px;
+  padding: 4px 10px 10px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
-/* Метка внутри ноды (текст/описание). */
+/* Label text */
 .customNodeLabel {
   font-size: 11px;
   color: var(--ev-c-text-2);
   word-break: break-word;
+  line-height: 1.3;
 }
 
-/* Параметр ноды (одна строка). */
+/* Node params (single line) */
 .customNodeParam {
   font-size: 11px;
   color: var(--ev-c-text-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: 'JetBrains Mono', monospace;
 }
 
-/* Кнопка внутри ноды (например, Add Branch для parallel). */
+/* Inside-node buttons (e.g. Add Branch) */
 .customNodeButton {
   margin-top: 6px;
   width: 100%;
   border: 1px solid var(--ev-c-gray-2);
-  background: rgba(255, 255, 255, 0.04);
+  background: transparent;
   color: var(--ev-c-text-1);
   font-size: 11px;
-  padding: 5px 8px;
-  border-radius: 5px;
+  padding: 4px 8px;
+  border-radius: 4px;
   cursor: pointer;
   transition:
     background 0.12s,
@@ -848,49 +883,48 @@ code {
 }
 
 .customNodeButton:hover {
-  background: var(--ev-c-accent-soft);
-  border-color: var(--ev-c-accent);
+  background: var(--ev-c-gray-3);
+  border-color: var(--ev-c-gray-1);
 }
 
-/* Точки соединения (handles).
-   Увеличены до 14px для удобства клика.
-   Невидимый ::after расширяет зону попадания до 28px. */
+/* Node handles (ports) */
 .customHandle {
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: var(--ev-c-gray-1);
-  border: 2px solid #1a1f28;
+  background: var(--ev-c-text-2);
+  border: 2px solid var(--ev-c-gray-2);
   transition:
     background 0.15s,
-    box-shadow 0.15s;
-  /* Не используем transform для hover, чтобы центр не прыгал. */
+    transform 0.15s,
+    border-color 0.15s;
   position: relative;
 }
 
-/* Невидимая зона попадания вокруг handle — 28×28px. */
+/* Invisible hit area around handle */
 .customHandle::after {
   content: '';
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
 }
 
 .customHandle:hover {
   background: var(--ev-c-accent);
-  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+  border-color: var(--ev-c-black-soft);
+  transform: scale(1.2);
 }
 
-/* Зелёная точка для true-выхода (branch). */
+/* True handle (branch) */
 .customHandleTrue {
   background: var(--ev-c-success);
 }
 
-/* Красная точка для false-выхода (branch). */
+/* False handle (branch) */
 .customHandleFalse {
   background: var(--ev-c-error);
 }
@@ -950,10 +984,17 @@ code {
 .react-flow__edge-path {
   stroke: var(--ev-c-gray-1) !important;
   stroke-width: 2 !important;
+  transition: stroke 0.15s, stroke-width 0.15s !important;
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: var(--ev-c-text-2) !important;
+  stroke-width: 3 !important;
 }
 
 .react-flow__edge.selected .react-flow__edge-path {
   stroke: var(--ev-c-accent) !important;
+  stroke-width: 3 !important;
 }
 
 /* ========== /React Flow Controls + MiniMap ========== */

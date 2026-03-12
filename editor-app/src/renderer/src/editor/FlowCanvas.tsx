@@ -14,7 +14,8 @@ import {
   type Connection,
   type Edge,
   type Node,
-  type NodeChange
+  type NodeChange,
+  type NodeTypes
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import type { RuntimeEdge, RuntimeNode } from './runtimeTypes'
@@ -106,9 +107,13 @@ const FlowCanvasInner = ({
   const selectedNodeIdRef = useRef(selectedNodeId)
   const selectedNodeIdsRef = useRef(selectedNodeIds)
   const selectedEdgeIdRef = useRef(selectedEdgeId)
-  selectedNodeIdRef.current = selectedNodeId
-  selectedNodeIdsRef.current = selectedNodeIds
-  selectedEdgeIdRef.current = selectedEdgeId
+
+  // Обновляем selection refs в useEffect.
+  useEffect(() => {
+    selectedNodeIdRef.current = selectedNodeId
+    selectedNodeIdsRef.current = selectedNodeIds
+    selectedEdgeIdRef.current = selectedEdgeId
+  }, [selectedNodeId, selectedNodeIds, selectedEdgeId])
 
   // Стабилизируем все внешние коллбеки, чтобы не пересоздавать ReactFlow props
   // на каждом рендере и не триггерить лишние store.setState внутри xyflow.
@@ -120,14 +125,27 @@ const FlowCanvasInner = ({
   const onPaneClickCreateRef = useRef(onPaneClickCreate)
   const onEdgeDeleteRef = useRef(onEdgeDelete)
   const onEdgeDoubleClickRef = useRef(onEdgeDoubleClick)
-  onSelectNodesRef.current = onSelectNodes
-  onSelectEdgeRef.current = onSelectEdge
-  onEdgeAddRef.current = onEdgeAdd
-  onEdgeRemoveRef.current = onEdgeRemove
-  onNodeDeleteRef.current = onNodeDelete
-  onPaneClickCreateRef.current = onPaneClickCreate
-  onEdgeDeleteRef.current = onEdgeDelete
-  onEdgeDoubleClickRef.current = onEdgeDoubleClick
+
+  // Обновляем refs в useEffect, чтобы не нарушать правила React Hooks.
+  useEffect(() => {
+    onSelectNodesRef.current = onSelectNodes
+    onSelectEdgeRef.current = onSelectEdge
+    onEdgeAddRef.current = onEdgeAdd
+    onEdgeRemoveRef.current = onEdgeRemove
+    onNodeDeleteRef.current = onNodeDelete
+    onPaneClickCreateRef.current = onPaneClickCreate
+    onEdgeDeleteRef.current = onEdgeDelete
+    onEdgeDoubleClickRef.current = onEdgeDoubleClick
+  }, [
+    onSelectNodes,
+    onSelectEdge,
+    onEdgeAdd,
+    onEdgeRemove,
+    onNodeDelete,
+    onPaneClickCreate,
+    onEdgeDelete,
+    onEdgeDoubleClick
+  ])
 
   // Строим узлы React Flow из runtime-данных.
   // ВАЖНО: НЕ включаем selected сюда — выделение синхронизируем отдельным эффектом.
@@ -137,7 +155,7 @@ const FlowCanvasInner = ({
       id: node.id,
       // Используем кастомный тип ноды, если он зарегистрирован.
       // Если нет — React Flow покажет дефолтный узел.
-      type: node.type in cutsceneNodeTypes ? (node.type as any) : undefined,
+      type: node.type in cutsceneNodeTypes ? node.type : undefined,
       // Если позиция сохранена — берём её, иначе раскладываем по сетке.
       position: node.position ?? { x: 120 + index * 250, y: 150 },
       // Точки соединения слева/справа — поток читается слева направо.
@@ -247,11 +265,15 @@ const FlowCanvasInner = ({
 
   // Ref чтобы не пересоздавать коллбек при каждом рендере.
   const positionCallbackRef = useRef(onNodePositionChange)
-  positionCallbackRef.current = onNodePositionChange
+  useEffect(() => {
+    positionCallbackRef.current = onNodePositionChange
+  }, [onNodePositionChange])
 
   // Ref для runtimeNodes, чтобы handleNodesChange не зависел от замыкания.
   const runtimeNodesRef = useRef(runtimeNodes)
-  runtimeNodesRef.current = runtimeNodes
+  useEffect(() => {
+    runtimeNodesRef.current = runtimeNodes
+  }, [runtimeNodes])
 
   // Обёртка над onNodesChange: ловим конец перетаскивания и сохраняем позицию.
   const handleNodesChange = useCallback(
@@ -421,7 +443,7 @@ const FlowCanvasInner = ({
   }, [])
 
   const handleEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
-    if ((edge as any).selectable === false) return
+    if ((edge as Edge & { selectable?: boolean }).selectable === false) return
     onSelectNodesRef.current([])
     onSelectEdgeRef.current(edge.id)
   }, [])
@@ -431,14 +453,14 @@ const FlowCanvasInner = ({
   }, [])
 
   const handleEdgeDoubleClick = useCallback((_: React.MouseEvent, edge: Edge) => {
-    if ((edge as any).selectable === false) return
+    if ((edge as Edge & { selectable?: boolean }).selectable === false) return
     onSelectNodesRef.current([])
     onSelectEdgeRef.current(edge.id)
     onEdgeDoubleClickRef.current?.(edge.id)
   }, [])
 
-  const handleSelectionChange = useCallback((sel: any) => {
-    const ids = (sel?.nodes ?? []).map((n: any) => String(n.id))
+  const handleSelectionChange = useCallback((sel: { nodes?: Array<{ id: string }> }) => {
+    const ids = (sel?.nodes ?? []).map((n) => String(n.id))
 
     // Если мы сами пытаемся снять выделение — игнорируем события,
     // пока React Flow не пришлёт пустое выделение.
@@ -479,7 +501,7 @@ const FlowCanvasInner = ({
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        nodeTypes={cutsceneNodeTypes as any}
+        nodeTypes={cutsceneNodeTypes as NodeTypes}
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}

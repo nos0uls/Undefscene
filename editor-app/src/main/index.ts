@@ -11,7 +11,14 @@ const isDev = !app.isPackaged
 
 // Парсим .yyp и собираем базовые списки ресурсов.
 // Это нужно для autocomplete и валидации в инспекторе.
-async function parseYypResources(yypPath: string) {
+async function parseYypResources(yypPath: string): Promise<{
+  yypPath: string
+  projectDir: string
+  sprites: string[]
+  objects: string[]
+  sounds: string[]
+  rooms: string[]
+}> {
   const projectDir = dirname(yypPath)
   const raw = await readFile(yypPath, 'utf-8')
   // GameMaker .yyp использует нестандартный JSON с trailing commas.
@@ -49,7 +56,7 @@ async function parseYypResources(yypPath: string) {
       if (resType === 'GMObject') objects.add(resName)
       if (resType === 'GMSound') sounds.add(resName)
       if (resType === 'GMRoom') rooms.add(resName)
-    } catch (err) {
+    } catch {
       // Пропускаем битые/удалённые ресурсы, чтобы не падать.
       continue
     }
@@ -251,9 +258,10 @@ app.whenReady().then(() => {
     try {
       const raw = await readFile(layoutPath, 'utf-8')
       return JSON.parse(raw)
-    } catch (err: any) {
+    } catch (err) {
       // Если файла нет — это не ошибка для пользователя.
-      if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) return null
+      const code = (err as NodeJS.ErrnoException)?.code
+      if (code === 'ENOENT' || code === 'ENOTDIR') return null
       throw err
     }
   })
@@ -262,9 +270,10 @@ app.whenReady().then(() => {
     try {
       const raw = await readFile(runtimePath, 'utf-8')
       return JSON.parse(raw)
-    } catch (err: any) {
+    } catch (err) {
       // Если файла нет — это не ошибка для пользователя.
-      if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) return null
+      const code = (err as NodeJS.ErrnoException)?.code
+      if (code === 'ENOENT' || code === 'ENOTDIR') return null
       throw err
     }
   })
@@ -278,10 +287,11 @@ app.whenReady().then(() => {
 
     try {
       await rename(runtimeTmpPath, runtimePath)
-    } catch (err: any) {
+    } catch (err) {
       // На Windows переименование может падать, если файл уже существует.
       // Тогда удаляем старый файл и пробуем ещё раз.
-      if (err && (err.code === 'EEXIST' || err.code === 'EPERM')) {
+      const code = (err as NodeJS.ErrnoException)?.code
+      if (code === 'EEXIST' || code === 'EPERM') {
         await unlink(runtimePath).catch(() => undefined)
         await rename(runtimeTmpPath, runtimePath)
         return
@@ -299,10 +309,11 @@ app.whenReady().then(() => {
 
     try {
       await rename(layoutTmpPath, layoutPath)
-    } catch (err: any) {
+    } catch (err) {
       // На Windows переименование может падать, если файл уже существует.
       // Тогда удаляем старый файл и пробуем ещё раз.
-      if (err && (err.code === 'EEXIST' || err.code === 'EPERM')) {
+      const code = (err as NodeJS.ErrnoException)?.code
+      if (code === 'EEXIST' || code === 'EPERM') {
         await unlink(layoutPath).catch(() => undefined)
         await rename(layoutTmpPath, layoutPath)
         return
@@ -325,11 +336,13 @@ app.whenReady().then(() => {
           typeof data.strict_mode_default === 'boolean' ? data.strict_mode_default : false,
         defaultActorObject:
           typeof data.default_actor_object === 'string' ? data.default_actor_object : '',
-        branchConditions: Array.isArray((data.whitelist as any)?.branch_conditions)
-          ? ((data.whitelist as any).branch_conditions as string[])
+        branchConditions: Array.isArray(
+          (data.whitelist as Record<string, unknown>)?.branch_conditions
+        )
+          ? ((data.whitelist as Record<string, unknown>).branch_conditions as string[])
           : [],
-        runFunctions: Array.isArray((data.whitelist as any)?.run_functions)
-          ? ((data.whitelist as any).run_functions as string[])
+        runFunctions: Array.isArray((data.whitelist as Record<string, unknown>)?.run_functions)
+          ? ((data.whitelist as Record<string, unknown>).run_functions as string[])
           : []
       }
     } catch {

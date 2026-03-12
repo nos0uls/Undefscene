@@ -15,7 +15,7 @@ let mainWindowRef: BrowserWindow | null = null
 let initialized = false
 
 // Безопасная отправка события в renderer (если окно есть).
-function sendToRenderer(channel: string, payload?: any) {
+function sendToRenderer(channel: string, payload?: unknown): void {
   const win = mainWindowRef
   if (!win || win.isDestroyed()) return
   win.webContents.send(channel, payload)

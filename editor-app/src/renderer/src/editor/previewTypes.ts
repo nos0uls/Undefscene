@@ -17,7 +17,7 @@ export type PreviewCommand =
   | {
       // Простейшая команда для проверки связи.
       kind: 'ping'
-      params: {}
+      params: Record<string, never>
     }
 
 // Тип команды, которую мы отправляем в превью билд.
@@ -78,9 +78,9 @@ export type PreviewStatus = {
 // Генерируем ID запроса.
 // В браузере/renderer чаще всего есть crypto.randomUUID(), но делаем запасной вариант.
 export const createRequestId = (): string => {
-  const cryptoAny = globalThis.crypto as any
-  if (cryptoAny && typeof cryptoAny.randomUUID === 'function') {
-    return cryptoAny.randomUUID()
+  const cryptoObj = globalThis.crypto as { randomUUID?: () => string }
+  if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
+    return cryptoObj.randomUUID()
   }
   return `req_${Date.now()}_${Math.random().toString(16).slice(2)}`
 }
@@ -128,7 +128,7 @@ export const parsePreviewStatus = (raw: unknown): PreviewStatus | null => {
     typeof candidate.activeRequestId === 'string' ? candidate.activeRequestId : null
 
   let lastResult: PreviewLastResult | null = null
-  const rawLastResult: any = (candidate as any).lastResult
+  const rawLastResult = candidate.lastResult as Record<string, unknown> | null | undefined
   if (rawLastResult && typeof rawLastResult === 'object') {
     const requestId = typeof rawLastResult.requestId === 'string' ? rawLastResult.requestId : null
     const kind = typeof rawLastResult.kind === 'string' ? rawLastResult.kind : null
@@ -152,7 +152,7 @@ export const parsePreviewStatus = (raw: unknown): PreviewStatus | null => {
 // Проверяем, что ответ preview.paths.get похож на ожидаемый формат.
 export const parsePreviewPaths = (raw: unknown): PreviewPaths | null => {
   if (!raw || typeof raw !== 'object') return null
-  const candidate: any = raw
+  const candidate = raw as Record<string, unknown>
 
   if (typeof candidate.runtimePath !== 'string') return null
   if (typeof candidate.previewControlPath !== 'string') return null

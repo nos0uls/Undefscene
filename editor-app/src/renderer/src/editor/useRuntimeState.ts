@@ -13,7 +13,14 @@ type RuntimeHistory = {
 }
 
 // Хук для хранения runtime-json состояния и его автосохранения.
-export const useRuntimeState = () => {
+export const useRuntimeState = (): {
+  runtime: RuntimeState
+  setRuntime: (nextOrUpdater: RuntimeState | ((prev: RuntimeState) => RuntimeState)) => void
+  undo: () => void
+  redo: () => void
+  canUndo: boolean
+  canRedo: boolean
+} => {
   const defaultRuntime = useMemo(() => createDefaultRuntimeState(), [])
   const [history, setHistory] = useState<RuntimeHistory>({
     past: [],
@@ -25,6 +32,13 @@ export const useRuntimeState = () => {
   const didLoadRef = useRef(false)
 
   useEffect(() => {
+    // Проверяем, что мы в Electron-контексте (window.api доступен).
+    // В обычном браузере (IDE preview) API недоступен — используем дефолтное состояние.
+    if (!window.api?.runtime) {
+      didLoadRef.current = true
+      return
+    }
+
     let cancelled = false
 
     // Читаем runtime.json через IPC.
@@ -63,7 +77,8 @@ export const useRuntimeState = () => {
   }, [defaultRuntime])
 
   useEffect(() => {
-    if (!didLoadRef.current) return
+    // Пропускаем, если ещё не загрузили или нет Electron API.
+    if (!didLoadRef.current || !window.api?.runtime) return
 
     const saveTimer = window.setTimeout(() => {
       // Сохраняем runtime.json, чтобы состояние не терялось.

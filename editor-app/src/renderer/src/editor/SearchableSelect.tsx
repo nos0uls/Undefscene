@@ -61,7 +61,7 @@ export function SearchableSelect({
   // Закрываем список при клике вне компонента.
   useEffect(() => {
     if (!open) return
-    const onClickOutside = (e: MouseEvent) => {
+    const onClickOutside = (e: MouseEvent): void => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false)
       }
@@ -80,7 +80,7 @@ export function SearchableSelect({
   }, [highlightIndex])
 
   // Выбираем вариант и закрываем список.
-  const selectOption = (opt: string) => {
+  const selectOption = (opt: string): void => {
     setQuery(opt)
     onChange(opt)
     setOpen(false)
@@ -88,7 +88,7 @@ export function SearchableSelect({
   }
 
   // Обработка клавиш: стрелки, Enter, Escape.
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
     if (!open) {
       // Открываем список при нажатии стрелки вниз.
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {

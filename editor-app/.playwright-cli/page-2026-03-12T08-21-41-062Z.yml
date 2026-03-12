@@ -1,0 +1,214 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - text: File
+          - menu [ref=e208]:
+            - menuitem "New Scene Ctrl+N" [ref=e209] [cursor=pointer]:
+              - generic [ref=e210]: New Scene
+              - generic [ref=e211]: Ctrl+N
+            - menuitem "Open Scene..." [ref=e212] [cursor=pointer]:
+              - generic [ref=e213]: Open Scene...
+            - menuitem "Open Project (.yyp)... Ctrl+O" [ref=e214] [cursor=pointer]:
+              - generic [ref=e215]: Open Project (.yyp)...
+              - generic [ref=e216]: Ctrl+O
+            - menuitem "Save Ctrl+S" [ref=e217] [cursor=pointer]:
+              - generic [ref=e218]: Save
+              - generic [ref=e219]: Ctrl+S
+            - menuitem "Save As..." [ref=e220] [cursor=pointer]:
+              - generic [ref=e221]: Save As...
+            - menuitem "Export to Game... Ctrl+E" [ref=e222] [cursor=pointer]:
+              - generic [ref=e223]: Export to Game...
+              - generic [ref=e224]: Ctrl+E
+            - menuitem "Preferences..." [ref=e225] [cursor=pointer]:
+              - generic [ref=e226]: Preferences...
+            - menuitem "Exit" [ref=e227] [cursor=pointer]:
+              - generic [ref=e228]: Exit
+        - generic [ref=e8]: Edit
+        - generic [ref=e9]: View
+        - generic [ref=e10]: Panels
+        - generic [ref=e11]: Help
+      - generic [ref=e12]:
+        - button "Undo (Ctrl+Z)" [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+        - button "Redo (Ctrl+Y)" [ref=e17] [cursor=pointer]:
+          - img [ref=e18]
+  - complementary [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - generic [ref=e25]: Actions
+          - button "panel menu" [ref=e26] [cursor=pointer]: ▾
+        - generic [ref=e28]:
+          - generic [ref=e29]: Actions
+          - generic [ref=e30]:
+            - button "Undo" [disabled] [ref=e31]
+            - button "Redo" [disabled] [ref=e32]
+          - generic [ref=e33]: Node Palette
+          - list [ref=e34]:
+            - listitem [ref=e35]:
+              - button "start" [ref=e36] [cursor=pointer]
+            - listitem [ref=e37]:
+              - button "end" [ref=e38] [cursor=pointer]
+            - listitem [ref=e39]:
+              - button "move" [ref=e40] [cursor=pointer]
+            - listitem [ref=e41]:
+              - button "follow_path" [ref=e42] [cursor=pointer]
+            - listitem [ref=e43]:
+              - button "actor_create" [ref=e44] [cursor=pointer]
+            - listitem [ref=e45]:
+              - button "actor_destroy" [ref=e46] [cursor=pointer]
+            - listitem [ref=e47]:
+              - button "animate" [ref=e48] [cursor=pointer]
+            - listitem [ref=e49]:
+              - button "dialogue" [ref=e50] [cursor=pointer]
+            - listitem [ref=e51]:
+              - button "camera_track" [ref=e52] [cursor=pointer]
+            - listitem [ref=e53]:
+              - button "camera_pan" [ref=e54] [cursor=pointer]
+            - listitem [ref=e55]:
+              - button "parallel_start" [ref=e56] [cursor=pointer]
+            - listitem [ref=e57]:
+              - button "branch" [ref=e58] [cursor=pointer]
+            - listitem [ref=e59]:
+              - button "run_function" [ref=e60] [cursor=pointer]
+            - listitem [ref=e61]:
+              - button "set_position" [ref=e62] [cursor=pointer]
+            - listitem [ref=e63]:
+              - button "set_depth" [ref=e64] [cursor=pointer]
+            - listitem [ref=e65]:
+              - button "set_facing" [ref=e66] [cursor=pointer]
+            - listitem [ref=e67]:
+              - button "camera_shake" [ref=e68] [cursor=pointer]
+            - listitem [ref=e69]:
+              - button "auto_facing" [ref=e70] [cursor=pointer]
+            - listitem [ref=e71]:
+              - button "auto_walk" [ref=e72] [cursor=pointer]
+          - generic [ref=e73]: New nodes appear to the right of the selected node.
+      - generic [ref=e75]:
+        - generic [ref=e76]:
+          - generic [ref=e77]: Bookmarks
+          - button "panel menu" [ref=e78] [cursor=pointer]: ▾
+        - generic [ref=e80]:
+          - generic [ref=e81]: Nodes
+          - list [ref=e82]:
+            - listitem [ref=e83]:
+              - button "Start · n-start" [ref=e84] [cursor=pointer]
+            - listitem [ref=e85]:
+              - button "Node · n-dialogue" [ref=e86] [cursor=pointer]
+            - listitem [ref=e87]:
+              - button "Node (0) · n-move" [ref=e88] [cursor=pointer]
+            - listitem [ref=e89]:
+              - button "End · n-end" [ref=e90] [cursor=pointer]
+  - main [ref=e91]:
+    - generic [ref=e92]: Node Editor
+    - application [ref=e95]:
+      - generic [ref=e97] [cursor=pointer]:
+        - generic:
+          - generic:
+            - img:
+              - group "Edge from n-start to n-dialogue" [ref=e98]:
+                - generic [ref=e101]:
+                  - generic: 1.5s
+            - img:
+              - group "Edge from n-start to n-move" [ref=e103]:
+                - generic [ref=e106]:
+                  - generic: 1.5s
+            - img:
+              - group "Edge from n-dialogue to n-end" [ref=e108]
+            - img:
+              - group "Edge from n-move to n-end" [ref=e111]
+          - generic:
+            - group [ref=e114]:
+              - generic [ref=e117]:
+                - generic [ref=e118]: Start
+                - generic [ref=e119]: Start
+            - group [ref=e122]:
+              - generic [ref=e123]:
+                - generic [ref=e126]: Dialogue
+                - generic [ref=e127]:
+                  - generic [ref=e128]: intro.yarn
+                  - generic [ref=e129]: → Greeting
+            - group [ref=e132]:
+              - generic [ref=e133]:
+                - generic [ref=e136]: Move
+                - generic [ref=e137]:
+                  - generic [ref=e138]: actor:npc
+                  - generic [ref=e139]: → 320, 240
+            - group [ref=e142]:
+              - generic [ref=e145]:
+                - generic [ref=e146]: End
+                - generic [ref=e147]: End
+      - img
+      - img "Mini Map" [ref=e151]
+      - generic "Control Panel" [ref=e156]:
+        - button "Zoom In" [ref=e157] [cursor=pointer]:
+          - img [ref=e158]
+        - button "Zoom Out" [ref=e160] [cursor=pointer]:
+          - img [ref=e161]
+        - button "Fit View" [ref=e163] [cursor=pointer]:
+          - img [ref=e164]
+  - complementary [ref=e167]:
+    - generic [ref=e168]:
+      - generic [ref=e169]:
+        - generic [ref=e170]:
+          - generic [ref=e171]: Text Editor
+          - button "panel menu" [ref=e172] [cursor=pointer]: ▾
+        - generic [ref=e174]:
+          - generic [ref=e175]: Text
+          - generic [ref=e176]: Select a node to edit its text.
+      - generic [ref=e178]:
+        - generic [ref=e179]:
+          - generic [ref=e180]: Inspector
+          - button "panel menu" [ref=e181] [cursor=pointer]: ▾
+        - generic [ref=e183]:
+          - generic [ref=e184]: Inspector
+          - generic [ref=e185]:
+            - generic [ref=e186]: Scene title
+            - textbox "Scene title" [ref=e187]: Untitled Cutscene
+          - generic [ref=e188]: Select a node on the canvas to inspect it.
+          - generic [ref=e189]: Project
+          - generic [ref=e190]: No project loaded. File → Open Project...
+  - generic [ref=e192]:
+    - generic [ref=e193]:
+      - generic [ref=e194]: Logs / Warnings
+      - button "panel menu" [ref=e195] [cursor=pointer]: ▾
+    - generic [ref=e197]:
+      - generic [ref=e198]:
+        - button "Errors" [ref=e199] [cursor=pointer]
+        - button "Warnings" [ref=e200] [cursor=pointer]
+        - button "Tips" [ref=e201] [cursor=pointer]
+      - generic [ref=e202]: No errors.
+      - group [ref=e203]:
+        - generic "Runtime JSON" [ref=e204] [cursor=pointer]
+  - generic [ref=e230]:
+    - generic [ref=e231]:
+      - generic [ref=e232]: Preferences
+      - button "✕" [ref=e233] [cursor=pointer]
+    - generic [ref=e234]:
+      - generic [ref=e235]:
+        - generic [ref=e236]: Appearance
+        - generic [ref=e237]:
+          - generic [ref=e238]: Theme
+          - combobox "Theme" [ref=e239]:
+            - option "Dark"
+            - option "Dark Cyan" [selected]
+            - option "Gray"
+            - option "Light"
+        - generic [ref=e240]: Dark theme with cyan accent (Persona 3 Reload style)
+      - generic [ref=e241]:
+        - generic [ref=e242]: Canvas
+        - generic [ref=e243]:
+          - generic [ref=e244]: Grid Size
+          - spinbutton "Grid Size" [disabled] [ref=e245]: "18"
+        - generic [ref=e246]:
+          - checkbox "Show MiniMap" [checked] [disabled] [ref=e247]
+          - generic [ref=e248]: Show MiniMap
+        - generic [ref=e249]: Canvas settings will be saved in a future version.
+      - generic [ref=e250]:
+        - generic [ref=e251]: Editor
+        - generic [ref=e252]:
+          - checkbox "Auto-save on change" [checked] [disabled] [ref=e253]
+          - generic [ref=e254]: Auto-save on change
+        - generic [ref=e255]: Persistent preferences are planned for v2.
