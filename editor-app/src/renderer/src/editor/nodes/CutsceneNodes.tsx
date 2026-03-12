@@ -9,6 +9,13 @@ type CutsceneNodeData = {
   // Коллбек для кнопки "Add Branch" внутри parallel-ноды.
   // Это UI-only поле, мы НЕ пишем его в runtime.json.
   onAddParallelBranch?: (parallelStartId: string) => void
+
+  // Коллбек для удаления последней ветки у parallel.
+  // Удаляем только branch slot / связанные рёбра, но не сами ноды внутри ветки.
+  onRemoveParallelBranch?: (parallelStartId: string) => void
+
+  // Режим отображения портов у parallel.
+  parallelBranchPortMode?: 'shared' | 'separate'
 }
 
 // Тип пропсов, которые React Flow передаёт в custom node component.
@@ -222,6 +229,22 @@ function renderParallelHandles(
   })
 }
 
+// Один общий handle для shared-режима.
+// Под капотом ветка всё равно назначается автоматически по порядку подключений.
+function renderSharedParallelHandle(kind: 'source' | 'target'): React.JSX.Element {
+  const handleId = kind === 'source' ? 'out_shared' : 'in_shared'
+  return (
+    <Handle
+      key={handleId}
+      type={kind}
+      id={handleId}
+      position={kind === 'source' ? Position.Right : Position.Left}
+      className="customHandle customHandleShared"
+      style={{ top: '50%' }}
+    />
+  )
+}
+
 // Fork-нода: много выходов.
 export function ParallelStartNode(props: CutsceneNodeProps & { id?: string }): React.JSX.Element {
   const id = String(props.id ?? '')
@@ -230,6 +253,7 @@ export function ParallelStartNode(props: CutsceneNodeProps & { id?: string }): R
   const branches = (
     Array.isArray(data.params?.branches) ? data.params?.branches : ['b0']
   ) as string[]
+  const portMode = data.parallelBranchPortMode ?? 'shared'
 
   return (
     <BaseNode
@@ -246,17 +270,29 @@ export function ParallelStartNode(props: CutsceneNodeProps & { id?: string }): R
             className="customHandle"
             style={{ top: '50%', opacity: 0, pointerEvents: 'none' }}
           />
-          {renderParallelHandles('source', branches)}
+          {portMode === 'separate'
+            ? renderParallelHandles('source', branches)
+            : renderSharedParallelHandle('source')}
         </>
       }
     >
-      <button
-        className="customNodeButton"
-        type="button"
-        onClick={() => data.onAddParallelBranch?.(id)}
-      >
-        Add Branch
-      </button>
+      <div className="customNodeButtonRow">
+        <button
+          className="customNodeButton"
+          type="button"
+          onClick={() => data.onAddParallelBranch?.(id)}
+        >
+          + Branch
+        </button>
+        <button
+          className="customNodeButton customNodeButtonDanger"
+          type="button"
+          onClick={() => data.onRemoveParallelBranch?.(id)}
+          disabled={branches.length <= 1}
+        >
+          - Branch
+        </button>
+      </div>
     </BaseNode>
   )
 }
@@ -270,6 +306,7 @@ export function ParallelJoinNode(props: CutsceneNodeProps & { id?: string }): Re
     Array.isArray(data.params?.branches) ? data.params?.branches : ['b0']
   ) as string[]
   const pairId = typeof data.params?.pairId === 'string' ? String(data.params?.pairId) : ''
+  const portMode = data.parallelBranchPortMode ?? 'shared'
 
   return (
     <BaseNode
@@ -286,18 +323,30 @@ export function ParallelJoinNode(props: CutsceneNodeProps & { id?: string }): Re
             className="customHandle"
             style={{ top: '50%', opacity: 0, pointerEvents: 'none' }}
           />
-          {renderParallelHandles('target', branches)}
+          {portMode === 'separate'
+            ? renderParallelHandles('target', branches)
+            : renderSharedParallelHandle('target')}
         </>
       }
     >
-      <button
-        className="customNodeButton"
-        type="button"
-        // Для join мы добавляем ветку через start-id (pairId).
-        onClick={() => data.onAddParallelBranch?.(pairId || id)}
-      >
-        Add Branch
-      </button>
+      <div className="customNodeButtonRow">
+        <button
+          className="customNodeButton"
+          type="button"
+          // Для join мы добавляем ветку через start-id (pairId).
+          onClick={() => data.onAddParallelBranch?.(pairId || id)}
+        >
+          + Branch
+        </button>
+        <button
+          className="customNodeButton customNodeButtonDanger"
+          type="button"
+          onClick={() => data.onRemoveParallelBranch?.(pairId || id)}
+          disabled={branches.length <= 1}
+        >
+          - Branch
+        </button>
+      </div>
     </BaseNode>
   )
 }

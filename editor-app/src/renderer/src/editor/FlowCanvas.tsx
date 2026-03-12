@@ -20,6 +20,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import type { RuntimeEdge, RuntimeNode } from './runtimeTypes'
 import { cutsceneNodeTypes } from './nodes'
+import { usePreferencesContext } from './PreferencesContext'
 
 // Пропсы для холста: узлы, связи, выбор и коллбеки для синхронизации с runtime.
 type FlowCanvasProps = {
@@ -58,6 +59,10 @@ type FlowCanvasProps = {
   // Коллбек: добавить ещё одну "ветку" у parallel (пара нод).
   onParallelAddBranch: (parallelStartId: string) => void
 
+  // Коллбек: удалить последнюю ветку у parallel.
+  // При этом сами ноды внутри ветки не удаляем — только branch slot и его рёбра.
+  onParallelRemoveBranch: (parallelStartId: string) => void
+
   // Коллбек: удалить ноду и все её связи (ПКМ по ноде).
   onNodeDelete: (nodeId: string) => void
 
@@ -84,13 +89,26 @@ const FlowCanvasInner = ({
   onEdgeAdd,
   onEdgeRemove,
   onParallelAddBranch,
+  onParallelRemoveBranch,
   onNodeDelete,
   onPaneClickCreate,
   onEdgeDelete,
   onEdgeDoubleClick
 }: FlowCanvasProps): React.JSX.Element => {
   // Нужен для конвертации экранных координат в координаты холста.
-  const { screenToFlowPosition, getNodes } = useReactFlow()
+  const { screenToFlowPosition, getNodes, getViewport, setViewport } = useReactFlow()
+
+  // Читаем настройки редактора из контекста.
+  // Отсюда берём zoomSpeed, чтобы скорость wheel zoom реально менялась из Preferences.
+  const prefs = usePreferencesContext()
+
+  // Храним ref на DOM-обёртку canvas, чтобы повесить native non-passive wheel listener.
+  // Это нужно для trackpad/pinch и чтобы браузер не ругался на preventDefault в passive listener.
+  const flowCanvasRef = useRef<HTMLDivElement | null>(null)
+
+  // Когда мы сами синхронизируем selected-флаги обратно в React Flow store,
+  // временно игнорируем echo-события onSelectionChange, чтобы не словить цикл.
+  const suppressSelectionEchoRef = useRef(false)
 
   // Флаг, чтобы игнорировать следующий клик по холсту после создания связи.
   const justConnectedRef = useRef(false)
@@ -121,6 +139,7 @@ const FlowCanvasInner = ({
   const onSelectEdgeRef = useRef(onSelectEdge)
   const onEdgeAddRef = useRef(onEdgeAdd)
   const onEdgeRemoveRef = useRef(onEdgeRemove)
+  const onParallelRemoveBranchRef = useRef(onParallelRemoveBranch)
   const onNodeDeleteRef = useRef(onNodeDelete)
   const onPaneClickCreateRef = useRef(onPaneClickCreate)
   const onEdgeDeleteRef = useRef(onEdgeDelete)
@@ -132,6 +151,7 @@ const FlowCanvasInner = ({
     onSelectEdgeRef.current = onSelectEdge
     onEdgeAddRef.current = onEdgeAdd
     onEdgeRemoveRef.current = onEdgeRemove
+    onParallelRemoveBranchRef.current = onParallelRemoveBranch
     onNodeDeleteRef.current = onNodeDelete
     onPaneClickCreateRef.current = onPaneClickCreate
     onEdgeDeleteRef.current = onEdgeDelete
@@ -141,6 +161,7 @@ const FlowCanvasInner = ({
     onSelectEdge,
     onEdgeAdd,
     onEdgeRemove,
+    onParallelRemoveBranch,
     onNodeDelete,
     onPaneClickCreate,
     onEdgeDelete,
@@ -167,10 +188,12 @@ const FlowCanvasInner = ({
         // Параметры ноды (для кастомных компонентов).
         params: node.params ?? {},
         // Коллбек для parallel — не сохраняем в runtime.json, это чисто UI.
-        onAddParallelBranch: onParallelAddBranch
+        onAddParallelBranch: onParallelAddBranch,
+        onRemoveParallelBranch: onParallelRemoveBranchRef.current,
+        parallelBranchPortMode: prefs.parallelBranchPortMode
       }
     }))
-  }, [runtimeNodes, onParallelAddBranch])
+  }, [runtimeNodes, onParallelAddBranch, prefs.parallelBranchPortMode])
 
   // Строим связи React Flow из runtime-данных.
   // Аналогично нодам — без selected, чтобы не создавать петлю.
@@ -237,8 +260,9 @@ const FlowCanvasInner = ({
   useEffect(() => {
     const nodeIdSet = new Set(selectedNodeIds ?? [])
     if (selectedNodeId) nodeIdSet.add(selectedNodeId)
+
+    let changed = false
     setNodes((prev) => {
-      let changed = false
       const next = prev.map((n) => {
         const shouldSelect = nodeIdSet.has(n.id)
         if (n.selected === shouldSelect) return n
@@ -247,12 +271,19 @@ const FlowCanvasInner = ({
       })
       return changed ? next : prev
     })
+
+    if (changed) {
+      suppressSelectionEchoRef.current = true
+      window.requestAnimationFrame(() => {
+        suppressSelectionEchoRef.current = false
+      })
+    }
   }, [selectedNodeId, selectedNodeIds, setNodes])
 
   // Отдельно синхронизируем выделение рёбер.
   useEffect(() => {
+    let changed = false
     setEdges((prev) => {
-      let changed = false
       const next = prev.map((e) => {
         const shouldSelect = e.id === selectedEdgeId
         if (e.selected === shouldSelect) return e
@@ -261,6 +292,13 @@ const FlowCanvasInner = ({
       })
       return changed ? next : prev
     })
+
+    if (changed) {
+      suppressSelectionEchoRef.current = true
+      window.requestAnimationFrame(() => {
+        suppressSelectionEchoRef.current = false
+      })
+    }
   }, [selectedEdgeId, setEdges])
 
   // Ref чтобы не пересоздавать коллбек при каждом рендере.
@@ -274,6 +312,101 @@ const FlowCanvasInner = ({
   useEffect(() => {
     runtimeNodesRef.current = runtimeNodes
   }, [runtimeNodes])
+
+  // Ref для runtimeEdges, чтобы onConnect мог видеть актуально занятые ветки parallel.
+  const runtimeEdgesRef = useRef(runtimeEdges)
+  useEffect(() => {
+    runtimeEdgesRef.current = runtimeEdges
+  }, [runtimeEdges])
+
+  // Для shared-режима у parallel у нас один видимый порт.
+  // Здесь мы автоматически выбираем реальный branch handle по порядку подключений.
+  const resolveParallelConnection = useCallback(
+    (connection: Connection): Connection | null => {
+      if (!connection.source || !connection.target) return null
+
+      const sourceNode = runtimeNodesRef.current.find((node) => node.id === connection.source)
+      const targetNode = runtimeNodesRef.current.find((node) => node.id === connection.target)
+      const nextConnection: Connection = { ...connection }
+      const currentEdges = runtimeEdgesRef.current
+
+      if (connection.sourceHandle === 'out_shared' && sourceNode?.type === 'parallel_start') {
+        const branches = Array.isArray(sourceNode.params?.branches)
+          ? (sourceNode.params?.branches as string[])
+          : ['b0']
+
+        const usedHandles = new Set(
+          currentEdges
+            .filter(
+              (edge) =>
+                edge.source === sourceNode.id &&
+                edge.sourceHandle &&
+                edge.sourceHandle !== '__pair' &&
+                edge.sourceHandle.startsWith('out_')
+            )
+            .map((edge) => edge.sourceHandle as string)
+        )
+
+        const freeBranch = branches.find((branchId) => !usedHandles.has(`out_${branchId}`))
+        if (!freeBranch) return null
+        nextConnection.sourceHandle = `out_${freeBranch}`
+      }
+
+      if (connection.targetHandle === 'in_shared' && targetNode?.type === 'parallel_join') {
+        const branches = Array.isArray(targetNode.params?.branches)
+          ? (targetNode.params?.branches as string[])
+          : ['b0']
+
+        const usedHandles = new Set(
+          currentEdges
+            .filter(
+              (edge) =>
+                edge.target === targetNode.id &&
+                edge.targetHandle &&
+                edge.targetHandle !== '__pair' &&
+                edge.targetHandle.startsWith('in_')
+            )
+            .map((edge) => edge.targetHandle as string)
+        )
+
+        const freeBranch = branches.find((branchId) => !usedHandles.has(`in_${branchId}`))
+        if (!freeBranch) return null
+        nextConnection.targetHandle = `in_${freeBranch}`
+      }
+
+      // В strict separate-режиме не даём занять тот же branch handle второй раз.
+      if (prefs.parallelBranchPortMode === 'separate') {
+        const sourceHandleBusy =
+          nextConnection.sourceHandle?.startsWith('out_') &&
+          currentEdges.some(
+            (edge) =>
+              edge.source === nextConnection.source &&
+              edge.sourceHandle === (nextConnection.sourceHandle ?? undefined)
+          )
+
+        const targetHandleBusy =
+          nextConnection.targetHandle?.startsWith('in_') &&
+          currentEdges.some(
+            (edge) =>
+              edge.target === nextConnection.target &&
+              edge.targetHandle === (nextConnection.targetHandle ?? undefined)
+          )
+
+        const duplicateBranchEdge = currentEdges.some(
+          (edge) =>
+            edge.source === nextConnection.source &&
+            edge.target === nextConnection.target &&
+            edge.sourceHandle === (nextConnection.sourceHandle ?? undefined) &&
+            edge.targetHandle === (nextConnection.targetHandle ?? undefined)
+        )
+
+        if (sourceHandleBusy || targetHandleBusy || duplicateBranchEdge) return null
+      }
+
+      return nextConnection
+    },
+    [prefs.parallelBranchPortMode]
+  )
 
   // Обёртка над onNodesChange: ловим конец перетаскивания и сохраняем позицию.
   const handleNodesChange = useCallback(
@@ -352,19 +485,22 @@ const FlowCanvasInner = ({
   const onConnect = useCallback(
     (connection: Connection) => {
       if (!connection.source || !connection.target) return
+      const resolvedConnection = resolveParallelConnection(connection)
+      if (!resolvedConnection?.source || !resolvedConnection?.target) return
+
       const newEdge: RuntimeEdge = {
-        id: `edge-${connection.source}-${connection.sourceHandle ?? 'out'}-${connection.target}-${connection.targetHandle ?? 'in'}`,
-        source: connection.source,
-        sourceHandle: connection.sourceHandle ?? undefined,
-        target: connection.target,
-        targetHandle: connection.targetHandle ?? undefined
+        id: `edge-${resolvedConnection.source}-${resolvedConnection.sourceHandle ?? 'out'}-${resolvedConnection.target}-${resolvedConnection.targetHandle ?? 'in'}`,
+        source: resolvedConnection.source,
+        sourceHandle: resolvedConnection.sourceHandle ?? undefined,
+        target: resolvedConnection.target,
+        targetHandle: resolvedConnection.targetHandle ?? undefined
       }
-      setEdges((prev) => addEdge(connection, prev))
+      setEdges((prev) => addEdge(resolvedConnection, prev))
       onEdgeAddRef.current(newEdge)
       // Устанавливаем флаг, чтобы следующий клик по холсту не создавал ноду.
       justConnectedRef.current = true
     },
-    [setEdges]
+    [resolveParallelConnection, setEdges]
   )
 
   // При удалении рёбер — сообщаем runtime.
@@ -437,11 +573,6 @@ const FlowCanvasInner = ({
     [screenToFlowPosition]
   )
 
-  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-    onSelectEdgeRef.current(null)
-    onSelectNodesRef.current([node.id])
-  }, [])
-
   const handleEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
     if ((edge as Edge & { selectable?: boolean }).selectable === false) return
     onSelectNodesRef.current([])
@@ -461,6 +592,10 @@ const FlowCanvasInner = ({
 
   const handleSelectionChange = useCallback((sel: { nodes?: Array<{ id: string }> }) => {
     const ids = (sel?.nodes ?? []).map((n) => String(n.id))
+
+    // Если событие пришло от нашей синхронизации selected-флагов,
+    // не отправляем его обратно в runtime state.
+    if (suppressSelectionEchoRef.current) return
 
     // Если мы сами пытаемся снять выделение — игнорируем события,
     // пока React Flow не пришлёт пустое выделение.
@@ -490,8 +625,78 @@ const FlowCanvasInner = ({
     onSelectNodesRef.current(ids)
   }, [])
 
+  // Управляем wheel zoom вручную, потому что у React Flow нет прямого prop для zoom speed.
+  // Важно: используем публичные viewport API, а не внутренние поля библиотеки.
+  const handleWheel = useCallback(
+    (event: WheelEvent) => {
+      const target = event.target as HTMLElement | null
+      const flowCanvas = flowCanvasRef.current
+      if (!flowCanvas) return
+      const canvasRect = flowCanvas.getBoundingClientRect()
+      const insideViewport =
+        event.clientX >= canvasRect.left &&
+        event.clientX <= canvasRect.right &&
+        event.clientY >= canvasRect.top &&
+        event.clientY <= canvasRect.bottom
+
+      if (!insideViewport) return
+
+      // Если курсор сейчас над интерактивным HTML-элементом внутри canvas,
+      // не ломаем его нативный scroll/number input/select.
+      const interactiveTarget = target?.closest('textarea, input, select, button, [contenteditable="true"]')
+      if (interactiveTarget) return
+
+      // Для тачпада и мыши всегда используем один и тот же zoom path.
+      // Важно: preventDefault здесь теперь законен, потому что listener non-passive.
+      event.preventDefault()
+      event.stopPropagation()
+
+      const currentViewport = getViewport()
+      const currentZoom = currentViewport.zoom
+      const zoomFactor = Math.exp(-event.deltaY * 0.001 * prefs.zoomSpeed)
+      const nextZoom = Math.max(0.1, Math.min(4, currentZoom * zoomFactor))
+
+      if (Math.abs(nextZoom - currentZoom) < 0.0001) return
+
+      const flowPoint = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY
+      })
+
+      const nextViewportX = event.clientX - canvasRect.left - flowPoint.x * nextZoom
+      const nextViewportY = event.clientY - canvasRect.top - flowPoint.y * nextZoom
+
+      void setViewport(
+        {
+          x: nextViewportX,
+          y: nextViewportY,
+          zoom: nextZoom
+        },
+        { duration: 0 }
+      )
+    },
+    [getViewport, prefs.zoomSpeed, screenToFlowPosition, setViewport]
+  )
+
+  // Навешиваем native wheel listener вручную.
+  // React synthetic wheel в этом месте мог стать passive, из-за чего preventDefault ломался.
+  useEffect(() => {
+    const element = flowCanvasRef.current
+    if (!element) return
+
+    const listener = (event: WheelEvent) => {
+      handleWheel(event)
+    }
+
+    element.addEventListener('wheel', listener, { capture: true, passive: false })
+    return () => {
+      element.removeEventListener('wheel', listener, { capture: true })
+    }
+  }, [handleWheel])
+
   return (
     <div
+      ref={flowCanvasRef}
       className="flowCanvas"
       // Запрещаем стандартное контекстное меню браузера на холсте.
       onContextMenu={(e) => e.preventDefault()}
@@ -514,8 +719,11 @@ const FlowCanvasInner = ({
         selectionOnDrag
         // Режим выделения: достаточно задеть кусочек ноды, не нужно полное покрытие.
         selectionMode={SelectionMode.Partial}
-        // ЛКМ по ноде — выбираем.
-        onNodeClick={handleNodeClick}
+        // Настройки зума: увеличенный диапазон.
+        minZoom={0.1}
+        maxZoom={4}
+        // Отключаем встроенный wheel zoom, чтобы не было конфликта с нашим handler.
+        zoomOnScroll={false}
         // ПКМ по ноде — удаляем.
         onNodeContextMenu={handleNodeContextMenu}
         onEdgeClick={handleEdgeClick}
@@ -531,7 +739,15 @@ const FlowCanvasInner = ({
         onSelectionChange={handleSelectionChange}
       >
         <Background color="#262b2f" gap={18} size={1} />
-        <MiniMap zoomable pannable nodeColor="#7ea4ff" maskColor="rgba(7, 10, 12, 0.6)" />
+        {prefs.showMiniMap ? (
+          <MiniMap
+            zoomable
+            pannable
+            nodeColor="#7ea4ff"
+            maskColor="rgba(7, 10, 12, 0.6)"
+            style={{ cursor: 'grab', pointerEvents: 'auto' }}
+          />
+        ) : null}
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>

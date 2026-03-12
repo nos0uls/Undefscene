@@ -170,6 +170,41 @@ export interface RendererApi {
     readStatus: () => Promise<unknown>
     writeControl: (control: unknown) => Promise<unknown>
   }
+
+  // Персистентные настройки редактора.
+  preferences: {
+    read: () => Promise<EditorPreferences | null>
+    write: (next: EditorPreferences) => Promise<void>
+  }
+}
+
+// Тип настроек редактора (дублируем из usePreferences.ts для preload).
+export type AccentColorId =
+  | 'purple'
+  | 'cyan'
+  | 'blue'
+  | 'green'
+  | 'orange'
+  | 'red'
+  | 'pink'
+  | 'yellow'
+  | 'custom'
+
+export interface EditorPreferences {
+  schemaVersion: 1
+  accentColor: AccentColorId
+  customAccentHex: string
+  gridSize: number
+  showMiniMap: boolean
+  zoomSpeed: number
+  showDockDropPreview: boolean
+  canvasBackgroundPath: string | null
+  canvasBackgroundMode: 'stretch' | 'cover'
+  autoSaveEnabled: boolean
+  autoSaveIntervalMinutes: number
+  showNodeNameOnCanvas: boolean
+  parallelBranchPortMode: 'shared' | 'separate'
+  language: 'en' | 'ru'
 }
 
 declare global {

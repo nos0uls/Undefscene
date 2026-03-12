@@ -37,6 +37,7 @@ code {
 /*
   Основной grid каркас.
   Размеры доков идут через CSS-переменные (их задаёт React).
+  Боковые доки занимают полную высоту (от top bar до низа).
 */
 .editorRoot {
   --leftDockWidth: 240px;
@@ -49,7 +50,7 @@ code {
   grid-template-areas:
     'top top top'
     'left center right'
-    'bottom bottom bottom';
+    'left bottom right';
   height: 100vh;
   width: 100vw;
   background: var(--color-background);
@@ -64,17 +65,23 @@ code {
 .editorLeftDock {
   grid-area: left;
   border-right: 1px solid var(--ev-c-gray-3);
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
 }
 
 .editorRightDock {
   grid-area: right;
   border-left: 1px solid var(--ev-c-gray-3);
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
 }
 
 .editorCenter {
@@ -87,18 +94,168 @@ code {
 .editorBottomDock {
   grid-area: bottom;
   border-top: 1px solid var(--ev-c-gray-3);
-  overflow: hidden;
+  overflow: visible;
   display: flex;
+  flex-direction: column;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Невидимый расширенный hitbox для collapsed dock.
+   Он нужен, чтобы drop работал по старой широкой зоне, даже если layout уже схлопнулся до 12px. */
+.dockDropHitbox {
+  position: absolute;
+  pointer-events: auto;
+  background: transparent;
+  z-index: 1;
+  display: none;
+}
+
+.editorLeftDock.isDockVisuallyCollapsed .dockDropHitboxLeft {
+  display: block;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 220px;
+}
+
+.editorRightDock.isDockVisuallyCollapsed .dockDropHitboxRight {
+  display: block;
+  top: 0;
+  left: -208px;
+  bottom: 0;
+  width: 220px;
+}
+
+.editorBottomDock.isDockVisuallyCollapsed .dockDropHitboxBottom {
+  display: block;
+  left: 0;
+  right: 0;
+  top: -140px;
+  height: 152px;
+}
+
+/* Пунктирный preview показывает именно целевую позицию вставки панели. */
+.dockDropPreview {
+  position: absolute;
+  pointer-events: none;
+  border: 2px dashed rgba(120, 170, 255, 0.82);
+  background: rgba(120, 170, 255, 0.08);
+  border-radius: 8px;
+  z-index: 9;
+  display: none;
+}
+
+/* Collapse bars для сворачивания доков. */
+.dockCollapseBar {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-background-soft);
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.dockCollapseBar:hover {
+  background: var(--ev-c-gray-2);
+}
+
+.dockCollapseBar span {
+  font-size: 10px;
+  color: var(--ev-c-text-2);
+  line-height: 1;
+}
+
+/* Контейнер реального содержимого дока.
+   Он остаётся в layout, а visual collapse только скрывает его визуально. */
+.dockCollapseContent {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+.editorLeftDock .dockCollapseContent,
+.editorRightDock .dockCollapseContent {
   flex-direction: column;
 }
 
-/* Подсветка док-зоны, когда мы тащим панель и "целимся" сюда. */
-.editorLeftDock.isDockDropTarget,
-.editorRightDock.isDockDropTarget,
-.editorBottomDock.isDockDropTarget {
-  outline: 2px solid rgba(120, 170, 255, 0.65);
-  outline-offset: -2px;
-  background: rgba(120, 170, 255, 0.06);
+.editorBottomDock .dockCollapseContent {
+  flex-direction: column;
+}
+
+/* Когда док визуально свёрнут, содержимое скрываем,
+   но сам hitbox дока сохраняем для drag-and-drop. */
+.editorLeftDock.isDockVisuallyCollapsed,
+.editorRightDock.isDockVisuallyCollapsed,
+.editorBottomDock.isDockVisuallyCollapsed {
+  background: transparent;
+}
+
+.editorLeftDock.isDockVisuallyCollapsed {
+  border-right-color: transparent;
+}
+
+.editorRightDock.isDockVisuallyCollapsed {
+  border-left-color: transparent;
+}
+
+.editorBottomDock.isDockVisuallyCollapsed {
+  border-top-color: transparent;
+}
+
+.isDockVisuallyCollapsed .dockCollapseContent {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Левый док: collapse bar справа от дока. */
+.dockCollapseBarLeft {
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  border-left: 1px solid var(--ev-c-gray-3);
+}
+
+/* Правый док: collapse bar слева от дока. */
+.dockCollapseBarRight {
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  border-right: 1px solid var(--ev-c-gray-3);
+}
+
+/* Нижний док: collapse bar сверху по всей ширине.
+   Так его видно всегда, даже если внутри одна панель. */
+.dockCollapseBarBottom {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 12px;
+  border-bottom: 1px solid var(--ev-c-gray-3);
+}
+
+/* Оставляем место под полоски, чтобы они были на своей стороне,
+   а не перекрывали содержимое панели. */
+.editorLeftDock .dockCollapseContent {
+  margin-right: 12px;
+}
+
+.editorRightDock .dockCollapseContent {
+  margin-left: 12px;
+}
+
+.editorBottomDock .dockCollapseContent {
+  margin-top: 12px;
 }
 
 /* Заголовок слота (Dock 1 / Dock 2 / Dock 3). */
@@ -142,6 +299,14 @@ code {
   flex-direction: column;
   min-height: 0;
   flex: 1;
+  min-width: 0;
+}
+
+/* Панели внутри split-контейнера должны корректно растягиваться,
+   чтобы не оставлять белые/пустые зоны при одной панели. */
+.dockSlotSplit > .dockPanel {
+  min-height: 0;
+  min-width: 0;
 }
 
 .internalSplitter {
@@ -189,9 +354,19 @@ code {
 /* Базовая панель (Actions/Text/Inspector/Logs). */
 .dockPanel {
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--color-background);
+  overflow: hidden;
+}
+
+/* У свёрнутой панели оставляем только header,
+   чтобы в слоте не торчал пустой фон под ним. */
+.dockPanel.isCollapsed {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .dockPanelHeader {
@@ -203,6 +378,14 @@ code {
   background: var(--color-background-soft);
   border-bottom: 1px solid var(--ev-c-gray-3);
   cursor: grab;
+}
+
+.dockPanel.isCollapsed .dockPanelHeader {
+  border-bottom-color: transparent;
+}
+
+.dockPanel.isCollapsed .dockPanelBody {
+  display: none;
 }
 
 /* Когда панель используется как источник перетаскивания. */
@@ -382,6 +565,7 @@ code {
   flex: 1;
   overflow: auto;
   padding: 8px;
+  background: transparent;
 }
 
 .centerCanvasHeader {
@@ -397,6 +581,7 @@ code {
 
 .centerCanvasBody {
   min-height: 0;
+  min-width: 0;
   flex: 1;
   overflow: hidden;
   padding: 12px;
@@ -406,7 +591,16 @@ code {
 .flowCanvas {
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   background: var(--canvas-bg, #0a0e14);
+}
+
+.flowCanvas .react-flow {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 
 .placeholderText {
@@ -420,6 +614,21 @@ code {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-height: 0;
+}
+
+.runtimeSectionActions {
+  height: 100%;
+}
+
+.runtimeSectionActions .runtimeListScrollable {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
+.runtimeSectionActions .runtimeHint {
+  margin-top: auto;
 }
 
 .runtimeSectionTitle {
@@ -824,9 +1033,14 @@ code {
 }
 
 /* Header strip */
+.customNodeAccentBar {
+  height: 6px;
+  width: 100%;
+}
+
 .customNodeHeader {
-  padding: 8px 10px 4px;
   display: flex;
+  justify-content: space-between;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
@@ -887,6 +1101,31 @@ code {
   border-color: var(--ev-c-gray-1);
 }
 
+.customNodeButton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.customNodeButton:disabled:hover {
+  background: transparent;
+  border-color: var(--ev-c-gray-2);
+}
+
+.customNodeButtonRow {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.customNodeButtonRow .customNodeButton {
+  margin-top: 0;
+  flex: 1;
+}
+
+.customNodeButtonDanger {
+  color: var(--status-error);
+}
+
 /* Node handles (ports) */
 .customHandle {
   width: 10px;
@@ -899,6 +1138,7 @@ code {
     transform 0.15s,
     border-color 0.15s;
   position: relative;
+  transform-origin: center;
 }
 
 /* Invisible hit area around handle */
@@ -916,7 +1156,24 @@ code {
 .customHandle:hover {
   background: var(--ev-c-accent);
   border-color: var(--ev-c-black-soft);
-  transform: scale(1.2);
+}
+
+/* На hover сохраняем исходный translate от React Flow,
+   чтобы handle не "уезжал" в сторону при увеличении. */
+.customHandle.react-flow__handle-left:hover {
+  transform: translate(-50%, -50%) scale(1.35);
+}
+
+.customHandle.react-flow__handle-right:hover {
+  transform: translate(50%, -50%) scale(1.35);
+}
+
+.customHandle.react-flow__handle-top:hover {
+  transform: translate(-50%, -50%) scale(1.35);
+}
+
+.customHandle.react-flow__handle-bottom:hover {
+  transform: translate(-50%, 50%) scale(1.35);
 }
 
 /* True handle (branch) */
@@ -927,6 +1184,10 @@ code {
 /* False handle (branch) */
 .customHandleFalse {
   background: var(--ev-c-error);
+}
+
+.customHandleShared {
+  background: var(--ev-c-accent);
 }
 
 /* ========== /Кастомные ноды ========== */
@@ -1118,6 +1379,12 @@ code {
 
 .prefsInput:disabled {
   opacity: 0.5;
+}
+
+.prefsInput option,
+.runtimeInput option {
+  background: var(--color-background-mute);
+  color: var(--ev-c-text-1);
 }
 
 .prefsHint {

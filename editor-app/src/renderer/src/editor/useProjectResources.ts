@@ -31,11 +31,13 @@ export const useProjectResources = (): {
   resources: ProjectResources | null
   engineSettings: EngineSettings | null
   yarnFiles: YarnFileInfo[]
+  isLoading: boolean
   openProject: () => Promise<void>
 } => {
   const [resources, setResources] = useState<ProjectResources | null>(null)
   const [engineSettings, setEngineSettings] = useState<EngineSettings | null>(null)
   const [yarnFiles, setYarnFiles] = useState<YarnFileInfo[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
   // Открываем .yyp через IPC и сохраняем ресурсы в состояние.
   // Также пытаемся прочитать cutscene_engine_settings.json и .yarn файлы из datafiles/.
@@ -46,6 +48,7 @@ export const useProjectResources = (): {
       return
     }
 
+    setIsLoading(true)
     try {
       const result = await window.api.project.open()
       if (result && typeof result === 'object') {
@@ -71,8 +74,10 @@ export const useProjectResources = (): {
       }
     } catch (err) {
       console.warn('Failed to open .yyp project:', err)
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  return { resources, engineSettings, yarnFiles, openProject }
+  return { resources, engineSettings, yarnFiles, isLoading, openProject }
 }

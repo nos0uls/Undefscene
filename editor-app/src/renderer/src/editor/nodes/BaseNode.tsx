@@ -1,6 +1,7 @@
 import { Handle, Position } from '@xyflow/react'
 import type { ReactNode } from 'react'
 import { NODE_CATEGORY, NODE_COLORS, NODE_LABELS } from './nodeConstants'
+import { usePreferencesContext } from '../PreferencesContext'
 
 // Пропсы для базовой ноды: тип, метка, дочерние элементы, порты.
 type BaseNodeProps = {
@@ -41,6 +42,10 @@ export function BaseNode({
   const color = NODE_COLORS[category] ?? '#888'
   const title = NODE_LABELS[nodeType] ?? nodeType
 
+  // Читаем настройку: показывать ли имя ноды на холсте.
+  const prefs = usePreferencesContext()
+  const showLabel = prefs.showNodeNameOnCanvas && label
+
   return (
     <div
       className={['customNode', selected ? 'isSelected' : ''].filter(Boolean).join(' ')}
@@ -52,10 +57,9 @@ export function BaseNode({
     >
       {/* Цветная полоска сверху */}
       <div
+        className="customNodeAccentBar"
         style={{
-          height: 4,
-          background: color,
-          width: '100%'
+          background: color
         }}
       />
       {/* Заголовок ноды */}
@@ -63,7 +67,7 @@ export function BaseNode({
         <span className="customNodeTitle" style={{ color: color }}>
           {title}
         </span>
-        {label ? <span className="customNodeLabel">{label}</span> : null}
+        {showLabel ? <span className="customNodeLabel">{label}</span> : null}
       </div>
 
       {/* Тело (детали) */}

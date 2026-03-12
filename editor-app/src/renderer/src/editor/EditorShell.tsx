@@ -11,10 +11,12 @@ import { useLayoutState } from './useLayoutState'
 import { useProjectResources } from './useProjectResources'
 import { useRuntimeState } from './useRuntimeState'
 import { compileGraph, stripExport } from './compileGraph'
-import { validateGraph, type ValidationResult } from './validateGraph'
+import { validateGraph, type ValidationResult, type ValidationContext } from './validateGraph'
 import { PreferencesModal } from './PreferencesModal'
 import { SearchableSelect } from './SearchableSelect'
 import { UpdateNotification } from './UpdateNotification'
+import { PreferencesProvider } from './PreferencesContext'
+import { getAccentColorHex, usePreferences } from './usePreferences'
 
 type DragState = {
   // Какая панель сейчас перетаскивается.
@@ -32,8 +34,22 @@ type DragState = {
   grabOffset: Vec2
 }
 
+// Вспомогательная функция: меняет яркость HEX-цвета для hover/pressed акцента.
+// Держим её рядом с EditorShell, потому что здесь теперь централизовано применяется accent color.
+function adjustBrightness(hex: string, percent: number): string {
+  const num = parseInt(hex.replace('#', ''), 16)
+  const r = Math.min(255, Math.max(0, ((num >> 16) & 0xff) + Math.round(2.55 * percent)))
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + Math.round(2.55 * percent)))
+  const b = Math.min(255, Math.max(0, (num & 0xff) + Math.round(2.55 * percent)))
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
+}
+
 // Высота шапки панели в свернутом состоянии.
 const COLLAPSED_HEADER_HEIGHT = 28
+
+// Размер видимой полоски у полностью свёрнутого дока.
+// Сам layout схлопывается до этой величины, а расширенный hitbox живёт отдельно.
+const COLLAPSED_DOCK_SIZE = 12
 
 type ResizeKind =
   | 'dock-left'
@@ -93,7 +109,7 @@ export function EditorShell(): React.JSX.Element {
   const { runtime, setRuntime, undo, redo, canUndo, canRedo } = useRuntimeState()
 
   // Ресурсы GameMaker проекта (для autocomplete и валидации) + настройки движка.
-  const { resources, engineSettings, yarnFiles, openProject } = useProjectResources()
+  const { resources, engineSettings, yarnFiles, isLoading: isProjectLoading, openProject } = useProjectResources()
 
   // Путь к текущему файлу сцены (null = ещё не сохранялась / новая).
   const [sceneFilePath, setSceneFilePath] = useState<string | null>(null)
@@ -101,14 +117,58 @@ export function EditorShell(): React.JSX.Element {
   // Модалка настроек (Preferences).
   const [preferencesOpen, setPreferencesOpen] = useState(false)
 
-  // Реактивная валидация графа — пересчитывается при каждом изменении runtime.
-  const validation: ValidationResult = useMemo(() => validateGraph(runtime), [runtime])
+  // Персистентные настройки редактора (для PreferencesProvider).
+  const { preferences, updatePreferences, loaded: preferencesLoaded } = usePreferences()
 
-  // Активная вкладка в Logs панели: Errors / Warnings / Tips.
-  const [logsTab, setLogsTab] = useState<'errors' | 'warnings' | 'tips'>('errors')
+  // Применяем accent color глобально на весь editor.
+  // Раньше это жило внутри modal, из-за чего canvas и остальной UI могли читать старый цвет.
+  useEffect(() => {
+    if (!preferencesLoaded) return
+
+    const hex = getAccentColorHex(preferences)
+    document.documentElement.style.setProperty('--accent-default', hex)
+    document.documentElement.style.setProperty('--accent-hover', adjustBrightness(hex, 15))
+    document.documentElement.style.setProperty('--accent-pressed', adjustBrightness(hex, -10))
+    document.documentElement.style.setProperty('--accent-muted', `${hex}26`)
+    document.documentElement.style.setProperty('--ev-c-accent', hex)
+    document.documentElement.style.setProperty('--ev-c-accent-soft', `${hex}26`)
+    document.documentElement.style.setProperty('--ev-c-accent-hover', adjustBrightness(hex, 15))
+  }, [preferences, preferencesLoaded])
+
+  // Контекст ресурсов для расширенной валидации.
+  const validationContext: ValidationContext | undefined = useMemo(() => {
+    if (!resources && !engineSettings) return undefined
+    return {
+      objects: resources?.objects,
+      sprites: resources?.sprites,
+      yarnFiles: yarnFiles ? new Map(yarnFiles.map((y) => [y.file, y.nodes])) : undefined,
+      runFunctions: engineSettings?.runFunctions,
+      branchConditions: engineSettings?.branchConditions
+    }
+  }, [resources, engineSettings, yarnFiles])
+
+  // Реактивная валидация графа — пересчитывается при каждом изменении runtime.
+  const validation: ValidationResult = useMemo(
+    () => validateGraph(runtime, validationContext),
+    [runtime, validationContext]
+  )
+
+  // Toggle-фильтры для Logs панели: какие категории показывать.
+  const [logsFilters, setLogsFilters] = useState({
+    errors: true,
+    warnings: true,
+    tips: false
+  })
 
   // Активная вкладка в bottom dock (id панели). Если null — показываем первую.
   const [activeBottomTabId, setActiveBottomTabId] = useState<string | null>(null)
+
+  // Свёрнутые доки (collapse bars).
+  const [collapsedDocks, setCollapsedDocks] = useState({
+    left: false,
+    right: false,
+    bottom: false
+  })
 
   // Выбранная нода (нужна, чтобы синхронизировать поле имени и показывать модалки).
   const selectedNodeForName =
@@ -137,6 +197,52 @@ export function EditorShell(): React.JSX.Element {
   useEffect(() => {
     setPendingNodeName(selectedNodeForName?.name ?? '')
   }, [selectedNodeForName?.id])
+
+  // Пропорциональное масштабирование доков при изменении размера окна.
+  // Сохраняем предыдущий размер окна, чтобы вычислить коэффициент масштабирования.
+  const prevWindowSizeRef = useRef({ width: window.innerWidth, height: window.innerHeight })
+
+  useEffect(() => {
+    const handleResize = () => {
+      const prevWidth = prevWindowSizeRef.current.width
+      const prevHeight = prevWindowSizeRef.current.height
+      const newWidth = window.innerWidth
+      const newHeight = window.innerHeight
+
+      // Вычисляем коэффициенты масштабирования.
+      const scaleX = newWidth / prevWidth
+      const scaleY = newHeight / prevHeight
+
+      // Масштабируем ширины боковых доков и высоту нижнего дока.
+      // Ограничиваем минимальные/максимальные значения.
+      const newLeftWidth = Math.max(120, Math.min(600, Math.round(layout.dockSizes.leftWidth * scaleX)))
+      const newRightWidth = Math.max(150, Math.min(700, Math.round(layout.dockSizes.rightWidth * scaleX)))
+      const newBottomHeight = Math.max(100, Math.min(500, Math.round(layout.dockSizes.bottomHeight * scaleY)))
+
+      // Обновляем только если изменения значительные (> 5px).
+      const leftChanged = Math.abs(newLeftWidth - layout.dockSizes.leftWidth) > 5
+      const rightChanged = Math.abs(newRightWidth - layout.dockSizes.rightWidth) > 5
+      const bottomChanged = Math.abs(newBottomHeight - layout.dockSizes.bottomHeight) > 5
+
+      if (leftChanged || rightChanged || bottomChanged) {
+        setLayout({
+          ...layout,
+          dockSizes: {
+            ...layout.dockSizes,
+            leftWidth: leftChanged ? newLeftWidth : layout.dockSizes.leftWidth,
+            rightWidth: rightChanged ? newRightWidth : layout.dockSizes.rightWidth,
+            bottomHeight: bottomChanged ? newBottomHeight : layout.dockSizes.bottomHeight
+          }
+        })
+      }
+
+      // Сохраняем новый размер окна.
+      prevWindowSizeRef.current = { width: newWidth, height: newHeight }
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [layout.dockSizes, setLayout])
 
   // Когда модалка открывается — ставим фокус на кнопку OK.
   // Так можно быстро подтвердить стандартный вариант.
@@ -198,11 +304,77 @@ export function EditorShell(): React.JSX.Element {
     [setRuntime]
   )
 
+  // Удаляем последнюю ветку у parallel.
+  // Важно: сами ноды внутри ветки не трогаем — убираем только slot ветки и связанные с ним рёбра.
+  const onParallelRemoveBranch = useCallback(
+    (parallelStartId: string) => {
+      setRuntime((prevRuntime) => {
+        const startNode = prevRuntime.nodes.find((n) => n.id === parallelStartId)
+        if (!startNode) return prevRuntime
+
+        const joinId =
+          typeof startNode.params?.joinId === 'string' ? (startNode.params?.joinId as string) : ''
+        const joinNode = prevRuntime.nodes.find((n) => n.id === joinId)
+        if (!joinNode) return prevRuntime
+
+        const branches = (
+          Array.isArray(startNode.params?.branches) ? startNode.params?.branches : ['b0']
+        ) as string[]
+
+        if (branches.length <= 1) return prevRuntime
+
+        const removedBranchId = branches[branches.length - 1]
+        const nextBranches = branches.slice(0, -1)
+        const removedSourceHandle = `out_${removedBranchId}`
+        const removedTargetHandle = `in_${removedBranchId}`
+
+        const nextNodes = prevRuntime.nodes.map((n) => {
+          if (n.id === startNode.id) {
+            return { ...n, params: { ...(n.params ?? {}), branches: nextBranches } }
+          }
+          if (n.id === joinNode.id) {
+            return { ...n, params: { ...(n.params ?? {}), branches: nextBranches } }
+          }
+          return n
+        })
+
+        const removedEdgeIds = new Set(
+          prevRuntime.edges
+            .filter(
+              (edge) =>
+                (edge.source === startNode.id && edge.sourceHandle === removedSourceHandle) ||
+                (edge.target === joinNode.id && edge.targetHandle === removedTargetHandle)
+            )
+            .map((edge) => edge.id)
+        )
+
+        const nextEdges = prevRuntime.edges.filter((edge) => !removedEdgeIds.has(edge.id))
+
+        return {
+          ...prevRuntime,
+          nodes: nextNodes,
+          edges: nextEdges,
+          selectedEdgeId:
+            prevRuntime.selectedEdgeId && removedEdgeIds.has(prevRuntime.selectedEdgeId)
+              ? null
+              : prevRuntime.selectedEdgeId
+        }
+      })
+    },
+    [setRuntime]
+  )
+
   // Ссылки на DOM, чтобы делать hit-test док-зон.
   const rootRef = useRef<HTMLDivElement | null>(null)
   const leftDockRef = useRef<HTMLElement | null>(null)
   const rightDockRef = useRef<HTMLElement | null>(null)
   const bottomDockRef = useRef<HTMLElement | null>(null)
+  const leftDockHitboxRef = useRef<HTMLDivElement | null>(null)
+  const rightDockHitboxRef = useRef<HTMLDivElement | null>(null)
+  const bottomDockHitboxRef = useRef<HTMLDivElement | null>(null)
+  const leftDockPreviewRef = useRef<HTMLDivElement | null>(null)
+  const rightDockPreviewRef = useRef<HTMLDivElement | null>(null)
+  const bottomDockPreviewRef = useRef<HTMLDivElement | null>(null)
 
   // Храним состояние перетаскивания отдельно от layout.
   // Так мы не пишем layout.json 60 раз в секунду.
@@ -218,37 +390,108 @@ export function EditorShell(): React.JSX.Element {
 
   // Последний hoverSlot, чтобы onPointerUp мог его прочитать.
   const hoverSlotRef = useRef<DockSlotId | null>(null)
+  const hoverInsertIndexRef = useRef<number | null>(null)
 
-  // Обновляем позицию призрака и подсветку доков напрямую через DOM.
+  // Возвращает DOM-элемент дока по slot id.
+  // Это упрощает обновление preview и hitbox без копипасты.
+  const getDockElement = (slot: DockSlotId): HTMLElement | null => {
+    if (slot === 'left') return leftDockRef.current
+    if (slot === 'right') return rightDockRef.current
+    return bottomDockRef.current
+  }
+
+  // Возвращает расширенный hitbox, который нужен только для collapsed-доков.
+  const getDockHitboxElement = (slot: DockSlotId): HTMLDivElement | null => {
+    if (slot === 'left') return leftDockHitboxRef.current
+    if (slot === 'right') return rightDockHitboxRef.current
+    return bottomDockHitboxRef.current
+  }
+
+  // Возвращает preview-элемент, который рисует точное место вставки панели.
+  const getDockPreviewElement = (slot: DockSlotId): HTMLDivElement | null => {
+    if (slot === 'left') return leftDockPreviewRef.current
+    if (slot === 'right') return rightDockPreviewRef.current
+    return bottomDockPreviewRef.current
+  }
+
+  // Определяет, свёрнут ли конкретный док.
+  // Это важно для выбора между видимым rect и расширенным hidden hitbox.
+  const isDockCollapsed = (slot: DockSlotId): boolean => {
+    if (slot === 'left') return collapsedDocks.left
+    if (slot === 'right') return collapsedDocks.right
+    return collapsedDocks.bottom
+  }
+
+  // Возвращает rect, по которому мы реально делаем hit-test.
+  // У collapsed-дока используем расширенный invisible hitbox, чтобы drag/drop не ломался.
+  const getDockHitTestRect = (slot: DockSlotId): DOMRect | null => {
+    const targetEl = isDockCollapsed(slot) ? getDockHitboxElement(slot) : getDockElement(slot)
+    return targetEl?.getBoundingClientRect() ?? null
+  }
+
+  // Обновляем позицию призрака и точный preview вставки напрямую через DOM.
   // Это полностью обходит React reconciliation — никаких setState.
-  const updateDragPreviewDOM = (ghostPos: Vec2 | null, hoverSlot: DockSlotId | null) => {
+  const updateDragPreviewDOM = (
+    ghostPos: Vec2 | null,
+    hoverSlot: DockSlotId | null,
+    hoverInsertIndex: number | null
+  ) => {
     // Двигаем призрак.
     const ghost = ghostRef.current
     if (ghost) {
       if (ghostPos) {
         ghost.style.left = `${ghostPos.x}px`
         ghost.style.top = `${ghostPos.y}px`
-        ghost.style.display = 'block'
+        ghost.style.display = preferences.showDockDropPreview ? 'block' : 'none'
       } else {
         ghost.style.display = 'none'
       }
     }
 
-    // Обновляем подсветку док-зон через classList.
-    const prev = hoverSlotRef.current
-    if (prev !== hoverSlot) {
-      // Убираем подсветку с предыдущего слота.
-      if (prev === 'left') leftDockRef.current?.classList.remove('isDockDropTarget')
-      if (prev === 'right') rightDockRef.current?.classList.remove('isDockDropTarget')
-      if (prev === 'bottom') bottomDockRef.current?.classList.remove('isDockDropTarget')
-
-      // Добавляем подсветку на новый слот.
-      if (hoverSlot === 'left') leftDockRef.current?.classList.add('isDockDropTarget')
-      if (hoverSlot === 'right') rightDockRef.current?.classList.add('isDockDropTarget')
-      if (hoverSlot === 'bottom') bottomDockRef.current?.classList.add('isDockDropTarget')
-
+    // Прячем все preview, если пользователь отключил их в Preferences.
+    if (!preferences.showDockDropPreview) {
+      for (const slot of ['left', 'right', 'bottom'] as DockSlotId[]) {
+        const previewEl = getDockPreviewElement(slot)
+        if (previewEl) previewEl.style.display = 'none'
+      }
       hoverSlotRef.current = hoverSlot
+      hoverInsertIndexRef.current = hoverInsertIndex
+      return
     }
+
+    // Сначала скрываем старое preview. Затем покажем только актуальное.
+    for (const slot of ['left', 'right', 'bottom'] as DockSlotId[]) {
+      const previewEl = getDockPreviewElement(slot)
+      if (previewEl) previewEl.style.display = 'none'
+    }
+
+    if (hoverSlot && hoverInsertIndex !== null) {
+      const previewEl = getDockPreviewElement(hoverSlot)
+      const capacity = getSlotCapacity(hoverSlot)
+      const currentDocked = layoutRef.current.docked[hoverSlot]
+
+      if (previewEl) {
+        previewEl.style.display = 'block'
+        previewEl.style.left = '4px'
+        previewEl.style.right = '4px'
+
+        // Для bottom dock preview всегда занимает почти весь слот,
+        // потому что там всего одна позиция.
+        if (capacity === 1) {
+          previewEl.style.top = '4px'
+          previewEl.style.height = 'calc(100% - 8px)'
+        } else {
+          const shouldSplit = currentDocked.length >= 1
+          const previewTop = shouldSplit && hoverInsertIndex > 0 ? '50%' : '4px'
+          const previewHeight = shouldSplit ? 'calc(50% - 6px)' : 'calc(100% - 8px)'
+          previewEl.style.top = previewTop
+          previewEl.style.height = previewHeight
+        }
+      }
+    }
+
+    hoverSlotRef.current = hoverSlot
+    hoverInsertIndexRef.current = hoverInsertIndex
   }
 
   // Храним requestAnimationFrame id для плавного drag.
@@ -257,16 +500,26 @@ export function EditorShell(): React.JSX.Element {
   // Последнее значение превью, которое мы хотим отрендерить.
   const pendingGhostPosRef = useRef<Vec2 | null>(null)
   const pendingHoverSlotRef = useRef<DockSlotId | null>(null)
+  const pendingHoverInsertIndexRef = useRef<number | null>(null)
 
   // Планируем обновление превью в requestAnimationFrame.
   // Это снижает количество DOM-записей до 1 раза за кадр.
-  const scheduleDragPreview = (ghostPos: Vec2 | null, hoverSlot: DockSlotId | null) => {
+  const scheduleDragPreview = (
+    ghostPos: Vec2 | null,
+    hoverSlot: DockSlotId | null,
+    hoverInsertIndex: number | null
+  ) => {
     pendingGhostPosRef.current = ghostPos
     pendingHoverSlotRef.current = hoverSlot
+    pendingHoverInsertIndexRef.current = hoverInsertIndex
     if (dragRafRef.current !== null) return
     dragRafRef.current = window.requestAnimationFrame(() => {
       dragRafRef.current = null
-      updateDragPreviewDOM(pendingGhostPosRef.current, pendingHoverSlotRef.current)
+      updateDragPreviewDOM(
+        pendingGhostPosRef.current,
+        pendingHoverSlotRef.current,
+        pendingHoverInsertIndexRef.current
+      )
     })
   }
 
@@ -775,8 +1028,8 @@ export function EditorShell(): React.JSX.Element {
   }
 
   // Сколько панелей может жить в одном слоте.
-  // Слева/справа — 2, внизу — до 3 (переключаются вкладками).
-  const getSlotCapacity = (slot: DockSlotId): number => (slot === 'bottom' ? 3 : 2)
+  // Слева/справа — 2, внизу — 1 (чтобы не перегружать UI).
+  const getSlotCapacity = (slot: DockSlotId): number => (slot === 'bottom' ? 1 : 2)
 
   // Если слот переполнен, то "лишние" панели мы скрываем.
   // Так они пропадают и с экрана, и из меню Panels (чекбоксы снимаются).
@@ -1145,7 +1398,7 @@ export function EditorShell(): React.JSX.Element {
       ]
 
       return (
-        <div className="runtimeSection">
+        <div className="runtimeSection runtimeSectionActions">
           <div className="runtimeSectionTitle">Actions</div>
           <div className="runtimeRow">
             <button className="runtimeButton" type="button" onClick={undo} disabled={!canUndo}>
@@ -1234,12 +1487,15 @@ export function EditorShell(): React.JSX.Element {
         'dialogue',
         'camera_track',
         'camera_pan',
+        'camera_shake',
         'parallel_start',
         'branch',
         'run_function',
         'set_position',
         'set_depth',
-        'set_facing'
+        'set_facing',
+        'auto_facing',
+        'auto_walk'
       ]
 
       // Считаем входящие/исходящие связи для выбранного узла.
@@ -1907,6 +2163,97 @@ export function EditorShell(): React.JSX.Element {
                   </label>
                 </>
               )}
+
+              {/* --- camera_shake: seconds, magnitude --- */}
+              {selectedNode.type === 'camera_shake' && (
+                <>
+                  <label className="runtimeField">
+                    <span>Duration (seconds)</span>
+                    <input
+                      className="runtimeInput"
+                      type="number"
+                      step="0.1"
+                      placeholder="1"
+                      value={String((selectedNode.params?.seconds as number) ?? '')}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))
+                      }
+                    />
+                  </label>
+                  <label className="runtimeField">
+                    <span>Magnitude (px)</span>
+                    <input
+                      className="runtimeInput"
+                      type="number"
+                      placeholder="4"
+                      value={String((selectedNode.params?.magnitude as number) ?? '')}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'magnitude', Number(event.target.value))
+                      }
+                    />
+                  </label>
+                </>
+              )}
+
+              {/* --- auto_facing: target, enabled --- */}
+              {selectedNode.type === 'auto_facing' && (
+                <>
+                  <label className="runtimeField">
+                    <span>Target</span>
+                    <input
+                      className="runtimeInput"
+                      placeholder="actor key / player"
+                      value={String((selectedNode.params?.target as string) ?? '')}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'target', event.target.value)
+                      }
+                    />
+                  </label>
+                  <label className="runtimeField">
+                    <span>Enabled</span>
+                    <select
+                      className="runtimeInput"
+                      value={String(selectedNode.params?.enabled ?? 'true')}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'enabled', event.target.value === 'true')
+                      }
+                    >
+                      <option value="true">true</option>
+                      <option value="false">false</option>
+                    </select>
+                  </label>
+                </>
+              )}
+
+              {/* --- auto_walk: target, enabled --- */}
+              {selectedNode.type === 'auto_walk' && (
+                <>
+                  <label className="runtimeField">
+                    <span>Target</span>
+                    <input
+                      className="runtimeInput"
+                      placeholder="actor key / player"
+                      value={String((selectedNode.params?.target as string) ?? '')}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'target', event.target.value)
+                      }
+                    />
+                  </label>
+                  <label className="runtimeField">
+                    <span>Enabled</span>
+                    <select
+                      className="runtimeInput"
+                      value={String(selectedNode.params?.enabled ?? 'true')}
+                      onChange={(event) =>
+                        updateNodeParam(selectedNode.id, 'enabled', event.target.value === 'true')
+                      }
+                    >
+                      <option value="true">true</option>
+                      <option value="false">false</option>
+                    </select>
+                  </label>
+                </>
+              )}
               {selectedNode.position && (
                 <div className="runtimeHint" style={{ opacity: 0.6 }}>
                   Position: {Math.round(selectedNode.position.x)},{' '}
@@ -2156,9 +2503,13 @@ export function EditorShell(): React.JSX.Element {
       const warnEntries = validation.entries.filter((e) => e.severity === 'warn')
       const tipEntries = validation.entries.filter((e) => e.severity === 'tip')
 
-      // Какие записи показываем в текущей вкладке.
-      const visibleEntries =
-        logsTab === 'errors' ? errorEntries : logsTab === 'warnings' ? warnEntries : tipEntries
+      // Фильтруем записи по включённым категориям.
+      const visibleEntries = validation.entries.filter((e) => {
+        if (e.severity === 'error') return logsFilters.errors
+        if (e.severity === 'warn') return logsFilters.warnings
+        if (e.severity === 'tip') return logsFilters.tips
+        return false
+      })
 
       // Цвета и иконки для каждого типа.
       const severityStyle: Record<string, { color: string; bg: string; icon: string }> = {
@@ -2167,63 +2518,58 @@ export function EditorShell(): React.JSX.Element {
         tip: { color: '#58a6ff', bg: 'rgba(88,166,255,0.06)', icon: '●' }
       }
 
+      // Конфигурация toggle-кнопок.
+      const toggleButtons = [
+        { key: 'errors' as const, label: 'Errors', count: errorEntries.length, color: '#e05050' },
+        { key: 'warnings' as const, label: 'Warnings', count: warnEntries.length, color: '#d4a017' },
+        { key: 'tips' as const, label: 'Tips', count: tipEntries.length, color: '#58a6ff' }
+      ]
+
       return (
         <div className="runtimeSection">
-          {/* --- Вкладки: Errors / Warnings / Tips --- */}
+          {/* --- Toggle-фильтры: Errors / Warnings / Tips --- */}
           <div
             style={{
               display: 'flex',
-              gap: 0,
+              gap: 4,
               marginBottom: 6,
-              borderBottom: '1px solid var(--ev-c-gray-3)'
+              flexWrap: 'wrap'
             }}
           >
-            {[
-              {
-                key: 'errors' as const,
-                label: 'Errors',
-                count: errorEntries.length,
-                color: '#e05050'
-              },
-              {
-                key: 'warnings' as const,
-                label: 'Warnings',
-                count: warnEntries.length,
-                color: '#d4a017'
-              },
-              { key: 'tips' as const, label: 'Tips', count: tipEntries.length, color: '#58a6ff' }
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setLogsTab(tab.key)}
-                style={{
-                  flex: 1,
-                  padding: '6px 8px',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: logsTab === tab.key ? tab.color : 'var(--ev-c-text-2)',
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom:
-                    logsTab === tab.key ? `2px solid ${tab.color}` : '2px solid transparent',
-                  cursor: 'pointer',
-                  transition: 'color 0.12s, border-color 0.12s'
-                }}
-              >
-                {tab.label} {tab.count > 0 ? `(${tab.count})` : ''}
-              </button>
-            ))}
+            {toggleButtons.map((btn) => {
+              const isActive = logsFilters[btn.key]
+              return (
+                <button
+                  key={btn.key}
+                  type="button"
+                  onClick={() =>
+                    setLogsFilters((prev) => ({ ...prev, [btn.key]: !prev[btn.key] }))
+                  }
+                  style={{
+                    padding: '4px 8px',
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: isActive ? '#fff' : btn.color,
+                    background: isActive ? btn.color : 'transparent',
+                    border: `1px solid ${btn.color}`,
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    opacity: isActive ? 1 : 0.7,
+                    transition: 'all 0.12s'
+                  }}
+                >
+                  {btn.label} ({btn.count})
+                </button>
+              )
+            })}
           </div>
 
-          {/* --- Записи текущей вкладки --- */}
+          {/* --- Записи по включённым фильтрам --- */}
           {visibleEntries.length === 0 ? (
             <div className="runtimeHint" style={{ color: '#6c6' }}>
-              {logsTab === 'errors'
-                ? 'No errors.'
-                : logsTab === 'warnings'
-                  ? 'No warnings.'
-                  : 'No tips.'}
+              {!logsFilters.errors && !logsFilters.warnings && !logsFilters.tips
+                ? 'Enable filters to see entries.'
+                : 'No matching entries.'}
             </div>
           ) : (
             <div style={{ maxHeight: 260, overflowY: 'auto' }}>
@@ -2283,9 +2629,9 @@ export function EditorShell(): React.JSX.Element {
 
   // Определяем, над какой док-зоной сейчас курсор.
   const getHoverSlotAtPoint = (clientX: number, clientY: number): DockSlotId | null => {
-    const leftRect = leftDockRef.current?.getBoundingClientRect() ?? null
-    const rightRect = rightDockRef.current?.getBoundingClientRect() ?? null
-    const bottomRect = bottomDockRef.current?.getBoundingClientRect() ?? null
+    const leftRect = getDockHitTestRect('left')
+    const rightRect = getDockHitTestRect('right')
+    const bottomRect = getDockHitTestRect('bottom')
 
     const isInside = (r: DOMRect | null): boolean => {
       if (!r) return false
@@ -2312,13 +2658,7 @@ export function EditorShell(): React.JSX.Element {
   // Примерный индекс вставки панели в слот (вверх/вниз).
   // Пока мы делаем простую логику: в верхнюю половину — index 0, в нижнюю — в конец.
   const getInsertIndexForSlot = (slot: DockSlotId, clientY: number): number => {
-    const el =
-      slot === 'left'
-        ? leftDockRef.current
-        : slot === 'right'
-          ? rightDockRef.current
-          : bottomDockRef.current
-    const rect = el?.getBoundingClientRect() ?? null
+    const rect = getDockHitTestRect(slot)
     const currentDocked = layoutRef.current.docked[slot]
     const capacity = getSlotCapacity(slot)
 
@@ -2367,6 +2707,7 @@ export function EditorShell(): React.JSX.Element {
 
     const ghostPosition = getFloatingPositionAtPoint(event.clientX, event.clientY, grabOffset)
     const hoverSlot = getHoverSlotAtPoint(event.clientX, event.clientY)
+    const hoverInsertIndex = hoverSlot ? getInsertIndexForSlot(hoverSlot, event.clientY) : null
 
     // Если мы тащим floating панель, поднимаем её наверх по zIndex.
     // Так она не окажется под другими окнами.
@@ -2397,7 +2738,7 @@ export function EditorShell(): React.JSX.Element {
     })
 
     // Сразу обновляем превью, чтобы призрак появился без задержек.
-    scheduleDragPreview(ghostPosition, hoverSlot)
+    scheduleDragPreview(ghostPosition, hoverSlot, hoverInsertIndex)
   }
 
   // Пока пользователь тащит панель, мы обновляем "призрак" и подсветку дока.
@@ -2413,9 +2754,10 @@ export function EditorShell(): React.JSX.Element {
         drag.grabOffset
       )
       const hoverSlot = getHoverSlotAtPoint(event.clientX, event.clientY)
+      const hoverInsertIndex = hoverSlot ? getInsertIndexForSlot(hoverSlot, event.clientY) : null
 
       // Обновляем только превью, чтобы не трясти всё дерево.
-      scheduleDragPreview(ghostPosition, hoverSlot)
+      scheduleDragPreview(ghostPosition, hoverSlot, hoverInsertIndex)
     }
 
     const onPointerUp = (event: PointerEvent) => {
@@ -2425,7 +2767,7 @@ export function EditorShell(): React.JSX.Element {
       const currentPanel = currentLayout.panels[drag.panelId]
       if (!currentPanel) {
         setDrag(null)
-        updateDragPreviewDOM(null, null)
+        updateDragPreviewDOM(null, null, null)
         return
       }
 
@@ -2467,7 +2809,7 @@ export function EditorShell(): React.JSX.Element {
         })
 
         setDrag(null)
-        updateDragPreviewDOM(null, null)
+        updateDragPreviewDOM(null, null, null)
         return
       }
 
@@ -2500,7 +2842,7 @@ export function EditorShell(): React.JSX.Element {
       })
 
       setDrag(null)
-      updateDragPreviewDOM(null, null)
+      updateDragPreviewDOM(null, null, null)
     }
 
     window.addEventListener('pointermove', onPointerMove)
@@ -2859,14 +3201,52 @@ export function EditorShell(): React.JSX.Element {
         {
           // Ширины/высоты доков мы задаём через CSS-переменные,
           // чтобы потом было легко подключить drag-resize.
-          ['--leftDockWidth' as string]: `${layout.dockSizes.leftWidth}px`,
-          ['--rightDockWidth' as string]: `${layout.dockSizes.rightWidth}px`,
-          ['--bottomDockHeight' as string]: `${layout.dockSizes.bottomHeight}px`
+          // Реальный layout у collapsed dock теперь схлопывается до edge bar,
+          // а drag/drop сохраняется через отдельный invisible hitbox.
+          ['--leftDockWidth' as string]: `${collapsedDocks.left ? COLLAPSED_DOCK_SIZE : layout.dockSizes.leftWidth}px`,
+          ['--rightDockWidth' as string]: `${collapsedDocks.right ? COLLAPSED_DOCK_SIZE : layout.dockSizes.rightWidth}px`,
+          // Если bottom dock пустой — сворачиваем его до 0.
+          ['--bottomDockHeight' as string]:
+            bottomDockedIds.length > 0
+              ? `${collapsedDocks.bottom ? COLLAPSED_DOCK_SIZE : layout.dockSizes.bottomHeight}px`
+              : '0px'
         } as CSSProperties
       }
     >
       {/* Уведомление об обновлении (показывается только когда есть новая версия). */}
       <UpdateNotification />
+
+      {/* Индикатор загрузки проекта. */}
+      {isProjectLoading && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--color-background-soft)',
+              padding: '16px 24px',
+              borderRadius: 8,
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+              color: 'var(--ev-c-text-1)',
+              fontSize: 14,
+              fontWeight: 500
+            }}
+          >
+            Loading project...
+          </div>
+        </div>
+      )}
 
       <header className="editorTopBar">
         <TopMenuBar
@@ -2922,7 +3302,27 @@ export function EditorShell(): React.JSX.Element {
         />
       </header>
 
-      <aside ref={leftDockRef} className="editorLeftDock">
+      <aside
+        ref={leftDockRef}
+        className={['editorLeftDock', collapsedDocks.left ? 'isDockVisuallyCollapsed' : '']
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {/* Невидимый расширенный hitbox нужен только когда док свёрнут.
+            Так панель можно уронить в док, даже если визуально осталась одна полоска. */}
+        <div ref={leftDockHitboxRef} className="dockDropHitbox dockDropHitboxLeft" aria-hidden="true" />
+        {/* Тонкая полоса для визуального collapse слева.
+            Сам layout теперь схлопывается, а расширенный hitbox живёт в отдельном div. */}
+        <div
+          className="dockCollapseBar dockCollapseBarLeft"
+          onClick={() => setCollapsedDocks((prev) => ({ ...prev, left: !prev.left }))}
+          title={collapsedDocks.left ? 'Expand left dock' : 'Collapse left dock'}
+        >
+          <span>{collapsedDocks.left ? '›' : '‹'}</span>
+        </div>
+        {/* Точный preview показывает именно верхнюю или нижнюю позицию вставки. */}
+        <div ref={leftDockPreviewRef} className="dockDropPreview" aria-hidden="true" />
+        <div className="dockCollapseContent">
         <div className="dockSlotSplit dockSlotSplitLeft">
           {leftDockedIds[0] ? (
             <DockPanel
@@ -2976,13 +3376,16 @@ export function EditorShell(): React.JSX.Element {
             </DockPanel>
           ) : null}
         </div>
+        </div>
       </aside>
 
       <main className="editorCenter">
         <div className="centerCanvasHeader">Node Editor</div>
         <div className="centerCanvasBody">
           {/* Основной холст: показываем ноды и выбор из runtime-json. */}
-          <FlowCanvas
+          {/* PreferencesProvider передаёт настройки в ноды (showNodeNameOnCanvas и т.д.) */}
+          <PreferencesProvider value={preferences}>
+            <FlowCanvas
             runtimeNodes={runtime.nodes}
             runtimeEdges={runtime.edges}
             selectedNodeId={runtime.selectedNodeId}
@@ -3060,6 +3463,7 @@ export function EditorShell(): React.JSX.Element {
               })
             }}
             onParallelAddBranch={onParallelAddBranch}
+            onParallelRemoveBranch={onParallelRemoveBranch}
             onNodeDelete={(nodeId) => {
               // ПКМ по ноде — удаляем ноду и все связанные рёбра.
               const nextSelectedNodeIds = (runtime.selectedNodeIds ?? []).filter(
@@ -3115,10 +3519,30 @@ export function EditorShell(): React.JSX.Element {
               shouldFocusEdgeWaitRef.current = true
             }}
           />
+          </PreferencesProvider>
         </div>
       </main>
 
-      <aside ref={rightDockRef} className="editorRightDock">
+      <aside
+        ref={rightDockRef}
+        className={['editorRightDock', collapsedDocks.right ? 'isDockVisuallyCollapsed' : '']
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {/* Невидимый расширенный hitbox для свёрнутого правого дока. */}
+        <div ref={rightDockHitboxRef} className="dockDropHitbox dockDropHitboxRight" aria-hidden="true" />
+        {/* Тонкая полоса для визуального collapse справа.
+            Она всегда закреплена на своей стороне, а не перескакивает через экран. */}
+        <div
+          className="dockCollapseBar dockCollapseBarRight"
+          onClick={() => setCollapsedDocks((prev) => ({ ...prev, right: !prev.right }))}
+          title={collapsedDocks.right ? 'Expand right dock' : 'Collapse right dock'}
+        >
+          <span>{collapsedDocks.right ? '‹' : '›'}</span>
+        </div>
+        {/* Preview рисуем поверх дока, а не через outline всего контейнера. */}
+        <div ref={rightDockPreviewRef} className="dockDropPreview" aria-hidden="true" />
+        <div className="dockCollapseContent">
         <div className="dockSlotSplit dockSlotSplitRight">
           {rightDockedIds[0] ? (
             <DockPanel
@@ -3172,9 +3596,33 @@ export function EditorShell(): React.JSX.Element {
             </DockPanel>
           ) : null}
         </div>
+        </div>
       </aside>
 
-      <section ref={bottomDockRef} className="editorBottomDock">
+      <section
+        ref={bottomDockRef}
+        className={[
+          'editorBottomDock',
+          collapsedDocks.bottom ? 'isDockVisuallyCollapsed' : ''
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {/* Невидимый hitbox для нижнего дока живёт отдельно,
+            чтобы свёрнутый док оставался узким, но drop всё ещё работал по старой зоне. */}
+        <div ref={bottomDockHitboxRef} className="dockDropHitbox dockDropHitboxBottom" aria-hidden="true" />
+        {bottomDockedIds.length > 0 ? (
+          <div
+            className="dockCollapseBar dockCollapseBarBottom"
+            onClick={() => setCollapsedDocks((prev) => ({ ...prev, bottom: !prev.bottom }))}
+            title={collapsedDocks.bottom ? 'Expand bottom dock' : 'Collapse bottom dock'}
+          >
+            <span>{collapsedDocks.bottom ? '▴' : '▾'}</span>
+          </div>
+        ) : null}
+        {/* Preview нижнего дока занимает точную область, куда сядет панель. */}
+        <div ref={bottomDockPreviewRef} className="dockDropPreview" aria-hidden="true" />
+        <div className="dockCollapseContent">
         {bottomDockedIds.length > 0
           ? (() => {
               // Определяем активную вкладку: если сохранённая не в списке — берём первую.
@@ -3246,6 +3694,7 @@ export function EditorShell(): React.JSX.Element {
               )
             })()
           : null}
+        </div>
       </section>
 
       {/*
@@ -3350,7 +3799,12 @@ export function EditorShell(): React.JSX.Element {
       />
 
       {/* Модалка настроек. */}
-      <PreferencesModal open={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
+      <PreferencesModal
+        open={preferencesOpen}
+        preferences={preferences}
+        updatePreferences={updatePreferences}
+        onClose={() => setPreferencesOpen(false)}
+      />
 
       {/*
         Модалка предупреждения о конфликте имени ноды.

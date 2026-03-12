@@ -101,6 +101,11 @@ const api = {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     writeControl: (_control: unknown): Promise<unknown> =>
       Promise.reject(new Error('Preview disabled'))
+  },
+  // Персистентные настройки редактора (preferences.json).
+  preferences: {
+    read: (): Promise<unknown> => ipcRenderer.invoke('preferences.read'),
+    write: (next: unknown): Promise<unknown> => ipcRenderer.invoke('preferences.write', next)
   }
 }
 

@@ -4,6 +4,20 @@
 
 import type { RuntimeState, RuntimeNode, RuntimeEdge } from './runtimeTypes'
 
+// Контекст ресурсов проекта для расширенной валидации.
+export type ValidationContext = {
+  // Список объектов из .yyp (для проверки actor_create.key, target и т.д.).
+  objects?: string[]
+  // Список спрайтов из .yyp.
+  sprites?: string[]
+  // Yarn-файлы: имя файла → список нод внутри.
+  yarnFiles?: Map<string, string[]>
+  // Whitelist функций из cutscene_engine_settings.json.
+  runFunctions?: string[]
+  // Whitelist условий для branch.
+  branchConditions?: string[]
+}
+
 // Уровень серьёзности:
 // - error блокирует экспорт
 // - warn — не блокирует, но важно
@@ -49,8 +63,11 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   auto_walk: ['target']
 }
 
-// Главная функция валидации. Принимает текущее состояние графа.
-export function validateGraph(state: RuntimeState): ValidationResult {
+// Главная функция валидации. Принимает текущее состояние графа и опциональный контекст ресурсов.
+export function validateGraph(
+  state: RuntimeState,
+  context?: ValidationContext
+): ValidationResult {
   const entries: ValidationEntry[] = []
   const { nodes, edges } = state
 
@@ -563,6 +580,95 @@ export function validateGraph(state: RuntimeState): ValidationResult {
         severity: 'error',
         message: 'No "end" node is reachable from "start" — graph has no valid path to completion.'
       })
+    }
+  }
+
+  // --- 8. Расширенная валидация с контекстом ресурсов ---
+  if (context) {
+    const allResources = [...(context.objects ?? []), ...(context.sprites ?? [])]
+
+    for (const node of nodes) {
+      const params = node.params ?? {}
+
+      // Проверка actor_create.key — должен быть в списке объектов/спрайтов.
+      if (node.type === 'actor_create') {
+        const key = String(params.key ?? '').trim()
+        if (key && allResources.length > 0 && !allResources.includes(key)) {
+          entries.push({
+            severity: 'warn',
+            nodeId: node.id,
+            message: `actor_create: key "${key}" not found in project resources.`
+          })
+        }
+      }
+
+      // Проверка dialogue.file — должен быть в списке yarn-файлов.
+      if (node.type === 'dialogue' && context.yarnFiles) {
+        const file = String(params.file ?? '').trim()
+        if (file) {
+          // Убираем расширение .yarn если есть.
+          const fileName = file.replace(/\.yarn$/i, '')
+          const yarnFileNames = Array.from(context.yarnFiles.keys()).map((f) =>
+            f.replace(/\.yarn$/i, '')
+          )
+          if (!yarnFileNames.includes(fileName)) {
+            entries.push({
+              severity: 'warn',
+              nodeId: node.id,
+              message: `dialogue: file "${file}" not found in project yarn files.`
+            })
+          } else {
+            // Проверка dialogue.node — должен быть в списке нод внутри файла.
+            const nodeName = String(params.node ?? '').trim()
+            if (nodeName) {
+              const yarnNodes = context.yarnFiles.get(file) ?? context.yarnFiles.get(file + '.yarn') ?? []
+              if (yarnNodes.length > 0 && !yarnNodes.includes(nodeName)) {
+                entries.push({
+                  severity: 'warn',
+                  nodeId: node.id,
+                  message: `dialogue: node "${nodeName}" not found in "${file}".`
+                })
+              }
+            }
+          }
+        }
+      }
+
+      // Проверка run_function.function — должна быть в whitelist.
+      if (node.type === 'run_function' && context.runFunctions) {
+        const funcName = String(params.function ?? params.function_name ?? '').trim()
+        if (funcName && context.runFunctions.length > 0 && !context.runFunctions.includes(funcName)) {
+          entries.push({
+            severity: 'warn',
+            nodeId: node.id,
+            message: `run_function: "${funcName}" not in whitelist (cutscene_engine_settings.json).`
+          })
+        }
+      }
+
+      // Проверка branch.condition — должна быть в whitelist.
+      if (node.type === 'branch' && context.branchConditions) {
+        const cond = String(params.condition ?? '').trim()
+        if (cond && context.branchConditions.length > 0 && !context.branchConditions.includes(cond)) {
+          entries.push({
+            severity: 'warn',
+            nodeId: node.id,
+            message: `branch: condition "${cond}" not in whitelist (cutscene_engine_settings.json).`
+          })
+        }
+      }
+
+      // Проверка animate.sprite — должен быть в списке спрайтов.
+      if (node.type === 'animate' && context.sprites) {
+        const sprite = String(params.sprite ?? '').trim()
+        if (sprite && context.sprites.length > 0 && !context.sprites.includes(sprite)) {
+          entries.push({
+            severity: 'warn',
+            nodeId: node.id,
+            message: `animate: sprite "${sprite}" not found in project resources.`
+          })
+        }
+      }
     }
   }
 

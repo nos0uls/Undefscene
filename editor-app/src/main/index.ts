@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
 import { readFile, writeFile, rename, unlink, readdir } from 'fs/promises'
 import { join, dirname, basename } from 'path'
 import icon from '../../resources/icon.png?asset'
@@ -195,6 +195,12 @@ app.whenReady().then(() => {
     app.setAppUserModelId(isDev ? process.execPath : 'com.electron')
   }
 
+  // В production убираем нативное меню, чтобы Alt не открывал его.
+  // В dev оставляем для удобства (F12 → DevTools).
+  if (!isDev) {
+    Menu.setApplicationMenu(null)
+  }
+
   // --- IPC: GameMaker project (.yyp) ---
   ipcMain.handle('project.open', async () => {
     const result = await dialog.showOpenDialog({
@@ -253,6 +259,11 @@ app.whenReady().then(() => {
   // Этот файл хранит состояние runtime-json (узлы, выбранный элемент и т.д.).
   const runtimePath = join(app.getPath('userData'), 'runtime.json')
   const runtimeTmpPath = join(app.getPath('userData'), 'runtime.json.tmp')
+
+  // --- IPC: Preferences persistence ---
+  // Настройки редактора (тема, автосохранение, зум и т.д.).
+  const preferencesPath = join(app.getPath('userData'), 'preferences.json')
+  const preferencesTmpPath = join(app.getPath('userData'), 'preferences.json.tmp')
 
   ipcMain.handle('layout.read', async () => {
     try {
@@ -316,6 +327,35 @@ app.whenReady().then(() => {
       if (code === 'EEXIST' || code === 'EPERM') {
         await unlink(layoutPath).catch(() => undefined)
         await rename(layoutTmpPath, layoutPath)
+        return
+      }
+      throw err
+    }
+  })
+
+  // --- IPC: Preferences read/write ---
+  ipcMain.handle('preferences.read', async () => {
+    try {
+      const raw = await readFile(preferencesPath, 'utf-8')
+      return JSON.parse(raw)
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException)?.code
+      if (code === 'ENOENT' || code === 'ENOTDIR') return null
+      throw err
+    }
+  })
+
+  ipcMain.handle('preferences.write', async (_event, nextPrefs) => {
+    const json = JSON.stringify(nextPrefs, null, 2)
+    await writeFile(preferencesTmpPath, json, 'utf-8')
+
+    try {
+      await rename(preferencesTmpPath, preferencesPath)
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException)?.code
+      if (code === 'EEXIST' || code === 'EPERM') {
+        await unlink(preferencesPath).catch(() => undefined)
+        await rename(preferencesTmpPath, preferencesPath)
         return
       }
       throw err
