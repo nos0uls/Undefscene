@@ -255,10 +255,16 @@ export function ParallelStartNode(props: CutsceneNodeProps & { id?: string }): R
   ) as string[]
   const portMode = data.parallelBranchPortMode ?? 'shared'
 
+  // После 4 веток стандартной высоты уже мало: handles начинают стоять слишком плотно.
+  // Поэтому плавно подращиваем minHeight, чтобы между точками оставался читаемый интервал.
+  const extraBranchCount = Math.max(0, branches.length - 4)
+  const parallelMinHeight = extraBranchCount > 0 ? 90 + extraBranchCount * 18 : undefined
+
   return (
     <BaseNode
       nodeType="parallel"
       selected={selected}
+      style={{ minHeight: parallelMinHeight }}
       hasOutput={false}
       extraHandles={
         <>
@@ -308,10 +314,16 @@ export function ParallelJoinNode(props: CutsceneNodeProps & { id?: string }): Re
   const pairId = typeof data.params?.pairId === 'string' ? String(data.params?.pairId) : ''
   const portMode = data.parallelBranchPortMode ?? 'shared'
 
+  // Для join используем ту же формулу роста, что и для start,
+  // чтобы пара нод визуально оставалась одной высоты.
+  const extraBranchCount = Math.max(0, branches.length - 4)
+  const parallelMinHeight = extraBranchCount > 0 ? 90 + extraBranchCount * 18 : undefined
+
   return (
     <BaseNode
       nodeType="parallel"
       selected={selected}
+      style={{ minHeight: parallelMinHeight }}
       hasInput={false}
       extraHandles={
         <>

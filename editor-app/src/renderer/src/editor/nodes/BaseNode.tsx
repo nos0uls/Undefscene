@@ -1,5 +1,5 @@
 import { Handle, Position } from '@xyflow/react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { NODE_CATEGORY, NODE_COLORS, NODE_LABELS } from './nodeConstants'
 import { usePreferencesContext } from '../PreferencesContext'
 
@@ -20,6 +20,10 @@ type BaseNodeProps = {
   // Дополнительные порты (например, true/false для branch).
   extraHandles?: ReactNode
 
+  // Доп. inline-стили.
+  // Нужны, когда конкретная нода должна слегка менять размер без отдельного CSS-класса.
+  style?: CSSProperties
+
   // Выбрана ли нода.
   selected?: boolean
 
@@ -35,6 +39,7 @@ export function BaseNode({
   hasInput = true,
   hasOutput = true,
   extraHandles,
+  style,
   selected,
   children
 }: BaseNodeProps): React.JSX.Element {
@@ -52,7 +57,8 @@ export function BaseNode({
       style={{
         minWidth: 140,
         // Branch нода выше, чтобы TRUE/FALSE handles были хорошо разнесены.
-        minHeight: nodeType === 'branch' ? 90 : undefined
+        minHeight: nodeType === 'branch' ? 90 : undefined,
+        ...style
       }}
     >
       {/* Цветная полоска сверху */}

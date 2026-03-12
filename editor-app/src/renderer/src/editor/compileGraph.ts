@@ -356,12 +356,33 @@ export function compileGraph(state: RuntimeState): CompileResult {
     }
 
     const edge = outs[0]
+    const edgeActions: CompiledAction[] = []
+
     if (typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0) {
-      actions.push({ type: 'wait', seconds: edge.waitSeconds })
+      const waitAction: CompiledAction = { type: 'wait', seconds: edge.waitSeconds }
+
+      // Внутри parallel ветки условие на ребре должно вести себя так же,
+      // как и в остальном графе: если wait есть, guard влияет только на wait.
+      edgeActions.push(...wrapWithEdgeCondition(edge, [waitAction]))
     }
+
     const next = walkBranchUntil(edge.target, stopNodeId)
     if (!next.ok) return next
-    actions.push(...next.actions)
+
+    // Если wait на ребре нет, но condition включён,
+    // значит нужно "загейтить" весь оставшийся хвост ветки после этого ребра.
+    const shouldGateRemainingBranch =
+      edge.conditionEnabled && !(typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0)
+
+    if (shouldGateRemainingBranch) {
+      if (next.actions.length > 0) {
+        edgeActions.push(...wrapWithEdgeCondition(edge, next.actions))
+      }
+    } else {
+      edgeActions.push(...next.actions)
+    }
+
+    actions.push(...edgeActions)
 
     return { ok: true, actions }
   }
@@ -382,21 +403,59 @@ export function compileGraph(state: RuntimeState): CompileResult {
     const falseActions: CompiledAction[] = []
 
     if (trueEdge) {
+      const edgeActions: CompiledAction[] = []
+
       if (typeof trueEdge.waitSeconds === 'number' && trueEdge.waitSeconds > 0) {
-        trueActions.push({ type: 'wait', seconds: trueEdge.waitSeconds })
+        const waitAction: CompiledAction = { type: 'wait', seconds: trueEdge.waitSeconds }
+
+        // Если на ребре есть wait, условие влияет только на сам wait,
+        // а переход в ветку после этого остаётся обычным.
+        edgeActions.push(...wrapWithEdgeCondition(trueEdge, [waitAction]))
       }
+
       const result = walkFrom(trueEdge.target)
       if (!result.ok) return result
-      trueActions.push(...result.actions)
+
+      const shouldGateWholeTrueBranch =
+        trueEdge.conditionEnabled && !(typeof trueEdge.waitSeconds === 'number' && trueEdge.waitSeconds > 0)
+
+      if (shouldGateWholeTrueBranch) {
+        if (result.actions.length > 0) {
+          edgeActions.push(...wrapWithEdgeCondition(trueEdge, result.actions))
+        }
+      } else {
+        edgeActions.push(...result.actions)
+      }
+
+      trueActions.push(...edgeActions)
     }
 
     if (falseEdge) {
+      const edgeActions: CompiledAction[] = []
+
       if (typeof falseEdge.waitSeconds === 'number' && falseEdge.waitSeconds > 0) {
-        falseActions.push({ type: 'wait', seconds: falseEdge.waitSeconds })
+        const waitAction: CompiledAction = { type: 'wait', seconds: falseEdge.waitSeconds }
+
+        // Для false-ветки используем ту же семантику,
+        // чтобы поведение ребра не отличалось от true и от обычного графа.
+        edgeActions.push(...wrapWithEdgeCondition(falseEdge, [waitAction]))
       }
+
       const result = walkFrom(falseEdge.target)
       if (!result.ok) return result
-      falseActions.push(...result.actions)
+
+      const shouldGateWholeFalseBranch =
+        falseEdge.conditionEnabled && !(typeof falseEdge.waitSeconds === 'number' && falseEdge.waitSeconds > 0)
+
+      if (shouldGateWholeFalseBranch) {
+        if (result.actions.length > 0) {
+          edgeActions.push(...wrapWithEdgeCondition(falseEdge, result.actions))
+        }
+      } else {
+        edgeActions.push(...result.actions)
+      }
+
+      falseActions.push(...edgeActions)
     }
 
     const branchAction: CompiledAction = {

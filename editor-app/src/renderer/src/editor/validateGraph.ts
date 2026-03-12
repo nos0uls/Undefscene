@@ -296,6 +296,41 @@ export function validateGraph(
           nodeId: node.id,
           message: `parallel_start "${node.id}" references joinId "${joinId}" which does not exist.`
         })
+      } else {
+        const joinNode = nodeMap.get(joinId)
+        if (joinNode?.type !== 'parallel_join') {
+          entries.push({
+            severity: 'error',
+            nodeId: node.id,
+            message: `parallel_start "${node.id}" references "${joinId}", but that node is not parallel_join.`
+          })
+        }
+
+        const joinPairId = typeof joinNode?.params?.pairId === 'string' ? joinNode.params.pairId : ''
+        if (joinPairId && joinPairId !== node.id) {
+          entries.push({
+            severity: 'warn',
+            nodeId: node.id,
+            message: `parallel_start "${node.id}" points to join "${joinId}", but join points back to "${joinPairId}".`
+          })
+        }
+
+        const joinBranches = Array.isArray(joinNode?.params?.branches)
+          ? (joinNode?.params?.branches as string[])
+          : ['b0']
+        const sameBranchCount = joinBranches.length === branches.length
+        const sameBranchSet =
+          sameBranchCount &&
+          branches.every((branchId) => joinBranches.includes(branchId)) &&
+          joinBranches.every((branchId) => branches.includes(branchId))
+
+        if (!sameBranchSet) {
+          entries.push({
+            severity: 'warn',
+            nodeId: node.id,
+            message: `parallel_start "${node.id}" and join "${joinId}" have different params.branches.`
+          })
+        }
       }
 
       // Проверяем, что handle-ы совпадают с branches.
@@ -312,6 +347,7 @@ export function validateGraph(
       const outgoingEdges = (outEdges.get(node.id) ?? []).filter(
         (e) => e.sourceHandle !== '__pair' && e.targetHandle !== '__pair'
       )
+      const outgoingHandleUsage = new Map<string, number>()
 
       for (const edge of outgoingEdges) {
         const handle = edge.sourceHandle
@@ -335,6 +371,8 @@ export function validateGraph(
           continue
         }
 
+        outgoingHandleUsage.set(handle, (outgoingHandleUsage.get(handle) ?? 0) + 1)
+
         const branchId = handle.slice('out_'.length)
         if (!uniqueBranches.has(branchId)) {
           entries.push({
@@ -342,6 +380,16 @@ export function validateGraph(
             nodeId: node.id,
             edgeId: edge.id,
             message: `parallel_start "${node.id}" has edge "${edge.id}" for branch "${branchId}" not listed in params.branches.`
+          })
+        }
+      }
+
+      for (const [handle, count] of outgoingHandleUsage.entries()) {
+        if (count > 1) {
+          entries.push({
+            severity: 'warn',
+            nodeId: node.id,
+            message: `parallel_start "${node.id}" uses handle "${handle}" ${count} times.`
           })
         }
       }
@@ -375,6 +423,41 @@ export function validateGraph(
           nodeId: node.id,
           message: `parallel_join "${node.id}" references pairId "${pairId}" which does not exist.`
         })
+      } else {
+        const startNode = nodeMap.get(pairId)
+        if (startNode?.type !== 'parallel_start') {
+          entries.push({
+            severity: 'error',
+            nodeId: node.id,
+            message: `parallel_join "${node.id}" references "${pairId}", but that node is not parallel_start.`
+          })
+        }
+
+        const startJoinId = typeof startNode?.params?.joinId === 'string' ? startNode.params.joinId : ''
+        if (startJoinId && startJoinId !== node.id) {
+          entries.push({
+            severity: 'warn',
+            nodeId: node.id,
+            message: `parallel_join "${node.id}" points to start "${pairId}", but start points to "${startJoinId}".`
+          })
+        }
+
+        const startBranches = Array.isArray(startNode?.params?.branches)
+          ? (startNode?.params?.branches as string[])
+          : ['b0']
+        const sameBranchCount = startBranches.length === branches.length
+        const sameBranchSet =
+          sameBranchCount &&
+          branches.every((branchId) => startBranches.includes(branchId)) &&
+          startBranches.every((branchId) => branches.includes(branchId))
+
+        if (!sameBranchSet) {
+          entries.push({
+            severity: 'warn',
+            nodeId: node.id,
+            message: `parallel_join "${node.id}" and start "${pairId}" have different params.branches.`
+          })
+        }
       }
 
       // Проверяем, что входящие handle-ы совпадают с branches.
@@ -382,6 +465,7 @@ export function validateGraph(
       const incomingEdges = (inEdges.get(node.id) ?? []).filter(
         (e) => e.sourceHandle !== '__pair' && e.targetHandle !== '__pair'
       )
+      const incomingHandleUsage = new Map<string, number>()
 
       for (const edge of incomingEdges) {
         const handle = edge.targetHandle
@@ -405,6 +489,8 @@ export function validateGraph(
           continue
         }
 
+        incomingHandleUsage.set(handle, (incomingHandleUsage.get(handle) ?? 0) + 1)
+
         const branchId = handle.slice('in_'.length)
         if (!uniqueBranches.has(branchId)) {
           entries.push({
@@ -412,6 +498,16 @@ export function validateGraph(
             nodeId: node.id,
             edgeId: edge.id,
             message: `parallel_join "${node.id}" has edge "${edge.id}" for branch "${branchId}" not listed in params.branches.`
+          })
+        }
+      }
+
+      for (const [handle, count] of incomingHandleUsage.entries()) {
+        if (count > 1) {
+          entries.push({
+            severity: 'warn',
+            nodeId: node.id,
+            message: `parallel_join "${node.id}" uses handle "${handle}" ${count} times.`
           })
         }
       }
