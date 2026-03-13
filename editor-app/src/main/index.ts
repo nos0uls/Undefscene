@@ -160,10 +160,10 @@ async function parseYypResources(yypPath: string): Promise<{
   const sounds = new Set<string>()
   const rooms = new Set<string>()
 
-  // Пробегаемся по ресурсам .yyp и читаем их .yy файлы.
-  for (const res of data.resources ?? []) {
+  // Пробегаемся по ресурсам .yyp и читаем их .yy файлы параллельно.
+  const resourcePromises = (data.resources ?? []).map(async (res) => {
     const resPath = res?.id?.path
-    if (!resPath) continue
+    if (!resPath) return
 
     const fullPath = join(projectDir, resPath)
     try {
@@ -177,7 +177,7 @@ async function parseYypResources(yypPath: string): Promise<{
       }
       const resType = resData.resourceType ?? resData.modelName
       const resName = resData.name ?? res.id?.name
-      if (!resType || !resName) continue
+      if (!resType || !resName) return
 
       if (resType === 'GMSprite') sprites.add(resName)
       if (resType === 'GMObject') objects.add(resName)
@@ -185,9 +185,10 @@ async function parseYypResources(yypPath: string): Promise<{
       if (resType === 'GMRoom') rooms.add(resName)
     } catch {
       // Пропускаем битые/удалённые ресурсы, чтобы не падать.
-      continue
     }
-  }
+  })
+
+  await Promise.all(resourcePromises)
 
   return {
     yypPath,
@@ -208,31 +209,30 @@ async function collectYarnFilesRecursively(
   depthLeft: number
 ): Promise<string[]> {
   const entries = await readdir(currentDir)
-  const result: string[] = []
 
-  for (const entry of entries) {
+  const promises = entries.map(async (entry) => {
     const fullPath = join(currentDir, entry)
 
     try {
       const entryStat = await stat(fullPath)
       if (entryStat.isDirectory()) {
-        if (depthLeft <= 0) continue
-        result.push(...(await collectYarnFilesRecursively(rootDir, fullPath, depthLeft - 1)))
-        continue
+        if (depthLeft <= 0) return []
+        return collectYarnFilesRecursively(rootDir, fullPath, depthLeft - 1)
       }
 
       if (entryStat.isFile() && entry.toLowerCase().endsWith('.yarn')) {
         // Храним путь относительно datafiles/, чтобы renderer мог показать подпапки
         // и потом безопасно запросить preview того же файла.
-        result.push(relative(rootDir, fullPath).replace(/\\/g, '/'))
+        return [relative(rootDir, fullPath).replace(/\\/g, '/')]
       }
     } catch {
       // Если конкретный файл или подпапка недоступны, просто пропускаем их.
-      continue
     }
-  }
+    return []
+  })
 
-  return result
+  const results = await Promise.all(promises)
+  return results.flat()
 }
 
 // Сканируем datafiles/ на .yarn файлы и извлекаем имена нод.
@@ -253,9 +253,7 @@ async function scanYarnFiles(
   console.log('Yarn scan root:', datafilesDir)
   console.log('Yarn scan found files:', files)
 
-  const result: Array<{ file: string; nodes: string[] }> = []
-
-  for (const file of files) {
+  const resultPromises = files.map(async (file) => {
     try {
       const raw = await readFile(join(datafilesDir, file), 'utf-8')
       const nodes: string[] = []
@@ -270,16 +268,19 @@ async function scanYarnFiles(
       }
 
       // Убираем только расширение, но сохраняем относительный путь подпапки.
-      result.push({ file: file.replace(/\.yarn$/i, ''), nodes })
+      return { file: file.replace(/\.yarn$/i, ''), nodes }
     } catch {
       // Битый файл — пропускаем.
-      continue
+      return null
     }
-  }
+  })
 
-  console.log('Yarn scan parsed entries:', result)
+  const results = await Promise.all(resultPromises)
+  const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null)
 
-  return result
+  console.log('Yarn scan parsed entries:', validResults)
+
+  return validResults
 }
 
 // Читаем картинку фона canvas из main процесса и превращаем её в data URL.
