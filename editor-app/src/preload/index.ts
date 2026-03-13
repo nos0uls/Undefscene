@@ -28,6 +28,8 @@ const api = {
   scene: {
     save: (filePath: string, jsonString: string): Promise<unknown> =>
       ipcRenderer.invoke('scene.save', filePath, jsonString),
+    autosave: (filePath: string | null, jsonString: string, backupCount: number): Promise<unknown> =>
+      ipcRenderer.invoke('scene.autosave', { filePath, jsonString, backupCount }),
     saveAs: (jsonString: string): Promise<unknown> =>
       ipcRenderer.invoke('scene.saveAs', jsonString),
     open: (): Promise<unknown> => ipcRenderer.invoke('scene.open')
@@ -39,7 +41,9 @@ const api = {
   },
   // Сканирование .yarn файлов в datafiles/ проекта.
   yarn: {
-    scan: (projectDir: string): Promise<unknown> => ipcRenderer.invoke('yarn.scan', projectDir)
+    scan: (projectDir: string): Promise<unknown> => ipcRenderer.invoke('yarn.scan', projectDir),
+    readFile: (projectDir: string, fileName: string): Promise<unknown> =>
+      ipcRenderer.invoke('yarn.readFile', projectDir, fileName)
   },
   // Экспорт катсцены в JSON-файл для движка.
   export: {
@@ -105,7 +109,18 @@ const api = {
   // Персистентные настройки редактора (preferences.json).
   preferences: {
     read: (): Promise<unknown> => ipcRenderer.invoke('preferences.read'),
-    write: (next: unknown): Promise<unknown> => ipcRenderer.invoke('preferences.write', next)
+    write: (next: unknown): Promise<unknown> => ipcRenderer.invoke('preferences.write', next),
+    chooseCanvasBackground: (): Promise<unknown> =>
+      ipcRenderer.invoke('preferences.chooseCanvasBackground'),
+    readCanvasBackgroundDataUrl: (filePath: string): Promise<unknown> =>
+      ipcRenderer.invoke('preferences.readCanvasBackgroundDataUrl', filePath)
+  },
+  // Базовая информация о приложении для About modal и внешних ссылок.
+  appInfo: {
+    getVersion: (): Promise<unknown> => ipcRenderer.invoke('app.getVersion'),
+    openExternal: (url: string): Promise<unknown> => ipcRenderer.invoke('app.openExternal', url),
+    openDevTools: (): Promise<unknown> => ipcRenderer.invoke('app.openDevTools'),
+    copyLogToClipboard: (): Promise<unknown> => ipcRenderer.invoke('app.copyLogToClipboard')
   }
 }
 

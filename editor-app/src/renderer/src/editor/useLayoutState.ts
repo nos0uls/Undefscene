@@ -67,6 +67,16 @@ export function createDefaultLayout(): LayoutState {
         size: null,
         zIndex: 1,
         collapsed: false
+      },
+      'panel.runtime_json': {
+        id: 'panel.runtime_json',
+        title: 'Runtime JSON',
+        mode: 'hidden',
+        slot: null,
+        position: null,
+        size: null,
+        zIndex: 1,
+        collapsed: false
       }
     },
     lastSavedAtMs: 0

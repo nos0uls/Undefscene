@@ -1,5 +1,8 @@
 import { Undo2, Redo2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createTranslator, type SupportedLanguage } from '../i18n'
+import type { EditorKeybindings } from './usePreferences'
+import { formatComboForDisplay } from './useHotkeys'
 
 export type PanelMenuItem = {
   // ID панели, например "panel.actions".
@@ -12,7 +15,13 @@ export type PanelMenuItem = {
 type MenuItem = {
   id: string
   label: string
-  entries: { id: string; label: string; shortcut?: string; onSelect?: () => void }[]
+  entries: Array<{
+    id: string
+    label: string
+    shortcut?: string
+    onSelect?: () => void
+    children?: Array<{ id: string; label: string; shortcut?: string; onSelect?: () => void }>
+  }>
 }
 
 export type TopMenuBarProps = {
@@ -33,6 +42,7 @@ export type TopMenuBarProps = {
 
   // Операции с файлом сцены.
   onNew: () => void
+  onCreateExample: () => void
   onOpenScene: () => void
   onSave: () => void
   onSaveAs: () => void
@@ -43,17 +53,28 @@ export type TopMenuBarProps = {
 
   // View.
   onResetLayout: () => void
-  onToggleLogs: () => void
 
   // Help.
   onAbout: () => void
   onCheckUpdates?: () => void
+  onToggleRuntimeJson?: () => void
+  runtimeJsonVisible?: boolean
+  onCopyLogToClipboard?: () => void
+  onOpenDevTools?: () => void
+  onToggleHardwareAcceleration?: () => void
+  hardwareAccelerationDisabled?: boolean
 
   // Выход.
   onExit: () => void
 
   // Настройки.
   onPreferences: () => void
+
+  // Текущий язык интерфейса.
+  language: SupportedLanguage
+
+  // Актуальные сочетания клавиш из preferences.
+  keybindings: EditorKeybindings
 }
 
 // Верхняя панель меню, как в классических desktop IDE.
@@ -66,92 +87,159 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
     onOpenProject,
     onExport,
     onNew,
+    onCreateExample,
     onOpenScene,
     onSave,
     onSaveAs,
     onUndo,
     onRedo,
     onResetLayout,
-    onToggleLogs,
     onAbout,
     onCheckUpdates,
+    onToggleRuntimeJson,
+    runtimeJsonVisible,
+    onCopyLogToClipboard,
+    onOpenDevTools,
+    onToggleHardwareAcceleration,
+    hardwareAccelerationDisabled,
     onExit,
-    onPreferences
+    onPreferences,
+    language,
+    keybindings
   } = props
+
+  // Лёгкий translator для подписей меню.
+  const t = useMemo(() => createTranslator(language), [language])
+
+  // Shortcut-строки берём из реальных настроек,
+  // чтобы меню сразу отражало rebinding из Preferences.
+  const shortcutLabels = useMemo(
+    () => ({
+      new_scene: keybindings.new_scene ? formatComboForDisplay(keybindings.new_scene, '') : '',
+      save: keybindings.save ? formatComboForDisplay(keybindings.save, '') : '',
+      export_scene: keybindings.export_scene ? formatComboForDisplay(keybindings.export_scene, '') : '',
+      undo: keybindings.undo ? formatComboForDisplay(keybindings.undo, '') : '',
+      redo: keybindings.redo ? formatComboForDisplay(keybindings.redo, '') : ''
+    }),
+    [keybindings]
+  )
+
+  // Удобно собирать title без лишнего "(Unassigned)".
+  const withOptionalShortcut = (label: string, shortcut: string): string =>
+    shortcut ? `${label} (${shortcut})` : label
 
   // Ссылка на весь top bar.
   // Нужна, чтобы мы могли определить "кликнули снаружи" или нет.
   const barRef = useRef<HTMLDivElement | null>(null)
 
   const menus = useMemo<MenuItem[]>(() => {
+    // В Help выносим технические вещи в отдельный Advanced,
+    // чтобы базовое меню не разрасталось и было чище для обычного пользователя.
+    const advancedEntries = [
+      ...(onToggleRuntimeJson
+        ? [
+            {
+              id: 'toggleRuntimeJson',
+              label: `${runtimeJsonVisible ? '✓ ' : ''}${t('menu.showRuntimeJson', 'Show Runtime JSON')}`,
+              onSelect: onToggleRuntimeJson
+            }
+          ]
+        : []),
+      ...(onOpenDevTools
+        ? [{ id: 'openDevTools', label: t('menu.openDevTools', 'Open DevTools'), onSelect: onOpenDevTools }]
+        : []),
+      ...(onToggleHardwareAcceleration
+        ? [
+            {
+              id: 'toggleHardwareAcceleration',
+              label: `${hardwareAccelerationDisabled ? '✓ ' : ''}${t('menu.disableHardwareAcceleration', 'Disable Hardware Acceleration')}`,
+              onSelect: onToggleHardwareAcceleration
+            }
+          ]
+        : [])
+    ]
+
     const panelsMenu: MenuItem = {
       id: 'panels',
-      label: 'Panels',
-      entries: panels.map((p) => {
-        const visible = isPanelVisible(p.id)
-        return {
-          id: p.id,
-          label: `${visible ? '✓ ' : ''}${p.label}`,
-          onSelect: () => togglePanel(p.id)
-        }
-      })
+      label: t('menu.panels', 'Panels'),
+      entries: panels
+        .filter((p) => p.id !== 'panel.runtime_json')
+        .map((p) => {
+          const visible = isPanelVisible(p.id)
+          return {
+            id: p.id,
+            label: `${visible ? '✓ ' : ''}${p.label}`,
+            onSelect: () => togglePanel(p.id)
+          }
+        })
     }
 
     return [
       {
         id: 'file',
-        label: 'File',
+        label: t('menu.file', 'File'),
         entries: [
-          { id: 'new', label: 'New Scene', shortcut: 'Ctrl+N', onSelect: onNew },
-          { id: 'openScene', label: 'Open Scene...', onSelect: onOpenScene },
+          { id: 'new', label: t('menu.newScene', 'New Scene'), shortcut: shortcutLabels.new_scene, onSelect: onNew },
+          {
+            id: 'createExample',
+            label: t('menu.createExample', 'Create Example'),
+            onSelect: onCreateExample
+          },
+          { id: 'openScene', label: t('menu.openScene', 'Open Scene...'), onSelect: onOpenScene },
           // Открываем .yyp и подгружаем ресурсы.
           {
             id: 'openProject',
-            label: 'Open Project (.yyp)...',
+            label: t('menu.openProject', 'Open Project (.yyp)...'),
             shortcut: 'Ctrl+O',
             onSelect: onOpenProject
           },
-          { id: 'save', label: 'Save', shortcut: 'Ctrl+S', onSelect: onSave },
-          { id: 'saveAs', label: 'Save As...', onSelect: onSaveAs },
+          { id: 'save', label: t('menu.save', 'Save'), shortcut: shortcutLabels.save, onSelect: onSave },
+          { id: 'saveAs', label: t('menu.saveAs', 'Save As...'), onSelect: onSaveAs },
           // Экспорт графа в JSON для движка.
-          { id: 'export', label: 'Export to Game...', shortcut: 'Ctrl+E', onSelect: onExport },
-          { id: 'preferences', label: 'Preferences...', onSelect: onPreferences },
-          { id: 'exit', label: 'Exit', onSelect: onExit }
+          { id: 'export', label: t('menu.export', 'Export to Game...'), shortcut: shortcutLabels.export_scene, onSelect: onExport },
+          { id: 'preferences', label: `${t('app.preferences', 'Preferences')}...`, onSelect: onPreferences },
+          { id: 'exit', label: t('menu.exit', 'Exit'), onSelect: onExit }
         ]
       },
       {
         id: 'edit',
-        label: 'Edit',
+        label: t('menu.edit', 'Edit'),
         entries: [
-          { id: 'undo', label: 'Undo', shortcut: 'Ctrl+Z', onSelect: onUndo },
-          { id: 'redo', label: 'Redo', shortcut: 'Ctrl+Y', onSelect: onRedo }
+          { id: 'undo', label: t('menu.undo', 'Undo'), shortcut: shortcutLabels.undo, onSelect: onUndo },
+          { id: 'redo', label: t('menu.redo', 'Redo'), shortcut: shortcutLabels.redo, onSelect: onRedo }
         ]
       },
       {
         id: 'view',
-        label: 'View',
-        entries: [
-          { id: 'resetLayout', label: 'Reset Layout', onSelect: onResetLayout },
-          { id: 'toggleLogs', label: 'Toggle Logs', onSelect: onToggleLogs }
-        ]
+        label: t('menu.view', 'View'),
+        entries: [{ id: 'resetLayout', label: t('menu.resetLayout', 'Reset Layout'), onSelect: onResetLayout }]
       },
       panelsMenu,
       {
         id: 'help',
-        label: 'Help',
+        label: t('menu.help', 'Help'),
         entries: [
-          ...(onCheckUpdates
-            ? [{ id: 'checkUpdates', label: 'Check for Updates...', onSelect: onCheckUpdates }]
+          ...(onCopyLogToClipboard
+            ? [{ id: 'copyLogToClipboard', label: t('menu.copyLogToClipboard', 'Copy Log to Clipboard'), onSelect: onCopyLogToClipboard }]
             : []),
-          { id: 'about', label: 'About', onSelect: onAbout }
+          ...(advancedEntries.length > 0
+            ? [{ id: 'advanced', label: t('menu.advanced', 'Advanced'), children: advancedEntries }]
+            : []),
+          ...(onCheckUpdates
+            ? [{ id: 'checkUpdates', label: t('menu.checkForUpdates', 'Check for Updates...'), onSelect: onCheckUpdates }]
+            : []),
+          { id: 'about', label: t('menu.aboutAction', 'About'), onSelect: onAbout }
         ]
       }
     ]
   }, [
+    t,
+    shortcutLabels,
     isPanelVisible,
     panels,
     togglePanel,
     onNew,
+    onCreateExample,
     onOpenScene,
     onOpenProject,
     onSave,
@@ -162,8 +250,13 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
     onUndo,
     onRedo,
     onResetLayout,
-    onToggleLogs,
     onCheckUpdates,
+    onToggleRuntimeJson,
+    runtimeJsonVisible,
+    onCopyLogToClipboard,
+    onOpenDevTools,
+    onToggleHardwareAcceleration,
+    hardwareAccelerationDisabled,
     onAbout
   ])
 
@@ -203,13 +296,42 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
                 {m.entries.map((e) => (
                   <div
                     key={e.id}
-                    className="topMenuDropdownItem"
+                    className={['topMenuDropdownItem', e.children?.length ? 'hasSubmenu' : '']
+                      .filter(Boolean)
+                      .join(' ')}
                     role="menuitem"
-                    onClick={() => e.onSelect?.()}
+                    onClick={() => {
+                      if (e.children?.length) return
+                      e.onSelect?.()
+                      setActiveMenuId(null)
+                    }}
                   >
                     <span className="topMenuDropdownLabel">{e.label}</span>
-                    {e.shortcut ? (
+                    {e.children?.length ? (
+                      <span className="topMenuDropdownShortcut">›</span>
+                    ) : e.shortcut ? (
                       <span className="topMenuDropdownShortcut">{e.shortcut}</span>
+                    ) : null}
+
+                    {e.children?.length ? (
+                      <div className="topMenuDropdown topMenuDropdownSubmenu" role="menu">
+                        {e.children.map((child) => (
+                          <div
+                            key={child.id}
+                            className="topMenuDropdownItem"
+                            role="menuitem"
+                            onClick={() => {
+                              child.onSelect?.()
+                              setActiveMenuId(null)
+                            }}
+                          >
+                            <span className="topMenuDropdownLabel">{child.label}</span>
+                            {child.shortcut ? (
+                              <span className="topMenuDropdownShortcut">{child.shortcut}</span>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
                     ) : null}
                   </div>
                 ))}
@@ -224,7 +346,7 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
           className="topMenuBarIconButton"
           type="button"
           onClick={onUndo}
-          title="Undo (Ctrl+Z)"
+          title={withOptionalShortcut(t('menu.undo', 'Undo'), shortcutLabels.undo)}
         >
           <Undo2 size={14} />
         </button>
@@ -232,7 +354,7 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
           className="topMenuBarIconButton"
           type="button"
           onClick={onRedo}
-          title="Redo (Ctrl+Y)"
+          title={withOptionalShortcut(t('menu.redo', 'Redo'), shortcutLabels.redo)}
         >
           <Redo2 size={14} />
         </button>

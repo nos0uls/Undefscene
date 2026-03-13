@@ -141,9 +141,24 @@ export const createDefaultRuntimeState = (): RuntimeState => {
   }
 }
 
+// Пустая сцена для File -> New Scene.
+// Оставляем только start-ноду, чтобы пользователь начинал с чистого листа,
+// но при этом сразу видел рабочий холст и мог продолжать строить граф.
+export const createEmptyRuntimeState = (): RuntimeState => {
+  return {
+    schemaVersion: 1,
+    title: 'Untitled Cutscene',
+    nodes: [{ id: 'n-start', type: 'start', name: 'Start', position: { x: 80, y: 180 } }],
+    edges: [],
+    selectedNodeId: null,
+    selectedNodeIds: [],
+    selectedEdgeId: null,
+    lastSavedAtMs: 0
+  }
+}
+
 // Проверяем, что объект похож на RuntimeState.
-// Если данные некорректные — возвращаем null.
-export const parseRuntimeState = (raw: unknown): RuntimeState | null => {
+export function parseRuntimeState(raw: unknown): RuntimeState | null {
   if (!raw || typeof raw !== 'object') return null
 
   const candidate = raw as Partial<RuntimeState>

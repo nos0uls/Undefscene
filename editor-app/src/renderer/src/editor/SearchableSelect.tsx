@@ -1,6 +1,6 @@
-// SearchableSelect — выпадающий список с поиском по подстроке.
+// SearchableSelect — выпадающий список с autocomplete по ресурсам.
 // Заменяет нативный <select> для длинных списков ресурсов (спрайты, объекты и т.д.).
-// Поддерживает клавиатурную навигацию (↑↓ Enter Escape).
+// Поддерживает автоподстановку, Tab/Enter принятие варианта и клавиатурную навигацию.
 
 import { useEffect, useRef, useState } from 'react'
 
@@ -39,24 +39,61 @@ export function SearchableSelect({
   // Открыт ли выпадающий список.
   const [open, setOpen] = useState(false)
 
+  // Флаг фокуса нужен, чтобы внешнее value не перетирало ручной ввод,
+  // пока пользователь печатает или стирает текст внутри поля.
+  const [focused, setFocused] = useState(false)
+
   // Индекс подсвеченного элемента для клавиатурной навигации.
   const [highlightIndex, setHighlightIndex] = useState(-1)
 
   // Ref на контейнер — чтобы закрывать список при клике вне.
   const containerRef = useRef<HTMLDivElement | null>(null)
 
+  // Ref на input — нужен для выделения автоматически подставленного хвоста.
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
   // Ref на список — чтобы скроллить к подсвеченному элементу.
   const listRef = useRef<HTMLDivElement | null>(null)
 
+  // Таймер blur держим в ref, чтобы можно было безопасно отменить его,
+  // если пользователь сразу вернул фокус или кликнул по варианту.
+  const blurTimerRef = useRef<number | null>(null)
+
   // Синхронизируем query с внешним value, когда он меняется извне.
   useEffect(() => {
+    if (focused) return
     setQuery(value)
-  }, [value])
+  }, [focused, value])
+
+  // При размонтировании убираем отложенный blur-таймер,
+  // чтобы не осталось setState после удаления компонента.
+  useEffect(() => {
+    return () => {
+      if (blurTimerRef.current !== null) {
+        window.clearTimeout(blurTimerRef.current)
+      }
+    }
+  }, [])
 
   // Фильтруем варианты по подстроке (регистронезависимо).
+  // Важно: сначала показываем prefix matches, потом обычные substring matches.
   const lowerQuery = query.toLowerCase()
   const filtered =
-    query.length > 0 ? options.filter((opt) => opt.toLowerCase().includes(lowerQuery)) : options
+    query.length > 0
+      ? [
+          ...options.filter((opt) => opt.toLowerCase().startsWith(lowerQuery)),
+          ...options.filter(
+            (opt) => opt.toLowerCase().includes(lowerQuery) && !opt.toLowerCase().startsWith(lowerQuery)
+          )
+        ]
+      : options
+
+  // Лучший кандидат для автодополнения.
+  const suggestedOption = filtered[0] ?? null
+
+  // Есть ли точное совпадение с одним из вариантов.
+  // Это помогает понять, надо ли при Enter брать suggestion или оставить ручной текст как есть.
+  const hasExactMatch = options.some((opt) => opt.toLowerCase() === lowerQuery)
 
   // Закрываем список при клике вне компонента.
   useEffect(() => {
@@ -81,13 +118,27 @@ export function SearchableSelect({
 
   // Выбираем вариант и закрываем список.
   const selectOption = (opt: string): void => {
+    if (blurTimerRef.current !== null) {
+      window.clearTimeout(blurTimerRef.current)
+      blurTimerRef.current = null
+    }
     setQuery(opt)
     onChange(opt)
     setOpen(false)
     setHighlightIndex(-1)
   }
 
-  // Обработка клавиш: стрелки, Enter, Escape.
+  // Во время печати оставляем в input ровно тот текст, который набрал пользователь.
+  // Варианты показываем только в выпадающем списке, без насильственной подстановки.
+  const handleInputChange = (typedValue: string): void => {
+    setQuery(typedValue)
+    // Сразу синхронизируем ручной ввод наружу,
+    // чтобы parent не возвращал старое value после blur и удаления символов.
+    onChange(typedValue)
+    setHighlightIndex(typedValue.length > 0 && suggestedOption ? 0 : -1)
+  }
+
+  // Обработка клавиш: стрелки, Tab, Enter, Escape.
   const handleKeyDown = (e: React.KeyboardEvent): void => {
     if (!open) {
       // Открываем список при нажатии стрелки вниз.
@@ -95,6 +146,13 @@ export function SearchableSelect({
         e.preventDefault()
         setOpen(true)
         setHighlightIndex(0)
+      } else if (e.key === 'Tab' && suggestedOption) {
+        e.preventDefault()
+        selectOption(suggestedOption)
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        onChange(query)
+        setOpen(false)
       }
       return
     }
@@ -105,10 +163,18 @@ export function SearchableSelect({
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setHighlightIndex((prev) => Math.max(prev - 1, 0))
+    } else if (e.key === 'Tab') {
+      if (suggestedOption) {
+        e.preventDefault()
+        selectOption(highlightIndex >= 0 && highlightIndex < filtered.length ? filtered[highlightIndex] : suggestedOption)
+      }
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (highlightIndex >= 0 && highlightIndex < filtered.length) {
-        selectOption(filtered[highlightIndex])
+      if (highlightIndex >= 0 && highlightIndex < filtered.length) selectOption(filtered[highlightIndex])
+      else if (suggestedOption && !hasExactMatch && query.length > 0) selectOption(suggestedOption)
+      else {
+        onChange(query)
+        setOpen(false)
       }
     } else if (e.key === 'Escape') {
       e.preventDefault()
@@ -118,28 +184,38 @@ export function SearchableSelect({
   }
 
   return (
-    <div ref={containerRef} style={{ position: 'relative' }}>
+    <div
+      ref={containerRef}
+      // Растягиваем wrapper на всю ширину runtimeField,
+      // чтобы SearchableSelect визуально совпадал с обычными input/select полями в инспекторе.
+      style={{ position: 'relative', width: '100%' }}
+    >
       <input
+        ref={inputRef}
         className={className}
         style={style}
         placeholder={placeholder}
         value={query}
         onChange={(e) => {
-          setQuery(e.target.value)
+          handleInputChange(e.target.value)
           setOpen(true)
-          setHighlightIndex(0)
         }}
         onFocus={() => {
+          if (blurTimerRef.current !== null) {
+            window.clearTimeout(blurTimerRef.current)
+            blurTimerRef.current = null
+          }
+          setFocused(true)
           setOpen(true)
-          setHighlightIndex(-1)
+          setHighlightIndex(query.length > 0 && suggestedOption ? 0 : -1)
         }}
         onBlur={() => {
           // Небольшая задержка, чтобы клик по элементу списка успел сработать.
-          setTimeout(() => {
-            // Если query не совпадает ни с одним вариантом — оставляем как есть
-            // (пользователь мог ввести вручную).
-            if (!open) return
+          setFocused(false)
+          blurTimerRef.current = window.setTimeout(() => {
             setOpen(false)
+            setHighlightIndex(-1)
+            blurTimerRef.current = null
           }, 150)
         }}
         onKeyDown={handleKeyDown}

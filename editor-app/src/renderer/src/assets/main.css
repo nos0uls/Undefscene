@@ -145,6 +145,7 @@ code {
   border-radius: 8px;
   z-index: 9;
   display: none;
+  min-height: 8px;
 }
 
 /* Collapse bars для сворачивания доков. */
@@ -328,27 +329,27 @@ code {
 .dockSplitterVertical {
   top: 30px;
   bottom: var(--bottomDockHeight);
-  width: 6px;
+  width: 10px;
   cursor: col-resize;
 }
 
 .dockSplitterHorizontal {
   left: 0;
   right: 0;
-  height: 6px;
+  height: 10px;
   cursor: row-resize;
 }
 
 .dockSplitterLeft {
-  left: calc(var(--leftDockWidth) - 3px);
+  left: calc(var(--leftDockWidth) - 5px);
 }
 
 .dockSplitterRight {
-  left: calc(100% - var(--rightDockWidth) - 3px);
+  left: calc(100% - var(--rightDockWidth) - 5px);
 }
 
 .dockSplitterBottom {
-  top: calc(100% - var(--bottomDockHeight) - 3px);
+  top: calc(100% - var(--bottomDockHeight) - 5px);
 }
 
 /* Базовая панель (Actions/Text/Inspector/Logs). */
@@ -399,11 +400,8 @@ code {
   потому что pointer-events выключены.
 */
 .floatingLayer {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 100vw;
-  height: 100vh;
+  position: absolute;
+  inset: 0;
   pointer-events: none;
   z-index: 5000;
 }
@@ -747,6 +745,8 @@ code {
   border: 1px solid var(--ev-c-gray-3);
   background: var(--color-background);
   color: var(--ev-c-text-1);
+  width: 100%;
+  box-sizing: border-box;
   padding: 6px 8px;
   font-size: 12px;
   transition: border-color 0.15s;
@@ -867,6 +867,21 @@ code {
 
 .topMenuDropdownItem:hover {
   background: var(--ev-c-accent-soft);
+}
+
+.topMenuDropdownItem.hasSubmenu {
+  position: relative;
+}
+
+.topMenuDropdownSubmenu {
+  top: -4px;
+  left: calc(100% + 6px);
+  margin-top: 0;
+  display: none;
+}
+
+.topMenuDropdownItem.hasSubmenu:hover .topMenuDropdownSubmenu {
+  display: block;
 }
 
 .topMenuDropdownLabel {
@@ -1040,18 +1055,26 @@ code {
 
 .customNodeHeader {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 6px;
+  min-width: 0;
 }
 
 /* Title text */
 .customNodeTitle {
+  padding: 8px 10px 0;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  min-width: 0;
+  flex-shrink: 1;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Body container */
@@ -1060,6 +1083,7 @@ code {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 /* Label text */
@@ -1068,16 +1092,26 @@ code {
   color: var(--ev-c-text-2);
   word-break: break-word;
   line-height: 1.3;
+  min-width: 0;
+  flex-shrink: 1;
+  white-space: normal;
 }
 
-/* Node params (single line) */
+/* Node params */
 .customNodeParam {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   font-size: 11px;
   color: var(--ev-c-text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: pre-wrap !important;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   font-family: 'JetBrains Mono', monospace;
+  line-height: 1.35;
 }
 
 /* Inside-node buttons (e.g. Add Branch) */
@@ -1239,6 +1273,8 @@ code {
   border: 1px solid var(--ev-c-gray-2) !important;
   border-radius: 8px !important;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4) !important;
+  width: clamp(112px, 18vw, 180px) !important;
+  height: clamp(78px, 14vh, 120px) !important;
 }
 
 /* Рёбра на холсте. */

@@ -3,10 +3,12 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import type { CSSProperties } from 'react'
 
 import { DockPanel } from './DockPanel'
+import { AboutModal } from './AboutModal'
 import { FlowCanvas } from './FlowCanvas'
 import { TopMenuBar } from './TopMenuBar'
 import type { DockSlotId, LayoutState, Size, Vec2 } from './layoutTypes'
 import type { RuntimeEdge, RuntimeNode } from './runtimeTypes'
+import { parseYarnPreview } from './yarnPreview'
 import { useLayoutState } from './useLayoutState'
 import { useProjectResources } from './useProjectResources'
 import { useRuntimeState } from './useRuntimeState'
@@ -17,6 +19,8 @@ import { SearchableSelect } from './SearchableSelect'
 import { UpdateNotification } from './UpdateNotification'
 import { PreferencesProvider } from './PreferencesContext'
 import { getAccentColorHex, usePreferences } from './usePreferences'
+import { useHotkeys } from './useHotkeys'
+import { createTranslator } from '../i18n'
 
 type DragState = {
   // Какая панель сейчас перетаскивается.
@@ -114,11 +118,46 @@ export function EditorShell(): React.JSX.Element {
   // Путь к текущему файлу сцены (null = ещё не сохранялась / новая).
   const [sceneFilePath, setSceneFilePath] = useState<string | null>(null)
 
+  // Счётчик для внешнего fitView запроса в FlowCanvas.
+  // Каждый инкремент = один отдельный запрос на уместить граф в viewport.
+  const [fitViewRequestId, setFitViewRequestId] = useState(0)
+
   // Модалка настроек (Preferences).
   const [preferencesOpen, setPreferencesOpen] = useState(false)
 
+  // Модалка About и версия приложения.
+  const [aboutOpen, setAboutOpen] = useState(false)
+  const [appVersion, setAppVersion] = useState('Loading...')
+
+  // Yarn preview для Text panel.
+  // Держим отдельно raw content, loading и выбранную preview-ноду,
+  // чтобы панель могла показывать полный файл и быстро переключаться между title-блоками.
+  const [yarnPreviewContent, setYarnPreviewContent] = useState<string | null>(null)
+  const [yarnPreviewLoading, setYarnPreviewLoading] = useState(false)
+  const [selectedYarnPreviewTitle, setSelectedYarnPreviewTitle] = useState<string | null>(null)
+
   // Персистентные настройки редактора (для PreferencesProvider).
   const { preferences, updatePreferences, loaded: preferencesLoaded } = usePreferences()
+
+  // Лёгкий translator для оболочки редактора.
+  // Он сразу реагирует на смену preferences.language без тяжёлой i18n-библиотеки.
+  const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
+
+  // Перевод названий panel-id в человекочитаемые заголовки.
+  // Это важно, потому что сохранённый layout может содержать старые английские title,
+  // а при runtime-switch мы хотим сразу показывать актуальный язык.
+  const getPanelTitle = useCallback(
+    (panelId: string): string => {
+      if (panelId === 'panel.actions') return t('panels.actions', 'Actions')
+      if (panelId === 'panel.bookmarks') return t('panels.bookmarks', 'Bookmarks')
+      if (panelId === 'panel.text') return t('panels.text', 'Text')
+      if (panelId === 'panel.inspector') return t('panels.inspector', 'Inspector')
+      if (panelId === 'panel.logs') return t('panels.logs', 'Logs / Warnings')
+      if (panelId === 'panel.runtime_json') return t('panels.runtimeJson', 'Runtime JSON')
+      return layout.panels[panelId]?.title ?? panelId
+    },
+    [layout.panels, t]
+  )
 
   // Применяем accent color глобально на весь editor.
   // Раньше это жило внутри modal, из-за чего canvas и остальной UI могли читать старый цвет.
@@ -135,6 +174,35 @@ export function EditorShell(): React.JSX.Element {
     document.documentElement.style.setProperty('--ev-c-accent-hover', adjustBrightness(hex, 15))
   }, [preferences, preferencesLoaded])
 
+  // Когда открываем About — один раз читаем версию приложения из main процесса.
+  useEffect(() => {
+    if (!aboutOpen) return
+    if (!window.api?.appInfo?.getVersion) return
+
+    window.api.appInfo
+      .getVersion()
+      .then((version) => {
+        setAppVersion(version)
+      })
+      .catch((err) => {
+        console.warn('Failed to read app version:', err)
+        setAppVersion('Unknown')
+      })
+  }, [aboutOpen])
+
+  const handleOpenDocs = () => {
+    if (!window.api?.appInfo?.openExternal) {
+      console.warn('App info API not available')
+      return
+    }
+
+    // Это точная публичная страница статьи про Undefscene editor,
+    // найденная в my-docs-repo: docs/systems/cutscenes/editor.md.
+    void window.api.appInfo.openExternal(
+      'https://nos0uls.github.io/Undefined-documentation/systems/cutscenes/editor/'
+    )
+  }
+
   // Контекст ресурсов для расширенной валидации.
   const validationContext: ValidationContext | undefined = useMemo(() => {
     if (!resources && !engineSettings) return undefined
@@ -146,6 +214,84 @@ export function EditorShell(): React.JSX.Element {
       branchConditions: engineSettings?.branchConditions
     }
   }, [resources, engineSettings, yarnFiles])
+
+  // Собираем базовые target-опции для actor-related нод.
+  // Сюда входят системный player, object names из проекта
+  // и все ключи, созданные через actor_create в текущем графе.
+  const actorTargetOptions = useMemo(() => {
+    const result = new Set<string>(['player'])
+
+    for (const objectName of resources?.objects ?? []) {
+      if (objectName) result.add(objectName)
+    }
+
+    for (const node of runtime.nodes) {
+      if (node.type !== 'actor_create') continue
+      const actorKey = String(node.params?.key ?? '').trim()
+      if (actorKey) result.add(actorKey)
+    }
+
+    return [...result]
+  }, [resources?.objects, runtime.nodes])
+
+  // Подгружаем полный `.yarn` файл для Text panel preview,
+  // когда выбрана dialogue-нода и у неё указан file.
+  useEffect(() => {
+    const selectedNode = runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null
+    const selectedFile =
+      selectedNode?.type === 'dialogue' ? String(selectedNode.params?.file ?? '').trim() : ''
+    const projectDir = resources?.projectDir ?? ''
+
+    if (!selectedNode || selectedNode.type !== 'dialogue' || !selectedFile || !projectDir) {
+      setYarnPreviewContent(null)
+      setYarnPreviewLoading(false)
+      setSelectedYarnPreviewTitle(null)
+      return
+    }
+
+    if (!window.api?.yarn?.readFile) {
+      setYarnPreviewContent(null)
+      setYarnPreviewLoading(false)
+      setSelectedYarnPreviewTitle(null)
+      return
+    }
+
+    let cancelled = false
+    setYarnPreviewLoading(true)
+
+    window.api.yarn
+      .readFile(projectDir, selectedFile)
+      .then((raw) => {
+        if (cancelled) return
+
+        const normalizedRaw = typeof raw === 'string' ? raw : null
+        setYarnPreviewContent(normalizedRaw)
+
+        const selectedNodeTitle = String(selectedNode.params?.node ?? '').trim()
+        const parsedPreviewNodes = normalizedRaw ? parseYarnPreview(normalizedRaw) : []
+        const hasRequestedTitle = parsedPreviewNodes.some((entry) => entry.title === selectedNodeTitle)
+
+        setSelectedYarnPreviewTitle(
+          hasRequestedTitle
+            ? selectedNodeTitle
+            : parsedPreviewNodes.length > 0
+              ? parsedPreviewNodes[0].title
+              : null
+        )
+        setYarnPreviewLoading(false)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        console.warn('Failed to read yarn file for preview:', err)
+        setYarnPreviewContent(null)
+        setSelectedYarnPreviewTitle(null)
+        setYarnPreviewLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [resources?.projectDir, runtime.nodes, runtime.selectedNodeId])
 
   // Реактивная валидация графа — пересчитывается при каждом изменении runtime.
   const validation: ValidationResult = useMemo(
@@ -165,6 +311,22 @@ export function EditorShell(): React.JSX.Element {
 
   // Свёрнутые доки (collapse bars).
   const [collapsedDocks, setCollapsedDocks] = useState({
+    left: false,
+    right: false,
+    bottom: false
+  })
+
+  // Держим актуальное состояние collapse в ref,
+  // чтобы resize-обработчик не зависел от порядка объявления переменных ниже.
+  const collapsedDocksRef = useRef(collapsedDocks)
+  useEffect(() => {
+    collapsedDocksRef.current = collapsedDocks
+  }, [collapsedDocks])
+
+  // Отдельно помним, какие доки мы свернули автоматически из-за нехватки места.
+  // Это нужно, чтобы при возврате свободного места раскрыть только auto-collapsed доки,
+  // не ломая ручной выбор пользователя.
+  const autoCollapsedDocksRef = useRef({
     left: false,
     right: false,
     bottom: false
@@ -199,50 +361,245 @@ export function EditorShell(): React.JSX.Element {
   }, [selectedNodeForName?.id])
 
   // Пропорциональное масштабирование доков при изменении размера окна.
-  // Сохраняем предыдущий размер окна, чтобы вычислить коэффициент масштабирования.
+  // Сохраняем предыдущий размер окна, чтобы пересчитывать не пиксели сами по себе,
+  // а долю занятого места внутри доступной области редактора.
   const prevWindowSizeRef = useRef({ width: window.innerWidth, height: window.innerHeight })
 
   useEffect(() => {
+    let resizeFrameId: number | null = null
+
     const handleResize = () => {
-      const prevWidth = prevWindowSizeRef.current.width
+      if (resizeFrameId !== null) return
+      resizeFrameId = requestAnimationFrame(() => {
+        resizeFrameId = null
+        const prevWidth = prevWindowSizeRef.current.width
       const prevHeight = prevWindowSizeRef.current.height
-      const newWidth = window.innerWidth
-      const newHeight = window.innerHeight
+      const rootRect = rootRef.current?.getBoundingClientRect()
+      const newWidth = rootRect?.width ?? window.innerWidth
+      const newHeight = rootRect?.height ?? window.innerHeight
 
-      // Вычисляем коэффициенты масштабирования.
-      const scaleX = newWidth / prevWidth
-      const scaleY = newHeight / prevHeight
+      const currentLayout = layoutRef.current
+      const currentCollapsedDocks = collapsedDocksRef.current
+      const topBarHeight = 30
+      const isGrowingHorizontally = newWidth > prevWidth
+      const isGrowingVertically = newHeight > prevHeight
+      const leftDockCount = currentLayout.docked.left.filter(
+        (id) => currentLayout.panels[id]?.mode === 'docked'
+      ).length
+      const rightDockCount = currentLayout.docked.right.filter(
+        (id) => currentLayout.panels[id]?.mode === 'docked'
+      ).length
+      const bottomDockCount = currentLayout.docked.bottom.filter(
+        (id) => currentLayout.panels[id]?.mode === 'docked'
+      ).length
 
-      // Масштабируем ширины боковых доков и высоту нижнего дока.
-      // Ограничиваем минимальные/максимальные значения.
-      const newLeftWidth = Math.max(120, Math.min(600, Math.round(layout.dockSizes.leftWidth * scaleX)))
-      const newRightWidth = Math.max(150, Math.min(700, Math.round(layout.dockSizes.rightWidth * scaleX)))
-      const newBottomHeight = Math.max(100, Math.min(500, Math.round(layout.dockSizes.bottomHeight * scaleY)))
+      // Считаем доступное место без минимального центра.
+      // Это позволяет хранить именно отношение доков к рабочей зоне.
+      const prevHorizontalSpace = Math.max(
+        MIN_LEFT_WIDTH + MIN_RIGHT_WIDTH,
+        prevWidth - MIN_CENTER_WIDTH
+      )
+      const nextHorizontalSpace = Math.max(
+        MIN_LEFT_WIDTH + MIN_RIGHT_WIDTH,
+        newWidth - MIN_CENTER_WIDTH
+      )
+      const prevVerticalSpace = Math.max(MIN_BOTTOM_HEIGHT, prevHeight - topBarHeight - MIN_CENTER_HEIGHT)
+      const nextVerticalSpace = Math.max(MIN_BOTTOM_HEIGHT, newHeight - topBarHeight - MIN_CENTER_HEIGHT)
 
-      // Обновляем только если изменения значительные (> 5px).
-      const leftChanged = Math.abs(newLeftWidth - layout.dockSizes.leftWidth) > 5
-      const rightChanged = Math.abs(newRightWidth - layout.dockSizes.rightWidth) > 5
-      const bottomChanged = Math.abs(newBottomHeight - layout.dockSizes.bottomHeight) > 5
+      const leftRatio = currentLayout.dockSizes.leftWidth / prevHorizontalSpace
+      const rightRatio = currentLayout.dockSizes.rightWidth / prevHorizontalSpace
+      const bottomRatio = currentLayout.dockSizes.bottomHeight / prevVerticalSpace
 
-      if (leftChanged || rightChanged || bottomChanged) {
-        setLayout({
-          ...layout,
-          dockSizes: {
-            ...layout.dockSizes,
-            leftWidth: leftChanged ? newLeftWidth : layout.dockSizes.leftWidth,
-            rightWidth: rightChanged ? newRightWidth : layout.dockSizes.rightWidth,
-            bottomHeight: bottomChanged ? newBottomHeight : layout.dockSizes.bottomHeight
+      // Восстанавливаем размеры из долей. Если места стало слишком мало,
+      // clamp естественно упрёт панели в минимум, а центр заберёт остаток.
+      // Важный UX-момент: при расширении окна доки не должны сами раздуваться.
+      // Иначе bottom dock после узкого окна начинает занимать слишком большую долю экрана.
+      let nextLeftWidth = isGrowingHorizontally
+        ? currentLayout.dockSizes.leftWidth
+        : clamp(
+            Math.round(nextHorizontalSpace * leftRatio),
+            MIN_LEFT_WIDTH,
+            Math.max(MIN_LEFT_WIDTH, newWidth - currentLayout.dockSizes.rightWidth - MIN_CENTER_WIDTH)
+          )
+      let nextRightWidth = isGrowingHorizontally
+        ? currentLayout.dockSizes.rightWidth
+        : clamp(
+            Math.round(nextHorizontalSpace * rightRatio),
+            MIN_RIGHT_WIDTH,
+            Math.max(MIN_RIGHT_WIDTH, newWidth - nextLeftWidth - MIN_CENTER_WIDTH)
+          )
+
+      // После пересчёта правого дока ещё раз поджимаем левый,
+      // чтобы сумма точно не съела центр при очень узком окне.
+      nextLeftWidth = clamp(
+        nextLeftWidth,
+        MIN_LEFT_WIDTH,
+        Math.max(MIN_LEFT_WIDTH, newWidth - nextRightWidth - MIN_CENTER_WIDTH)
+      )
+
+      const nextBottomHeight = isGrowingVertically
+        ? clamp(
+            currentLayout.dockSizes.bottomHeight,
+            MIN_BOTTOM_HEIGHT,
+            Math.max(MIN_BOTTOM_HEIGHT, newHeight - topBarHeight - MIN_CENTER_HEIGHT)
+          )
+        : clamp(
+            Math.round(nextVerticalSpace * bottomRatio),
+            MIN_BOTTOM_HEIGHT,
+            Math.max(MIN_BOTTOM_HEIGHT, newHeight - topBarHeight - MIN_CENTER_HEIGHT)
+          )
+
+      let nextCollapsedLeft = currentCollapsedDocks.left
+      let nextCollapsedRight = currentCollapsedDocks.right
+      let nextCollapsedBottom = currentCollapsedDocks.bottom
+      let effectiveLeftWidth = nextCollapsedLeft ? COLLAPSED_DOCK_SIZE : nextLeftWidth
+      let effectiveRightWidth = nextCollapsedRight ? COLLAPSED_DOCK_SIZE : nextRightWidth
+      let effectiveBottomHeight = nextCollapsedBottom ? COLLAPSED_DOCK_SIZE : nextBottomHeight
+
+      // Если центр начинает терять minimum width, автоматически сворачиваем боковые доки.
+      // Сначала сворачиваем тот, который уже дошёл до минимума, затем второй при необходимости.
+      let horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
+      if (horizontalShortage > 0 && leftDockCount > 0 && !nextCollapsedLeft && nextLeftWidth <= MIN_LEFT_WIDTH + 8) {
+        nextCollapsedLeft = true
+        effectiveLeftWidth = COLLAPSED_DOCK_SIZE
+        horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
+      }
+      if (horizontalShortage > 0 && rightDockCount > 0 && !nextCollapsedRight && nextRightWidth <= MIN_RIGHT_WIDTH + 8) {
+        nextCollapsedRight = true
+        effectiveRightWidth = COLLAPSED_DOCK_SIZE
+        horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
+      }
+      if (horizontalShortage > 0 && leftDockCount > 0 && !nextCollapsedLeft) {
+        nextCollapsedLeft = true
+        effectiveLeftWidth = COLLAPSED_DOCK_SIZE
+        horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
+      }
+      if (horizontalShortage > 0 && rightDockCount > 0 && !nextCollapsedRight) {
+        nextCollapsedRight = true
+        effectiveRightWidth = COLLAPSED_DOCK_SIZE
+      }
+
+      // Если центр начинает терять minimum height, так же сворачиваем нижний док.
+      const verticalShortage = effectiveBottomHeight + topBarHeight + MIN_CENTER_HEIGHT - newHeight
+      if (verticalShortage > 0 && bottomDockCount > 0 && !nextCollapsedBottom) {
+        nextCollapsedBottom = true
+        effectiveBottomHeight = COLLAPSED_DOCK_SIZE
+      }
+
+      const shouldKeepLeftAutoCollapsed =
+        leftDockCount > 0 &&
+        effectiveRightWidth + nextLeftWidth + MIN_CENTER_WIDTH > newWidth &&
+        nextCollapsedLeft
+      const shouldKeepRightAutoCollapsed =
+        rightDockCount > 0 &&
+        effectiveLeftWidth + nextRightWidth + MIN_CENTER_WIDTH > newWidth &&
+        nextCollapsedRight
+      const shouldKeepBottomAutoCollapsed =
+        bottomDockCount > 0 &&
+        nextBottomHeight + topBarHeight + MIN_CENTER_HEIGHT > newHeight &&
+        nextCollapsedBottom
+
+      // Возвращаем автоматически свёрнутые доки, когда места снова достаточно.
+      if (autoCollapsedDocksRef.current.left && !shouldKeepLeftAutoCollapsed) {
+        nextCollapsedLeft = false
+        effectiveLeftWidth = nextLeftWidth
+      }
+      if (autoCollapsedDocksRef.current.right && !shouldKeepRightAutoCollapsed) {
+        nextCollapsedRight = false
+        effectiveRightWidth = nextRightWidth
+      }
+      if (autoCollapsedDocksRef.current.bottom && !shouldKeepBottomAutoCollapsed) {
+        nextCollapsedBottom = false
+        effectiveBottomHeight = nextBottomHeight
+      }
+
+      autoCollapsedDocksRef.current = {
+        left: nextCollapsedLeft && !currentCollapsedDocks.left ? true : shouldKeepLeftAutoCollapsed,
+        right: nextCollapsedRight && !currentCollapsedDocks.right ? true : shouldKeepRightAutoCollapsed,
+        bottom: nextCollapsedBottom && !currentCollapsedDocks.bottom ? true : shouldKeepBottomAutoCollapsed
+      }
+
+      const leftChanged = Math.abs(nextLeftWidth - currentLayout.dockSizes.leftWidth) > 1
+      const rightChanged = Math.abs(nextRightWidth - currentLayout.dockSizes.rightWidth) > 1
+      const bottomChanged = Math.abs(nextBottomHeight - currentLayout.dockSizes.bottomHeight) > 1
+      const collapsedChanged =
+        nextCollapsedLeft !== currentCollapsedDocks.left ||
+        nextCollapsedRight !== currentCollapsedDocks.right ||
+        nextCollapsedBottom !== currentCollapsedDocks.bottom
+
+      // Плавающие панели тоже нужно поджимать под новый размер editorRoot.
+      // Иначе после resize они могут остаться в старой точке и закрывать canvas.
+      let floatingPanelsChanged = false
+      const nextPanels = Object.fromEntries(
+        Object.entries(currentLayout.panels).map(([panelId, panel]) => {
+          if (panel.mode !== 'floating' || !panel.position || !panel.size) {
+            return [panelId, panel]
           }
+
+          const clampedWidth = clamp(panel.size.width, MIN_FLOAT_WIDTH, Math.max(MIN_FLOAT_WIDTH, newWidth - 24))
+          const clampedHeight = clamp(
+            panel.size.height,
+            MIN_FLOAT_HEIGHT,
+            Math.max(MIN_FLOAT_HEIGHT, newHeight - 24)
+          )
+          const clampedX = clamp(panel.position.x, 0, Math.max(0, newWidth - clampedWidth))
+          const clampedY = clamp(panel.position.y, 0, Math.max(0, newHeight - clampedHeight))
+
+          if (
+            clampedWidth !== panel.size.width ||
+            clampedHeight !== panel.size.height ||
+            clampedX !== panel.position.x ||
+            clampedY !== panel.position.y
+          ) {
+            floatingPanelsChanged = true
+            return [
+              panelId,
+              {
+                ...panel,
+                position: { x: clampedX, y: clampedY },
+                size: { width: clampedWidth, height: clampedHeight },
+                lastFloatingPosition: { x: clampedX, y: clampedY },
+                lastFloatingSize: { width: clampedWidth, height: clampedHeight }
+              }
+            ]
+          }
+
+          return [panelId, panel]
+        })
+      ) as LayoutState['panels']
+
+      if (leftChanged || rightChanged || bottomChanged || floatingPanelsChanged) {
+        setLayout({
+          ...currentLayout,
+          dockSizes: {
+            ...currentLayout.dockSizes,
+            leftWidth: nextLeftWidth,
+            rightWidth: nextRightWidth,
+            bottomHeight: nextBottomHeight
+          },
+          panels: nextPanels
+        })
+      }
+
+      if (collapsedChanged) {
+        setCollapsedDocks({
+          left: nextCollapsedLeft,
+          right: nextCollapsedRight,
+          bottom: nextCollapsedBottom
         })
       }
 
       // Сохраняем новый размер окна.
       prevWindowSizeRef.current = { width: newWidth, height: newHeight }
+      })
     }
 
     window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [layout.dockSizes, setLayout])
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      if (resizeFrameId !== null) cancelAnimationFrame(resizeFrameId)
+    }
+  }, [setLayout])
 
   // Когда модалка открывается — ставим фокус на кнопку OK.
   // Так можно быстро подтвердить стандартный вариант.
@@ -425,6 +782,25 @@ export function EditorShell(): React.JSX.Element {
   // Возвращает rect, по которому мы реально делаем hit-test.
   // У collapsed-дока используем расширенный invisible hitbox, чтобы drag/drop не ломался.
   const getDockHitTestRect = (slot: DockSlotId): DOMRect | null => {
+    const dockedCount = layoutRef.current.docked[slot].filter(
+      (id) => layoutRef.current.panels[id]?.mode === 'docked'
+    ).length
+
+    if (slot === 'bottom' && dockedCount === 0) {
+      const bottomRect = getDockElement('bottom')?.getBoundingClientRect()
+      if (!bottomRect) return null
+
+      // Даже если нижний док пустой и визуально тонкий,
+      // расширяем его hit-area вверх, чтобы drag back был удобным.
+      const expandUp = 140
+      return new DOMRect(
+        bottomRect.x,
+        Math.max(0, bottomRect.y - expandUp),
+        bottomRect.width,
+        bottomRect.height + expandUp
+      )
+    }
+
     const targetEl = isDockCollapsed(slot) ? getDockHitboxElement(slot) : getDockElement(slot)
     return targetEl?.getBoundingClientRect() ?? null
   }
@@ -826,6 +1202,11 @@ export function EditorShell(): React.JSX.Element {
     const exported = stripExport(runtime, result.actions)
     const jsonString = JSON.stringify(exported, null, 2)
 
+    const confirmed = window.confirm(
+      'Export runtime scene now? If you save over an existing game file, it will replace that scene. Continue?'
+    )
+    if (!confirmed) return
+
     // Проверяем, что мы в Electron-контексте.
     if (!window.api?.export) {
       console.warn('Export API not available')
@@ -850,6 +1231,10 @@ export function EditorShell(): React.JSX.Element {
     return JSON.stringify(runtime, null, 2)
   }
 
+  // Храним последний JSON, который уже ушёл в autosave/manual save.
+  // Это защищает от бессмысленной повторной записи одного и того же состояния.
+  const lastPersistedSceneJsonRef = useRef<string | null>(null)
+
   // Save As: показываем диалог, сохраняем, запоминаем путь.
   const handleSaveAs = async () => {
     // Проверяем, что мы в Electron-контексте.
@@ -864,6 +1249,7 @@ export function EditorShell(): React.JSX.Element {
       filePath?: string
     }
     if (result.saved && result.filePath) {
+      lastPersistedSceneJsonRef.current = jsonString
       setSceneFilePath(result.filePath)
     }
   }
@@ -879,10 +1265,36 @@ export function EditorShell(): React.JSX.Element {
     if (sceneFilePath) {
       const jsonString = serializeScene()
       await window.api.scene.save(sceneFilePath, jsonString)
+      lastPersistedSceneJsonRef.current = jsonString
     } else {
       await handleSaveAs()
     }
   }
+
+  useEffect(() => {
+    if (!preferencesLoaded) return
+    if (!preferences.autoSaveEnabled) return
+    if (!window.api?.scene?.autosave) return
+
+    const jsonString = serializeScene()
+    if (lastPersistedSceneJsonRef.current === jsonString) return
+
+    const intervalMs = Math.max(1, preferences.autoSaveIntervalMinutes) * 60 * 1000
+    const timer = window.setTimeout(() => {
+      window.api.scene
+        .autosave(sceneFilePath, jsonString, 5)
+        .then(() => {
+          lastPersistedSceneJsonRef.current = jsonString
+        })
+        .catch((err) => {
+          console.warn('Failed to autosave scene:', err)
+        })
+    }, intervalMs)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [preferences, preferencesLoaded, runtime, sceneFilePath])
 
   // Open Scene: открываем .usc.json / .json файл и загружаем в runtime.
   const handleOpenScene = async () => {
@@ -903,7 +1315,19 @@ export function EditorShell(): React.JSX.Element {
         setRuntime(state)
         setSceneFilePath(result.filePath)
       } else {
-        alert('Failed to parse scene file — invalid format.')
+        const { reverseCompileCutscene } = await import('./reverseCompile')
+        const imported = reverseCompileCutscene(parsed)
+
+        if (!imported.ok) {
+          alert(`Failed to parse scene file — invalid or unsupported format.\n\n${imported.error}`)
+          return
+        }
+
+        setRuntime(imported.state)
+        setSceneFilePath(null)
+        if (imported.warnings.length > 0) {
+          alert(imported.warnings.join('\n'))
+        }
       }
     } catch {
       alert('Failed to read scene file — invalid JSON.')
@@ -913,6 +1337,17 @@ export function EditorShell(): React.JSX.Element {
   // New Scene: сбрасываем runtime в начальное состояние.
   const handleNew = () => {
     const confirmed = window.confirm('Create a new scene? Unsaved changes will be lost.')
+    if (!confirmed) return
+    import('./runtimeTypes').then(({ createEmptyRuntimeState }) => {
+      setRuntime(createEmptyRuntimeState())
+      setSceneFilePath(null)
+    })
+  }
+
+  // Create Example: загружаем демонстрационную сцену с готовым графом.
+  // Это удобно для быстрого знакомства с редактором без ручной сборки узлов с нуля.
+  const handleCreateExample = () => {
+    const confirmed = window.confirm('Create an example scene? Unsaved changes will be lost.')
     if (!confirmed) return
     import('./runtimeTypes').then(({ createDefaultRuntimeState }) => {
       setRuntime(createDefaultRuntimeState())
@@ -943,13 +1378,13 @@ export function EditorShell(): React.JSX.Element {
   // Это замена старых кнопок "Open Any" над доками.
   const allPanels = useMemo(() => {
     return [
-      { id: 'panel.actions', label: 'Actions' },
-      { id: 'panel.bookmarks', label: 'Bookmarks' },
-      { id: 'panel.text', label: 'Text' },
-      { id: 'panel.inspector', label: 'Inspector' },
-      { id: 'panel.logs', label: 'Logs / Warnings' }
+      { id: 'panel.actions', label: getPanelTitle('panel.actions') },
+      { id: 'panel.bookmarks', label: getPanelTitle('panel.bookmarks') },
+      { id: 'panel.text', label: getPanelTitle('panel.text') },
+      { id: 'panel.inspector', label: getPanelTitle('panel.inspector') },
+      { id: 'panel.logs', label: getPanelTitle('panel.logs') }
     ]
-  }, [])
+  }, [getPanelTitle])
 
   // Проверяем видимость панели по её mode.
   const isPanelVisible = (panelId: string): boolean => {
@@ -1399,18 +1834,18 @@ export function EditorShell(): React.JSX.Element {
 
       return (
         <div className="runtimeSection runtimeSectionActions">
-          <div className="runtimeSectionTitle">Actions</div>
+          <div className="runtimeSectionTitle">{t('editor.actions', 'Actions')}</div>
           <div className="runtimeRow">
             <button className="runtimeButton" type="button" onClick={undo} disabled={!canUndo}>
-              Undo
+              {t('menu.undo', 'Undo')}
             </button>
             <button className="runtimeButton" type="button" onClick={redo} disabled={!canRedo}>
-              Redo
+              {t('menu.redo', 'Redo')}
             </button>
           </div>
           {/* Палитра нод — кликом добавляем ноду на холст. */}
           <div className="runtimeSectionTitle" style={{ marginTop: 6 }}>
-            Node Palette
+            {t('editor.nodePalette', 'Node Palette')}
           </div>
           <ul className="runtimeList runtimeListScrollable">
             {palette.map((type) => (
@@ -1421,7 +1856,7 @@ export function EditorShell(): React.JSX.Element {
               </li>
             ))}
           </ul>
-          <div className="runtimeHint">New nodes appear to the right of the selected node.</div>
+          <div className="runtimeHint">{t('editor.actionsHint', 'New nodes appear to the right of the selected node.')}</div>
         </div>
       )
     }
@@ -1429,9 +1864,9 @@ export function EditorShell(): React.JSX.Element {
     if (panelId === 'panel.bookmarks') {
       return (
         <div className="runtimeSection">
-          <div className="runtimeSectionTitle">Nodes</div>
+          <div className="runtimeSectionTitle">{t('editor.nodes', 'Nodes')}</div>
           {runtime.nodes.length === 0 ? (
-            <div className="runtimeHint">No nodes yet. Click “Add Node”.</div>
+            <div className="runtimeHint">{t('editor.noNodesYet', 'No nodes yet. Click “Add Node”.')}</div>
           ) : (
             <ul className="runtimeList">
               {runtime.nodes.map((node) => (
@@ -1457,18 +1892,71 @@ export function EditorShell(): React.JSX.Element {
     }
 
     if (panelId === 'panel.text') {
+      const selectedYarnFile =
+        selectedNode?.type === 'dialogue' ? String(selectedNode.params?.file ?? '').trim() : ''
+      const previewNodes = yarnPreviewContent ? parseYarnPreview(yarnPreviewContent) : []
+      const activePreviewNode =
+        previewNodes.find((entry) => entry.title === selectedYarnPreviewTitle) ?? previewNodes[0] ?? null
+
       return (
         <div className="runtimeSection">
-          <div className="runtimeSectionTitle">Text</div>
-          {selectedNode ? (
-            <textarea
-              className="runtimeTextarea"
-              value={selectedNode.text ?? ''}
-              placeholder="Dialogue text..."
-              onChange={(event) => updateNode(selectedNode.id, { text: event.target.value })}
-            />
+          <div className="runtimeSectionTitle">{t('editor.yarnPreview', 'Yarn Preview')}</div>
+          {!selectedNode ? (
+            <div className="runtimeHint">{t('editor.selectDialogueNode', 'Select a dialogue node to preview yarn content.')}</div>
+          ) : selectedNode.type !== 'dialogue' ? (
+            <div className="runtimeHint">{t('editor.textPanelReserved', 'The Text panel is reserved for dialogue Yarn preview.')}</div>
+          ) : !resources?.projectDir ? (
+            <div className="runtimeHint">{t('editor.openProjectForYarn', 'Open a GameMaker project to enable Yarn preview.')}</div>
+          ) : !selectedYarnFile ? (
+            <div className="runtimeHint">{t('editor.setDialogueFile', 'Set the dialogue File field to preview a Yarn file.')}</div>
+          ) : yarnPreviewLoading ? (
+            <div className="runtimeHint">{t('editor.loadingYarnPreview', 'Loading Yarn preview...')}</div>
+          ) : previewNodes.length === 0 ? (
+            <div className="runtimeHint">{t('editor.noYarnNodes', 'No previewable Yarn nodes found in this file.')}</div>
           ) : (
-            <div className="runtimeHint">Select a node to edit its text.</div>
+            <>
+              <div className="runtimeHint" style={{ marginBottom: 6 }}>
+                {t('editor.file', 'File')}: {selectedYarnFile}
+              </div>
+              <div style={{ display: 'flex', gap: 8, minHeight: 220 }}>
+                <div
+                  style={{
+                    width: 180,
+                    minWidth: 180,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4,
+                    overflowY: 'auto'
+                  }}
+                >
+                  {previewNodes.map((entry) => (
+                    <button
+                      key={entry.title}
+                      type="button"
+                      className={[
+                        'runtimeListItem',
+                        activePreviewNode?.title === entry.title ? 'isActive' : ''
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => setSelectedYarnPreviewTitle(entry.title)}
+                      style={{ textAlign: 'left' }}
+                    >
+                      {entry.title}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="runtimeHint" style={{ marginBottom: 6 }}>
+                    {t('editor.node', 'Node')}: {activePreviewNode?.title ?? t('editor.unknown', 'Unknown')}
+                  </div>
+                  <pre className="runtimeCode" style={{ minHeight: 220, margin: 0 }}>
+                    {activePreviewNode?.body || '(Empty node body)'}
+                  </pre>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )
@@ -1515,9 +2003,9 @@ export function EditorShell(): React.JSX.Element {
 
       return (
         <div className="runtimeSection">
-          <div className="runtimeSectionTitle">Inspector</div>
+          <div className="runtimeSectionTitle">{t('editor.inspector', 'Inspector')}</div>
           <label className="runtimeField">
-            <span>Scene title</span>
+            <span>{t('editor.sceneTitle', 'Scene title')}</span>
             <input
               className="runtimeInput"
               value={runtime.title}
@@ -1530,7 +2018,7 @@ export function EditorShell(): React.JSX.Element {
                 ID: {selectedNode.id}
               </div>
               <label className="runtimeField">
-                <span>Node type</span>
+                <span>{t('editor.nodeType', 'Node type')}</span>
                 <select
                   className="runtimeInput"
                   value={selectedNode.type}
@@ -1548,11 +2036,11 @@ export function EditorShell(): React.JSX.Element {
                 </select>
               </label>
               <label className="runtimeField">
-                <span>Node name</span>
+                <span>{t('editor.nodeName', 'Node name')}</span>
                 <input
                   className="runtimeInput"
                   value={pendingNodeName}
-                  placeholder="Node"
+                  placeholder={t('editor.node', 'Node')}
                   onChange={(event) => setPendingNodeName(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key !== 'Enter') return
@@ -1571,13 +2059,12 @@ export function EditorShell(): React.JSX.Element {
                 <>
                   <label className="runtimeField">
                     <span>Target</span>
-                    <input
+                    <SearchableSelect
                       className="runtimeInput"
+                      options={actorTargetOptions}
                       placeholder="actor key / player"
                       value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'target', event.target.value)
-                      }
+                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
                     />
                   </label>
                   <label className="runtimeField">
@@ -1648,13 +2135,12 @@ export function EditorShell(): React.JSX.Element {
                 <>
                   <label className="runtimeField">
                     <span>Target</span>
-                    <input
+                    <SearchableSelect
                       className="runtimeInput"
+                      options={actorTargetOptions}
                       placeholder="actor key / player"
                       value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'target', event.target.value)
-                      }
+                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
                     />
                   </label>
                   <label className="runtimeField">
@@ -1861,13 +2347,12 @@ export function EditorShell(): React.JSX.Element {
               {selectedNode.type === 'actor_destroy' && (
                 <label className="runtimeField">
                   <span>Target</span>
-                  <input
+                  <SearchableSelect
                     className="runtimeInput"
+                    options={actorTargetOptions}
                     placeholder="actor key"
                     value={String((selectedNode.params?.target as string) ?? '')}
-                    onChange={(event) =>
-                      updateNodeParam(selectedNode.id, 'target', event.target.value)
-                    }
+                    onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
                   />
                 </label>
               )}
@@ -1877,13 +2362,12 @@ export function EditorShell(): React.JSX.Element {
                 <>
                   <label className="runtimeField">
                     <span>Target</span>
-                    <input
+                    <SearchableSelect
                       className="runtimeInput"
+                      options={actorTargetOptions}
                       placeholder="actor key / player"
                       value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'target', event.target.value)
-                      }
+                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
                     />
                   </label>
                   <label className="runtimeField">
@@ -1970,13 +2454,12 @@ export function EditorShell(): React.JSX.Element {
                 <>
                   <label className="runtimeField">
                     <span>Target</span>
-                    <input
+                    <SearchableSelect
                       className="runtimeInput"
+                      options={actorTargetOptions}
                       placeholder="actor key / player"
                       value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'target', event.target.value)
-                      }
+                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
                     />
                   </label>
                   <label className="runtimeField">
@@ -2063,13 +2546,12 @@ export function EditorShell(): React.JSX.Element {
                 <>
                   <label className="runtimeField">
                     <span>Target</span>
-                    <input
+                    <SearchableSelect
                       className="runtimeInput"
+                      options={actorTargetOptions}
                       placeholder="actor key / player"
                       value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'target', event.target.value)
-                      }
+                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
                     />
                   </label>
                   <label className="runtimeField">
@@ -2092,13 +2574,12 @@ export function EditorShell(): React.JSX.Element {
                 <>
                   <label className="runtimeField">
                     <span>Target</span>
-                    <input
+                    <SearchableSelect
                       className="runtimeInput"
+                      options={actorTargetOptions}
                       placeholder="actor key / player"
                       value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'target', event.target.value)
-                      }
+                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
                     />
                   </label>
                   <label className="runtimeField">
@@ -2200,13 +2681,12 @@ export function EditorShell(): React.JSX.Element {
                 <>
                   <label className="runtimeField">
                     <span>Target</span>
-                    <input
+                    <SearchableSelect
                       className="runtimeInput"
+                      options={actorTargetOptions}
                       placeholder="actor key / player"
                       value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'target', event.target.value)
-                      }
+                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
                     />
                   </label>
                   <label className="runtimeField">
@@ -2230,13 +2710,12 @@ export function EditorShell(): React.JSX.Element {
                 <>
                   <label className="runtimeField">
                     <span>Target</span>
-                    <input
+                    <SearchableSelect
                       className="runtimeInput"
+                      options={actorTargetOptions}
                       placeholder="actor key / player"
                       value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'target', event.target.value)
-                      }
+                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
                     />
                   </label>
                   <label className="runtimeField">
@@ -2265,20 +2744,20 @@ export function EditorShell(): React.JSX.Element {
               </div>
             </>
           ) : (
-            <div className="runtimeHint">Select a node on the canvas to inspect it.</div>
+            <div className="runtimeHint">{t('editor.inspectNodeHint', 'Select a node on the canvas to inspect it.')}</div>
           )}
 
           {/* Инспектор ребра: waitSeconds лежит прямо на линии. */}
           {selectedEdge ? (
             <>
               <div className="runtimeSectionTitle" style={{ marginTop: 8 }}>
-                Selected Edge
+                {t('editor.selectedEdge', 'Selected Edge')}
               </div>
               <div className="runtimeHint" style={{ opacity: 0.6 }}>
                 ID: {selectedEdge.id}
               </div>
               <label className="runtimeField">
-                <span>Wait on edge (seconds)</span>
+                <span>{t('editor.waitOnEdge', 'Wait on edge (seconds)')}</span>
                 <input
                   ref={(el) => {
                     edgeWaitInputRef.current = el
@@ -2478,20 +2957,22 @@ export function EditorShell(): React.JSX.Element {
 
           {/* Информация о подключённом .yyp проекте. */}
           <div className="runtimeSectionTitle" style={{ marginTop: 8 }}>
-            Project
+            {t('editor.project', 'Project')}
           </div>
           {resources ? (
             <div className="runtimeHint">
               {resources.yypPath}
               <br />
-              Sprites: {resources.sprites.length}
+              {t('editor.sprites', 'Sprites')}: {resources.sprites.length}
               <br />
-              Objects: {resources.objects.length}
+              {t('editor.objects', 'Objects')}: {resources.objects.length}
               <br />
-              Rooms: {resources.rooms.length}
+              {t('editor.rooms', 'Rooms')}: {resources.rooms.length}
+              <br />
+              {t('editor.yarnFiles', 'Yarn Files')}: {yarnFiles.length}
             </div>
           ) : (
-            <div className="runtimeHint">No project loaded. File → Open Project...</div>
+            <div className="runtimeHint">{t('editor.noProjectLoaded', 'No project loaded. File → Open Project...')}</div>
           )}
         </div>
       )
@@ -2520,9 +3001,24 @@ export function EditorShell(): React.JSX.Element {
 
       // Конфигурация toggle-кнопок.
       const toggleButtons = [
-        { key: 'errors' as const, label: 'Errors', count: errorEntries.length, color: '#e05050' },
-        { key: 'warnings' as const, label: 'Warnings', count: warnEntries.length, color: '#d4a017' },
-        { key: 'tips' as const, label: 'Tips', count: tipEntries.length, color: '#58a6ff' }
+        {
+          key: 'errors' as const,
+          label: preferences.language === 'ru' ? 'Ошибки' : 'Errors',
+          count: errorEntries.length,
+          color: '#e05050'
+        },
+        {
+          key: 'warnings' as const,
+          label: preferences.language === 'ru' ? 'Предупреждения' : 'Warnings',
+          count: warnEntries.length,
+          color: '#d4a017'
+        },
+        {
+          key: 'tips' as const,
+          label: preferences.language === 'ru' ? 'Подсказки' : 'Tips',
+          count: tipEntries.length,
+          color: '#58a6ff'
+        }
       ]
 
       return (
@@ -2568,8 +3064,8 @@ export function EditorShell(): React.JSX.Element {
           {visibleEntries.length === 0 ? (
             <div className="runtimeHint" style={{ color: '#6c6' }}>
               {!logsFilters.errors && !logsFilters.warnings && !logsFilters.tips
-                ? 'Enable filters to see entries.'
-                : 'No matching entries.'}
+                ? t('editor.logsEmptyFilters', 'Enable filters to see entries.')
+                : t('editor.logsNoMatches', 'No matching entries.')}
             </div>
           ) : (
             <div style={{ maxHeight: 260, overflowY: 'auto' }}>
@@ -2612,19 +3108,31 @@ export function EditorShell(): React.JSX.Element {
               })}
             </div>
           )}
-
-          {/* --- Raw JSON (свёрнутый по умолчанию) --- */}
-          <details style={{ marginTop: 8 }}>
-            <summary className="runtimeSectionTitle" style={{ cursor: 'pointer' }}>
-              Runtime JSON
-            </summary>
-            <pre className="runtimeCode">{JSON.stringify(runtime, null, 2)}</pre>
-          </details>
         </div>
       )
     }
 
-    return <div className="placeholderText">Unknown panel: {panelId}</div>
+    if (panelId === 'panel.runtime_json') {
+      // Отдельная панель полезна, когда нужно держать JSON открытым рядом с логами
+      // или вынести его во floating-окно на второй монитор.
+      return (
+        <div className="runtimeSection">
+          <div className="runtimeHint">
+            {t(
+              'editor.runtimeJsonHint',
+              'Raw editor scene state with node positions, selection, and editor-only fields.'
+            )}
+          </div>
+          <pre className="runtimeCode">{JSON.stringify(runtime, null, 2)}</pre>
+        </div>
+      )
+    }
+
+    return (
+      <div className="placeholderText">
+        {preferences.language === 'ru' ? 'Неизвестная панель' : 'Unknown panel'}: {panelId}
+      </div>
+    )
   }
 
   // Определяем, над какой док-зоной сейчас курсор.
@@ -2893,7 +3401,41 @@ export function EditorShell(): React.JSX.Element {
       return
     }
 
-    // Открываем панель как floating (не ломаем док-раскладку).
+    // Если панель раньше жила в доке, стараемся вернуть её туда.
+    const preferredDockSlot = current.lastDockedSlot
+    if (preferredDockSlot) {
+      const nextDocked = {
+        left: [...layout.docked.left],
+        right: [...layout.docked.right],
+        bottom: [...layout.docked.bottom]
+      }
+      const nextPanels = { ...layout.panels }
+
+      removeFromAllSlots(nextDocked, panelId)
+      insertIntoSlot(nextDocked, preferredDockSlot, panelId, nextDocked[preferredDockSlot].length)
+      enforceSlotCapacity(nextDocked, nextPanels, preferredDockSlot, panelId)
+
+      if (nextPanels[panelId]?.mode !== 'hidden') {
+        setLayout({
+          ...layout,
+          docked: nextDocked,
+          panels: {
+            ...nextPanels,
+            [panelId]: {
+              ...current,
+              mode: 'docked',
+              slot: preferredDockSlot,
+              position: null,
+              size: null,
+              lastDockedSlot: preferredDockSlot
+            }
+          }
+        })
+        return
+      }
+    }
+
+    // Если вернуть в док нельзя — открываем панель как floating.
     const rootRect = rootRef.current?.getBoundingClientRect()
     const fallbackSize = current.lastFloatingSize ?? { width: 360, height: 240 }
 
@@ -2933,6 +3475,67 @@ export function EditorShell(): React.JSX.Element {
     })
   }
 
+  // Новые хоткеи из мегаплана подключаем отдельным foundation-слоем,
+  // не ломая старый рабочий keydown-блок для clipboard/delete/save.
+  const hotkeyHandlers = useMemo(
+    () => [
+      {
+        actionId: 'toggle_inspector' as const,
+        handler: () => togglePanel('panel.inspector')
+      },
+      {
+        actionId: 'focus_left_dock' as const,
+        handler: () => {
+          leftDockRef.current?.focus()
+        }
+      },
+      {
+        actionId: 'focus_right_dock' as const,
+        handler: () => {
+          rightDockRef.current?.focus()
+        }
+      },
+      {
+        actionId: 'focus_bottom_dock' as const,
+        handler: () => {
+          if (!activeBottomTabId) {
+            const nextBottomId =
+              layout.docked.bottom.find((id) => layout.panels[id]?.mode === 'docked') ?? null
+            if (nextBottomId) {
+              setActiveBottomTabId(nextBottomId)
+            }
+          }
+          bottomDockRef.current?.focus()
+        }
+      },
+      {
+        actionId: 'fit_view' as const,
+        handler: () => {
+          setFitViewRequestId((prev) => prev + 1)
+        }
+      },
+      {
+        actionId: 'zen_mode' as const,
+        handler: () => {
+          setCollapsedDocks((prev) => {
+            const nextCollapsed = !(prev.left && prev.right && prev.bottom)
+            return {
+              left: nextCollapsed,
+              right: nextCollapsed,
+              bottom: nextCollapsed
+            }
+          })
+        }
+      }
+    ],
+    [activeBottomTabId, layout.docked.bottom, layout.panels, togglePanel]
+  )
+
+  useHotkeys({
+    keybindings: preferences.keybindings,
+    handlers: hotkeyHandlers
+  })
+
   // Начинаем ресайз доков или floating панели.
   const startResizeDrag =
     (kind: ResizeKind, panelId?: string) => (event: React.PointerEvent<HTMLElement>) => {
@@ -2964,14 +3567,19 @@ export function EditorShell(): React.JSX.Element {
 
   // Пока мы ресайзим, обновляем размеры в layout.
   useEffect(() => {
+    let frameId: number | null = null
+
     if (!resizeDrag) return
 
     const onPointerMove = (event: PointerEvent) => {
       if (event.pointerId !== resizeDrag.pointerId) return
 
-      const currentLayout = layoutRef.current
-      const rootRect = rootRef.current?.getBoundingClientRect()
-      if (!rootRect) return
+      if (frameId !== null) return
+      frameId = requestAnimationFrame(() => {
+        frameId = null
+        const currentLayout = layoutRef.current
+        const rootRect = rootRef.current?.getBoundingClientRect()
+        if (!rootRect) return
 
       const dx = event.clientX - resizeDrag.startX
       const dy = event.clientY - resizeDrag.startY
@@ -3140,10 +3748,13 @@ export function EditorShell(): React.JSX.Element {
           }
         })
       }
+      })
     }
 
     const onPointerUp = (event: PointerEvent) => {
       if (event.pointerId !== resizeDrag.pointerId) return
+
+      if (frameId !== null) cancelAnimationFrame(frameId)
 
       const currentLayout = layoutRef.current
 
@@ -3205,11 +3816,12 @@ export function EditorShell(): React.JSX.Element {
           // а drag/drop сохраняется через отдельный invisible hitbox.
           ['--leftDockWidth' as string]: `${collapsedDocks.left ? COLLAPSED_DOCK_SIZE : layout.dockSizes.leftWidth}px`,
           ['--rightDockWidth' as string]: `${collapsedDocks.right ? COLLAPSED_DOCK_SIZE : layout.dockSizes.rightWidth}px`,
-          // Если bottom dock пустой — сворачиваем его до 0.
+          // Даже пустой bottom dock оставляем тонкой полосой,
+          // чтобы панель можно было вернуть назад drag-and-drop без "слепой" зоны.
           ['--bottomDockHeight' as string]:
             bottomDockedIds.length > 0
               ? `${collapsedDocks.bottom ? COLLAPSED_DOCK_SIZE : layout.dockSizes.bottomHeight}px`
-              : '0px'
+              : `${COLLAPSED_DOCK_SIZE}px`
         } as CSSProperties
       }
     >
@@ -3243,7 +3855,7 @@ export function EditorShell(): React.JSX.Element {
               fontWeight: 500
             }}
           >
-            Loading project...
+            {t('editor.loadingProject', 'Loading project...')}
           </div>
         </div>
       )}
@@ -3256,6 +3868,7 @@ export function EditorShell(): React.JSX.Element {
           onOpenProject={openProject}
           onExport={handleExport}
           onNew={handleNew}
+          onCreateExample={handleCreateExample}
           onOpenScene={handleOpenScene}
           onSave={handleSave}
           onSaveAs={handleSaveAs}
@@ -3267,7 +3880,6 @@ export function EditorShell(): React.JSX.Element {
               setLayout(createDefaultLayout())
             })
           }}
-          onToggleLogs={() => togglePanel('panel.logs')}
           onCheckUpdates={() => {
             // Проверяем, что мы в Electron-контексте.
             if (!window.api?.updater) {
@@ -3296,14 +3908,54 @@ export function EditorShell(): React.JSX.Element {
                 alert(`Update check failed: ${msg}`)
               })
           }}
-          onAbout={() => alert('Undefscene Editor v1.0\nCutscene node editor for GameMaker.')}
+          onToggleRuntimeJson={() => togglePanel('panel.runtime_json')}
+          runtimeJsonVisible={isPanelVisible('panel.runtime_json')}
+          onCopyLogToClipboard={() => {
+            if (!window.api?.appInfo?.copyLogToClipboard) {
+              console.warn('App info API not available')
+              return
+            }
+
+            window.api.appInfo
+              .copyLogToClipboard()
+              .then((result) => {
+                if (result.copied) {
+                  alert('Log copied to clipboard.')
+                  return
+                }
+
+                alert('Failed to copy log to clipboard.')
+              })
+              .catch((err) => {
+                const msg = err instanceof Error ? err.message : String(err)
+                alert(`Failed to copy log to clipboard: ${msg}`)
+              })
+          }}
+          onOpenDevTools={() => {
+            if (!window.api?.appInfo?.openDevTools) {
+              console.warn('App info API not available')
+              return
+            }
+
+            void window.api.appInfo.openDevTools()
+          }}
+          onToggleHardwareAcceleration={() => {
+            updatePreferences({
+              disableHardwareAcceleration: !preferences.disableHardwareAcceleration
+            })
+          }}
+          hardwareAccelerationDisabled={preferences.disableHardwareAcceleration}
+          onAbout={() => setAboutOpen(true)}
           onExit={() => window.close()}
           onPreferences={() => setPreferencesOpen(true)}
+          language={preferences.language}
+          keybindings={preferences.keybindings}
         />
       </header>
 
       <aside
         ref={leftDockRef}
+        tabIndex={-1}
         className={['editorLeftDock', collapsedDocks.left ? 'isDockVisuallyCollapsed' : '']
           .filter(Boolean)
           .join(' ')}
@@ -3326,7 +3978,7 @@ export function EditorShell(): React.JSX.Element {
         <div className="dockSlotSplit dockSlotSplitLeft">
           {leftDockedIds[0] ? (
             <DockPanel
-              title={layout.panels[leftDockedIds[0]]?.title ?? leftDockedIds[0]}
+              title={getPanelTitle(leftDockedIds[0])}
               className={[
                 'dockPanelActions',
                 drag?.panelId === leftDockedIds[0] ? 'isDragSource' : ''
@@ -3356,7 +4008,7 @@ export function EditorShell(): React.JSX.Element {
 
           {leftDockedIds[1] ? (
             <DockPanel
-              title={layout.panels[leftDockedIds[1]]?.title ?? leftDockedIds[1]}
+              title={getPanelTitle(leftDockedIds[1])}
               className={[
                 'dockPanelBookmarks',
                 drag?.panelId === leftDockedIds[1] ? 'isDragSource' : ''
@@ -3380,7 +4032,7 @@ export function EditorShell(): React.JSX.Element {
       </aside>
 
       <main className="editorCenter">
-        <div className="centerCanvasHeader">Node Editor</div>
+        <div className="centerCanvasHeader">{t('editor.nodeEditor', 'Node Editor')}</div>
         <div className="centerCanvasBody">
           {/* Основной холст: показываем ноды и выбор из runtime-json. */}
           {/* PreferencesProvider передаёт настройки в ноды (showNodeNameOnCanvas и т.д.) */}
@@ -3518,6 +4170,7 @@ export function EditorShell(): React.JSX.Element {
               // Двойной клик по ребру — после рендера фокусируем wait input.
               shouldFocusEdgeWaitRef.current = true
             }}
+            fitViewRequestId={fitViewRequestId}
           />
           </PreferencesProvider>
         </div>
@@ -3525,6 +4178,7 @@ export function EditorShell(): React.JSX.Element {
 
       <aside
         ref={rightDockRef}
+        tabIndex={-1}
         className={['editorRightDock', collapsedDocks.right ? 'isDockVisuallyCollapsed' : '']
           .filter(Boolean)
           .join(' ')}
@@ -3546,7 +4200,7 @@ export function EditorShell(): React.JSX.Element {
         <div className="dockSlotSplit dockSlotSplitRight">
           {rightDockedIds[0] ? (
             <DockPanel
-              title={layout.panels[rightDockedIds[0]]?.title ?? rightDockedIds[0]}
+              title={getPanelTitle(rightDockedIds[0])}
               className={[
                 'dockPanelText',
                 drag?.panelId === rightDockedIds[0] ? 'isDragSource' : ''
@@ -3576,7 +4230,7 @@ export function EditorShell(): React.JSX.Element {
 
           {rightDockedIds[1] ? (
             <DockPanel
-              title={layout.panels[rightDockedIds[1]]?.title ?? rightDockedIds[1]}
+              title={getPanelTitle(rightDockedIds[1])}
               className={[
                 'dockPanelInspector',
                 drag?.panelId === rightDockedIds[1] ? 'isDragSource' : ''
@@ -3601,6 +4255,7 @@ export function EditorShell(): React.JSX.Element {
 
       <section
         ref={bottomDockRef}
+        tabIndex={-1}
         className={[
           'editorBottomDock',
           collapsedDocks.bottom ? 'isDockVisuallyCollapsed' : ''
@@ -3671,7 +4326,7 @@ export function EditorShell(): React.JSX.Element {
                             transition: 'color 0.12s, background 0.12s'
                           }}
                         >
-                          {layout.panels[panelId]?.title ?? panelId}
+                          {getPanelTitle(panelId)}
                         </button>
                       ))}
                     </div>
@@ -3679,7 +4334,7 @@ export function EditorShell(): React.JSX.Element {
 
                   {/* Контент активной вкладки. */}
                   <DockPanel
-                    title={layout.panels[activeId]?.title ?? activeId}
+                    title={getPanelTitle(activeId)}
                     className={['dockPanelLogs', drag?.panelId === activeId ? 'isDragSource' : '']
                       .filter(Boolean)
                       .join(' ')}
@@ -3722,7 +4377,7 @@ export function EditorShell(): React.JSX.Element {
               }}
             >
               <DockPanel
-                title={p.title}
+                title={getPanelTitle(panelId)}
                 className="isFloating"
                 onHeaderPointerDown={startPanelDrag(panelId)}
                 collapsed={p.collapsed}
@@ -3779,7 +4434,7 @@ export function EditorShell(): React.JSX.Element {
           }}
         >
           <div className="dragGhostHeader">
-            {drag ? (layout.panels[drag.panelId]?.title ?? drag.panelId) : ''}
+            {drag ? getPanelTitle(drag.panelId) : ''}
           </div>
         </div>
       </div>
@@ -3806,6 +4461,14 @@ export function EditorShell(): React.JSX.Element {
         onClose={() => setPreferencesOpen(false)}
       />
 
+      <AboutModal
+        open={aboutOpen}
+        version={appVersion}
+        onOpenDocs={handleOpenDocs}
+        language={preferences.language}
+        onClose={() => setAboutOpen(false)}
+      />
+
       {/*
         Модалка предупреждения о конфликте имени ноды.
         Дубликаты разрешены, но по умолчанию мы предлагаем уникальный вариант.
@@ -3820,7 +4483,9 @@ export function EditorShell(): React.JSX.Element {
         >
           <div className="prefsModal" onClick={(e) => e.stopPropagation()}>
             <div className="prefsHeader">
-              <span className="prefsTitle">Duplicate node name</span>
+              <span className="prefsTitle">
+                {preferences.language === 'ru' ? 'Дублирующееся имя ноды' : 'Duplicate node name'}
+              </span>
               <button
                 className="prefsCloseBtn"
                 onClick={() => {
@@ -3834,15 +4499,19 @@ export function EditorShell(): React.JSX.Element {
 
             <div className="prefsBody">
               <div className="prefsHint">
-                This name is already used by another node
+                {preferences.language === 'ru'
+                  ? 'Это имя уже используется другой нодой'
+                  : 'This name is already used by another node'}
                 {nameConflictModal.conflictingWithNodeId
                   ? ` (${nameConflictModal.conflictingWithNodeId})`
                   : ''}
-                . Duplicates are allowed, but it can be confusing.
+                {preferences.language === 'ru'
+                  ? '. Дубликаты допустимы, но могут путать.'
+                  : '. Duplicates are allowed, but it can be confusing.'}
               </div>
 
               <label className="prefsField">
-                <span>Name</span>
+                <span>{preferences.language === 'ru' ? 'Имя' : 'Name'}</span>
                 <input
                   className="prefsInput"
                   value={nameConflictModal.value}
@@ -3864,7 +4533,7 @@ export function EditorShell(): React.JSX.Element {
                     setNameConflictModal(null)
                   }}
                 >
-                  Cancel
+                  {preferences.language === 'ru' ? 'Отмена' : 'Cancel'}
                 </button>
                 <button
                   ref={nameConflictOkRef}
@@ -3882,7 +4551,7 @@ export function EditorShell(): React.JSX.Element {
                     setNameConflictModal(null)
                   }}
                 >
-                  OK
+                  {preferences.language === 'ru' ? 'ОК' : 'OK'}
                 </button>
               </div>
             </div>

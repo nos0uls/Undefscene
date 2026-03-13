@@ -134,6 +134,11 @@ export interface RendererApi {
   // Операции с файлом сцены (Open, Save, Save As).
   scene: {
     save: (filePath: string, jsonString: string) => Promise<{ saved: boolean; filePath: string }>
+    autosave: (
+      filePath: string | null,
+      jsonString: string,
+      backupCount: number
+    ) => Promise<{ saved: boolean; filePath: string }>
     saveAs: (jsonString: string) => Promise<{ saved: boolean; filePath?: string }>
     open: () => Promise<{ filePath: string; content: string } | null>
   }
@@ -146,6 +151,7 @@ export interface RendererApi {
   // Сканирование .yarn файлов в datafiles/ проекта.
   yarn: {
     scan: (projectDir: string) => Promise<YarnFileInfo[]>
+    readFile: (projectDir: string, fileName: string) => Promise<string | null>
   }
 
   // Экспорт катсцены в JSON-файл для движка.
@@ -175,6 +181,16 @@ export interface RendererApi {
   preferences: {
     read: () => Promise<EditorPreferences | null>
     write: (next: EditorPreferences) => Promise<void>
+    chooseCanvasBackground: () => Promise<string | null>
+    readCanvasBackgroundDataUrl: (filePath: string) => Promise<string | null>
+  }
+
+  // Базовая информация о приложении и внешних ссылках.
+  appInfo: {
+    getVersion: () => Promise<string>
+    openExternal: (url: string) => Promise<void>
+    openDevTools: () => Promise<void>
+    copyLogToClipboard: () => Promise<{ copied: boolean }>
   }
 }
 
@@ -202,6 +218,8 @@ export interface EditorPreferences {
   canvasBackgroundMode: 'stretch' | 'cover'
   autoSaveEnabled: boolean
   autoSaveIntervalMinutes: number
+  disableHardwareAcceleration: boolean
+  keybindings: Record<string, string>
   showNodeNameOnCanvas: boolean
   parallelBranchPortMode: 'shared' | 'separate'
   language: 'en' | 'ru'

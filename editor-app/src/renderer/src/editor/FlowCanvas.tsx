@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -74,6 +74,10 @@ type FlowCanvasProps = {
 
   // Коллбек: двойной клик по ребру — выбрать и сфокусировать wait input.
   onEdgeDoubleClick?: (edgeId: string) => void
+
+  // Счётчик-запрос на fit view.
+  // Когда число меняется, холст делает fitView один раз.
+  fitViewRequestId?: number
 }
 
 // Внутренний компонент холста (нужен useReactFlow, который работает только внутри ReactFlowProvider).
@@ -93,14 +97,43 @@ const FlowCanvasInner = ({
   onNodeDelete,
   onPaneClickCreate,
   onEdgeDelete,
-  onEdgeDoubleClick
+  onEdgeDoubleClick,
+  fitViewRequestId = 0
 }: FlowCanvasProps): React.JSX.Element => {
   // Нужен для конвертации экранных координат в координаты холста.
-  const { screenToFlowPosition, getNodes, getViewport, setViewport } = useReactFlow()
+  const { screenToFlowPosition, getNodes, getViewport, setViewport, fitView } = useReactFlow()
 
   // Читаем настройки редактора из контекста.
   // Отсюда берём zoomSpeed, чтобы скорость wheel zoom реально менялась из Preferences.
   const prefs = usePreferencesContext()
+
+  // Data URL кастомного фонового изображения.
+  // Читаем его через main IPC, потому что прямой file:// доступ из renderer может блокироваться.
+  const [canvasBackgroundUrl, setCanvasBackgroundUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!prefs.canvasBackgroundPath || !window.api?.preferences?.readCanvasBackgroundDataUrl) {
+      setCanvasBackgroundUrl(null)
+      return
+    }
+
+    let cancelled = false
+    window.api.preferences
+      .readCanvasBackgroundDataUrl(prefs.canvasBackgroundPath)
+      .then((dataUrl) => {
+        if (cancelled) return
+        setCanvasBackgroundUrl(typeof dataUrl === 'string' ? dataUrl : null)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        console.warn('Failed to load canvas background image:', err)
+        setCanvasBackgroundUrl(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [prefs.canvasBackgroundPath])
 
   // Храним ref на DOM-обёртку canvas, чтобы повесить native non-passive wheel listener.
   // Это нужно для trackpad/pinch и чтобы браузер не ругался на preventDefault в passive listener.
@@ -694,6 +727,12 @@ const FlowCanvasInner = ({
     }
   }, [handleWheel])
 
+  // Внешний hotkey может попросить аккуратно уместить граф в viewport.
+  useEffect(() => {
+    if (fitViewRequestId <= 0) return
+    void fitView({ duration: 180, padding: 0.18 })
+  }, [fitView, fitViewRequestId])
+
   return (
     <div
       ref={flowCanvasRef}
@@ -702,7 +741,26 @@ const FlowCanvasInner = ({
       onContextMenu={(e) => e.preventDefault()}
       // MMB по пустому месту — создаём ноду.
       onMouseDown={handleMouseDown}
+      style={{ position: 'relative', minWidth: 0, minHeight: 0 }}
     >
+      {canvasBackgroundUrl ? (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            zIndex: 0,
+            backgroundImage: `url("${canvasBackgroundUrl}")`,
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
+            backgroundSize:
+              prefs.canvasBackgroundMode === 'stretch' ? '100% 100%' : 'cover',
+            // Прозрачность управляется из Preferences,
+            // чтобы фон не мешал читать граф и сетку.
+            opacity: prefs.canvasBackgroundOpacity
+          }}
+        />
+      ) : null}
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -737,8 +795,11 @@ const FlowCanvasInner = ({
         // Дополнительно защищаемся от бесконечного цикла: не вызываем onSelectNodes,
         // если фактическое выделение не изменилось относительно пропсов.
         onSelectionChange={handleSelectionChange}
+        style={{ background: 'transparent', position: 'relative', zIndex: 1 }}
       >
-        <Background color="#262b2f" gap={18} size={1} />
+        {/* Размер сетки теперь реально читается из Preferences,
+            чтобы настройка grid size меняла canvas, а не висела мёртвым полем. */}
+        <Background color="#262b2f" gap={prefs.gridSize} size={1} />
         {prefs.showMiniMap ? (
           <MiniMap
             zoomable

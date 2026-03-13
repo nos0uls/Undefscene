@@ -1,6 +1,17 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
-import { readFile, writeFile, rename, unlink, readdir } from 'fs/promises'
-import { join, dirname, basename } from 'path'
+import { app, shell, BrowserWindow, ipcMain, dialog, Menu, clipboard, nativeImage } from 'electron'
+import { readFileSync } from 'fs'
+import {
+  readFile,
+  writeFile,
+  rename,
+  unlink,
+  readdir,
+  copyFile,
+  mkdir,
+  appendFile,
+  stat
+} from 'fs/promises'
+import { join, dirname, basename, extname, relative, resolve, sep } from 'path'
 import icon from '../../resources/icon.png?asset'
 import { initAutoUpdater } from './updater'
 
@@ -8,6 +19,122 @@ import { initAutoUpdater } from './updater'
 // We avoid @electron-toolkit/utils here because it can resolve `electron` incorrectly
 // in some dev setups and crash before the app starts.
 const isDev = !app.isPackaged
+
+// Лог-файлы приложения в userData.
+// Используем простую ротацию: undefscene.log, undefscene.log.1, undefscene.log.2
+// Максимум 3 файла по ~1MB каждый.
+const LOG_FILE_NAME = 'undefscene.log'
+const LOG_MAX_BYTES = 1024 * 1024
+const LOG_ROTATION_COUNT = 3
+
+// Безопасно превращаем любые console args в одну строку для файла логов.
+function stringifyLogPart(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value instanceof Error) {
+    return value.stack || `${value.name}: ${value.message}`
+  }
+
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+// Возвращает абсолютный путь к лог-файлу по индексу ротации.
+function getLogPath(index = 0): string {
+  const base = join(app.getPath('userData'), LOG_FILE_NAME)
+  return index === 0 ? base : `${base}.${index}`
+}
+
+// Ротация логов при превышении лимита размера.
+async function rotateLogsIfNeeded(): Promise<void> {
+  try {
+    const currentStat = await stat(getLogPath(0))
+    if (currentStat.size < LOG_MAX_BYTES) return
+  } catch {
+    return
+  }
+
+  for (let index = LOG_ROTATION_COUNT - 1; index >= 1; index -= 1) {
+    const sourcePath = getLogPath(index - 1)
+    const targetPath = getLogPath(index)
+
+    try {
+      await unlink(targetPath)
+    } catch {
+      // Старый rotated-файл может отсутствовать — это нормально.
+    }
+
+    try {
+      await rename(sourcePath, targetPath)
+    } catch {
+      // Если source ещё не существует — просто пропускаем.
+    }
+  }
+}
+
+// Записываем строку в лог-файл и при необходимости крутим ротацию.
+async function writeLogLine(level: 'log' | 'warn' | 'error', parts: unknown[]): Promise<void> {
+  const timestamp = new Date().toISOString()
+  const line = `[${timestamp}] [${level.toUpperCase()}] ${parts.map(stringifyLogPart).join(' ')}\n`
+
+  try {
+    await rotateLogsIfNeeded()
+    await appendFile(getLogPath(0), line, 'utf-8')
+  } catch {
+    // Никогда не валим приложение из-за ошибок логгера.
+  }
+}
+
+// Включаем запись console.log/warn/error в файл.
+function installFileLogger(): void {
+  const originalLog = console.log.bind(console)
+  const originalWarn = console.warn.bind(console)
+  const originalError = console.error.bind(console)
+
+  console.log = (...parts: unknown[]) => {
+    originalLog(...parts)
+    void writeLogLine('log', parts)
+  }
+
+  console.warn = (...parts: unknown[]) => {
+    originalWarn(...parts)
+    void writeLogLine('warn', parts)
+  }
+
+  console.error = (...parts: unknown[]) => {
+    originalError(...parts)
+    void writeLogLine('error', parts)
+  }
+
+  process.on('uncaughtException', (error) => {
+    originalError(error)
+    void writeLogLine('error', ['uncaughtException', error])
+  })
+
+  process.on('unhandledRejection', (reason) => {
+    originalError(reason)
+    void writeLogLine('error', ['unhandledRejection', reason])
+  })
+}
+
+installFileLogger()
+
+// Читаем preferences.json как можно раньше.
+// Это нужно для флага disableHardwareAcceleration, который Electron должен получить
+// ещё до ready/createWindow, иначе настройка не применится на текущем запуске.
+try {
+  const earlyPreferencesPath = join(app.getPath('userData'), 'preferences.json')
+  const earlyRaw = readFileSync(earlyPreferencesPath, 'utf-8')
+  const earlyPrefs = JSON.parse(earlyRaw) as { disableHardwareAcceleration?: unknown }
+
+  if (earlyPrefs?.disableHardwareAcceleration === true) {
+    app.disableHardwareAcceleration()
+  }
+} catch {
+  // Если preferences.json ещё нет или он битый, просто используем дефолтный режим.
+}
 
 // Парсим .yyp и собираем базовые списки ресурсов.
 // Это нужно для autocomplete и валидации в инспекторе.
@@ -72,21 +199,59 @@ async function parseYypResources(yypPath: string): Promise<{
   }
 }
 
+// Рекурсивно собираем все .yarn файлы внутри datafiles/.
+// Это нужно, потому что в реальных проектах Yarn часто лежит по подпапкам,
+// а не только прямо в корне datafiles/.
+async function collectYarnFilesRecursively(
+  rootDir: string,
+  currentDir: string,
+  depthLeft: number
+): Promise<string[]> {
+  const entries = await readdir(currentDir)
+  const result: string[] = []
+
+  for (const entry of entries) {
+    const fullPath = join(currentDir, entry)
+
+    try {
+      const entryStat = await stat(fullPath)
+      if (entryStat.isDirectory()) {
+        if (depthLeft <= 0) continue
+        result.push(...(await collectYarnFilesRecursively(rootDir, fullPath, depthLeft - 1)))
+        continue
+      }
+
+      if (entryStat.isFile() && entry.toLowerCase().endsWith('.yarn')) {
+        // Храним путь относительно datafiles/, чтобы renderer мог показать подпапки
+        // и потом безопасно запросить preview того же файла.
+        result.push(relative(rootDir, fullPath).replace(/\\/g, '/'))
+      }
+    } catch {
+      // Если конкретный файл или подпапка недоступны, просто пропускаем их.
+      continue
+    }
+  }
+
+  return result
+}
+
 // Сканируем datafiles/ на .yarn файлы и извлекаем имена нод.
-// Yarn формат: каждая нода начинается с "title: <name>" после "---".
-// Возвращаем массив { file: имя файла, nodes: массив имён нод }.
+// Yarn формат: каждая нода начинается с "title: <name>".
+// Возвращаем массив { file: относительный путь без .yarn, nodes: массив имён нод }.
 async function scanYarnFiles(
   projectDir: string
 ): Promise<Array<{ file: string; nodes: string[] }>> {
   const datafilesDir = join(projectDir, 'datafiles')
   let files: string[]
   try {
-    const entries = await readdir(datafilesDir)
-    files = entries.filter((f) => f.endsWith('.yarn'))
+    files = await collectYarnFilesRecursively(datafilesDir, datafilesDir, 3)
   } catch {
     // Папки datafiles/ нет — это нормально.
     return []
   }
+
+  console.log('Yarn scan root:', datafilesDir)
+  console.log('Yarn scan found files:', files)
 
   const result: Array<{ file: string; nodes: string[] }> = []
 
@@ -104,14 +269,34 @@ async function scanYarnFiles(
         }
       }
 
-      result.push({ file: basename(file, '.yarn'), nodes })
+      // Убираем только расширение, но сохраняем относительный путь подпапки.
+      result.push({ file: file.replace(/\.yarn$/i, ''), nodes })
     } catch {
       // Битый файл — пропускаем.
       continue
     }
   }
 
+  console.log('Yarn scan parsed entries:', result)
+
   return result
+}
+
+// Читаем картинку фона canvas из main процесса и превращаем её в data URL.
+// Такой формат безопасно работает и в dev-режиме с http renderer, где file:// может блокироваться.
+async function readCanvasBackgroundDataUrl(filePath: string): Promise<string | null> {
+  const rawPath = String(filePath || '').trim()
+  if (!rawPath) return null
+
+  const backgroundsDir = resolve(app.getPath('userData'), 'canvas-backgrounds')
+  const resolvedPath = resolve(rawPath)
+  if (resolvedPath !== backgroundsDir && !resolvedPath.startsWith(`${backgroundsDir}${sep}`)) {
+    return null
+  }
+
+  const image = nativeImage.createFromPath(resolvedPath)
+  if (image.isEmpty()) return null
+  return image.toDataURL()
 }
 
 // In some Windows setups, `localhost` may resolve to IPv6 (::1) first.
@@ -362,6 +547,43 @@ app.whenReady().then(() => {
     }
   })
 
+  // IPC: Выбрать изображение для фона canvas и скопировать его в userData.
+  // Это защищает нас от перемещения/удаления исходного файла вне редактора.
+  ipcMain.handle('preferences.chooseCanvasBackground', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Choose Canvas Background Image',
+      properties: ['openFile'],
+      filters: [
+        {
+          name: 'Images',
+          extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp']
+        }
+      ]
+    })
+
+    if (result.canceled || result.filePaths.length === 0) return null
+
+    const sourcePath = result.filePaths[0]
+    const extension = extname(sourcePath) || '.png'
+    const backgroundsDir = join(app.getPath('userData'), 'canvas-backgrounds')
+    const targetPath = join(backgroundsDir, `canvas-background${extension}`)
+
+    await mkdir(backgroundsDir, { recursive: true })
+    await copyFile(sourcePath, targetPath)
+
+    return targetPath
+  })
+
+  // IPC: Прочитать сохранённый canvas background и вернуть data URL для renderer.
+  ipcMain.handle('preferences.readCanvasBackgroundDataUrl', async (_event, filePath: string) => {
+    try {
+      return await readCanvasBackgroundDataUrl(filePath)
+    } catch (err) {
+      console.warn('Failed to read canvas background data URL:', err)
+      return null
+    }
+  })
+
   // IPC: Чтение cutscene_engine_settings.json из datafiles/ проекта.
   // Возвращает whitelists для branch conditions и run functions.
   ipcMain.handle('settings.readEngine', async (_event, projectDir: string) => {
@@ -408,6 +630,29 @@ app.whenReady().then(() => {
     }
   })
 
+  // IPC: Прочитать полный .yarn файл для preview в Text panel.
+  ipcMain.handle('yarn.readFile', async (_event, projectDir: string, fileName: string) => {
+    const rawName = String(fileName || '').trim().replace(/\\/g, '/')
+    if (!rawName) return null
+    if (rawName.includes('..')) return null
+
+    const normalizedFile = rawName.endsWith('.yarn') ? rawName : `${rawName}.yarn`
+    const datafilesDir = resolve(projectDir, 'datafiles')
+    const fullPath = resolve(datafilesDir, normalizedFile)
+
+    // Разрешаем читать только файлы внутри datafiles/.
+    // Это сохраняет safe IPC pattern и не даёт выйти в произвольные пути.
+    if (fullPath !== datafilesDir && !fullPath.startsWith(`${datafilesDir}${sep}`)) {
+      return null
+    }
+
+    try {
+      return await readFile(fullPath, 'utf-8')
+    } catch {
+      return null
+    }
+  })
+
   // IPC: Экспорт катсцены в JSON-файл для движка.
   ipcMain.handle('export.save', async (_event, jsonString: string) => {
     const result = await dialog.showSaveDialog({
@@ -440,6 +685,59 @@ app.whenReady().then(() => {
     return { saved: true, filePath }
   })
 
+  // IPC: Автосохранение сцены.
+  // Если основной путь уже известен — сохраняем туда же, но сначала делаем autosave-backup
+  // с ротацией вида *.autosave-1, *.autosave-2 и т.д.
+  // Если путь ещё неизвестен — пишем черновик прямо в userData.
+  ipcMain.handle(
+    'scene.autosave',
+    async (
+      _event,
+      payload: { filePath?: string | null; jsonString: string; backupCount?: number }
+    ) => {
+      const jsonString = String(payload?.jsonString ?? '')
+      const filePath = typeof payload?.filePath === 'string' ? payload.filePath : null
+      const backupCount = Math.max(1, Math.min(20, Number(payload?.backupCount ?? 5)))
+
+      if (filePath) {
+        const dir = dirname(filePath)
+        const fileName = basename(filePath)
+        const fullExt = fileName.endsWith('.usc.json') ? '.usc.json' : extname(fileName) || '.json'
+        const stem = fileName.slice(0, Math.max(0, fileName.length - fullExt.length))
+
+        // Сдвигаем существующие autosave-backup вверх по номеру,
+        // чтобы autosave-1 всегда был самым свежим backup перед записью нового файла.
+        for (let i = backupCount; i >= 1; i -= 1) {
+          const backupPath = join(dir, `${stem}.autosave-${i}${fullExt}`)
+
+          if (i === backupCount) {
+            await unlink(backupPath).catch(() => undefined)
+            continue
+          }
+
+          const nextBackupPath = join(dir, `${stem}.autosave-${i + 1}${fullExt}`)
+          await rename(backupPath, nextBackupPath).catch(() => undefined)
+        }
+
+        // Перед autosave сохраняем предыдущую версию основного файла в autosave-1.
+        const existingContent = await readFile(filePath, 'utf-8').catch(() => null)
+        if (typeof existingContent === 'string') {
+          const backupPath = join(dir, `${stem}.autosave-1${fullExt}`)
+          await writeFile(backupPath, existingContent, 'utf-8')
+        }
+
+        await writeFile(filePath, jsonString, 'utf-8')
+        return { saved: true, filePath }
+      }
+
+      // Для несохранённой сцены создаём timestamp-based autosave в userData.
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').replace('Z', '')
+      const draftPath = join(app.getPath('userData'), `autosave-${stamp}.usc.json`)
+      await writeFile(draftPath, jsonString, 'utf-8')
+      return { saved: true, filePath: draftPath }
+    }
+  )
+
   // IPC: Открыть файл сцены (.usc.json / .json).
   ipcMain.handle('scene.open', async () => {
     const result = await dialog.showOpenDialog({
@@ -451,6 +749,35 @@ app.whenReady().then(() => {
     const filePath = result.filePaths[0]
     const raw = await readFile(filePath, 'utf-8')
     return { filePath, content: raw }
+  })
+
+  // IPC: Отдать базовую информацию о приложении для About modal.
+  ipcMain.handle('app.getVersion', () => {
+    return app.getVersion()
+  })
+
+  // IPC: Открыть внешний URL из renderer безопасным способом через main.
+  ipcMain.handle('app.openExternal', async (_event, url: string) => {
+    await shell.openExternal(url)
+  })
+
+  // IPC: Открыть DevTools для активного окна по запросу из Help menu.
+  ipcMain.handle('app.openDevTools', async () => {
+    const focusedWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null
+    if (!focusedWindow) return
+    focusedWindow.webContents.openDevTools({ mode: 'undocked' })
+  })
+
+  // IPC: Скопировать последний лог-файл приложения в clipboard.
+  ipcMain.handle('app.copyLogToClipboard', async () => {
+    try {
+      const raw = await readFile(getLogPath(0), 'utf-8')
+      clipboard.writeText(raw)
+      return { copied: true }
+    } catch (err) {
+      console.warn('Failed to copy log file to clipboard:', err)
+      return { copied: false }
+    }
   })
 
   // IPC test

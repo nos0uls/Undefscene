@@ -16,6 +16,55 @@ export type AccentColorId =
   | 'yellow'
   | 'custom'
 
+// ID действий, для которых мы храним клавиатурные сочетания.
+export type HotkeyActionId =
+  | 'undo'
+  | 'redo'
+  | 'save'
+  | 'new_scene'
+  | 'export_scene'
+  | 'toggle_inspector'
+  | 'focus_left_dock'
+  | 'focus_right_dock'
+  | 'focus_bottom_dock'
+  | 'fit_view'
+  | 'zen_mode'
+
+// Словарь hotkeys: action id -> строка combo.
+export type EditorKeybindings = Record<HotkeyActionId, string>
+
+// Порядок действий нужен в UI настроек,
+// чтобы список сочетаний всегда был стабильным и предсказуемым.
+export const HOTKEY_ACTION_IDS: HotkeyActionId[] = [
+  'undo',
+  'redo',
+  'save',
+  'new_scene',
+  'export_scene',
+  'toggle_inspector',
+  'focus_left_dock',
+  'focus_right_dock',
+  'focus_bottom_dock',
+  'fit_view',
+  'zen_mode'
+]
+
+// Дефолтные сочетания держим отдельной константой,
+// чтобы и parser, и меню, и rebinding UI читали один источник правды.
+export const DEFAULT_KEYBINDINGS: EditorKeybindings = {
+  undo: 'Ctrl+Z',
+  redo: 'Ctrl+Y',
+  save: 'Ctrl+S',
+  new_scene: 'Ctrl+N',
+  export_scene: 'Ctrl+E',
+  toggle_inspector: 'Ctrl+Shift+I',
+  focus_left_dock: 'Ctrl+1',
+  focus_right_dock: 'Ctrl+2',
+  focus_bottom_dock: 'Ctrl+3',
+  fit_view: 'Space',
+  zen_mode: import.meta.env.DEV ? 'F11' : 'F12'
+}
+
 // Полный набор настроек редактора.
 export interface EditorPreferences {
   // Версия схемы (для миграций).
@@ -50,12 +99,24 @@ export interface EditorPreferences {
   // Как показывать фон: 'stretch' = растянуть, 'cover' = обрезать.
   canvasBackgroundMode: 'stretch' | 'cover'
 
+  // Прозрачность кастомного фона на canvas.
+  // 0 = полностью прозрачно, 1 = полностью видно.
+  canvasBackgroundOpacity: number
+
   // --- Editor ---
   // Автосохранение включено.
   autoSaveEnabled: boolean
 
   // Интервал автосохранения (в минутах).
   autoSaveIntervalMinutes: number
+
+  // Отключить hardware acceleration на следующем запуске приложения.
+  // Меняется в Preferences, но реально применяется только после restart.
+  disableHardwareAcceleration: boolean
+
+  // Сохранённые сочетания клавиш.
+  // Сейчас используются как foundation и readonly-список в Preferences.
+  keybindings: EditorKeybindings
 
   // Показывать имя ноды на холсте (true = name, false = только тип).
   showNodeNameOnCanvas: boolean
@@ -80,8 +141,11 @@ export const DEFAULT_PREFERENCES: EditorPreferences = {
   showDockDropPreview: true,
   canvasBackgroundPath: null,
   canvasBackgroundMode: 'cover',
+  canvasBackgroundOpacity: 0.42,
   autoSaveEnabled: true,
   autoSaveIntervalMinutes: 10,
+  disableHardwareAcceleration: false,
+  keybindings: DEFAULT_KEYBINDINGS,
   showNodeNameOnCanvas: true,
   parallelBranchPortMode: 'shared',
   language: 'en'
@@ -125,6 +189,12 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
       c.canvasBackgroundMode === 'stretch' || c.canvasBackgroundMode === 'cover'
         ? c.canvasBackgroundMode
         : DEFAULT_PREFERENCES.canvasBackgroundMode,
+    canvasBackgroundOpacity:
+      typeof c.canvasBackgroundOpacity === 'number' &&
+      c.canvasBackgroundOpacity >= 0 &&
+      c.canvasBackgroundOpacity <= 1
+        ? c.canvasBackgroundOpacity
+        : DEFAULT_PREFERENCES.canvasBackgroundOpacity,
     autoSaveEnabled:
       typeof c.autoSaveEnabled === 'boolean'
         ? c.autoSaveEnabled
@@ -135,6 +205,11 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
       c.autoSaveIntervalMinutes <= 120
         ? c.autoSaveIntervalMinutes
         : DEFAULT_PREFERENCES.autoSaveIntervalMinutes,
+    disableHardwareAcceleration:
+      typeof c.disableHardwareAcceleration === 'boolean'
+        ? c.disableHardwareAcceleration
+        : DEFAULT_PREFERENCES.disableHardwareAcceleration,
+    keybindings: parseKeybindings(c.keybindings),
     showNodeNameOnCanvas:
       typeof c.showNodeNameOnCanvas === 'boolean'
         ? c.showNodeNameOnCanvas
@@ -160,6 +235,44 @@ function isValidAccentColor(value: string): value is AccentColorId {
     'yellow',
     'custom'
   ].includes(value)
+}
+
+// Собираем keybindings с fallback на дефолтные значения.
+// Это позволяет добавлять новые action id без поломки старого preferences.json.
+function parseKeybindings(raw: unknown): EditorKeybindings {
+  const defaults = DEFAULT_KEYBINDINGS
+  if (!raw || typeof raw !== 'object') {
+    return { ...defaults }
+  }
+
+  const candidate = raw as Partial<Record<HotkeyActionId, unknown>>
+  return {
+    undo: typeof candidate.undo === 'string' ? candidate.undo : defaults.undo,
+    redo: typeof candidate.redo === 'string' ? candidate.redo : defaults.redo,
+    save: typeof candidate.save === 'string' ? candidate.save : defaults.save,
+    new_scene:
+      typeof candidate.new_scene === 'string' ? candidate.new_scene : defaults.new_scene,
+    export_scene:
+      typeof candidate.export_scene === 'string' ? candidate.export_scene : defaults.export_scene,
+    toggle_inspector:
+      typeof candidate.toggle_inspector === 'string'
+        ? candidate.toggle_inspector
+        : defaults.toggle_inspector,
+    focus_left_dock:
+      typeof candidate.focus_left_dock === 'string'
+        ? candidate.focus_left_dock
+        : defaults.focus_left_dock,
+    focus_right_dock:
+      typeof candidate.focus_right_dock === 'string'
+        ? candidate.focus_right_dock
+        : defaults.focus_right_dock,
+    focus_bottom_dock:
+      typeof candidate.focus_bottom_dock === 'string'
+        ? candidate.focus_bottom_dock
+        : defaults.focus_bottom_dock,
+    fit_view: typeof candidate.fit_view === 'string' ? candidate.fit_view : defaults.fit_view,
+    zen_mode: typeof candidate.zen_mode === 'string' ? candidate.zen_mode : defaults.zen_mode
+  }
 }
 
 // Возвращает реальный HEX акцентного цвета для CSS-переменных.
