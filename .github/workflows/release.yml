@@ -58,6 +58,15 @@ jobs:
           $tag = '${{ github.ref_name }}'
           $version = if ($tag.StartsWith('v')) { $tag.Substring(1) } else { $tag }
 
+          # Дополняем патч-часть до X.Y.Z, иначе npm/pnpm выдаёт "Invalid version"
+          if ($version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') {
+            if ($version -match '^[0-9]+\.[0-9]+$') {
+              $version = "$version.0"
+            } else {
+              throw "Tag '$tag' is not a semver X.Y[.Z]"
+            }
+          }
+
           # Переходим в проект и записываем версию без попыток создавать коммиты/теги
           Set-Location editor-app
           pnpm version $version --no-git-tag-version
@@ -112,6 +121,17 @@ jobs:
           set -euo pipefail
           tag="${GITHUB_REF_NAME}"
           version="${tag#v}"
+
+          # Приводим к виду X.Y.Z (если пришёл X.Y — дополняем .0; всё остальное считаем ошибкой)
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            if [[ "$version" =~ ^[0-9]+\.[0-9]+$ ]]; then
+              version="${version}.0"
+            else
+              echo "Tag '$tag' is not a semver X.Y[.Z]" >&2
+              exit 1
+            fi
+          fi
+
           cd editor-app
           pnpm version "$version" --no-git-tag-version
       #endregion
