@@ -59,6 +59,9 @@ code {
 
 .editorTopBar {
   grid-area: top;
+  position: relative;
+  z-index: 2;
+  background: var(--color-background-soft);
   border-bottom: 1px solid var(--ev-c-gray-3);
 }
 
@@ -69,8 +72,10 @@ code {
   display: flex;
   flex-direction: column;
   position: relative;
+  z-index: 1;
   min-width: 0;
   min-height: 0;
+  background: var(--color-background);
 }
 
 .editorRightDock {
@@ -82,6 +87,7 @@ code {
   position: relative;
   min-width: 0;
   min-height: 0;
+  background: var(--color-background);
 }
 
 .editorCenter {
@@ -89,6 +95,7 @@ code {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  background: var(--color-background);
 }
 
 .editorBottomDock {
@@ -100,6 +107,7 @@ code {
   position: relative;
   min-width: 0;
   min-height: 0;
+  background: var(--color-background);
 }
 
 /* Невидимый расширенный hitbox для collapsed dock.
@@ -180,6 +188,7 @@ code {
   display: flex;
   overflow: hidden;
   position: relative;
+  background: var(--color-background);
 }
 
 .editorLeftDock .dockCollapseContent,
@@ -217,17 +226,8 @@ code {
   pointer-events: none;
 }
 
-/* Левый док: collapse bar справа от дока. */
+/* Левый док: collapse bar у левого края экрана. */
 .dockCollapseBarLeft {
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 12px;
-  border-left: 1px solid var(--ev-c-gray-3);
-}
-
-/* Правый док: collapse bar слева от дока. */
-.dockCollapseBarRight {
   left: 0;
   top: 0;
   bottom: 0;
@@ -235,28 +235,63 @@ code {
   border-right: 1px solid var(--ev-c-gray-3);
 }
 
-/* Нижний док: collapse bar сверху по всей ширине.
+/* Правый док: collapse bar у правого края экрана. */
+.dockCollapseBarRight {
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  border-left: 1px solid var(--ev-c-gray-3);
+}
+
+/* Нижний док: collapse bar снизу по всей ширине.
    Так его видно всегда, даже если внутри одна панель. */
 .dockCollapseBarBottom {
   left: 0;
   right: 0;
-  top: 0;
+  bottom: 0;
   height: 12px;
-  border-bottom: 1px solid var(--ev-c-gray-3);
+  border-top: 1px solid var(--ev-c-gray-3);
 }
 
 /* Оставляем место под полоски, чтобы они были на своей стороне,
    а не перекрывали содержимое панели. */
 .editorLeftDock .dockCollapseContent {
-  margin-right: 12px;
-}
-
-.editorRightDock .dockCollapseContent {
   margin-left: 12px;
 }
 
+/* Левый док должен полностью перекрывать стык с нижней зоной,
+   иначе при screen-fixed background на границе видно фон через 1-2px seam. */
+.editorLeftDock::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-background);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.editorLeftDock::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--color-background);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.editorRightDock .dockCollapseContent {
+  margin-right: 12px;
+}
+
 .editorBottomDock .dockCollapseContent {
-  margin-top: 12px;
+  margin-bottom: 12px;
 }
 
 /* Заголовок слота (Dock 1 / Dock 2 / Dock 3). */
@@ -299,8 +334,9 @@ code {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  flex: 1;
   min-width: 0;
+  flex: 1;
+  background: var(--color-background);
 }
 
 /* Панели внутри split-контейнера должны корректно растягиваться,
@@ -544,7 +580,13 @@ code {
   letter-spacing: 0.02em;
 }
 
-.dockPanelMenuButton {
+.dockPanelHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dockPanelHeaderButton {
   width: 24px;
   height: 22px;
   background: transparent;
@@ -552,9 +594,10 @@ code {
   border-radius: 6px;
   color: var(--ev-c-text-1);
   cursor: pointer;
+  flex: 0 0 auto;
 }
 
-.dockPanelMenuButton:hover {
+.dockPanelHeaderButton:hover {
   background: var(--color-background-mute);
 }
 
@@ -563,7 +606,7 @@ code {
   flex: 1;
   overflow: auto;
   padding: 8px;
-  background: transparent;
+  background: var(--color-background);
 }
 
 .centerCanvasHeader {
@@ -571,6 +614,8 @@ code {
   display: flex;
   align-items: center;
   padding: 0 10px;
+  position: relative;
+  z-index: 1;
   background: var(--color-background-soft);
   border-bottom: 1px solid var(--ev-c-gray-3);
   font-size: 12px;
@@ -583,15 +628,28 @@ code {
   flex: 1;
   overflow: hidden;
   padding: 12px;
+  position: relative;
+  z-index: 0;
+  background: var(--color-background);
 }
 
 /* Контейнер холста React Flow, чтобы он занимал всю центральную область. */
 .flowCanvas {
+  position: relative;
+  isolation: isolate;
+  z-index: 0;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
   background: var(--canvas-bg, #0a0e14);
+}
+
+/* Этот слой держит custom background строго внутри stacking context canvas.
+   Так fixed-screen картинка не пролезает поверх top bar, panel headers и других chrome-слоёв. */
+.flowCanvasBackgroundLayer {
+  pointer-events: none;
+  z-index: -1;
 }
 
 .flowCanvas .react-flow {
@@ -695,7 +753,7 @@ code {
   width: 100%;
   text-align: left;
   border: 1px solid var(--ev-c-gray-3);
-  background: transparent;
+  background: var(--color-background-soft);
   color: var(--ev-c-text-2);
   font-size: 12px;
   padding: 6px 8px;
@@ -773,12 +831,20 @@ code {
   max-height: 200px;
 }
 
+.runtimeCodeFill {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
 /* Верхняя панель меню. */
 .topMenuBar {
   height: 30px;
   display: flex;
   align-items: center;
   padding: 0 6px;
+  position: relative;
+  z-index: 1;
   background: var(--color-background-soft);
   border-bottom: 1px solid var(--ev-c-gray-3);
   -webkit-app-region: drag;

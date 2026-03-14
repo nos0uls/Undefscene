@@ -745,11 +745,13 @@ const FlowCanvasInner = ({
     >
       {canvasBackgroundUrl ? (
         <div
+          className="flowCanvasBackgroundLayer"
           style={{
-            position: 'absolute',
+            // В режиме viewport фон не живёт внутри canvas bounds,
+            // а закрепляется на весь экран редактора.
+            position: prefs.canvasBackgroundAttachment === 'viewport' ? 'fixed' : 'absolute',
             inset: 0,
             pointerEvents: 'none',
-            zIndex: 0,
             backgroundImage: `url("${canvasBackgroundUrl}")`,
             backgroundRepeat: 'no-repeat',
             backgroundPosition: 'center',

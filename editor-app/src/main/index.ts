@@ -200,6 +200,131 @@ async function parseYypResources(yypPath: string): Promise<{
   }
 }
 
+type ProjectResources = Awaited<ReturnType<typeof parseYypResources>> & {
+  cacheStatus?: 'cold' | 'warm'
+  roomScreenshotsDir?: string
+  restoredFromLastSession?: boolean
+}
+
+type ProjectResourcesCacheFile = {
+  schemaVersion: 1
+  yypPath: string
+  yypMtimeMs: number
+  resources: Awaited<ReturnType<typeof parseYypResources>>
+}
+
+// Нормализуем имя проекта для userData cache-папки.
+// Это позволяет хранить отдельный cache и screenshots для каждого .yyp.
+function getProjectCacheKey(yypPath: string): string {
+  const stem = basename(yypPath, extname(yypPath)) || 'project'
+  return stem.replace(/[^a-z0-9._-]+/gi, '_')
+}
+
+// Возвращаем корневую папку cache для конкретного .yyp проекта.
+function getProjectCacheDir(yypPath: string): string {
+  return join(app.getPath('userData'), 'project-cache', getProjectCacheKey(yypPath))
+}
+
+// Файл с сериализованными ресурсами .yyp.
+function getProjectResourcesCachePath(yypPath: string): string {
+  return join(getProjectCacheDir(yypPath), 'resources.json')
+}
+
+// Папка для room screenshots.
+// Пока мы только гарантируем её существование между сессиями.
+function getProjectRoomScreenshotsDir(yypPath: string): string {
+  return join(getProjectCacheDir(yypPath), 'room-screenshots')
+}
+
+// Файл с путём к последнему открытому проекту.
+function getLastProjectPathCacheFile(): string {
+  return join(app.getPath('userData'), 'last-project.json')
+}
+
+// Читаем ресурсы проекта из cache, если cache ещё валиден по mtime .yyp.
+async function readCachedProjectResources(yypPath: string): Promise<ProjectResources | null> {
+  const cachePath = getProjectResourcesCachePath(yypPath)
+  const screenshotsDir = getProjectRoomScreenshotsDir(yypPath)
+
+  try {
+    const [cacheRaw, yypStat] = await Promise.all([readFile(cachePath, 'utf-8'), stat(yypPath)])
+    const parsed = JSON.parse(cacheRaw) as Partial<ProjectResourcesCacheFile>
+
+    if (
+      parsed?.schemaVersion !== 1 ||
+      parsed?.yypPath !== yypPath ||
+      typeof parsed?.yypMtimeMs !== 'number' ||
+      !parsed?.resources ||
+      parsed.yypMtimeMs !== yypStat.mtimeMs
+    ) {
+      return null
+    }
+
+    await mkdir(screenshotsDir, { recursive: true })
+
+    return {
+      ...parsed.resources,
+      cacheStatus: 'warm',
+      roomScreenshotsDir: screenshotsDir
+    }
+  } catch {
+    return null
+  }
+}
+
+// Сохраняем ресурсы проекта в cache рядом с его screenshot-папкой.
+async function writeCachedProjectResources(
+  yypPath: string,
+  resources: Awaited<ReturnType<typeof parseYypResources>>
+): Promise<void> {
+  const cacheDir = getProjectCacheDir(yypPath)
+  const cachePath = getProjectResourcesCachePath(yypPath)
+  const screenshotsDir = getProjectRoomScreenshotsDir(yypPath)
+  const yypStat = await stat(yypPath)
+
+  await mkdir(cacheDir, { recursive: true })
+  await mkdir(screenshotsDir, { recursive: true })
+
+  const payload: ProjectResourcesCacheFile = {
+    schemaVersion: 1,
+    yypPath,
+    yypMtimeMs: yypStat.mtimeMs,
+    resources
+  }
+
+  await writeFile(cachePath, JSON.stringify(payload, null, 2), 'utf-8')
+}
+
+// Запоминаем путь к последнему успешно открытому GameMaker project.
+async function writeLastOpenedProjectPath(yypPath: string): Promise<void> {
+  const filePath = getLastProjectPathCacheFile()
+  await writeFile(filePath, JSON.stringify({ schemaVersion: 1, yypPath }, null, 2), 'utf-8')
+}
+
+// Возвращаем ресурсы проекта: сначала cache, потом cold parse с записью в cache.
+async function resolveProjectResources(
+  yypPath: string,
+  restoredFromLastSession = false
+): Promise<ProjectResources> {
+  const cached = await readCachedProjectResources(yypPath)
+  if (cached) {
+    return {
+      ...cached,
+      restoredFromLastSession
+    }
+  }
+
+  const parsed = await parseYypResources(yypPath)
+  await writeCachedProjectResources(yypPath, parsed)
+
+  return {
+    ...parsed,
+    cacheStatus: 'cold',
+    roomScreenshotsDir: getProjectRoomScreenshotsDir(yypPath),
+    restoredFromLastSession
+  }
+}
+
 // Рекурсивно собираем все .yarn файлы внутри datafiles/.
 // Это нужно, потому что в реальных проектах Yarn часто лежит по подпапкам,
 // а не только прямо в корне datafiles/.
@@ -399,9 +524,31 @@ app.whenReady().then(() => {
 
     const yypPath = result.filePaths[0]
     try {
-      return await parseYypResources(yypPath)
+      const resources = await resolveProjectResources(yypPath)
+      await writeLastOpenedProjectPath(yypPath)
+      return resources
     } catch (err) {
       console.warn('Failed to parse .yyp:', err)
+      return null
+    }
+  })
+
+  // --- IPC: Восстановление последнего GameMaker project между сессиями ---
+  ipcMain.handle('project.restoreLast', async () => {
+    const cachePath = getLastProjectPathCacheFile()
+
+    try {
+      const raw = await readFile(cachePath, 'utf-8')
+      const parsed = JSON.parse(raw) as { schemaVersion?: number; yypPath?: string }
+      if (parsed?.schemaVersion !== 1 || typeof parsed?.yypPath !== 'string' || !parsed.yypPath) {
+        return null
+      }
+
+      const yypPath = parsed.yypPath
+      await stat(yypPath)
+
+      return await resolveProjectResources(yypPath, true)
+    } catch {
       return null
     }
   })

@@ -22,7 +22,8 @@ const api = {
   // Работа с GameMaker проектом (.yyp).
   project: {
     // Открываем .yyp через main процесс.
-    open: (): Promise<unknown> => ipcRenderer.invoke('project.open')
+    open: (): Promise<unknown> => ipcRenderer.invoke('project.open'),
+    restoreLast: (): Promise<unknown> => ipcRenderer.invoke('project.restoreLast')
   },
   // Операции с файлом сцены (New, Open, Save, Save As).
   scene: {

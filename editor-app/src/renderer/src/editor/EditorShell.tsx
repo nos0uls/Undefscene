@@ -17,6 +17,7 @@ import { validateGraph, type ValidationResult, type ValidationContext } from './
 import { PreferencesModal } from './PreferencesModal'
 import { SearchableSelect } from './SearchableSelect'
 import { UpdateNotification } from './UpdateNotification'
+import { FollowPathPreview } from './FollowPathPreview'
 import { PreferencesProvider } from './PreferencesContext'
 import { getAccentColorHex, usePreferences } from './usePreferences'
 import { useHotkeys } from './useHotkeys'
@@ -142,6 +143,8 @@ export function EditorShell(): React.JSX.Element {
   // Лёгкий translator для оболочки редактора.
   // Он сразу реагирует на смену preferences.language без тяжёлой i18n-библиотеки.
   const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
+  const collapsePanelLabel = t('editor.collapsePanel', 'Collapse panel')
+  const closePanelLabel = t('editor.closePanel', 'Close panel')
 
   // Перевод названий panel-id в человекочитаемые заголовки.
   // Это важно, потому что сохранённый layout может содержать старые английские title,
@@ -1190,22 +1193,17 @@ export function EditorShell(): React.JSX.Element {
         .filter((e) => e.severity === 'error')
         .map((e) => `• ${e.message}`)
         .join('\n')
-      alert(`Cannot export — graph has errors:\n\n${errorMessages}`)
+      alert(`${t('alerts.exportHasErrors', 'Cannot export — graph has errors:')}\n\n${errorMessages}`)
       return
     }
 
     const result = compileGraph(runtime)
     if (!result.ok) {
-      alert(`Export failed:\n${result.error}`)
+      alert(`${t('alerts.exportFailed', 'Export failed:')}\n${result.error}`)
       return
     }
     const exported = stripExport(runtime, result.actions)
     const jsonString = JSON.stringify(exported, null, 2)
-
-    const confirmed = window.confirm(
-      'Export runtime scene now? If you save over an existing game file, it will replace that scene. Continue?'
-    )
-    if (!confirmed) return
 
     // Проверяем, что мы в Electron-контексте.
     if (!window.api?.export) {
@@ -1218,7 +1216,7 @@ export function EditorShell(): React.JSX.Element {
       filePath?: string
     }
     if (saveResult.saved) {
-      alert(`Exported to:\n${saveResult.filePath}`)
+      alert(`${t('alerts.exportedTo', 'Exported to:')}\n${saveResult.filePath}`)
     }
   }
   // Привязываем к ref, чтобы хоткей Ctrl+E мог вызвать.
@@ -1304,6 +1302,14 @@ export function EditorShell(): React.JSX.Element {
       return
     }
 
+    const confirmed = window.confirm(
+      t(
+        'confirm.openSceneReplace',
+        'Open another scene? Unsaved changes in the current scene will be lost.'
+      )
+    )
+    if (!confirmed) return
+
     const result = (await window.api.scene.open()) as { filePath: string; content: string } | null
     if (!result) return
     try {
@@ -1314,44 +1320,57 @@ export function EditorShell(): React.JSX.Element {
       if (state) {
         setRuntime(state)
         setSceneFilePath(result.filePath)
+        lastPersistedSceneJsonRef.current = JSON.stringify(state, null, 2)
       } else {
         const { reverseCompileCutscene } = await import('./reverseCompile')
         const imported = reverseCompileCutscene(parsed)
 
         if (!imported.ok) {
-          alert(`Failed to parse scene file — invalid or unsupported format.\n\n${imported.error}`)
+          alert(
+            `${t(
+              'alerts.openSceneInvalidFormat',
+              'Failed to parse scene file — invalid or unsupported format.'
+            )}\n\n${imported.error}`
+          )
           return
         }
 
         setRuntime(imported.state)
         setSceneFilePath(null)
+        lastPersistedSceneJsonRef.current = null
         if (imported.warnings.length > 0) {
           alert(imported.warnings.join('\n'))
         }
       }
     } catch {
-      alert('Failed to read scene file — invalid JSON.')
+      alert(t('alerts.openSceneInvalidJson', 'Failed to read scene file — invalid JSON.'))
     }
   }
 
   // New Scene: сбрасываем runtime в начальное состояние.
   const handleNew = () => {
-    const confirmed = window.confirm('Create a new scene? Unsaved changes will be lost.')
+    const confirmed = window.confirm(
+      t('confirm.newSceneReplace', 'Create a new scene? Unsaved changes will be lost.')
+    )
     if (!confirmed) return
     import('./runtimeTypes').then(({ createEmptyRuntimeState }) => {
       setRuntime(createEmptyRuntimeState())
       setSceneFilePath(null)
+      lastPersistedSceneJsonRef.current = null
     })
   }
 
   // Create Example: загружаем демонстрационную сцену с готовым графом.
   // Это удобно для быстрого знакомства с редактором без ручной сборки узлов с нуля.
   const handleCreateExample = () => {
-    const confirmed = window.confirm('Create an example scene? Unsaved changes will be lost.')
+    const confirmed = window.confirm(
+      t('confirm.exampleSceneReplace', 'Create an example scene? Unsaved changes will be lost.')
+    )
     if (!confirmed) return
     import('./runtimeTypes').then(({ createDefaultRuntimeState }) => {
       setRuntime(createDefaultRuntimeState())
       setSceneFilePath(null)
+      lastPersistedSceneJsonRef.current = null
     })
   }
 
@@ -1836,6 +1855,9 @@ export function EditorShell(): React.JSX.Element {
         <div className="runtimeSection runtimeSectionActions">
           <div className="runtimeSectionTitle">{t('editor.actions', 'Actions')}</div>
           <div className="runtimeRow">
+            <button className="runtimeButton" type="button" onClick={handleSave}>
+              {t('menu.save', 'Save')}
+            </button>
             <button className="runtimeButton" type="button" onClick={undo} disabled={!canUndo}>
               {t('menu.undo', 'Undo')}
             </button>
@@ -2170,7 +2192,7 @@ export function EditorShell(): React.JSX.Element {
                   </label>
                   {/* --- Редактор точек пути (waypoints) --- */}
                   <div className="runtimeSectionTitle" style={{ marginTop: 4 }}>
-                    Path Points
+                    {t('editor.pathPoints', 'Path Points')}
                   </div>
                   {(() => {
                     // Получаем текущий массив точек или создаём пустой.
@@ -2273,13 +2295,33 @@ export function EditorShell(): React.JSX.Element {
                             setPoints([...points, newPt])
                           }}
                         >
-                          + Add Point
+                          {t('editor.addPoint', '+ Add Point')}
                         </button>
                         {points.length === 0 && (
                           <div className="runtimeHint" style={{ opacity: 0.5, fontSize: 11 }}>
-                            No waypoints yet. Click &quot;+ Add Point&quot; to start.
+                            {t(
+                              'editor.noWaypointsYet',
+                              'No waypoints yet. Click "+ Add Point" to start.'
+                            )}
                           </div>
                         )}
+                        <FollowPathPreview
+                          points={points}
+                          speedPxPerSecond={Number(selectedNode.params?.speed_px_sec ?? 60)}
+                          title={t('editor.followPathPreview', 'Path Preview')}
+                          hint={t(
+                            'editor.followPathPreviewHint',
+                            'Animated editor preview of the path shape and waypoint order.'
+                          )}
+                          emptyLabel={t(
+                            'editor.followPathPreviewNoPoints',
+                            'Add at least one point to preview the path.'
+                          )}
+                          worldSpaceLabel={t(
+                            'editor.followPathPreviewWorldSpace',
+                            'Points are shown in normalized world-space proportions.'
+                          )}
+                        />
                       </>
                     )
                   })()}
@@ -2970,6 +3012,24 @@ export function EditorShell(): React.JSX.Element {
               {t('editor.rooms', 'Rooms')}: {resources.rooms.length}
               <br />
               {t('editor.yarnFiles', 'Yarn Files')}: {yarnFiles.length}
+              {resources.restoredFromLastSession ? (
+                <>
+                  <br />
+                  {t(
+                    'editor.projectCacheRestored',
+                    'Restored the last cached GameMaker project.'
+                  )}
+                </>
+              ) : null}
+              <br />
+              {resources.cacheStatus === 'warm'
+                ? t('editor.projectCacheWarmOpen', 'Project resources were restored from cache.')
+                : t('editor.projectCacheColdOpen', 'Project resources were read directly from disk.')}
+              <br />
+              {t(
+                'editor.projectCacheScreenshots',
+                'Room screenshots cache folder is ready for future previews.'
+              )}
             </div>
           ) : (
             <div className="runtimeHint">{t('editor.noProjectLoaded', 'No project loaded. File → Open Project...')}</div>
@@ -3116,14 +3176,17 @@ export function EditorShell(): React.JSX.Element {
       // Отдельная панель полезна, когда нужно держать JSON открытым рядом с логами
       // или вынести его во floating-окно на второй монитор.
       return (
-        <div className="runtimeSection">
+        <div className="runtimeSection" style={{ height: '100%' }}>
           <div className="runtimeHint">
             {t(
               'editor.runtimeJsonHint',
               'Raw editor scene state with node positions, selection, and editor-only fields.'
             )}
           </div>
-          <pre className="runtimeCode">{JSON.stringify(runtime, null, 2)}</pre>
+          <div className="runtimeSectionTitle">
+            {t('editor.runtimeJsonContent', 'Runtime JSON content')}
+          </div>
+          <pre className="runtimeCode runtimeCodeFill">{JSON.stringify(runtime, null, 2)}</pre>
         </div>
       )
     }
@@ -3891,21 +3954,21 @@ export function EditorShell(): React.JSX.Element {
               .check()
               .then((res) => {
                 if (res.status === 'available') {
-                  alert(`Update available: v${res.version}`)
+                  alert(`${t('alerts.updateAvailable', 'Update available:')} v${res.version}`)
                   return
                 }
 
                 if (res.status === 'none') {
-                  alert('No updates available.')
+                  alert(t('alerts.noUpdatesAvailable', 'No updates available.'))
                   return
                 }
 
-                alert(`Update check failed: ${res.message}`)
+                alert(`${t('alerts.updateCheckFailed', 'Update check failed:')} ${res.message}`)
               })
               .catch((err) => {
                 // Если IPC-хэндлер не зарегистрирован или что-то пошло не так — покажем ошибку.
                 const msg = err instanceof Error ? err.message : String(err)
-                alert(`Update check failed: ${msg}`)
+                alert(`${t('alerts.updateCheckFailed', 'Update check failed:')} ${msg}`)
               })
           }}
           onToggleRuntimeJson={() => togglePanel('panel.runtime_json')}
@@ -3920,15 +3983,15 @@ export function EditorShell(): React.JSX.Element {
               .copyLogToClipboard()
               .then((result) => {
                 if (result.copied) {
-                  alert('Log copied to clipboard.')
+                  alert(t('alerts.logCopied', 'Log copied to clipboard.'))
                   return
                 }
 
-                alert('Failed to copy log to clipboard.')
+                alert(t('alerts.logCopyFailed', 'Failed to copy log to clipboard.'))
               })
               .catch((err) => {
                 const msg = err instanceof Error ? err.message : String(err)
-                alert(`Failed to copy log to clipboard: ${msg}`)
+                alert(`${t('alerts.logCopyFailed', 'Failed to copy log to clipboard.')} ${msg}`)
               })
           }}
           onOpenDevTools={() => {
@@ -3993,6 +4056,9 @@ export function EditorShell(): React.JSX.Element {
               onHeaderPointerDown={startPanelDrag(leftDockedIds[0])}
               collapsed={layout.panels[leftDockedIds[0]]?.collapsed}
               onToggleCollapse={() => togglePanelCollapse(leftDockedIds[0])}
+              collapseLabel={collapsePanelLabel}
+              closeLabel={closePanelLabel}
+              onClose={() => togglePanel(leftDockedIds[0])}
             >
               {renderPanelContents(leftDockedIds[0])}
             </DockPanel>
@@ -4023,6 +4089,9 @@ export function EditorShell(): React.JSX.Element {
               onHeaderPointerDown={startPanelDrag(leftDockedIds[1])}
               collapsed={layout.panels[leftDockedIds[1]]?.collapsed}
               onToggleCollapse={() => togglePanelCollapse(leftDockedIds[1])}
+              collapseLabel={collapsePanelLabel}
+              closeLabel={closePanelLabel}
+              onClose={() => togglePanel(leftDockedIds[1])}
             >
               {renderPanelContents(leftDockedIds[1])}
             </DockPanel>
@@ -4215,6 +4284,9 @@ export function EditorShell(): React.JSX.Element {
               onHeaderPointerDown={startPanelDrag(rightDockedIds[0])}
               collapsed={layout.panels[rightDockedIds[0]]?.collapsed}
               onToggleCollapse={() => togglePanelCollapse(rightDockedIds[0])}
+              collapseLabel={collapsePanelLabel}
+              closeLabel={closePanelLabel}
+              onClose={() => togglePanel(rightDockedIds[0])}
             >
               {renderPanelContents(rightDockedIds[0])}
             </DockPanel>
@@ -4245,6 +4317,9 @@ export function EditorShell(): React.JSX.Element {
               onHeaderPointerDown={startPanelDrag(rightDockedIds[1])}
               collapsed={layout.panels[rightDockedIds[1]]?.collapsed}
               onToggleCollapse={() => togglePanelCollapse(rightDockedIds[1])}
+              collapseLabel={collapsePanelLabel}
+              closeLabel={closePanelLabel}
+              onClose={() => togglePanel(rightDockedIds[1])}
             >
               {renderPanelContents(rightDockedIds[1])}
             </DockPanel>
@@ -4300,34 +4375,62 @@ export function EditorShell(): React.JSX.Element {
                       }}
                     >
                       {bottomDockedIds.map((panelId) => (
-                        <button
+                        <div
                           key={panelId}
-                          type="button"
-                          onClick={() => setActiveBottomTabId(panelId)}
-                          onPointerDown={(e) => {
-                            // ПКМ — начинаем drag панели из таба.
-                            if (e.button === 0 && e.detail >= 2) return
-                          }}
                           style={{
                             flex: 1,
-                            padding: '4px 8px',
-                            fontSize: 11,
-                            fontWeight: panelId === activeId ? 700 : 400,
-                            color:
-                              panelId === activeId ? 'var(--ev-c-text-1)' : 'var(--ev-c-text-2)',
+                            minWidth: 0,
+                            display: 'flex',
+                            alignItems: 'stretch',
                             background:
-                              panelId === activeId ? 'rgba(255,255,255,0.04)' : 'transparent',
-                            border: 'none',
+                              panelId === activeId ? 'var(--color-background)' : 'var(--color-background-soft)',
                             borderBottom:
                               panelId === activeId
                                 ? '2px solid var(--ev-c-accent)'
-                                : '2px solid transparent',
-                            cursor: 'pointer',
-                            transition: 'color 0.12s, background 0.12s'
+                                : '2px solid transparent'
                           }}
                         >
-                          {getPanelTitle(panelId)}
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveBottomTabId(panelId)}
+                            onPointerDown={(e) => {
+                              // ПКМ — начинаем drag панели из таба.
+                              if (e.button === 0 && e.detail >= 2) return
+                            }}
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                              padding: '4px 8px',
+                              fontSize: 11,
+                              fontWeight: panelId === activeId ? 700 : 400,
+                              color:
+                                panelId === activeId ? 'var(--ev-c-text-1)' : 'var(--ev-c-text-2)',
+                              background: 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                              transition: 'color 0.12s, background 0.12s',
+                              textAlign: 'left'
+                            }}
+                          >
+                            {getPanelTitle(panelId)}
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={closePanelLabel}
+                            title={closePanelLabel}
+                            onClick={() => togglePanel(panelId)}
+                            style={{
+                              width: 28,
+                              border: 'none',
+                              borderLeft: '1px solid var(--ev-c-gray-3)',
+                              background: 'transparent',
+                              color: 'var(--ev-c-text-2)',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -4342,6 +4445,9 @@ export function EditorShell(): React.JSX.Element {
                     onHeaderPointerDown={startPanelDrag(activeId)}
                     collapsed={layout.panels[activeId]?.collapsed}
                     onToggleCollapse={() => togglePanelCollapse(activeId)}
+                    collapseLabel={collapsePanelLabel}
+                    closeLabel={closePanelLabel}
+                    onClose={() => togglePanel(activeId)}
                   >
                     {renderPanelContents(activeId)}
                   </DockPanel>
@@ -4382,6 +4488,9 @@ export function EditorShell(): React.JSX.Element {
                 onHeaderPointerDown={startPanelDrag(panelId)}
                 collapsed={p.collapsed}
                 onToggleCollapse={() => togglePanelCollapse(panelId)}
+                collapseLabel={collapsePanelLabel}
+                closeLabel={closePanelLabel}
+                onClose={() => togglePanel(panelId)}
               >
                 {renderPanelContents(panelId)}
               </DockPanel>

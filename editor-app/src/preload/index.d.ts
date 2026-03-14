@@ -84,6 +84,8 @@ export type ProjectResources = {
   objects: string[]
   sounds: string[]
   rooms: string[]
+  cacheStatus?: 'cold' | 'warm'
+  roomScreenshotsDir?: string
 }
 
 // Информация о .yarn файле: имя файла и список нод внутри.
@@ -129,6 +131,7 @@ export interface RendererApi {
   project: {
     // Открывает .yyp и возвращает список ресурсов.
     open: () => Promise<ProjectResources | null>
+    restoreLast: () => Promise<ProjectResources | null>
   }
 
   // Операции с файлом сцены (Open, Save, Save As).
@@ -216,6 +219,7 @@ export interface EditorPreferences {
   showDockDropPreview: boolean
   canvasBackgroundPath: string | null
   canvasBackgroundMode: 'stretch' | 'cover'
+  canvasBackgroundAttachment: 'canvas' | 'viewport'
   autoSaveEnabled: boolean
   autoSaveIntervalMinutes: number
   disableHardwareAcceleration: boolean

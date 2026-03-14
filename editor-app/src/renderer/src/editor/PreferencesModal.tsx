@@ -348,10 +348,31 @@ export function PreferencesModal({
                 </button>
               </div>
             </label>
-            <div className="prefsHint">
-              {preferences.canvasBackgroundPath ??
-                t('preferences.noBackgroundSelected', 'No background image selected.')}
-            </div>
+            {!preferences.canvasBackgroundPath ? (
+              <div className="prefsHint">
+                {t('preferences.noBackgroundSelected', 'No background image selected.')}
+              </div>
+            ) : null}
+            <label className="prefsField">
+              <span>{t('preferences.backgroundAttachment', 'Background Attachment')}</span>
+              <select
+                className="prefsInput"
+                value={preferences.canvasBackgroundAttachment}
+                onChange={(e) =>
+                  updatePreferences({
+                    canvasBackgroundAttachment: e.target.value as 'canvas' | 'viewport'
+                  })
+                }
+                disabled={!preferences.canvasBackgroundPath}
+              >
+                <option value="canvas">
+                  {t('preferences.backgroundAttachmentCanvas', 'Attach to canvas')}
+                </option>
+                <option value="viewport">
+                  {t('preferences.backgroundAttachmentViewport', 'Fix to screen')}
+                </option>
+              </select>
+            </label>
             <label className="prefsField">
               <span>{t('preferences.backgroundMode', 'Background Mode')}</span>
               <select

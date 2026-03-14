@@ -99,6 +99,11 @@ export interface EditorPreferences {
   // Как показывать фон: 'stretch' = растянуть, 'cover' = обрезать.
   canvasBackgroundMode: 'stretch' | 'cover'
 
+  // К чему привязываем фон:
+  // - canvas = фон живёт в области canvas
+  // - viewport = фон закреплён на весь экран редактора
+  canvasBackgroundAttachment: 'canvas' | 'viewport'
+
   // Прозрачность кастомного фона на canvas.
   // 0 = полностью прозрачно, 1 = полностью видно.
   canvasBackgroundOpacity: number
@@ -141,6 +146,7 @@ export const DEFAULT_PREFERENCES: EditorPreferences = {
   showDockDropPreview: true,
   canvasBackgroundPath: null,
   canvasBackgroundMode: 'cover',
+  canvasBackgroundAttachment: 'canvas',
   canvasBackgroundOpacity: 0.42,
   autoSaveEnabled: true,
   autoSaveIntervalMinutes: 10,
@@ -189,6 +195,10 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
       c.canvasBackgroundMode === 'stretch' || c.canvasBackgroundMode === 'cover'
         ? c.canvasBackgroundMode
         : DEFAULT_PREFERENCES.canvasBackgroundMode,
+    canvasBackgroundAttachment:
+      c.canvasBackgroundAttachment === 'canvas' || c.canvasBackgroundAttachment === 'viewport'
+        ? c.canvasBackgroundAttachment
+        : DEFAULT_PREFERENCES.canvasBackgroundAttachment,
     canvasBackgroundOpacity:
       typeof c.canvasBackgroundOpacity === 'number' &&
       c.canvasBackgroundOpacity >= 0 &&
