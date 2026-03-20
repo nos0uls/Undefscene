@@ -222,6 +222,23 @@ function buildPreparedPathSegments(points: Array<{ x: number; y: number }>): Pre
   return segments
 }
 
+// Короткий key для сравнения path по содержимому, а не по ссылке на массив.
+// Это защищает standalone visual editor от лишних reset'ов при одинаковом bridge-state.
+function getPathPointsSyncKey(points: Array<{ x: number; y: number }>): string {
+  return points.map((point) => `${Math.round(point.x)}:${Math.round(point.y)}`).join('|')
+}
+
+// То же сравнение для actor preview entries.
+// Если main прислал новый массив с теми же значениями, локальный draft не надо перетирать.
+function getActorPreviewsSyncKey(actors: VisualEditorActorPreview[]): string {
+  return actors
+    .map((actor) => {
+      const spriteOrObject = String(actor.spriteOrObject ?? '')
+      return `${actor.id}:${actor.key}:${Math.round(actor.x)}:${Math.round(actor.y)}:${spriteOrObject}:${actor.isVirtual === true ? '1' : '0'}`
+    })
+    .join('|')
+}
+
 // Возвращаем точку на path по дистанции от начала.
 // Так локальный preview может плавно идти по нескольким сегментам подряд.
 function getPointAtDistanceOnPreparedPath(
@@ -419,6 +436,11 @@ export function RoomVisualEditorModal({
   // Это убирает лишние ручные поиски комнаты после Refresh или смены room.
   const shouldAutoFitRef = useRef(false)
 
+  // Последние upstream-keys нужны, чтобы не сбрасывать локальный draft на каждый bridge sync.
+  // Это особенно важно для отдельного окна Visual Editing, где main часто присылает одинаковый snapshot.
+  const lastSyncedPathKeyRef = useRef<string | null>(null)
+  const lastSyncedActorsKeyRef = useRef<string | null>(null)
+
   // Базовый timestamp нужен для расчёта прогресса анимации по path.
   const playPreviewStartTimeRef = useRef(0)
 
@@ -586,6 +608,7 @@ export function RoomVisualEditorModal({
 
     const onKeyDown = (event: KeyboardEvent): void => {
       const key = event.key.toLowerCase()
+      const code = event.code
 
       const target = event.target as HTMLElement | null
       const tag = target?.tagName ?? ''
@@ -631,7 +654,9 @@ export function RoomVisualEditorModal({
         updateHoverPreviewFromModifiers(event.shiftKey)
       }
 
-      if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && key === 'b' && !isTypingTarget) {
+      // Для буквенных shortcuts используем KeyboardEvent.code.
+      // Так B/G/Ctrl+E продолжают работать даже на русской раскладке.
+      if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && code === 'KeyB' && !isTypingTarget) {
         event.preventDefault()
         stopPlayPreview()
         clearTransientInteractionState()
@@ -642,7 +667,7 @@ export function RoomVisualEditorModal({
         return
       }
 
-      if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && key === 'g' && !isTypingTarget) {
+      if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && code === 'KeyG' && !isTypingTarget) {
         event.preventDefault()
         stopPlayPreview()
         clearTransientInteractionState()
@@ -653,7 +678,7 @@ export function RoomVisualEditorModal({
         return
       }
 
-      if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && key === 'e' && !isTypingTarget) {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && code === 'KeyE' && !isTypingTarget) {
         event.preventDefault()
         event.stopPropagation()
         if (draftPathPointsRef.current.length > 0) {
@@ -701,6 +726,12 @@ export function RoomVisualEditorModal({
   useEffect(() => {
     if (!open) return
     const nextPoints = selectedPathPoints.map((point) => ({ x: point.x, y: point.y }))
+    const nextPathKey = `${selectedNode?.id ?? 'none'}::${getPathPointsSyncKey(nextPoints)}`
+    if (lastSyncedPathKeyRef.current === nextPathKey) {
+      return
+    }
+
+    lastSyncedPathKeyRef.current = nextPathKey
     setDraftPathPoints(nextPoints)
     draftPathPointsRef.current = nextPoints
     pathHistoryRef.current = [nextPoints.map((point) => ({ ...point }))]
@@ -748,6 +779,12 @@ export function RoomVisualEditorModal({
   // чтобы их можно было переставлять внутри окна без немедленного влияния на graph.
   useEffect(() => {
     if (!open) return
+    const nextActorsKey = getActorPreviewsSyncKey(effectiveActorPreviews)
+    if (lastSyncedActorsKeyRef.current === nextActorsKey) {
+      return
+    }
+
+    lastSyncedActorsKeyRef.current = nextActorsKey
     setDraftActors(effectiveActorPreviews.map((actor) => ({ ...actor })))
     setSelectedActorId((prev) =>
       effectiveActorPreviews.some((actor) => actor.id === prev) ? prev : effectiveActorPreviews[0]?.id ?? null

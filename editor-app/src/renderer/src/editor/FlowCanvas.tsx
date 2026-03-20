@@ -234,20 +234,38 @@ const FlowCanvasInner = ({
     return fallbackType || null
   }, [])
 
+  // На стадии dragover Chromium/Electron может ещё не отдавать getData(...),
+  // но список MIME-types уже доступен. Этого достаточно, чтобы разрешить drop.
+  const hasDraggedNodeType = useCallback((dataTransfer: DataTransfer | null): boolean => {
+    if (!dataTransfer) return false
+
+    const dragTypes = Array.from(dataTransfer.types ?? [])
+    return dragTypes.includes(NODE_PALETTE_DRAG_MIME) || dragTypes.includes('text/plain')
+  }, [])
+
   // Проверяем, что курсор находится над основной рабочей областью canvas.
   // Не требуем строго `.react-flow__pane`, потому что drag может идти поверх background,
   // viewport-слоёв или других внутренних DOM-обёрток React Flow.
   // Но сознательно исключаем overlay-элементы вроде minimap и controls,
   // чтобы drop там не создавал ноду в неожиданном месте.
-  const isCanvasDropTarget = useCallback((target: EventTarget | null): boolean => {
-    const element = target instanceof HTMLElement ? target : null
-    if (!element) return false
+  const isCanvasDropTarget = useCallback((target: EventTarget | null, container: HTMLDivElement | null): boolean => {
+    const element = target instanceof Element ? target : null
+    if (!container) return false
+
+    // Если браузер отдаёт dragover/drop прямо на корневой canvas-контейнер,
+    // это всё равно валидная зона для создания ноды.
+    if (!element) {
+      return true
+    }
 
     if (element.closest('.react-flow__minimap, .react-flow__controls')) {
       return false
     }
 
-    return !!element.closest('.react-flow, .react-flow__renderer, .react-flow__viewport, .react-flow__pane')
+    // Достаточно того, что target живёт внутри нашего canvas-контейнера.
+    // Слишком узкая проверка по внутренним классам React Flow ломала DnD
+    // и давала пользователю запрещённый cursor почти на всей рабочей области.
+    return element === container || container.contains(element)
   }, [])
 
   // Строим узлы React Flow из runtime-данных.
@@ -659,16 +677,17 @@ const FlowCanvasInner = ({
   // Preview показываем только когда drag действительно пришёл из нашей node palette.
   const handleDragOver = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
-      const nodeType = getDraggedNodeType(event.dataTransfer)
-      if (!nodeType) return
+      if (!hasDraggedNodeType(event.dataTransfer)) return
 
-      if (!isCanvasDropTarget(event.target)) {
+      if (!isCanvasDropTarget(event.target, flowCanvasRef.current)) {
         setDragPreview(null)
         return
       }
 
       event.preventDefault()
       event.dataTransfer.dropEffect = 'copy'
+
+      const nodeType = getDraggedNodeType(event.dataTransfer) ?? 'node'
 
       const canvasRect = flowCanvasRef.current?.getBoundingClientRect()
       if (!canvasRect) return
@@ -686,7 +705,7 @@ const FlowCanvasInner = ({
         flowY: Math.round(flowPosition.y)
       })
     },
-    [getDraggedNodeType, isCanvasDropTarget, screenToFlowPosition]
+    [getDraggedNodeType, hasDraggedNodeType, isCanvasDropTarget, screenToFlowPosition]
   )
 
   // Если курсор вышел за пределы canvas-контейнера, прячем preview,
@@ -708,7 +727,7 @@ const FlowCanvasInner = ({
       setDragPreview(null)
       if (!nodeType) return
 
-      if (!isCanvasDropTarget(event.target)) return
+      if (!isCanvasDropTarget(event.target, flowCanvasRef.current)) return
 
       event.preventDefault()
 
