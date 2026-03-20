@@ -257,10 +257,7 @@ export function PreferencesModal({
               />
             </label>
             <div className="prefsHint">
-              {t(
-                'preferences.gridSizeHint',
-                'Controls the visible spacing of the canvas grid background.'
-              )}
+              {t('preferences.gridSizeHint', 'Canvas grid spacing.')}
             </div>
             <label className="prefsField">
               <span>{t('preferences.zoomSpeed', 'Zoom Speed')}</span>
@@ -437,6 +434,51 @@ export function PreferencesModal({
                 disabled={!preferences.autoSaveEnabled}
               />
             </label>
+
+            {/* Папка screenshot output помогает явно связать editor и внешний runner.
+                Если override пустой, editor продолжает искать screenshots по своим fallback-путям. */}
+            <label className="prefsField">
+              <span>{t('preferences.screenshotOutputFolder', 'Screenshot Output Folder')}</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className="runtimeButton"
+                  type="button"
+                  onClick={() => {
+                    if (!window.api?.preferences?.chooseScreenshotOutputDir) {
+                      console.warn('Preferences API not available')
+                      return
+                    }
+
+                    window.api.preferences
+                      .chooseScreenshotOutputDir()
+                      .then((dirPath) => {
+                        if (!dirPath) return
+                        updatePreferences({ screenshotOutputDir: dirPath })
+                      })
+                      .catch((err) => {
+                        console.warn('Failed to choose screenshot output dir:', err)
+                      })
+                  }}
+                >
+                  {t('preferences.chooseFolder', 'Choose Folder')}
+                </button>
+                <button
+                  className="runtimeButton"
+                  type="button"
+                  onClick={() => updatePreferences({ screenshotOutputDir: null })}
+                  disabled={!preferences.screenshotOutputDir}
+                >
+                  {t('preferences.clear', 'Clear')}
+                </button>
+              </div>
+            </label>
+            {!preferences.screenshotOutputDir ? (
+              <div className="prefsHint">
+                {t('preferences.screenshotOutputFolderHint', 'Optional screenshot output folder.')}
+              </div>
+            ) : (
+              <div className="prefsHint">{preferences.screenshotOutputDir}</div>
+            )}
           </div>
 
           {/* --- Секция Keyboard Shortcuts ---
@@ -487,10 +529,7 @@ export function PreferencesModal({
               ))}
             </div>
             <div className="prefsHint">
-              {t(
-                'preferences.shortcutCaptureHint',
-                'Click a shortcut button, then press a new key combo. Delete or Backspace unassigns it.'
-              )}
+              {t('preferences.shortcutCaptureHint', 'Click a shortcut, then press keys. Delete clears it.')}
             </div>
           </div>
         </div>

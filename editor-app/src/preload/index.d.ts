@@ -94,6 +94,72 @@ export type YarnFileInfo = {
   nodes: string[]
 }
 
+// Meta-файл, который пишет screenshot runner рядом с PNG тайлами.
+export type RoomScreenshotMeta = {
+  room_name: string
+  file_prefix: string
+  room_width: number
+  room_height: number
+  capture_width: number
+  capture_height: number
+  rows: number
+  cols: number
+  naming: string
+}
+
+// Один PNG tile, уже преобразованный main процессом в data URL.
+export type RoomScreenshotTile = {
+  row: number
+  col: number
+  fileName: string
+  dataUrl: string
+}
+
+// Полный payload, который visual editing окно получает для stitched preview.
+export type RoomScreenshotBundle = {
+  roomName: string
+  sourceDir: string | null
+  searchedDirs: string[]
+  cacheKey: string | null
+  meta: RoomScreenshotMeta | null
+  tiles: RoomScreenshotTile[]
+  missingTiles: Array<{ row: number; col: number; fileName: string }>
+  warning: string | null
+}
+
+// Минимальная выбранная нода для visual editor bridge.
+// Этого хватает, чтобы отдельное окно понимало, что будет заменено при import.
+export type VisualEditorSelectedNode = {
+  id: string
+  type: string
+  name?: string
+} | null
+
+// Preview actor marker для stitched room overlay.
+// Храним только данные, нужные для визуализации и локального placement preview.
+export type VisualEditorActorPreview = {
+  id: string
+  key: string
+  x: number
+  y: number
+  spriteOrObject: string
+  isVirtual?: boolean
+}
+
+// Snapshot состояния, который main process пересылает в отдельное окно visual editor.
+export type VisualEditorBridgeState = {
+  rooms: string[]
+  screenshotRooms: string[]
+  projectDir: string | null
+  roomScreenshotsDir: string | null
+  visualEditorTechMode: boolean
+  selectedNode: VisualEditorSelectedNode
+  selectedActorTarget: string | null
+  selectedPathPoints: Array<{ x: number; y: number }>
+  actorPreviews: VisualEditorActorPreview[]
+  language: 'en' | 'ru'
+}
+
 // Результат ручной проверки обновлений.
 export type UpdaterCheckResult =
   | { status: 'available'; version: string }
@@ -108,6 +174,18 @@ export type EngineSettings = {
   defaultActorObject: string
   branchConditions: string[]
   runFunctions: string[]
+}
+
+// Минимальные данные sprite preview для Visual Editing.
+// Renderer получает уже готовый data URL и реальные размеры кадра.
+export type ActorSpritePreview = {
+  dataUrl: string
+  width: number
+  height: number
+  xorigin: number
+  yorigin: number
+  resourceName: string
+  resourceKind: 'sprite' | 'object'
 }
 
 // API, которое мы отдаём в renderer через preload.
@@ -132,6 +210,27 @@ export interface RendererApi {
     // Открывает .yyp и возвращает список ресурсов.
     open: () => Promise<ProjectResources | null>
     restoreLast: () => Promise<ProjectResources | null>
+
+    // Возвращает только те room names, для которых уже найден валидный screenshot bundle.
+    availableScreenshotRooms: (
+      projectDir: string,
+      roomNames: string[],
+      roomScreenshotsDir?: string | null
+    ) => Promise<string[]>
+
+    // Читает room screenshot bundle для visual editing окна.
+    readRoomScreenshotBundle: (
+      projectDir: string,
+      roomName: string,
+      roomScreenshotsDir?: string | null
+    ) => Promise<RoomScreenshotBundle | null>
+
+    // Читает первый frame sprite preview для actor marker overlay.
+    // Если передан object, main сначала резолвит его spriteId.
+    readActorSpritePreview: (
+      projectDir: string,
+      spriteOrObject: string
+    ) => Promise<ActorSpritePreview | null>
   }
 
   // Операции с файлом сцены (Open, Save, Save As).
@@ -184,8 +283,23 @@ export interface RendererApi {
   preferences: {
     read: () => Promise<EditorPreferences | null>
     write: (next: EditorPreferences) => Promise<void>
+    chooseScreenshotOutputDir: () => Promise<string | null>
     chooseCanvasBackground: () => Promise<string | null>
     readCanvasBackgroundDataUrl: (filePath: string) => Promise<string | null>
+  }
+
+  // Bridge для отдельного native окна visual editor.
+  visualEditor: {
+    open: (next: VisualEditorBridgeState | null) => Promise<{ opened: boolean }>
+    syncState: (next: VisualEditorBridgeState | null) => Promise<{ synced: boolean }>
+    getState: () => Promise<VisualEditorBridgeState | null>
+    importPath: (points: Array<{ x: number; y: number }>) => Promise<{ imported: boolean }>
+    importActors: (actors: VisualEditorActorPreview[]) => Promise<{ imported: boolean }>
+    close: () => Promise<{ closed: boolean }>
+    onStateUpdated: (cb: (state: VisualEditorBridgeState | null) => void) => () => void
+    onImportPath: (cb: (points: Array<{ x: number; y: number }>) => void) => () => void
+    onImportActors: (cb: (actors: VisualEditorActorPreview[]) => void) => () => void
+    onWindowClosed: (cb: () => void) => () => void
   }
 
   // Базовая информация о приложении и внешних ссылках.
@@ -223,6 +337,11 @@ export interface EditorPreferences {
   autoSaveEnabled: boolean
   autoSaveIntervalMinutes: number
   disableHardwareAcceleration: boolean
+  screenshotOutputDir: string | null
+  visualEditorTechMode: boolean
+  visualEditorGridOffsetX: number
+  visualEditorGridOffsetY: number
+  visualEditorPathSizeMultiplier: number
   keybindings: Record<string, string>
   showNodeNameOnCanvas: boolean
   parallelBranchPortMode: 'shared' | 'separate'

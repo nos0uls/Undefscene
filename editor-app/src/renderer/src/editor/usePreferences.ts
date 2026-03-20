@@ -119,6 +119,30 @@ export interface EditorPreferences {
   // Меняется в Preferences, но реально применяется только после restart.
   disableHardwareAcceleration: boolean
 
+  // Необязательный override для папки, где editor ищет PNG/meta от screenshot runner.
+  // Это полезно, когда GameMaker пишет output не рядом с .yyp, а в Local/AppData или в другой внешний каталог.
+  screenshotOutputDir: string | null
+
+  // Технический режим для Visual Editing.
+  // В нём показываются debug-поля вроде source/search dirs и прочая служебная информация.
+  visualEditorTechMode: boolean
+
+  visualEditorShowGrid: boolean
+
+  visualEditorSnapToGrid: boolean
+
+  // Смещение snap-сетки Visual Editing по X.
+  // Это помогает подогнать path grid под реальную геометрию комнаты.
+  visualEditorGridOffsetX: number
+
+  // Смещение snap-сетки Visual Editing по Y.
+  // Храним отдельно, чтобы можно было точно выставить вертикальную фазу сетки.
+  visualEditorGridOffsetY: number
+
+  // Множитель визуального размера path line и path points внутри Visual Editing.
+  // На сами world-space координаты пути он не влияет — меняется только отображение.
+  visualEditorPathSizeMultiplier: number
+
   // Сохранённые сочетания клавиш.
   // Сейчас используются как foundation и readonly-список в Preferences.
   keybindings: EditorKeybindings
@@ -151,6 +175,13 @@ export const DEFAULT_PREFERENCES: EditorPreferences = {
   autoSaveEnabled: true,
   autoSaveIntervalMinutes: 10,
   disableHardwareAcceleration: false,
+  screenshotOutputDir: null,
+  visualEditorTechMode: false,
+  visualEditorShowGrid: true,
+  visualEditorSnapToGrid: true,
+  visualEditorGridOffsetX: 0,
+  visualEditorGridOffsetY: 0,
+  visualEditorPathSizeMultiplier: 1,
   keybindings: DEFAULT_KEYBINDINGS,
   showNodeNameOnCanvas: true,
   parallelBranchPortMode: 'shared',
@@ -219,6 +250,34 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
       typeof c.disableHardwareAcceleration === 'boolean'
         ? c.disableHardwareAcceleration
         : DEFAULT_PREFERENCES.disableHardwareAcceleration,
+    screenshotOutputDir:
+      typeof c.screenshotOutputDir === 'string' ? c.screenshotOutputDir : null,
+    visualEditorTechMode:
+      typeof c.visualEditorTechMode === 'boolean'
+        ? c.visualEditorTechMode
+        : DEFAULT_PREFERENCES.visualEditorTechMode,
+    visualEditorShowGrid:
+      typeof c.visualEditorShowGrid === 'boolean'
+        ? c.visualEditorShowGrid
+        : DEFAULT_PREFERENCES.visualEditorShowGrid,
+    visualEditorSnapToGrid:
+      typeof c.visualEditorSnapToGrid === 'boolean'
+        ? c.visualEditorSnapToGrid
+        : DEFAULT_PREFERENCES.visualEditorSnapToGrid,
+    visualEditorGridOffsetX:
+      typeof c.visualEditorGridOffsetX === 'number' && c.visualEditorGridOffsetX >= -200 && c.visualEditorGridOffsetX <= 200
+        ? Math.round(c.visualEditorGridOffsetX)
+        : DEFAULT_PREFERENCES.visualEditorGridOffsetX,
+    visualEditorGridOffsetY:
+      typeof c.visualEditorGridOffsetY === 'number' && c.visualEditorGridOffsetY >= -200 && c.visualEditorGridOffsetY <= 200
+        ? Math.round(c.visualEditorGridOffsetY)
+        : DEFAULT_PREFERENCES.visualEditorGridOffsetY,
+    visualEditorPathSizeMultiplier:
+      typeof c.visualEditorPathSizeMultiplier === 'number' &&
+      c.visualEditorPathSizeMultiplier >= 0.5 &&
+      c.visualEditorPathSizeMultiplier <= 4
+        ? Number(c.visualEditorPathSizeMultiplier.toFixed(2))
+        : DEFAULT_PREFERENCES.visualEditorPathSizeMultiplier,
     keybindings: parseKeybindings(c.keybindings),
     showNodeNameOnCanvas:
       typeof c.showNodeNameOnCanvas === 'boolean'

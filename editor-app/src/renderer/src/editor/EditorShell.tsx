@@ -23,6 +23,10 @@ import { getAccentColorHex, usePreferences } from './usePreferences'
 import { useHotkeys } from './useHotkeys'
 import { createTranslator } from '../i18n'
 
+// MIME-type для drag-and-drop из node palette в FlowCanvas.
+// Дублируем локально в renderer-файлах, чтобы не тянуть отдельный shared constants module ради одной строки.
+const NODE_PALETTE_DRAG_MIME = 'application/x-undefscene-node-type'
+
 type DragState = {
   // Какая панель сейчас перетаскивается.
   panelId: string
@@ -129,6 +133,13 @@ export function EditorShell(): React.JSX.Element {
   // Модалка About и версия приложения.
   const [aboutOpen, setAboutOpen] = useState(false)
   const [appVersion, setAppVersion] = useState('Loading...')
+
+  // Отдельное окно visual editing для stitched room preview и будущих инструментов.
+  const [visualEditingOpen, setVisualEditingOpen] = useState(false)
+
+  // Комнаты, для которых main уже нашёл screenshot bundle.
+  // Именно их показываем в Visual Editing, чтобы room picker не засорялся пустыми вариантами.
+  const [screenshotRooms, setScreenshotRooms] = useState<string[]>([])
 
   // Yarn preview для Text panel.
   // Держим отдельно raw content, loading и выбранную preview-ноду,
@@ -339,6 +350,127 @@ export function EditorShell(): React.JSX.Element {
   const selectedNodeForName =
     runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null
 
+  // Ту же выбранную ноду используем и для visual editing окна.
+  // Так stitched room editor может импортировать путь обратно в graph без дублирования поиска.
+  const selectedNodeForVisualEditing = selectedNodeForName
+
+  // Точки выбранной follow_path-ноды поднимаем наверх,
+  // чтобы modal мог инициализировать ими свой path draft.
+  const selectedVisualPathPoints = useMemo(() => {
+    if (!selectedNodeForVisualEditing || selectedNodeForVisualEditing.type !== 'follow_path') {
+      return [] as Array<{ x: number; y: number }>
+    }
+
+    return Array.isArray(selectedNodeForVisualEditing.params?.points)
+      ? (selectedNodeForVisualEditing.params?.points as Array<{ x: number; y: number }>).map((point) => ({
+          x: Number(point.x ?? 0),
+          y: Number(point.y ?? 0)
+        }))
+      : []
+  }, [selectedNodeForVisualEditing])
+
+  // Если в graph нет actor_create, visual editor всё равно может сделать preview
+  // для target выбранной actor-related ноды, например для player.
+  const selectedVisualActorTarget = useMemo(() => {
+    const rawTarget = selectedNodeForVisualEditing?.params?.target
+    return typeof rawTarget === 'string' && rawTarget.trim().length > 0 ? rawTarget.trim() : null
+  }, [selectedNodeForVisualEditing])
+
+  // Собираем actor preview markers из actor_create-нод.
+  // Это даёт visual editor-окну ориентиры по уже созданным в graph актёрам.
+  const visualEditorActorPreviews = useMemo(() => {
+    return runtime.nodes
+      .filter((node) => node.type === 'actor_create')
+      .map((node) => ({
+        id: node.id,
+        key: String(node.params?.key ?? node.name ?? node.id),
+        x: Number(node.params?.x ?? 0),
+        y: Number(node.params?.y ?? 0),
+        spriteOrObject: String(node.params?.sprite_or_object ?? '')
+      }))
+  }, [runtime.nodes])
+
+  // Те же search dirs, что visual editor использует для stitched room screenshots.
+  // Держим это и здесь, чтобы Project panel показывала не только cache dir,
+  // но и полный порядок поиска output от внешнего screenshot runner.
+  const roomScreenshotSearchDirs = useMemo(() => {
+    const result: string[] = []
+    const pushUnique = (dirPath: string | null | undefined): void => {
+      const normalized = String(dirPath ?? '').trim()
+      if (!normalized || result.includes(normalized)) return
+      result.push(normalized)
+    }
+
+    // Сначала показываем явный user override, если он задан в Preferences.
+    // Это самый сильный сигнал для пользователя: именно туда editor будет смотреть первым.
+    pushUnique(preferences.screenshotOutputDir)
+    pushUnique(resources?.roomScreenshotsDir)
+    pushUnique(resources?.projectDir ? `${resources.projectDir}/screenshots` : null)
+    return result
+  }, [preferences.screenshotOutputDir, resources?.projectDir, resources?.roomScreenshotsDir])
+
+  // Загружаем только те комнаты, для которых main уже может найти screenshot bundle.
+  // Это делает room picker короче и убирает пустые preview-варианты из обычного UX.
+  useEffect(() => {
+    if (!resources?.projectDir || !Array.isArray(resources.rooms) || resources.rooms.length <= 0) {
+      setScreenshotRooms([])
+      return
+    }
+
+    let cancelled = false
+
+    window.api.project
+      .availableScreenshotRooms(resources.projectDir, resources.rooms, resources.roomScreenshotsDir ?? null)
+      .then((nextRooms) => {
+        if (cancelled) return
+        setScreenshotRooms(Array.isArray(nextRooms) ? nextRooms : [])
+      })
+      .catch((error) => {
+        if (cancelled) return
+        console.warn('Failed to collect screenshot rooms:', error)
+        setScreenshotRooms([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [preferences.screenshotOutputDir, resources?.projectDir, resources?.roomScreenshotsDir, resources?.rooms])
+
+  // Собираем единый snapshot для native visual editor окна.
+  // Он пересылается через preload bridge и полностью описывает текущий visual editing context.
+  const visualEditorBridgeState = useMemo(
+    () => ({
+      rooms: resources?.rooms ?? [],
+      screenshotRooms,
+      projectDir: resources?.projectDir ?? null,
+      roomScreenshotsDir: resources?.roomScreenshotsDir ?? null,
+      visualEditorTechMode: preferences.visualEditorTechMode,
+      selectedNode: selectedNodeForVisualEditing
+        ? {
+            id: selectedNodeForVisualEditing.id,
+            type: selectedNodeForVisualEditing.type,
+            name: selectedNodeForVisualEditing.name
+          }
+        : null,
+      selectedActorTarget: selectedVisualActorTarget,
+      selectedPathPoints: selectedVisualPathPoints,
+      actorPreviews: visualEditorActorPreviews,
+      language: preferences.language
+    }),
+    [
+      preferences.language,
+      preferences.visualEditorTechMode,
+      resources?.projectDir,
+      resources?.roomScreenshotsDir,
+      resources?.rooms,
+      screenshotRooms,
+      selectedVisualActorTarget,
+      selectedNodeForVisualEditing,
+      selectedVisualPathPoints,
+      visualEditorActorPreviews
+    ]
+  )
+
   // Текущее значение в поле “Node name”.
   // Мы держим его отдельно, чтобы не переписывать runtime на каждый символ.
   const [pendingNodeName, setPendingNodeName] = useState('')
@@ -357,6 +489,329 @@ export function EditorShell(): React.JSX.Element {
     while (takenNames.has(`${trimmed} (${i})`)) i++
     return `${trimmed} (${i})`
   }
+
+  // Создаём новую follow_path-ноду из visual editor path import.
+  // Позицию ставим правее выбранного узла или последнего узла, чтобы ноды не накладывались друг на друга.
+  const createFollowPathNodeFromVisualEditing = useCallback(
+    (points: Array<{ x: number; y: number }>) => {
+      const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      const takenNames = new Set<string>(
+        runtime.nodes.map((n) => String(n.name ?? '').trim()).filter((value) => value.length > 0)
+      )
+
+      const anchor =
+        runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ??
+        runtime.nodes[runtime.nodes.length - 1] ??
+        null
+      const anchorPos = anchor?.position ?? { x: 100, y: 150 }
+
+      const newNode: RuntimeNode = {
+        id: newId,
+        type: 'follow_path',
+        name: suggestUniqueNodeName('Node', takenNames),
+        text: '',
+        position: { x: anchorPos.x + 250, y: anchorPos.y },
+        params: {
+          target: '',
+          speed_px_sec: 60,
+          collision: false,
+          points
+        }
+      }
+
+      const newEdges = anchor
+        ? [...runtime.edges, { id: `edge-${anchor.id}-${newId}`, source: anchor.id, target: newId }]
+        : runtime.edges
+
+      setRuntime({
+        ...runtime,
+        nodes: [...runtime.nodes, newNode],
+        edges: newEdges,
+        selectedNodeId: newId,
+        selectedNodeIds: [newId],
+        selectedEdgeId: null
+      })
+    },
+    [runtime, setRuntime, suggestUniqueNodeName]
+  )
+
+  // Visual editing окно импортирует только path points.
+  // По вашему правилу: если нода выбрана — подтверждаем замену, если нет — подтверждаем создание новой follow_path.
+  const importPathFromVisualEditing = useCallback(
+    (points: Array<{ x: number; y: number }>) => {
+      const normalizedPoints = points.map((point) => ({
+        x: Math.round(Number(point.x ?? 0)),
+        y: Math.round(Number(point.y ?? 0))
+      }))
+
+      if (normalizedPoints.length <= 0) {
+        window.alert('Visual Editing: draw at least one path point before import.')
+        return
+      }
+
+      if (selectedNodeForVisualEditing) {
+        const nodeLabel = String(selectedNodeForVisualEditing.name ?? selectedNodeForVisualEditing.type)
+        const confirmed = window.confirm(
+          `Replace selected node "${nodeLabel}" with imported follow_path data?`
+        )
+        if (!confirmed) return
+
+        const previousParams = selectedNodeForVisualEditing.params ?? {}
+        setRuntime({
+          ...runtime,
+          nodes: runtime.nodes.map((node) =>
+            node.id === selectedNodeForVisualEditing.id
+              ? {
+                  ...node,
+                  type: 'follow_path',
+                  params: {
+                    target: typeof previousParams.target === 'string' ? previousParams.target : '',
+                    speed_px_sec:
+                      typeof previousParams.speed_px_sec === 'number' ? previousParams.speed_px_sec : 60,
+                    collision:
+                      typeof previousParams.collision === 'boolean' ? previousParams.collision : false,
+                    points: normalizedPoints
+                  }
+                }
+              : node
+          ),
+          selectedNodeId: selectedNodeForVisualEditing.id,
+          selectedNodeIds: [selectedNodeForVisualEditing.id],
+          selectedEdgeId: null
+        })
+        return
+      }
+
+      const confirmed = window.confirm('No node is selected. Create a new follow_path node from imported path?')
+      if (!confirmed) return
+      createFollowPathNodeFromVisualEditing(normalizedPoints)
+    },
+    [createFollowPathNodeFromVisualEditing, runtime, selectedNodeForVisualEditing, setRuntime]
+  )
+
+  // Visual editing может локально переставить actor preview markers,
+  // а здесь мы уже централизованно переносим эти координаты обратно в actor_create nodes.
+  const importActorsFromVisualEditing = useCallback(
+    (
+      actors: Array<{
+        id: string
+        key: string
+        x: number
+        y: number
+        spriteOrObject: string
+        isVirtual?: boolean
+      }>
+    ) => {
+      const safeActors = actors
+        .filter(
+          (actor) =>
+            typeof actor.id === 'string' && actor.id.trim().length > 0 && actor.isVirtual !== true
+        )
+        .map((actor) => ({
+          ...actor,
+          x: Math.round(Number(actor.x ?? 0)),
+          y: Math.round(Number(actor.y ?? 0))
+        }))
+
+      if (safeActors.length <= 0) {
+        window.alert('Visual Editing: no actor positions to import.')
+        return
+      }
+
+      const actorMap = new Map(safeActors.map((actor) => [actor.id, actor]))
+      let updatedCount = 0
+
+      setRuntime({
+        ...runtime,
+        nodes: runtime.nodes.map((node) => {
+          const importedActor = actorMap.get(node.id)
+          if (!importedActor || node.type !== 'actor_create') {
+            return node
+          }
+
+          updatedCount += 1
+          return {
+            ...node,
+            params: {
+              ...(node.params ?? {}),
+              x: importedActor.x,
+              y: importedActor.y
+            }
+          }
+        })
+      })
+
+      if (updatedCount <= 0) {
+        window.alert('Visual Editing: imported actor markers do not match any actor_create nodes.')
+      }
+    },
+    [runtime, setRuntime]
+  )
+
+  // Универсальное создание ноды по типу и позиции.
+  // Это общий источник правды для palette click, MMB create и DnD placement на canvas.
+  const createNodeAtPosition = useCallback(
+    (type: string, position: { x: number; y: number }, connectFromNodeId?: string | null) => {
+      const takenNames = new Set<string>(
+        runtime.nodes.map((n) => String(n.name ?? '').trim()).filter((value) => value.length > 0)
+      )
+
+      if (type === 'parallel_start') {
+        const startId = `pstart-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+        const joinId = `pjoin-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+
+        const startName = suggestUniqueNodeName('Node', takenNames)
+        takenNames.add(startName)
+        const joinName = suggestUniqueNodeName('Node', takenNames)
+
+        const startNode: RuntimeNode = {
+          id: startId,
+          type: 'parallel_start',
+          name: startName,
+          position: { x: position.x, y: position.y },
+          params: { joinId, branches: ['b0'] }
+        }
+
+        const joinNode: RuntimeNode = {
+          id: joinId,
+          type: 'parallel_join',
+          name: joinName,
+          position: { x: position.x + 300, y: position.y },
+          params: { pairId: startId, branches: ['b0'] }
+        }
+
+        const pairEdge: RuntimeEdge = {
+          id: `edge-pair-${startId}-${joinId}`,
+          source: startId,
+          sourceHandle: '__pair',
+          target: joinId,
+          targetHandle: '__pair'
+        }
+
+        const extraEdges = connectFromNodeId
+          ? [{ id: `edge-${connectFromNodeId}-${startId}`, source: connectFromNodeId, target: startId }]
+          : []
+
+        setRuntime({
+          ...runtime,
+          nodes: [...runtime.nodes, startNode, joinNode],
+          edges: [...runtime.edges, ...extraEdges, pairEdge],
+          selectedNodeId: startId,
+          selectedNodeIds: [startId],
+          selectedEdgeId: null
+        })
+        return
+      }
+
+      const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      const newNode: RuntimeNode = {
+        id: newId,
+        type,
+        name: suggestUniqueNodeName('Node', takenNames),
+        text: '',
+        position: { x: position.x, y: position.y }
+      }
+
+      const newEdges = connectFromNodeId
+        ? [...runtime.edges, { id: `edge-${connectFromNodeId}-${newId}`, source: connectFromNodeId, target: newId }]
+        : runtime.edges
+
+      setRuntime({
+        ...runtime,
+        nodes: [...runtime.nodes, newNode],
+        edges: newEdges,
+        selectedNodeId: newId,
+        selectedNodeIds: [newId],
+        selectedEdgeId: null
+      })
+    },
+    [runtime, setRuntime, suggestUniqueNodeName]
+  )
+
+  // Palette-click добавляет ноду справа от выбранного узла,
+  // сохраняя старое удобное поведение для быстрого graph-building.
+  const addNode = useCallback(
+    (type: string) => {
+      const anchor =
+        runtime.nodes.find((n) => n.id === runtime.selectedNodeId) ??
+        runtime.nodes[runtime.nodes.length - 1] ??
+        null
+
+      const anchorPos = anchor?.position ?? { x: 100, y: 150 }
+      createNodeAtPosition(type, { x: anchorPos.x + 250, y: anchorPos.y }, anchor?.id ?? null)
+    },
+    [createNodeAtPosition, runtime.nodes, runtime.selectedNodeId]
+  )
+
+  // MMB-create остаётся быстрым способом поставить обычную dialogue ноду в точку курсора.
+  const createDefaultPaneNode = useCallback(
+    (x: number, y: number) => {
+      createNodeAtPosition('dialogue', { x, y }, null)
+    },
+    [createNodeAtPosition]
+  )
+
+  // Drop из palette создаёт ноду указанного типа в точке drop.
+  // Поведение согласовано как "MMB create, но с типом из palette".
+  const createPaletteDropNode = useCallback(
+    (type: string, x: number, y: number) => {
+      createNodeAtPosition(type, { x, y }, null)
+    },
+    [createNodeAtPosition]
+  )
+
+  // Открываем отдельное native окно visual editor и сразу отправляем туда текущий snapshot.
+  // Так окно стартует уже с нужной комнатой, выбранной нодой и preview-маркерами.
+  const openVisualEditorWindow = useCallback(() => {
+    setVisualEditingOpen(true)
+
+    window.api.visualEditor
+      .open(visualEditorBridgeState)
+      .catch((error) => {
+        console.warn('Failed to open visual editor window:', error)
+        setVisualEditingOpen(false)
+      })
+  }, [visualEditorBridgeState])
+
+  // Пока visual editor окно открыто, держим его snapshot синхронным с main editor state.
+  // Это обновляет выбранную ноду, actor preview и room bundle context без ручного refresh.
+  useEffect(() => {
+    if (!visualEditingOpen) return
+
+    void window.api.visualEditor.syncState(visualEditorBridgeState).catch((error) => {
+      console.warn('Failed to sync visual editor state:', error)
+    })
+  }, [visualEditingOpen, visualEditorBridgeState])
+
+  // Импорт path остаётся централизованным в EditorShell,
+  // поэтому отдельное окно только шлёт points через bridge.
+  useEffect(() => {
+    return window.api.visualEditor.onImportPath((points) => {
+      importPathFromVisualEditing(points)
+    })
+  }, [importPathFromVisualEditing])
+
+  // Actor import остаётся таким же bridge-flow, как path import:
+  // окно visual editor шлёт staged positions, а EditorShell применяет их к runtime.
+  useEffect(() => {
+    return window.api.visualEditor.onImportActors((actors) => {
+      importActorsFromVisualEditing(actors)
+    })
+  }, [importActorsFromVisualEditing])
+
+  // Когда пользователь закрывает native окно с системной рамки,
+  // main сообщает об этом сюда, чтобы локальное состояние не зависало в open=true.
+  useEffect(() => {
+    return window.api.visualEditor.onWindowClosed(() => {
+      setVisualEditingOpen(false)
+
+      // После закрытия отдельного окна возвращаем keyboard focus в основной editor root.
+      // Это помогает не оставлять inspector inputs в подвешенном состоянии после alt-tab/close.
+      requestAnimationFrame(() => {
+        rootRef.current?.focus()
+      })
+    })
+  }, [])
 
   // Когда пользователь выбирает другую ноду — обновляем поле имени.
   useEffect(() => {
@@ -939,12 +1394,19 @@ export function EditorShell(): React.JSX.Element {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      // Не перехватываем, если фокус в input/textarea/select.
-      const tag = (e.target as HTMLElement)?.tagName
-      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+      // Не перехватываем только текстовый ввод.
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName ?? ''
+      const inputType = tag === 'INPUT' ? (((target as HTMLInputElement | null)?.type ?? '').toLowerCase()) : ''
+      const isInput =
+        tag === 'TEXTAREA' ||
+        tag === 'SELECT' ||
+        (tag === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(inputType)) ||
+        target?.closest('[contenteditable="true"]') !== null
+      const key = e.key.toLowerCase()
 
       // Ctrl+Z — Undo.
-      if (e.ctrlKey && !e.shiftKey && e.key === 'z') {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && key === 'z') {
         if (isInput) return
         e.preventDefault()
         undoRef.current()
@@ -952,7 +1414,7 @@ export function EditorShell(): React.JSX.Element {
       }
 
       // Ctrl+Y или Ctrl+Shift+Z — Redo.
-      if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'Z')) {
+      if (((e.ctrlKey || e.metaKey) && key === 'y') || ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 'z')) {
         if (isInput) return
         e.preventDefault()
         redoRef.current()
@@ -960,23 +1422,31 @@ export function EditorShell(): React.JSX.Element {
       }
 
       // Ctrl+S — Save.
-      if (e.ctrlKey && e.key === 's') {
+      if ((e.ctrlKey || e.metaKey) && key === 's') {
         e.preventDefault()
         saveRef.current?.()
         return
       }
 
       // Ctrl+N — New Scene.
-      if (e.ctrlKey && e.key === 'n') {
+      if ((e.ctrlKey || e.metaKey) && key === 'n') {
         e.preventDefault()
         newRef.current?.()
         return
       }
 
       // Ctrl+E — Export.
-      if (e.ctrlKey && e.key === 'e') {
+      if ((e.ctrlKey || e.metaKey) && key === 'e') {
         e.preventDefault()
         exportRef.current?.()
+        return
+      }
+
+      // Ctrl+P — Preferences.
+      if ((e.ctrlKey || e.metaKey) && key === 'p') {
+        e.preventDefault()
+        e.stopPropagation()
+        setPreferencesOpen(true)
         return
       }
 
@@ -1180,8 +1650,8 @@ export function EditorShell(): React.JSX.Element {
       }
     }
 
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [])
 
   // Экспорт катсцены: валидация → компиляция → JSON → сохранение через IPC.
@@ -1721,101 +2191,6 @@ export function EditorShell(): React.JSX.Element {
       })
     }
 
-    // Создаём новый узел выбранного типа и сразу выбираем его.
-    // Позиция — правее активного узла, чтобы не накладывались.
-    const addNode = (type: string) => {
-      const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-
-      // Готовим набор занятых имён, чтобы дать новой ноде уникальное имя.
-      const takenNames = new Set<string>(
-        runtime.nodes.map((n) => String(n.name ?? '').trim()).filter((v) => v.length > 0)
-      )
-
-      // Берём позицию активного узла или последнего узла в списке.
-      const anchor =
-        runtime.nodes.find((n) => n.id === runtime.selectedNodeId) ??
-        runtime.nodes[runtime.nodes.length - 1] ??
-        null
-
-      const anchorPos = anchor?.position ?? { x: 100, y: 150 }
-
-      // Parallel — особый случай: создаём ПАРУ нод (start + join).
-      if (type === 'parallel_start') {
-        const startId = `pstart-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-        const joinId = `pjoin-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-
-        const startName = suggestUniqueNodeName('Node', takenNames)
-        takenNames.add(startName)
-        const joinName = suggestUniqueNodeName('Node', takenNames)
-
-        const startNode: RuntimeNode = {
-          id: startId,
-          type: 'parallel_start',
-          name: startName,
-          position: { x: anchorPos.x + 250, y: anchorPos.y },
-          params: { joinId, branches: ['b0'] }
-        }
-
-        const joinNode: RuntimeNode = {
-          id: joinId,
-          type: 'parallel_join',
-          name: joinName,
-          position: { x: anchorPos.x + 550, y: anchorPos.y },
-          params: { pairId: startId, branches: ['b0'] }
-        }
-
-        // Скрытая связь между парой (для внутренней логики).
-        const pairEdge = {
-          id: `edge-pair-${startId}-${joinId}`,
-          source: startId,
-          sourceHandle: '__pair',
-          target: joinId,
-          targetHandle: '__pair'
-        }
-
-        // Если есть активный узел — соединяем его со start-нодой.
-        const extraEdges = anchor
-          ? [{ id: `edge-${anchor.id}-${startId}`, source: anchor.id, target: startId }]
-          : []
-
-        setRuntime({
-          ...runtime,
-          nodes: [...runtime.nodes, startNode, joinNode],
-          edges: [...runtime.edges, ...extraEdges, pairEdge],
-          // Важно: держим selection-поля согласованными,
-          // иначе React Flow может зациклиться на onSelectionChange.
-          selectedNodeId: startId,
-          selectedNodeIds: [startId],
-          selectedEdgeId: null
-        })
-        return
-      }
-
-      const newNode: RuntimeNode = {
-        id: newId,
-        type,
-        name: suggestUniqueNodeName('Node', takenNames),
-        text: '',
-        position: { x: anchorPos.x + 250, y: anchorPos.y }
-      }
-
-      // Если есть активный узел — соединяем его с новым.
-      const newEdges = anchor
-        ? [...runtime.edges, { id: `edge-${anchor.id}-${newId}`, source: anchor.id, target: newId }]
-        : runtime.edges
-
-      setRuntime({
-        ...runtime,
-        nodes: [...runtime.nodes, newNode],
-        edges: newEdges,
-        // Важно: при создании новой ноды сбрасываем мультивыделение и выбранное ребро.
-        // Иначе React Flow может попытаться "вернуть" старое выделение и уйти в цикл.
-        selectedNodeId: newId,
-        selectedNodeIds: [newId],
-        selectedEdgeId: null
-      })
-    }
-
     // Меняем выделение узла.
     const selectNode = (nodeId: string) => {
       setRuntime({
@@ -1872,7 +2247,17 @@ export function EditorShell(): React.JSX.Element {
           <ul className="runtimeList runtimeListScrollable">
             {palette.map((type) => (
               <li key={type}>
-                <button className="runtimeListItem" type="button" onClick={() => addNode(type)}>
+                <button
+                  className="runtimeListItem"
+                  type="button"
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData(NODE_PALETTE_DRAG_MIME, type)
+                    event.dataTransfer.setData('text/plain', type)
+                    event.dataTransfer.effectAllowed = 'copy'
+                  }}
+                  onClick={() => addNode(type)}
+                >
                   {type}
                 </button>
               </li>
@@ -1924,13 +2309,13 @@ export function EditorShell(): React.JSX.Element {
         <div className="runtimeSection">
           <div className="runtimeSectionTitle">{t('editor.yarnPreview', 'Yarn Preview')}</div>
           {!selectedNode ? (
-            <div className="runtimeHint">{t('editor.selectDialogueNode', 'Select a dialogue node to preview yarn content.')}</div>
+            <div className="runtimeHint">{t('editor.selectDialogueNode', 'Select a dialogue node.')}</div>
           ) : selectedNode.type !== 'dialogue' ? (
-            <div className="runtimeHint">{t('editor.textPanelReserved', 'The Text panel is reserved for dialogue Yarn preview.')}</div>
+            <div className="runtimeHint">{t('editor.textPanelReserved', 'Dialogue preview only.')}</div>
           ) : !resources?.projectDir ? (
-            <div className="runtimeHint">{t('editor.openProjectForYarn', 'Open a GameMaker project to enable Yarn preview.')}</div>
+            <div className="runtimeHint">{t('editor.openProjectForYarn', 'Open a project.')}</div>
           ) : !selectedYarnFile ? (
-            <div className="runtimeHint">{t('editor.setDialogueFile', 'Set the dialogue File field to preview a Yarn file.')}</div>
+            <div className="runtimeHint">{t('editor.setDialogueFile', 'Set the dialogue File field.')}</div>
           ) : yarnPreviewLoading ? (
             <div className="runtimeHint">{t('editor.loadingYarnPreview', 'Loading Yarn preview...')}</div>
           ) : previewNodes.length === 0 ? (
@@ -3030,6 +3415,9 @@ export function EditorShell(): React.JSX.Element {
                 'editor.projectCacheScreenshots',
                 'Room screenshots cache folder is ready for future previews.'
               )}
+              <br />
+              {t('editor.visualEditingSearchDirs', 'Search Dirs')}:{' '}
+              {roomScreenshotSearchDirs.length > 0 ? roomScreenshotSearchDirs.join(' | ') : '—'}
             </div>
           ) : (
             <div className="runtimeHint">{t('editor.noProjectLoaded', 'No project loaded. File → Open Project...')}</div>
@@ -3870,6 +4258,7 @@ export function EditorShell(): React.JSX.Element {
   return (
     <div
       ref={rootRef}
+      tabIndex={-1}
       className="editorRoot"
       style={
         {
@@ -4007,7 +4396,30 @@ export function EditorShell(): React.JSX.Element {
               disableHardwareAcceleration: !preferences.disableHardwareAcceleration
             })
           }}
+          onChooseScreenshotOutputDir={() => {
+            if (!window.api?.preferences?.chooseScreenshotOutputDir) {
+              console.warn('Preferences API not available')
+              return
+            }
+
+            window.api.preferences
+              .chooseScreenshotOutputDir()
+              .then((dirPath) => {
+                if (!dirPath) return
+                updatePreferences({ screenshotOutputDir: dirPath })
+              })
+              .catch((err) => {
+                console.warn('Failed to choose screenshot output dir:', err)
+              })
+          }}
+          onToggleVisualEditorTechMode={() => {
+            updatePreferences({
+              visualEditorTechMode: !preferences.visualEditorTechMode
+            })
+          }}
+          visualEditorTechModeEnabled={preferences.visualEditorTechMode}
           hardwareAccelerationDisabled={preferences.disableHardwareAcceleration}
+          onOpenVisualEditing={openVisualEditorWindow}
           onAbout={() => setAboutOpen(true)}
           onExit={() => window.close()}
           onPreferences={() => setPreferencesOpen(true)}
@@ -4199,34 +4611,8 @@ export function EditorShell(): React.JSX.Element {
                 selectedEdgeId: null
               })
             }}
-            onPaneClickCreate={(x, y) => {
-              // ЛКМ по холсту — создаём новую ноду в позиции курсора.
-              // По умолчанию тип 'dialogue' (самый частый), можно сменить в Inspector.
-              const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-
-              // Генерируем уникальное имя “Node”, чтобы новый узел не конфликтовал с другими.
-              const takenNames = new Set<string>(
-                runtime.nodes.map((n) => String(n.name ?? '').trim()).filter((v) => v.length > 0)
-              )
-              const newName = suggestUniqueNodeName('Node', takenNames)
-
-              setRuntime({
-                ...runtime,
-                nodes: [
-                  ...runtime.nodes,
-                  {
-                    id: newId,
-                    type: 'dialogue',
-                    name: newName,
-                    text: '',
-                    position: { x, y }
-                  }
-                ],
-                selectedNodeId: newId,
-                selectedNodeIds: [newId],
-                selectedEdgeId: null
-              })
-            }}
+            onPaneClickCreate={createDefaultPaneNode}
+            onPaneDropCreate={createPaletteDropNode}
             onEdgeDelete={(edgeId) => {
               // ПКМ по связи — удаляем связь.
               setRuntime({

@@ -53,6 +53,7 @@ export type TopMenuBarProps = {
 
   // View.
   onResetLayout: () => void
+  onOpenVisualEditing: () => void
 
   // Help.
   onAbout: () => void
@@ -62,6 +63,9 @@ export type TopMenuBarProps = {
   onCopyLogToClipboard?: () => void
   onOpenDevTools?: () => void
   onToggleHardwareAcceleration?: () => void
+  onChooseScreenshotOutputDir?: () => void
+  onToggleVisualEditorTechMode?: () => void
+  visualEditorTechModeEnabled?: boolean
   hardwareAccelerationDisabled?: boolean
 
   // Выход.
@@ -94,6 +98,7 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
     onUndo,
     onRedo,
     onResetLayout,
+    onOpenVisualEditing,
     onAbout,
     onCheckUpdates,
     onToggleRuntimeJson,
@@ -101,6 +106,9 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
     onCopyLogToClipboard,
     onOpenDevTools,
     onToggleHardwareAcceleration,
+    onChooseScreenshotOutputDir,
+    onToggleVisualEditorTechMode,
+    visualEditorTechModeEnabled,
     hardwareAccelerationDisabled,
     onExit,
     onPreferences,
@@ -154,6 +162,24 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
               id: 'toggleHardwareAcceleration',
               label: `${hardwareAccelerationDisabled ? '✓ ' : ''}${t('menu.disableHardwareAcceleration', 'Disable Hardware Acceleration')}`,
               onSelect: onToggleHardwareAcceleration
+            }
+          ]
+        : []),
+      ...(onChooseScreenshotOutputDir
+        ? [
+            {
+              id: 'chooseScreenshotOutputDir',
+              label: t('menu.chooseScreenshotOutputDir', 'Choose Screenshot Output Folder...'),
+              onSelect: onChooseScreenshotOutputDir
+            }
+          ]
+        : []),
+      ...(onToggleVisualEditorTechMode
+        ? [
+            {
+              id: 'toggleVisualEditorTechMode',
+              label: `${visualEditorTechModeEnabled ? '✓ ' : ''}${t('menu.visualEditorTechMode', 'Visual Editing Tech Mode')}`,
+              onSelect: onToggleVisualEditorTechMode
             }
           ]
         : [])
@@ -212,7 +238,14 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
       {
         id: 'view',
         label: t('menu.view', 'View'),
-        entries: [{ id: 'resetLayout', label: t('menu.resetLayout', 'Reset Layout'), onSelect: onResetLayout }]
+        entries: [
+          { id: 'resetLayout', label: t('menu.resetLayout', 'Reset Layout'), onSelect: onResetLayout },
+          {
+            id: 'visualEditing',
+            label: t('menu.visualEditing', 'Visual Editing'),
+            onSelect: onOpenVisualEditing
+          }
+        ]
       },
       panelsMenu,
       {
@@ -250,12 +283,16 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
     onUndo,
     onRedo,
     onResetLayout,
+    onOpenVisualEditing,
     onCheckUpdates,
     onToggleRuntimeJson,
     runtimeJsonVisible,
     onCopyLogToClipboard,
     onOpenDevTools,
     onToggleHardwareAcceleration,
+    onChooseScreenshotOutputDir,
+    onToggleVisualEditorTechMode,
+    visualEditorTechModeEnabled,
     hardwareAccelerationDisabled,
     onAbout
   ])

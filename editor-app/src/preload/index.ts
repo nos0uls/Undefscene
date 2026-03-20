@@ -23,7 +23,29 @@ const api = {
   project: {
     // Открываем .yyp через main процесс.
     open: (): Promise<unknown> => ipcRenderer.invoke('project.open'),
-    restoreLast: (): Promise<unknown> => ipcRenderer.invoke('project.restoreLast')
+    restoreLast: (): Promise<unknown> => ipcRenderer.invoke('project.restoreLast'),
+
+    // Получаем только те комнаты, для которых main уже нашёл screenshot bundle.
+    availableScreenshotRooms: (
+      projectDir: string,
+      roomNames: string[],
+      roomScreenshotsDir?: string | null
+    ): Promise<unknown> =>
+      ipcRenderer.invoke('project.availableScreenshotRooms', projectDir, roomNames, roomScreenshotsDir),
+
+    // Читаем stitched room screenshot bundle для visual editing окна.
+    // Main сам загружает meta.json и PNG tiles, а renderer получает уже безопасный payload.
+    readRoomScreenshotBundle: (
+      projectDir: string,
+      roomName: string,
+      roomScreenshotsDir?: string | null
+    ): Promise<unknown> =>
+      ipcRenderer.invoke('project.readRoomScreenshotBundle', projectDir, roomName, roomScreenshotsDir),
+
+    // Читаем первый frame actor sprite preview.
+    // Main сам резолвит object -> sprite и возвращает уже готовый data URL.
+    readActorSpritePreview: (projectDir: string, spriteOrObject: string): Promise<unknown> =>
+      ipcRenderer.invoke('project.readActorSpritePreview', projectDir, spriteOrObject)
   },
   // Операции с файлом сцены (New, Open, Save, Save As).
   scene: {
@@ -111,10 +133,59 @@ const api = {
   preferences: {
     read: (): Promise<unknown> => ipcRenderer.invoke('preferences.read'),
     write: (next: unknown): Promise<unknown> => ipcRenderer.invoke('preferences.write', next),
+    chooseScreenshotOutputDir: (): Promise<unknown> =>
+      ipcRenderer.invoke('preferences.chooseScreenshotOutputDir'),
     chooseCanvasBackground: (): Promise<unknown> =>
       ipcRenderer.invoke('preferences.chooseCanvasBackground'),
     readCanvasBackgroundDataUrl: (filePath: string): Promise<unknown> =>
       ipcRenderer.invoke('preferences.readCanvasBackgroundDataUrl', filePath)
+  },
+  // Базовая информация о приложении для About modal и внешних ссылок.
+  visualEditor: {
+    // Открываем отдельное native окно visual editor и передаём туда snapshot состояния.
+    open: (next: unknown): Promise<unknown> => ipcRenderer.invoke('visualEditor.open', next),
+    // Обновляем state snapshot без повторного открытия окна.
+    syncState: (next: unknown): Promise<unknown> => ipcRenderer.invoke('visualEditor.syncState', next),
+    // Отдаём последнюю bridge-state standalone renderer-окну.
+    getState: (): Promise<unknown> => ipcRenderer.invoke('visualEditor.getState'),
+    // Возвращаем path обратно в главное окно редактора.
+    importPath: (points: unknown): Promise<unknown> => ipcRenderer.invoke('visualEditor.importPath', points),
+    // Возвращаем actor marker positions обратно в главное окно редактора.
+    importActors: (actors: unknown): Promise<unknown> => ipcRenderer.invoke('visualEditor.importActors', actors),
+    // Закрываем отдельное окно по запросу renderer.
+    close: (): Promise<unknown> => ipcRenderer.invoke('visualEditor.close'),
+    // Подписка на обновление state snapshot из main процесса.
+    onStateUpdated: (cb: (state: unknown) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, state: unknown): void => cb(state)
+      ipcRenderer.on('visualEditor.stateUpdated', listener)
+      return (): void => {
+        ipcRenderer.removeListener('visualEditor.stateUpdated', listener)
+      }
+    },
+    // Подписка на import path из отдельного окна обратно в EditorShell.
+    onImportPath: (cb: (points: unknown) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, points: unknown): void => cb(points)
+      ipcRenderer.on('visualEditor.importPath', listener)
+      return (): void => {
+        ipcRenderer.removeListener('visualEditor.importPath', listener)
+      }
+    },
+    // Подписка на import actor positions из отдельного окна обратно в EditorShell.
+    onImportActors: (cb: (actors: unknown) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, actors: unknown): void => cb(actors)
+      ipcRenderer.on('visualEditor.importActors', listener)
+      return (): void => {
+        ipcRenderer.removeListener('visualEditor.importActors', listener)
+      }
+    },
+    // Сигнал, что отдельное окно закрыто.
+    onWindowClosed: (cb: () => void): (() => void) => {
+      const listener = (): void => cb()
+      ipcRenderer.on('visualEditor.windowClosed', listener)
+      return (): void => {
+        ipcRenderer.removeListener('visualEditor.windowClosed', listener)
+      }
+    }
   },
   // Базовая информация о приложении для About modal и внешних ссылок.
   appInfo: {

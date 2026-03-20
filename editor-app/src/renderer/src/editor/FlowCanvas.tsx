@@ -22,6 +22,10 @@ import type { RuntimeEdge, RuntimeNode } from './runtimeTypes'
 import { cutsceneNodeTypes } from './nodes'
 import { usePreferencesContext } from './PreferencesContext'
 
+// Собственный MIME-type для drag-and-drop из палитры нод.
+// Он позволяет не путать наши payload'ы с обычным text/plain drag из браузера.
+const NODE_PALETTE_DRAG_MIME = 'application/x-undefscene-node-type'
+
 // Пропсы для холста: узлы, связи, выбор и коллбеки для синхронизации с runtime.
 type FlowCanvasProps = {
   // Узлы runtime-json, которые показываем на холсте.
@@ -69,6 +73,9 @@ type FlowCanvasProps = {
   // Коллбек: создать новую ноду в указанной позиции (MMB по холсту).
   onPaneClickCreate: (x: number, y: number) => void
 
+  // Коллбек: создать новую ноду по drop из палитры в указанной позиции.
+  onPaneDropCreate?: (type: string, x: number, y: number) => void
+
   // Коллбек: удалить связь (ПКМ по связи).
   onEdgeDelete: (edgeId: string) => void
 
@@ -96,6 +103,7 @@ const FlowCanvasInner = ({
   onParallelRemoveBranch,
   onNodeDelete,
   onPaneClickCreate,
+  onPaneDropCreate,
   onEdgeDelete,
   onEdgeDoubleClick,
   fitViewRequestId = 0
@@ -175,6 +183,7 @@ const FlowCanvasInner = ({
   const onParallelRemoveBranchRef = useRef(onParallelRemoveBranch)
   const onNodeDeleteRef = useRef(onNodeDelete)
   const onPaneClickCreateRef = useRef(onPaneClickCreate)
+  const onPaneDropCreateRef = useRef(onPaneDropCreate)
   const onEdgeDeleteRef = useRef(onEdgeDelete)
   const onEdgeDoubleClickRef = useRef(onEdgeDoubleClick)
 
@@ -187,6 +196,7 @@ const FlowCanvasInner = ({
     onParallelRemoveBranchRef.current = onParallelRemoveBranch
     onNodeDeleteRef.current = onNodeDelete
     onPaneClickCreateRef.current = onPaneClickCreate
+    onPaneDropCreateRef.current = onPaneDropCreate
     onEdgeDeleteRef.current = onEdgeDelete
     onEdgeDoubleClickRef.current = onEdgeDoubleClick
   }, [
@@ -197,9 +207,48 @@ const FlowCanvasInner = ({
     onParallelRemoveBranch,
     onNodeDelete,
     onPaneClickCreate,
+    onPaneDropCreate,
     onEdgeDelete,
     onEdgeDoubleClick
   ])
+
+  // Drag preview показывает, где именно окажется нода после drop.
+  // Храним и screen-space, и flow-space координаты, чтобы пользователю было проще ориентироваться.
+  const [dragPreview, setDragPreview] = useState<{
+    type: string
+    localX: number
+    localY: number
+    flowX: number
+    flowY: number
+  } | null>(null)
+
+  // Аккуратно вытаскиваем тип ноды из DnD payload.
+  // Если drag пришёл не из нашей палитры, возвращаем null и не вмешиваемся.
+  const getDraggedNodeType = useCallback((dataTransfer: DataTransfer | null): string | null => {
+    if (!dataTransfer) return null
+
+    const customType = dataTransfer.getData(NODE_PALETTE_DRAG_MIME).trim()
+    if (customType) return customType
+
+    const fallbackType = dataTransfer.getData('text/plain').trim()
+    return fallbackType || null
+  }, [])
+
+  // Проверяем, что курсор находится над основной рабочей областью canvas.
+  // Не требуем строго `.react-flow__pane`, потому что drag может идти поверх background,
+  // viewport-слоёв или других внутренних DOM-обёрток React Flow.
+  // Но сознательно исключаем overlay-элементы вроде minimap и controls,
+  // чтобы drop там не создавал ноду в неожиданном месте.
+  const isCanvasDropTarget = useCallback((target: EventTarget | null): boolean => {
+    const element = target instanceof HTMLElement ? target : null
+    if (!element) return false
+
+    if (element.closest('.react-flow__minimap, .react-flow__controls')) {
+      return false
+    }
+
+    return !!element.closest('.react-flow, .react-flow__renderer, .react-flow__viewport, .react-flow__pane')
+  }, [])
 
   // Строим узлы React Flow из runtime-данных.
   // ВАЖНО: НЕ включаем selected сюда — выделение синхронизируем отдельным эффектом.
@@ -606,6 +655,73 @@ const FlowCanvasInner = ({
     [screenToFlowPosition]
   )
 
+  // Drag-over нужен для live preview и разрешения drop.
+  // Preview показываем только когда drag действительно пришёл из нашей node palette.
+  const handleDragOver = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      const nodeType = getDraggedNodeType(event.dataTransfer)
+      if (!nodeType) return
+
+      if (!isCanvasDropTarget(event.target)) {
+        setDragPreview(null)
+        return
+      }
+
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'copy'
+
+      const canvasRect = flowCanvasRef.current?.getBoundingClientRect()
+      if (!canvasRect) return
+
+      const flowPosition = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY
+      })
+
+      setDragPreview({
+        type: nodeType,
+        localX: event.clientX - canvasRect.left,
+        localY: event.clientY - canvasRect.top,
+        flowX: Math.round(flowPosition.x),
+        flowY: Math.round(flowPosition.y)
+      })
+    },
+    [getDraggedNodeType, isCanvasDropTarget, screenToFlowPosition]
+  )
+
+  // Если курсор вышел за пределы canvas-контейнера, прячем preview,
+  // чтобы он не зависал поверх интерфейса.
+  const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    const nextTarget = event.relatedTarget as globalThis.Node | null
+    if (nextTarget && event.currentTarget.contains(nextTarget)) {
+      return
+    }
+
+    setDragPreview(null)
+  }, [])
+
+  // Drop создаёт ноду выбранного типа прямо на canvas-позиции preview.
+  // Остальную семантику (имя, selection, special cases) оставляем EditorShell.
+  const handleDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      const nodeType = getDraggedNodeType(event.dataTransfer)
+      setDragPreview(null)
+      if (!nodeType) return
+
+      if (!isCanvasDropTarget(event.target)) return
+
+      event.preventDefault()
+
+      const flowPosition = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY
+      })
+
+      onPaneDropCreateRef.current?.(nodeType, flowPosition.x, flowPosition.y)
+    },
+    [getDraggedNodeType, isCanvasDropTarget, screenToFlowPosition]
+  )
+
   const handleEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
     if ((edge as Edge & { selectable?: boolean }).selectable === false) return
     onSelectNodesRef.current([])
@@ -741,8 +857,27 @@ const FlowCanvasInner = ({
       onContextMenu={(e) => e.preventDefault()}
       // MMB по пустому месту — создаём ноду.
       onMouseDown={handleMouseDown}
+      // DnD из палитры нод даёт более точный placement прямо на canvas.
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       style={{ position: 'relative', minWidth: 0, minHeight: 0 }}
     >
+      {dragPreview ? (
+        <div
+          className="flowCanvasDropPreview"
+          style={{
+            left: dragPreview.localX,
+            top: dragPreview.localY
+          }}
+        >
+          <div className="flowCanvasDropPreviewLabel">{dragPreview.type}</div>
+          <div className="flowCanvasDropPreviewMeta">
+            {dragPreview.flowX}, {dragPreview.flowY}
+          </div>
+        </div>
+      ) : null}
+
       {canvasBackgroundUrl ? (
         <div
           className="flowCanvasBackgroundLayer"
@@ -782,6 +917,9 @@ const FlowCanvasInner = ({
         // Настройки зума: увеличенный диапазон.
         minZoom={0.1}
         maxZoom={4}
+        // Включаем встроенный visible-elements рендер,
+        // чтобы React Flow не держал полный визуальный DOM для далёких off-screen нод без нужды.
+        onlyRenderVisibleElements
         // Отключаем встроенный wheel zoom, чтобы не было конфликта с нашим handler.
         zoomOnScroll={false}
         // ПКМ по ноде — удаляем.

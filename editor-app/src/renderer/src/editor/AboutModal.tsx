@@ -74,8 +74,8 @@ export function AboutModal({
             <div className="prefsSectionTitle">Application</div>
             <div className="prefsHint" style={{ fontStyle: 'normal' }}>
               {language === 'ru'
-                ? 'Undefscene Editor — desktop node-based editor для катсцен GameMaker.'
-                : 'Undefscene Editor — desktop node-based editor for GameMaker cutscenes.'}
+                ? 'Редактор катсцен для GameMaker.'
+                : 'Cutscene editor for GameMaker.'}
             </div>
             <div className="prefsField">
               <span>{t('app.version', 'Version')}</span>
@@ -87,8 +87,8 @@ export function AboutModal({
             <div className="prefsSectionTitle">Documentation</div>
             <div className="prefsHint" style={{ fontStyle: 'normal' }}>
               {language === 'ru'
-                ? 'Открывает руководство по Undefscene editor на публичном сайте документации.'
-                : 'Opens the Undefscene editor guide in the public documentation site.'}
+                ? 'Руководство по редактору.'
+                : 'Editor guide.'}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="runtimeButton" type="button" onClick={onOpenDocs}>

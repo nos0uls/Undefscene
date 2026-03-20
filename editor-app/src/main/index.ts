@@ -20,6 +20,50 @@ import { initAutoUpdater } from './updater'
 // in some dev setups and crash before the app starts.
 const isDev = !app.isPackaged
 
+// Минимальный bridge-state для отдельного native окна Visual Editing.
+// Main хранит последний snapshot и маршрутизирует его между окнами через IPC.
+type VisualEditorBridgeState = {
+  rooms: string[]
+  screenshotRooms: string[]
+  projectDir: string | null
+  roomScreenshotsDir: string | null
+  visualEditorTechMode: boolean
+  selectedNode: {
+    id: string
+    type: string
+    name?: string
+  } | null
+  selectedActorTarget: string | null
+  selectedPathPoints: Array<{ x: number; y: number }>
+  actorPreviews: Array<{
+    id: string
+    key: string
+    x: number
+    y: number
+    spriteOrObject: string
+    isVirtual?: boolean
+  }>
+  language: 'en' | 'ru'
+}
+
+// Минимальные данные sprite preview для actor overlay в Visual Editing.
+// Храним уже готовый data URL и размеры кадра, чтобы renderer ничего не читал с диска.
+type ActorSpritePreview = {
+  dataUrl: string
+  width: number
+  height: number
+  xorigin: number
+  yorigin: number
+  resourceName: string
+  resourceKind: 'sprite' | 'object'
+}
+
+// Ссылки на главное окно редактора и отдельное окно visual editing.
+// Они нужны для focus/open и для обратной доставки import path в EditorShell.
+let mainWindowRef: BrowserWindow | null = null
+let visualEditorWindowRef: BrowserWindow | null = null
+let latestVisualEditorState: VisualEditorBridgeState | null = null
+
 // Лог-файлы приложения в userData.
 // Используем простую ротацию: undefscene.log, undefscene.log.1, undefscene.log.2
 // Максимум 3 файла по ~1MB каждый.
@@ -241,6 +285,27 @@ function getLastProjectPathCacheFile(): string {
   return join(app.getPath('userData'), 'last-project.json')
 }
 
+// Путь к preferences.json держим отдельным helper'ом,
+// чтобы screenshot search и IPC читали один источник правды.
+function getPreferencesPath(): string {
+  return join(app.getPath('userData'), 'preferences.json')
+}
+
+// Читаем только screenshot-related preferences из userData.
+// Если файла ещё нет или поле не задано, спокойно падаем обратно на null.
+async function readScreenshotPreferences(): Promise<ScreenshotPreferencesSnapshot> {
+  try {
+    const raw = await readFile(getPreferencesPath(), 'utf-8')
+    const parsed = JSON.parse(raw) as ScreenshotPreferencesSnapshot
+    return {
+      screenshotOutputDir:
+        typeof parsed?.screenshotOutputDir === 'string' ? parsed.screenshotOutputDir : null
+    }
+  } catch {
+    return { screenshotOutputDir: null }
+  }
+}
+
 // Читаем ресурсы проекта из cache, если cache ещё валиден по mtime .yyp.
 async function readCachedProjectResources(yypPath: string): Promise<ProjectResources | null> {
   const cachePath = getProjectResourcesCachePath(yypPath)
@@ -425,6 +490,487 @@ async function readCanvasBackgroundDataUrl(filePath: string): Promise<string | n
   return image.toDataURL()
 }
 
+// GameMaker .yy часто содержит trailing commas.
+// Убираем их перед JSON.parse, чтобы не падать на валидных для YoYo файлах.
+function parseYoYoJson(raw: string): unknown {
+  return JSON.parse(raw.replace(/,\s*([\]}])/g, '$1'))
+}
+
+// Проверяем, что путь остаётся внутри projectDir.
+// Это защищает helper от выхода за пределы открытого проекта.
+function isPathInsideProject(projectDir: string, candidatePath: string): boolean {
+  const normalizedProjectDir = resolve(projectDir)
+  const normalizedCandidatePath = resolve(candidatePath)
+  return (
+    normalizedCandidatePath === normalizedProjectDir ||
+    normalizedCandidatePath.startsWith(`${normalizedProjectDir}${sep}`)
+  )
+}
+
+// Читаем первый frame sprite preview для указанного sprite или object ресурса.
+// Для object сначала резолвим его spriteId, затем читаем sprite.yy и PNG первого кадра.
+async function readActorSpritePreview(
+  projectDir: string,
+  spriteOrObject: string
+): Promise<ActorSpritePreview | null> {
+  const normalizedProjectDir = String(projectDir || '').trim()
+  const normalizedResource = String(spriteOrObject || '').trim()
+  if (!normalizedProjectDir || !normalizedResource) {
+    return null
+  }
+
+  const tryReadSpritePreview = async (
+    spriteYyPath: string,
+    resourceName: string,
+    resourceKind: 'sprite' | 'object'
+  ): Promise<ActorSpritePreview | null> => {
+    if (!isPathInsideProject(normalizedProjectDir, spriteYyPath)) {
+      return null
+    }
+
+    const spriteRaw = await readFile(spriteYyPath, 'utf-8')
+    const spriteData = parseYoYoJson(spriteRaw) as {
+      width?: unknown
+      height?: unknown
+      frames?: Array<{ name?: unknown }>
+      sequence?: { xorigin?: unknown; yorigin?: unknown }
+    }
+
+    const firstFrameName = typeof spriteData.frames?.[0]?.name === 'string' ? spriteData.frames[0].name : ''
+    if (!firstFrameName) {
+      return null
+    }
+
+    const framePath = join(dirname(spriteYyPath), `${firstFrameName}.png`)
+    if (!isPathInsideProject(normalizedProjectDir, framePath)) {
+      return null
+    }
+
+    const image = nativeImage.createFromPath(framePath)
+    if (image.isEmpty()) {
+      return null
+    }
+
+    return {
+      dataUrl: image.toDataURL(),
+      width: typeof spriteData.width === 'number' ? spriteData.width : image.getSize().width,
+      height: typeof spriteData.height === 'number' ? spriteData.height : image.getSize().height,
+      xorigin:
+        typeof spriteData.sequence?.xorigin === 'number' ? spriteData.sequence.xorigin : 0,
+      yorigin:
+        typeof spriteData.sequence?.yorigin === 'number' ? spriteData.sequence.yorigin : 0,
+      resourceName,
+      resourceKind
+    }
+  }
+
+  const directSpriteYyPath = join(
+    normalizedProjectDir,
+    'sprites',
+    normalizedResource,
+    `${normalizedResource}.yy`
+  )
+
+  try {
+    return await tryReadSpritePreview(directSpriteYyPath, normalizedResource, 'sprite')
+  } catch {
+    // Если это не sprite, пробуем прочитать object.yy ниже.
+  }
+
+  const objectYyPath = join(
+    normalizedProjectDir,
+    'objects',
+    normalizedResource,
+    `${normalizedResource}.yy`
+  )
+
+  if (!isPathInsideProject(normalizedProjectDir, objectYyPath)) {
+    return null
+  }
+
+  try {
+    const objectRaw = await readFile(objectYyPath, 'utf-8')
+    const objectData = parseYoYoJson(objectRaw) as {
+      spriteId?: { name?: unknown; path?: unknown } | null
+    }
+
+    const spriteYyRelativePath =
+      typeof objectData.spriteId?.path === 'string' ? objectData.spriteId.path : null
+    const spriteName = typeof objectData.spriteId?.name === 'string' ? objectData.spriteId.name : ''
+    if (!spriteYyRelativePath || !spriteName) {
+      return null
+    }
+
+    const spriteYyPath = join(normalizedProjectDir, spriteYyRelativePath)
+    return await tryReadSpritePreview(spriteYyPath, spriteName, 'object')
+  } catch {
+    return null
+  }
+}
+
+// Meta-файл, который пишет screenshot runner рядом с PNG тайлами.
+// Этого формата достаточно, чтобы editor потом stitched whole room image без догадок.
+type RoomScreenshotMeta = {
+  room_name: string
+  file_prefix: string
+  room_width: number
+  room_height: number
+  capture_width: number
+  capture_height: number
+  rows: number
+  cols: number
+  naming: string
+}
+
+// Один tile, который renderer будет рисовать на canvas.
+type RoomScreenshotTilePayload = {
+  row: number
+  col: number
+  fileName: string
+  dataUrl: string
+}
+
+// Полный пакет данных для visual editing окна.
+type RoomScreenshotBundle = {
+  roomName: string
+  sourceDir: string | null
+  searchedDirs: string[]
+  cacheKey: string | null
+  meta: RoomScreenshotMeta | null
+  tiles: RoomScreenshotTilePayload[]
+  missingTiles: Array<{ row: number; col: number; fileName: string }>
+  warning: string | null
+}
+
+// Небольшой in-memory cache для уже прочитанных room screenshot bundles.
+// Он экономит повторные nativeImage -> dataURL конверсии при reopen/focus/refresh.
+const roomScreenshotBundleCache = new Map<
+  string,
+  { signature: string; bundle: RoomScreenshotBundle }
+>()
+const ROOM_SCREENSHOT_BUNDLE_CACHE_LIMIT = 12
+
+// Простая FIFO-очистка cache, чтобы память не росла бесконечно.
+function rememberRoomScreenshotBundle(
+  cacheIdentity: string,
+  signature: string,
+  bundle: RoomScreenshotBundle
+): void {
+  if (roomScreenshotBundleCache.has(cacheIdentity)) {
+    roomScreenshotBundleCache.delete(cacheIdentity)
+  }
+
+  roomScreenshotBundleCache.set(cacheIdentity, { signature, bundle })
+
+  while (roomScreenshotBundleCache.size > ROOM_SCREENSHOT_BUNDLE_CACHE_LIMIT) {
+    const oldestKey = roomScreenshotBundleCache.keys().next().value
+    if (!oldestKey) {
+      break
+    }
+
+    roomScreenshotBundleCache.delete(oldestKey)
+  }
+}
+
+// Единый helper для bundle-ответа с warning.
+// Так IPC остаётся предсказуемым и renderer может показать причину без общего null-fallback.
+function createRoomScreenshotWarningBundle(params: {
+  roomName: string
+  searchedDirs: string[]
+  sourceDir?: string | null
+  warning: string
+}): RoomScreenshotBundle {
+  return {
+    roomName: params.roomName,
+    sourceDir: params.sourceDir ?? null,
+    searchedDirs: params.searchedDirs,
+    cacheKey: null,
+    meta: null,
+    tiles: [],
+    missingTiles: [],
+    warning: params.warning
+  }
+}
+
+// Минимальный shape preferences.json, который нужен screenshot workflow.
+// Здесь intentionally читаем только одно поле, чтобы main не зависел от всего renderer schema.
+type ScreenshotPreferencesSnapshot = {
+  screenshotOutputDir?: string | null
+}
+
+// Нормализуем имя room, чтобы оно не могло увести чтение в произвольный путь.
+// GameMaker room names нам не нужно расширенно экранировать — достаточно запретить path separators и control chars.
+function sanitizeRoomNameToken(roomName: string): string {
+  const raw = String(roomName || '').trim()
+  if (!raw) return ''
+  if (raw.includes('..')) return ''
+  if (/[\\/:*?"<>|\x00-\x1f]/.test(raw)) return ''
+  return raw
+}
+
+// Индексы row/col в naming convention идут в формате 000.
+function padCaptureIndex(value: number): string {
+  return String(Math.max(0, Math.floor(value))).padStart(3, '0')
+}
+
+// Проверяем, что JSON действительно похож на наш минимальный screenshot meta contract.
+function parseRoomScreenshotMeta(raw: string): RoomScreenshotMeta | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<RoomScreenshotMeta>
+    if (typeof parsed.room_name !== 'string' || !parsed.room_name.trim()) return null
+    if (typeof parsed.file_prefix !== 'string' || !parsed.file_prefix.trim()) return null
+    if (typeof parsed.naming !== 'string' || !parsed.naming.trim()) return null
+
+    const numericFields = [
+      parsed.room_width,
+      parsed.room_height,
+      parsed.capture_width,
+      parsed.capture_height,
+      parsed.rows,
+      parsed.cols
+    ]
+    if (numericFields.some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
+      return null
+    }
+
+    // После этой проверки значения уже точно numeric,
+    // но TypeScript всё ещё держит их как union с undefined.
+    // Поэтому поднимаем их в локальные const с явным number-типом.
+    const roomWidth = parsed.room_width as number
+    const roomHeight = parsed.room_height as number
+    const captureWidth = parsed.capture_width as number
+    const captureHeight = parsed.capture_height as number
+    const rows = parsed.rows as number
+    const cols = parsed.cols as number
+
+    return {
+      room_name: parsed.room_name,
+      file_prefix: parsed.file_prefix,
+      room_width: Math.max(1, Math.round(roomWidth)),
+      room_height: Math.max(1, Math.round(roomHeight)),
+      capture_width: Math.max(1, Math.round(captureWidth)),
+      capture_height: Math.max(1, Math.round(captureHeight)),
+      rows: Math.max(1, Math.round(rows)),
+      cols: Math.max(1, Math.round(cols)),
+      naming: parsed.naming
+    }
+  } catch {
+    return null
+  }
+}
+
+// Собираем все допустимые директории, где editor может искать screenshot output.
+// Сначала пробуем явный user override, затем project cache, потом project-local screenshots,
+// а в конце fallback на LocalAppData/<project>/screenshots для GameMaker runner'а.
+async function getRoomScreenshotSearchDirs(projectDir: string, roomScreenshotsDir?: string | null): Promise<string[]> {
+  const result: string[] = []
+  const pushUnique = (dirPath: string | null | undefined): void => {
+    const normalized = String(dirPath || '').trim()
+    if (!normalized) return
+    const resolvedDir = resolve(normalized)
+    if (!result.includes(resolvedDir)) {
+      result.push(resolvedDir)
+    }
+  }
+
+  const preferences = await readScreenshotPreferences()
+  const projectName = basename(resolve(projectDir)) || 'project'
+  const localAppDataDir = process.env.LOCALAPPDATA
+    ? join(process.env.LOCALAPPDATA, projectName, 'screenshots')
+    : null
+
+  pushUnique(preferences.screenshotOutputDir)
+  pushUnique(roomScreenshotsDir)
+  pushUnique(join(projectDir, 'screenshots'))
+  pushUnique(localAppDataDir)
+  return result
+}
+
+// Ищем первую директорию, где реально лежит room meta.json.
+async function findRoomScreenshotMetaLocation(
+  projectDir: string,
+  roomName: string,
+  roomScreenshotsDir?: string | null
+): Promise<{ sourceDir: string; metaPath: string } | null> {
+  const searchDirs = await getRoomScreenshotSearchDirs(projectDir, roomScreenshotsDir)
+  for (const sourceDir of searchDirs) {
+    const metaPath = join(sourceDir, `${roomName}-meta.json`)
+    try {
+      const metaStat = await stat(metaPath)
+      if (metaStat.isFile()) {
+        return { sourceDir, metaPath }
+      }
+    } catch {
+      // Если meta в этой папке нет, просто переходим к следующему кандидату.
+    }
+  }
+
+  return null
+}
+
+// Возвращаем только те rooms, для которых уже найден валидный meta.json.
+// Это помогает не показывать пользователю пустые комнаты в Visual Editing room picker.
+async function getAvailableScreenshotRooms(
+  projectDir: string,
+  roomNames: string[],
+  roomScreenshotsDir?: string | null
+): Promise<string[]> {
+  const result: string[] = []
+
+  for (const roomName of roomNames) {
+    const safeRoomName = sanitizeRoomNameToken(roomName)
+    if (!safeRoomName) continue
+
+    const metaLocation = await findRoomScreenshotMetaLocation(projectDir, safeRoomName, roomScreenshotsDir)
+    if (metaLocation) {
+      result.push(safeRoomName)
+    }
+  }
+
+  return result
+}
+
+// Читаем весь room screenshot bundle для visual editing окна.
+// Main делает только безопасный file I/O и отдаёт renderer уже удобный пакет данных.
+async function readRoomScreenshotBundle(
+  projectDir: string,
+  roomName: string,
+  roomScreenshotsDir?: string | null
+): Promise<RoomScreenshotBundle> {
+  const safeRoomName = sanitizeRoomNameToken(roomName)
+  const searchDirs = await getRoomScreenshotSearchDirs(projectDir, roomScreenshotsDir)
+  if (!safeRoomName) {
+    return createRoomScreenshotWarningBundle({
+      roomName: '',
+      searchedDirs: searchDirs,
+      warning: 'Invalid room name.'
+    })
+  }
+
+  const metaLocation = await findRoomScreenshotMetaLocation(projectDir, safeRoomName, roomScreenshotsDir)
+  if (!metaLocation) {
+    return createRoomScreenshotWarningBundle({
+      roomName: safeRoomName,
+      searchedDirs: searchDirs,
+      warning: 'No room meta JSON found.'
+    })
+  }
+
+  const [rawMeta, metaStat] = await Promise.all([
+    readFile(metaLocation.metaPath, 'utf-8').catch(() => null),
+    stat(metaLocation.metaPath).catch(() => null)
+  ])
+  const meta = rawMeta ? parseRoomScreenshotMeta(rawMeta) : null
+  if (!meta) {
+    return createRoomScreenshotWarningBundle({
+      roomName: safeRoomName,
+      sourceDir: metaLocation.sourceDir,
+      searchedDirs: searchDirs,
+      warning: 'Room meta JSON is missing or invalid.'
+    })
+  }
+
+  const cacheIdentity = `${resolve(metaLocation.sourceDir)}::${safeRoomName}`
+
+  const tileFileEntries = await Promise.all(
+    Array.from({ length: meta.rows * meta.cols }, async (_value, index) => {
+      const row = Math.floor(index / meta.cols)
+      const col = index % meta.cols
+      const fileName = `${meta.file_prefix}-r${padCaptureIndex(row)}-c${padCaptureIndex(col)}.png`
+      const filePath = join(metaLocation.sourceDir, fileName)
+      try {
+        const tileStat = await stat(filePath)
+        if (!tileStat.isFile()) {
+          return { row, col, fileName, filePath, exists: false, mtimeMs: 0, size: 0 }
+        }
+
+        return {
+          row,
+          col,
+          fileName,
+          filePath,
+          exists: true,
+          mtimeMs: tileStat.mtimeMs,
+          size: tileStat.size
+        }
+      } catch {
+        return { row, col, fileName, filePath, exists: false, mtimeMs: 0, size: 0 }
+      }
+    })
+  )
+
+  const signature = JSON.stringify({
+    sourceDir: resolve(metaLocation.sourceDir),
+    metaPath: resolve(metaLocation.metaPath),
+    metaMtimeMs: metaStat?.mtimeMs ?? 0,
+    metaSize: metaStat?.size ?? 0,
+    roomWidth: meta.room_width,
+    roomHeight: meta.room_height,
+    captureWidth: meta.capture_width,
+    captureHeight: meta.capture_height,
+    rows: meta.rows,
+    cols: meta.cols,
+    tiles: tileFileEntries.map((entry) => ({
+      row: entry.row,
+      col: entry.col,
+      fileName: entry.fileName,
+      exists: entry.exists,
+      mtimeMs: entry.mtimeMs,
+      size: entry.size
+    }))
+  })
+
+  const cached = roomScreenshotBundleCache.get(cacheIdentity)
+  if (cached?.signature === signature) {
+    return cached.bundle
+  }
+
+  const tiles: RoomScreenshotTilePayload[] = []
+  const missingTiles: Array<{ row: number; col: number; fileName: string }> = []
+
+  const tilePromises: Promise<void>[] = []
+  for (const entry of tileFileEntries) {
+    if (!entry.exists) {
+      missingTiles.push({ row: entry.row, col: entry.col, fileName: entry.fileName })
+      continue
+    }
+
+    tilePromises.push(
+      Promise.resolve().then(() => {
+        const image = nativeImage.createFromPath(entry.filePath)
+        if (image.isEmpty()) {
+          missingTiles.push({ row: entry.row, col: entry.col, fileName: entry.fileName })
+          return
+        }
+
+        tiles.push({
+          row: entry.row,
+          col: entry.col,
+          fileName: entry.fileName,
+          dataUrl: image.toDataURL()
+        })
+      })
+    )
+  }
+
+  await Promise.all(tilePromises)
+  tiles.sort((a, b) => (a.row === b.row ? a.col - b.col : a.row - b.row))
+
+  const bundle = {
+    roomName: safeRoomName,
+    sourceDir: metaLocation.sourceDir,
+    searchedDirs: searchDirs,
+    cacheKey: `${cacheIdentity}::${signature}`,
+    meta,
+    tiles,
+    missingTiles,
+    warning: null
+  }
+
+  rememberRoomScreenshotBundle(cacheIdentity, signature, bundle)
+  return bundle
+}
+
 // In some Windows setups, `localhost` may resolve to IPv6 (::1) first.
 // Vite might only be listening on IPv4, which can cause ERR_CONNECTION_REFUSED.
 // This helper forces an IPv4 URL when we are in dev.
@@ -433,6 +979,101 @@ function getDevRendererUrl(): string | undefined {
   if (!url) return undefined
 
   return url.replace('localhost', '127.0.0.1')
+}
+
+// Собираем URL renderer для конкретного окна.
+// Так один renderer bundle может рендерить и main editor, и visual editor окно.
+function getRendererUrlForWindow(windowKind: 'main' | 'visual-editor'): string | undefined {
+  const baseUrl = getDevRendererUrl()
+  if (!baseUrl) return undefined
+  if (windowKind === 'main') return baseUrl
+
+  const url = new URL(baseUrl)
+  url.searchParams.set('window', windowKind)
+  return url.toString()
+}
+
+// Общий loader renderer для всех окон.
+// В dev повторяем загрузку, если electron-vite сервер ещё не успел подняться.
+function loadRendererWindow(targetWindow: BrowserWindow, windowKind: 'main' | 'visual-editor'): void {
+  const devUrl = isDev ? getRendererUrlForWindow(windowKind) : undefined
+  if (devUrl) {
+    let retryLeft = 20
+    targetWindow.webContents.on('did-fail-load', (_event, _errorCode, errorDescription) => {
+      if (retryLeft <= 0) return
+      if (
+        typeof errorDescription === 'string' &&
+        !errorDescription.includes('ERR_CONNECTION_REFUSED')
+      ) {
+        return
+      }
+
+      retryLeft -= 1
+      setTimeout(() => {
+        void targetWindow.loadURL(devUrl)
+      }, 250)
+    })
+
+    void targetWindow.loadURL(devUrl)
+    return
+  }
+
+  void targetWindow.loadFile(join(__dirname, '../renderer/index.html'), {
+    query: windowKind === 'main' ? undefined : { window: windowKind }
+  })
+}
+
+// Создаём отдельное native окно Visual Editing.
+// Это окно живёт отдельно в Alt+Tab и получает состояние через IPC bridge.
+function createVisualEditorWindow(): BrowserWindow {
+  if (visualEditorWindowRef && !visualEditorWindowRef.isDestroyed()) {
+    visualEditorWindowRef.focus()
+    return visualEditorWindowRef
+  }
+
+  const visualWindow = new BrowserWindow({
+    width: 1500,
+    height: 920,
+    minWidth: 980,
+    minHeight: 640,
+    show: false,
+    autoHideMenuBar: true,
+    title: 'Undefscene - Visual Editing',
+    ...(process.platform === 'linux' ? { icon } : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  visualEditorWindowRef = visualWindow
+
+  visualWindow.on('ready-to-show', () => {
+    visualWindow.show()
+    visualWindow.focus()
+    if (latestVisualEditorState) {
+      visualWindow.webContents.send('visualEditor.stateUpdated', latestVisualEditorState)
+    }
+  })
+
+  visualWindow.on('closed', () => {
+    if (visualEditorWindowRef === visualWindow) {
+      visualEditorWindowRef = null
+    }
+
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      mainWindowRef.focus()
+      mainWindowRef.webContents.send('visualEditor.windowClosed')
+    }
+  })
+
+  visualWindow.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+
+  loadRendererWindow(visualWindow, 'visual-editor')
+  return visualWindow
 }
 
 function createWindow(): void {
@@ -448,6 +1089,9 @@ function createWindow(): void {
       sandbox: false
     }
   })
+
+  // Держим ref на главное окно, чтобы слать туда import path из отдельного visual editor.
+  mainWindowRef = mainWindow
 
   // --- IPC: GameMaker project (.yyp) ---
   // Moved to app.whenReady to avoid duplicate registration on re-create.
@@ -468,32 +1112,17 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  // HMR for renderer based on electron-vite CLI.
-  // Load the remote URL for development or the local html file for production.
-  const devUrl = isDev ? getDevRendererUrl() : undefined
-  if (devUrl) {
-    // If the dev server isn't fully ready yet, Electron can fail the first load.
-    // In dev we do a few retries to avoid a crash loop.
-    let retryLeft = 20
-    mainWindow.webContents.on('did-fail-load', (_event, _errorCode, errorDescription) => {
-      if (retryLeft <= 0) return
-      if (
-        typeof errorDescription === 'string' &&
-        !errorDescription.includes('ERR_CONNECTION_REFUSED')
-      ) {
-        return
-      }
+  mainWindow.on('closed', () => {
+    if (mainWindowRef === mainWindow) {
+      mainWindowRef = null
+    }
 
-      retryLeft -= 1
-      setTimeout(() => {
-        mainWindow.loadURL(devUrl)
-      }, 250)
-    })
+    if (visualEditorWindowRef && !visualEditorWindowRef.isDestroyed()) {
+      visualEditorWindowRef.close()
+    }
+  })
 
-    mainWindow.loadURL(devUrl)
-  } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
-  }
+  loadRendererWindow(mainWindow, 'main')
 }
 
 // This method will be called when Electron has finished
@@ -553,6 +1182,136 @@ app.whenReady().then(() => {
     }
   })
 
+  // IPC: Отдать room screenshot bundle для visual editing окна.
+  // Renderer получает уже безопасно прочитанные meta + tiles и не трогает fs напрямую.
+  ipcMain.handle(
+    'project.availableScreenshotRooms',
+    async (_event, projectDir: string, roomNames: string[], roomScreenshotsDir?: string | null) => {
+      const normalizedProjectDir = String(projectDir || '').trim()
+      if (!normalizedProjectDir) return []
+
+      const normalizedRoomNames = Array.isArray(roomNames)
+        ? roomNames.map((roomName) => String(roomName || '').trim()).filter(Boolean)
+        : []
+
+      try {
+        return await getAvailableScreenshotRooms(normalizedProjectDir, normalizedRoomNames, roomScreenshotsDir)
+      } catch (err) {
+        console.warn('Failed to collect screenshot rooms:', err)
+        return []
+      }
+    }
+  )
+
+  // IPC: Отдать room screenshot bundle для visual editing окна.
+  // Renderer получает уже безопасно прочитанные meta + tiles и не трогает fs напрямую.
+  ipcMain.handle(
+    'project.readRoomScreenshotBundle',
+    async (_event, projectDir: string, roomName: string, roomScreenshotsDir?: string | null) => {
+      const normalizedProjectDir = String(projectDir || '').trim()
+      if (!normalizedProjectDir) {
+        return createRoomScreenshotWarningBundle({
+          roomName: String(roomName || '').trim(),
+          searchedDirs: [],
+          warning: 'Project directory is missing.'
+        })
+      }
+
+      try {
+        return await readRoomScreenshotBundle(normalizedProjectDir, roomName, roomScreenshotsDir)
+      } catch (err) {
+        console.warn('Failed to read room screenshot bundle:', err)
+        return createRoomScreenshotWarningBundle({
+          roomName: String(roomName || '').trim(),
+          searchedDirs: [],
+          warning: 'Failed to read room screenshot bundle.'
+        })
+      }
+    }
+  )
+
+  // IPC: Отдать sprite preview для actor marker overlay в Visual Editing.
+  // Main сам резолвит object -> sprite и читает первый PNG кадр как data URL.
+  ipcMain.handle(
+    'project.readActorSpritePreview',
+    async (_event, projectDir: string, spriteOrObject: string) => {
+      const normalizedProjectDir = String(projectDir || '').trim()
+      if (!normalizedProjectDir) return null
+
+      try {
+        return await readActorSpritePreview(normalizedProjectDir, spriteOrObject)
+      } catch (err) {
+        console.warn('Failed to read actor sprite preview:', err)
+        return null
+      }
+    }
+  )
+
+  // IPC: Открыть отдельное окно Visual Editing и передать ему актуальный snapshot состояния.
+  ipcMain.handle('visualEditor.open', async (_event, nextState: VisualEditorBridgeState | null) => {
+    latestVisualEditorState = nextState
+    const visualWindow = createVisualEditorWindow()
+    if (nextState) {
+      visualWindow.webContents.send('visualEditor.stateUpdated', nextState)
+    }
+    return { opened: true }
+  })
+
+  // IPC: Обновить snapshot visual editor без повторного открытия окна.
+  ipcMain.handle('visualEditor.syncState', async (_event, nextState: VisualEditorBridgeState | null) => {
+    latestVisualEditorState = nextState
+    if (visualEditorWindowRef && !visualEditorWindowRef.isDestroyed() && nextState) {
+      visualEditorWindowRef.webContents.send('visualEditor.stateUpdated', nextState)
+    }
+    return { synced: true }
+  })
+
+  // IPC: Отдать последнюю bridge-state для standalone visual editor renderer.
+  ipcMain.handle('visualEditor.getState', async () => {
+    return latestVisualEditorState
+  })
+
+  // IPC: Импортировать path из отдельного visual editor обратно в главное окно редактора.
+  ipcMain.handle(
+    'visualEditor.importPath',
+    async (_event, points: Array<{ x: number; y: number }> | null | undefined) => {
+      const safePoints = Array.isArray(points) ? points : []
+      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send('visualEditor.importPath', safePoints)
+        mainWindowRef.focus()
+      }
+      return { imported: true }
+    }
+  )
+
+  // IPC: Импортировать actor positions из отдельного visual editor обратно в главное окно редактора.
+  // Main здесь только ретранслирует payload в EditorShell, чтобы логика обновления runtime оставалась в одном месте.
+  ipcMain.handle(
+    'visualEditor.importActors',
+    async (
+      _event,
+      actors:
+        | Array<{ id: string; key: string; x: number; y: number; spriteOrObject: string }>
+        | null
+        | undefined
+    ) => {
+      const safeActors = Array.isArray(actors) ? actors : []
+      if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send('visualEditor.importActors', safeActors)
+        mainWindowRef.focus()
+      }
+      return { imported: true }
+    }
+  )
+
+  // IPC: Закрыть отдельное окно visual editor по запросу renderer.
+  ipcMain.handle('visualEditor.close', async () => {
+    if (visualEditorWindowRef && !visualEditorWindowRef.isDestroyed()) {
+      visualEditorWindowRef.close()
+    }
+    return { closed: true }
+  })
+
   // Basic shortcuts.
   // - Dev: F12 toggles DevTools.
   // - Prod: blocks reload/devtools shortcuts.
@@ -595,7 +1354,7 @@ app.whenReady().then(() => {
 
   // --- IPC: Preferences persistence ---
   // Настройки редактора (тема, автосохранение, зум и т.д.).
-  const preferencesPath = join(app.getPath('userData'), 'preferences.json')
+  const preferencesPath = getPreferencesPath()
   const preferencesTmpPath = join(app.getPath('userData'), 'preferences.json.tmp')
 
   ipcMain.handle('layout.read', async () => {
@@ -693,6 +1452,18 @@ app.whenReady().then(() => {
       }
       throw err
     }
+  })
+
+  // IPC: Выбрать папку, где editor будет искать PNG/meta от screenshot runner.
+  // Это полезно, когда GameMaker пишет output в Local/AppData или другой внешний каталог.
+  ipcMain.handle('preferences.chooseScreenshotOutputDir', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Choose Screenshot Output Folder',
+      properties: ['openDirectory', 'createDirectory']
+    })
+
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
   })
 
   // IPC: Выбрать изображение для фона canvas и скопировать его в userData.

@@ -85,8 +85,14 @@ function isTypingTarget(target: EventTarget | null): boolean {
   if (!el) return false
 
   const tag = el.tagName
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') {
+  if (tag === 'TEXTAREA' || tag === 'SELECT') {
     return true
+  }
+
+  if (tag === 'INPUT') {
+    const input = el as HTMLInputElement
+    const inputType = (input.type || '').toLowerCase()
+    return !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(inputType)
   }
 
   return el.closest('[contenteditable="true"]') !== null
@@ -111,7 +117,7 @@ export function useHotkeys({ keybindings, handlers }: UseHotkeysOptions): void {
       }
     }
 
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [handlers, keybindings])
 }

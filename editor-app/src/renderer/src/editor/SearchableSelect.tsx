@@ -23,6 +23,10 @@ type SearchableSelectProps = {
 
   // Дополнительные стили (например, красная рамка для невалидного значения).
   style?: React.CSSProperties
+
+  // Иногда поле нужно временно отключить,
+  // например когда проект ещё не открыт или список room пуст.
+  disabled?: boolean
 }
 
 export function SearchableSelect({
@@ -31,7 +35,8 @@ export function SearchableSelect({
   onChange,
   placeholder = '-- Search --',
   className,
-  style
+  style,
+  disabled = false
 }: SearchableSelectProps): React.JSX.Element {
   // Текст в поле ввода — может отличаться от value во время набора.
   const [query, setQuery] = useState(value)
@@ -140,6 +145,10 @@ export function SearchableSelect({
 
   // Обработка клавиш: стрелки, Tab, Enter, Escape.
   const handleKeyDown = (e: React.KeyboardEvent): void => {
+    if (disabled) {
+      return
+    }
+
     if (!open) {
       // Открываем список при нажатии стрелки вниз.
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -195,12 +204,15 @@ export function SearchableSelect({
         className={className}
         style={style}
         placeholder={placeholder}
+        disabled={disabled}
         value={query}
         onChange={(e) => {
+          if (disabled) return
           handleInputChange(e.target.value)
           setOpen(true)
         }}
         onFocus={() => {
+          if (disabled) return
           if (blurTimerRef.current !== null) {
             window.clearTimeout(blurTimerRef.current)
             blurTimerRef.current = null
