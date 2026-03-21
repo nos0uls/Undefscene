@@ -372,6 +372,34 @@ export function getAccentColorHex(preferences: Pick<EditorPreferences, 'accentCo
   return presetMap[preferences.accentColor]
 }
 
+// Небольшой helper для hover/pressed оттенков акцента.
+// Держим его рядом с preferences, чтобы все окна редактора считали цвет одинаково.
+function adjustAccentBrightness(hex: string, percent: number): string {
+  const num = parseInt(hex.replace('#', ''), 16)
+  const r = Math.min(255, Math.max(0, ((num >> 16) & 0xff) + Math.round(2.55 * percent)))
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + Math.round(2.55 * percent)))
+  const b = Math.min(255, Math.max(0, (num & 0xff) + Math.round(2.55 * percent)))
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
+}
+
+// Собирает полный набор CSS variables для accent color.
+// Это нужно, чтобы и основное окно, и standalone Visual Editor не расходились по палитре.
+export function getAccentCssVariables(
+  preferences: Pick<EditorPreferences, 'accentColor' | 'customAccentHex'>
+): Record<string, string> {
+  const hex = getAccentColorHex(preferences)
+  return {
+    '--accent-default': hex,
+    '--accent-hover': adjustAccentBrightness(hex, 15),
+    '--accent-pressed': adjustAccentBrightness(hex, -10),
+    '--accent-muted': `${hex}26`,
+    '--focus-ring': hex,
+    '--ev-c-accent': hex,
+    '--ev-c-accent-soft': `${hex}26`,
+    '--ev-c-accent-hover': adjustAccentBrightness(hex, 15)
+  }
+}
+
 // Возвращаемый тип хука.
 export interface UsePreferencesReturn {
   // Текущие настройки.

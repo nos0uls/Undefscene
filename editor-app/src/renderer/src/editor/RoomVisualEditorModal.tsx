@@ -1,4 +1,5 @@
 import {
+  type CSSProperties,
   useCallback,
   useEffect,
   useId,
@@ -9,8 +10,9 @@ import {
   type WheelEvent as ReactWheelEvent
 } from 'react'
 import { createTranslator, type SupportedLanguage } from '../i18n'
+import { RoomVisualEditorOverlay } from './RoomVisualEditorOverlay'
 import { SearchableSelect } from './SearchableSelect'
-import { usePreferences } from './usePreferences'
+import { getAccentCssVariables, usePreferences } from './usePreferences'
 
 // Описание meta.json, который рядом с PNG тайлами пишет GameMaker screenshot runner.
 type RoomScreenshotMeta = {
@@ -353,6 +355,13 @@ export function RoomVisualEditorModal({
   const visualEditorShowGrid = preferences.visualEditorShowGrid
   const visualEditorSnapToGrid = preferences.visualEditorSnapToGrid
   const visualPathSizeMultiplier = preferences.visualEditorPathSizeMultiplier
+
+  // Отдельное окно Visual Editing не обязано жить рядом с EditorShell.
+  // Поэтому акцентные CSS variables считаем локально и прокидываем прямо в корневой контейнер.
+  const accentCssVariables = useMemo(
+    () => getAccentCssVariables(preferences) as CSSProperties,
+    [preferences]
+  )
 
   // Управление viewport: zoom и pan offset.
   const [zoom, setZoom] = useState(1)
@@ -1622,7 +1631,13 @@ export function RoomVisualEditorModal({
   // Основной контент visual editor переиспользуется и для modal, и для standalone window.
   // Разница только в внешней оболочке и размерах контейнера.
   const content = (
-    <div className={['prefsModal', 'roomVisualEditorModal', variant === 'window' ? 'roomVisualEditorWindow' : ''].filter(Boolean).join(' ')} onClick={(event) => event.stopPropagation()}>
+    <div
+      className={['prefsModal', 'roomVisualEditorModal', variant === 'window' ? 'roomVisualEditorWindow' : '']
+        .filter(Boolean)
+        .join(' ')}
+      style={accentCssVariables}
+      onClick={(event) => event.stopPropagation()}
+    >
       <div className="prefsHeader">
         <span className="prefsTitle">{t('editor.visualEditingTitle', 'Visual Editing')}</span>
         <button className="prefsCloseBtn" type="button" onClick={onClose}>
@@ -1993,119 +2008,33 @@ export function RoomVisualEditorModal({
             >
               <canvas ref={canvasRef} className="roomVisualEditorCanvas" />
 
+              {/* SVG-overlay вынесен в отдельный component,
+                  чтобы основной modal был короче и легче читался.
+                  Логику pointer/state мы при этом не меняем. */}
               {bundle?.meta ? (
-                <svg
-                  className="roomVisualEditorOverlay"
-                  width={bundle.meta.room_width}
-                  height={bundle.meta.room_height}
-                  viewBox={`0 0 ${bundle.meta.room_width} ${bundle.meta.room_height}`}
-                >
-                  <defs>
-                    <pattern
-                      id={gridPatternId}
-                      x={gridPhaseX}
-                      y={gridPhaseY}
-                      width={PATH_GRID_STEP}
-                      height={PATH_GRID_STEP}
-                      patternUnits="userSpaceOnUse"
-                    >
-                      <path
-                        className="roomVisualEditorGridPattern"
-                        d={`M ${PATH_GRID_STEP} 0 L 0 0 0 ${PATH_GRID_STEP}`}
-                      />
-                    </pattern>
-                  </defs>
-
-                  {visualEditorShowGrid ? (
-                    <rect
-                      className="roomVisualEditorGridRect"
-                      x={0}
-                      y={0}
-                      width={bundle.meta.room_width}
-                      height={bundle.meta.room_height}
-                      fill={`url(#${gridPatternId})`}
-                    />
-                  ) : null}
-
-                  {draftPathPoints.length > 1 ? (
-                    <polyline
-                      className="roomVisualEditorPathLine"
-                      fill="none"
-                      points={draftPathPolyline}
-                      strokeWidth={pathLineStrokeWidth}
-                    />
-                  ) : null}
-
-                  {draftPathPreviewPolyline ? (
-                    <polyline
-                      className="roomVisualEditorPathPreviewLine"
-                      fill="none"
-                      points={draftPathPreviewPolyline}
-                      strokeWidth={pathPreviewStrokeWidth}
-                    />
-                  ) : null}
-
-                  {draftPathPoints.map((point, index) => (
-                    <g key={`${point.x}-${point.y}-${index}`}>
-                      <circle className="roomVisualEditorPathPoint" cx={point.x} cy={point.y} r={pathPointRadius} />
-                      <text className="roomVisualEditorPathPointLabel" x={point.x} y={point.y - 12}>
-                        {index}
-                      </text>
-                    </g>
-                  ))}
-
-                  {pathPreviewPoint ? (
-                    <circle
-                      className={[
-                        'roomVisualEditorPathPreviewPoint',
-                        activeTool === 'eraser' ? 'isEraser' : ''
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
-                      cx={pathPreviewPoint.x}
-                      cy={pathPreviewPoint.y}
-                      r={activeTool === 'eraser' ? PATH_ERASE_RADIUS : pathPreviewPointRadius}
-                    />
-                  ) : null}
-
-                  {draftActors.map((actor) => {
-                    const displayPoint =
-                      playPreviewPoint && actor.id === selectedActorId ? playPreviewPoint : { x: actor.x, y: actor.y }
-                    const spritePreview = getActorSpritePreview(actor)
-
-                    return (
-                      <g key={actor.id}>
-                        {spritePreview ? (
-                          <image
-                            className="roomVisualEditorActorSprite"
-                            href={spritePreview.dataUrl}
-                            x={displayPoint.x - spritePreview.xorigin}
-                            y={displayPoint.y - spritePreview.yorigin}
-                            width={spritePreview.width}
-                            height={spritePreview.height}
-                            preserveAspectRatio="none"
-                          />
-                        ) : null}
-                        {!spritePreview || actor.id === selectedActorId ? (
-                          <circle
-                            className={[
-                              'roomVisualEditorActorMarker',
-                              actor.id === selectedActorId ? 'isSelected' : ''
-                            ]
-                              .filter(Boolean)
-                              .join(' ')}
-                            cx={displayPoint.x}
-                            cy={displayPoint.y}
-                            r={ACTOR_MARKER_RADIUS}
-                          />
-                        ) : null}
-                        <text className="roomVisualEditorActorLabel" x={displayPoint.x + 12} y={displayPoint.y - 12}>
-                          {actor.key}
-                        </text>
-                      </g>
-                    )
-                  })}
-                </svg>
+                <RoomVisualEditorOverlay
+                  meta={bundle.meta}
+                  gridPatternId={gridPatternId}
+                  gridPhaseX={gridPhaseX}
+                  gridPhaseY={gridPhaseY}
+                  pathGridStep={PATH_GRID_STEP}
+                  pathEraseRadius={PATH_ERASE_RADIUS}
+                  actorMarkerRadius={ACTOR_MARKER_RADIUS}
+                  showGrid={visualEditorShowGrid}
+                  draftPathPoints={draftPathPoints}
+                  draftPathPolyline={draftPathPolyline}
+                  draftPathPreviewPolyline={draftPathPreviewPolyline}
+                  pathPreviewPoint={pathPreviewPoint}
+                  pathLineStrokeWidth={pathLineStrokeWidth}
+                  pathPreviewStrokeWidth={pathPreviewStrokeWidth}
+                  pathPointRadius={pathPointRadius}
+                  pathPreviewPointRadius={pathPreviewPointRadius}
+                  draftActors={draftActors}
+                  selectedActorId={selectedActorId}
+                  playPreviewPoint={playPreviewPoint}
+                  activeTool={activeTool}
+                  getActorSpritePreview={getActorSpritePreview}
+                />
               ) : null}
             </div>
           </div>

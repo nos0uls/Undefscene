@@ -19,7 +19,7 @@ import { SearchableSelect } from './SearchableSelect'
 import { UpdateNotification } from './UpdateNotification'
 import { FollowPathPreview } from './FollowPathPreview'
 import { PreferencesProvider } from './PreferencesContext'
-import { getAccentColorHex, usePreferences } from './usePreferences'
+import { getAccentCssVariables, usePreferences } from './usePreferences'
 import { useHotkeys } from './useHotkeys'
 import { createTranslator } from '../i18n'
 
@@ -41,16 +41,6 @@ type DragState = {
   // Смещение курсора относительно левого верхнего угла панели.
   // Нужно, чтобы панель "прилипала" к курсору одинаково.
   grabOffset: Vec2
-}
-
-// Вспомогательная функция: меняет яркость HEX-цвета для hover/pressed акцента.
-// Держим её рядом с EditorShell, потому что здесь теперь централизовано применяется accent color.
-function adjustBrightness(hex: string, percent: number): string {
-  const num = parseInt(hex.replace('#', ''), 16)
-  const r = Math.min(255, Math.max(0, ((num >> 16) & 0xff) + Math.round(2.55 * percent)))
-  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + Math.round(2.55 * percent)))
-  const b = Math.min(255, Math.max(0, (num & 0xff) + Math.round(2.55 * percent)))
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
 }
 
 // Высота шапки панели в свернутом состоянии.
@@ -186,14 +176,10 @@ export function EditorShell(): React.JSX.Element {
   useEffect(() => {
     if (!preferencesLoaded) return
 
-    const hex = getAccentColorHex(preferences)
-    document.documentElement.style.setProperty('--accent-default', hex)
-    document.documentElement.style.setProperty('--accent-hover', adjustBrightness(hex, 15))
-    document.documentElement.style.setProperty('--accent-pressed', adjustBrightness(hex, -10))
-    document.documentElement.style.setProperty('--accent-muted', `${hex}26`)
-    document.documentElement.style.setProperty('--ev-c-accent', hex)
-    document.documentElement.style.setProperty('--ev-c-accent-soft', `${hex}26`)
-    document.documentElement.style.setProperty('--ev-c-accent-hover', adjustBrightness(hex, 15))
+    const accentVariables = getAccentCssVariables(preferences)
+    for (const [variableName, variableValue] of Object.entries(accentVariables)) {
+      document.documentElement.style.setProperty(variableName, variableValue)
+    }
   }, [preferences, preferencesLoaded])
 
   // Когда открываем About — один раз читаем версию приложения из main процесса.
