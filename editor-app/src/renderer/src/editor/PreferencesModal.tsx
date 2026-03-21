@@ -25,6 +25,7 @@ const HOTKEY_LABELS: Record<HotkeyActionId, { en: string; ru: string }> = {
   focus_left_dock: { en: 'Focus Left Dock', ru: 'Фокус на левый dock' },
   focus_right_dock: { en: 'Focus Right Dock', ru: 'Фокус на правый dock' },
   focus_bottom_dock: { en: 'Focus Bottom Dock', ru: 'Фокус на нижний dock' },
+  toggle_all_dock_panels: { en: 'Toggle All Dock Panels', ru: 'Свернуть / развернуть все dock-панели' },
   fit_view: { en: 'Fit View', ru: 'Уместить граф' },
   zen_mode: { en: 'Zen Mode', ru: 'Zen mode' }
 }

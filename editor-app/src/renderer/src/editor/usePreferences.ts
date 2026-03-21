@@ -27,6 +27,7 @@ export type HotkeyActionId =
   | 'focus_left_dock'
   | 'focus_right_dock'
   | 'focus_bottom_dock'
+  | 'toggle_all_dock_panels'
   | 'fit_view'
   | 'zen_mode'
 
@@ -45,6 +46,7 @@ export const HOTKEY_ACTION_IDS: HotkeyActionId[] = [
   'focus_left_dock',
   'focus_right_dock',
   'focus_bottom_dock',
+  'toggle_all_dock_panels',
   'fit_view',
   'zen_mode'
 ]
@@ -61,6 +63,7 @@ export const DEFAULT_KEYBINDINGS: EditorKeybindings = {
   focus_left_dock: 'Ctrl+1',
   focus_right_dock: 'Ctrl+2',
   focus_bottom_dock: 'Ctrl+3',
+  toggle_all_dock_panels: 'Ctrl+Alt+D',
   fit_view: 'Space',
   zen_mode: import.meta.env.DEV ? 'F11' : 'F12'
 }
@@ -339,6 +342,10 @@ function parseKeybindings(raw: unknown): EditorKeybindings {
       typeof candidate.focus_bottom_dock === 'string'
         ? candidate.focus_bottom_dock
         : defaults.focus_bottom_dock,
+    toggle_all_dock_panels:
+      typeof candidate.toggle_all_dock_panels === 'string'
+        ? candidate.toggle_all_dock_panels
+        : defaults.toggle_all_dock_panels,
     fit_view: typeof candidate.fit_view === 'string' ? candidate.fit_view : defaults.fit_view,
     zen_mode: typeof candidate.zen_mode === 'string' ? candidate.zen_mode : defaults.zen_mode
   }

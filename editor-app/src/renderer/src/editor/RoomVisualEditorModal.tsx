@@ -791,6 +791,28 @@ export function RoomVisualEditorModal({
     )
   }, [effectiveActorPreviews, open])
 
+  // Для sprite preview важен только список resource names,
+  // а не текущие координаты actor markers. Это убирает лишние IPC-загрузки при drag/move.
+  const actorSpriteResourceNames = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          draftActors
+            .map((actor) => {
+              const directResource = actor.spriteOrObject.trim()
+              if (directResource) {
+                return directResource
+              }
+
+              const fallbackResource = actor.isVirtual ? actor.key.trim() : ''
+              return fallbackResource
+            })
+            .filter((resourceName) => resourceName.length > 0)
+        )
+      ),
+    [draftActors]
+  )
+
   // Подгружаем sprite previews только для тех actor entries, где есть шанс найти ресурс.
   // Для virtual fallback пробуем actor.key как имя sprite/object ресурса.
   useEffect(() => {
@@ -799,30 +821,14 @@ export function RoomVisualEditorModal({
       return
     }
 
-    const resourceNames = Array.from(
-      new Set(
-        draftActors
-          .map((actor) => {
-            const directResource = actor.spriteOrObject.trim()
-            if (directResource) {
-              return directResource
-            }
-
-            const fallbackResource = actor.isVirtual ? actor.key.trim() : ''
-            return fallbackResource
-          })
-          .filter((resourceName) => resourceName.length > 0)
-      )
-    )
-
-    if (resourceNames.length <= 0) {
+    if (actorSpriteResourceNames.length <= 0) {
       setActorSpritePreviews({})
       return
     }
 
     let cancelled = false
     Promise.all(
-      resourceNames.map(async (resourceName) => {
+      actorSpriteResourceNames.map(async (resourceName) => {
         try {
           const preview = (await window.api.project.readActorSpritePreview(
             projectDir,
@@ -853,7 +859,7 @@ export function RoomVisualEditorModal({
     return () => {
       cancelled = true
     }
-  }, [draftActors, open, projectDir])
+  }, [actorSpriteResourceNames, open, projectDir])
 
   // Центральный helper для обновления path points и записи history snapshot'ов.
   // Так Ctrl+Z / Ctrl+Y работает одинаково для pencil, eraser и clear/import действий.

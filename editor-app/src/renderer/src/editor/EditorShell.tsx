@@ -104,6 +104,14 @@ type NameConflictModalState = {
   value: string
 }
 
+// Небольшое описание панели внутри вертикального dock split.
+// Храним тут только то, что нужно для порядка рендера и расчёта flex.
+type DockedPanelRenderEntry = {
+  id: string
+  className: string
+  baseStyle: CSSProperties
+}
+
 // Основной “каркас” редактора.
 // Здесь мы собираем все зоны: верхнее меню, левые/правые доки,
 // центральный холст и нижний лог.
@@ -471,6 +479,17 @@ export function EditorShell(): React.JSX.Element {
     ]
   )
 
+  // Короткий sync-key помогает не слать одинаковый snapshot в отдельное окно повторно.
+  // Это снижает лишний IPC-шум, когда меняются ссылки на массивы, но не само содержимое.
+  const visualEditorBridgeStateSyncKey = useMemo(
+    () => JSON.stringify(visualEditorBridgeState),
+    [visualEditorBridgeState]
+  )
+
+  // Запоминаем последний snapshot, который уже ушёл в native visual editor.
+  // Так main не получает одинаковые syncState-пакеты на каждый лишний render.
+  const lastVisualEditorBridgeSyncKeyRef = useRef<string | null>(null)
+
   // Текущее значение в поле “Node name”.
   // Мы держим его отдельно, чтобы не переписывать runtime на каждый символ.
   const [pendingNodeName, setPendingNodeName] = useState('')
@@ -494,45 +513,47 @@ export function EditorShell(): React.JSX.Element {
   // Позицию ставим правее выбранного узла или последнего узла, чтобы ноды не накладывались друг на друга.
   const createFollowPathNodeFromVisualEditing = useCallback(
     (points: Array<{ x: number; y: number }>) => {
-      const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-      const takenNames = new Set<string>(
-        runtime.nodes.map((n) => String(n.name ?? '').trim()).filter((value) => value.length > 0)
-      )
+      setRuntime((prev) => {
+        const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+        const takenNames = new Set<string>(
+          prev.nodes.map((n) => String(n.name ?? '').trim()).filter((value) => value.length > 0)
+        )
 
-      const anchor =
-        runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ??
-        runtime.nodes[runtime.nodes.length - 1] ??
-        null
-      const anchorPos = anchor?.position ?? { x: 100, y: 150 }
+        const anchor =
+          prev.nodes.find((node) => node.id === prev.selectedNodeId) ??
+          prev.nodes[prev.nodes.length - 1] ??
+          null
+        const anchorPos = anchor?.position ?? { x: 100, y: 150 }
 
-      const newNode: RuntimeNode = {
-        id: newId,
-        type: 'follow_path',
-        name: suggestUniqueNodeName('Node', takenNames),
-        text: '',
-        position: { x: anchorPos.x + 250, y: anchorPos.y },
-        params: {
-          target: '',
-          speed_px_sec: 60,
-          collision: false,
-          points
+        const newNode: RuntimeNode = {
+          id: newId,
+          type: 'follow_path',
+          name: suggestUniqueNodeName('Node', takenNames),
+          text: '',
+          position: { x: anchorPos.x + 250, y: anchorPos.y },
+          params: {
+            target: '',
+            speed_px_sec: 60,
+            collision: false,
+            points
+          }
         }
-      }
 
-      const newEdges = anchor
-        ? [...runtime.edges, { id: `edge-${anchor.id}-${newId}`, source: anchor.id, target: newId }]
-        : runtime.edges
+        const newEdges = anchor
+          ? [...prev.edges, { id: `edge-${anchor.id}-${newId}`, source: anchor.id, target: newId }]
+          : prev.edges
 
-      setRuntime({
-        ...runtime,
-        nodes: [...runtime.nodes, newNode],
-        edges: newEdges,
-        selectedNodeId: newId,
-        selectedNodeIds: [newId],
-        selectedEdgeId: null
+        return {
+          ...prev,
+          nodes: [...prev.nodes, newNode],
+          edges: newEdges,
+          selectedNodeId: newId,
+          selectedNodeIds: [newId],
+          selectedEdgeId: null
+        }
       })
     },
-    [runtime, setRuntime, suggestUniqueNodeName]
+    [setRuntime, suggestUniqueNodeName]
   )
 
   // Visual editing окно импортирует только path points.
@@ -557,9 +578,9 @@ export function EditorShell(): React.JSX.Element {
         if (!confirmed) return
 
         const previousParams = selectedNodeForVisualEditing.params ?? {}
-        setRuntime({
-          ...runtime,
-          nodes: runtime.nodes.map((node) =>
+        setRuntime((prev) => ({
+          ...prev,
+          nodes: prev.nodes.map((node) =>
             node.id === selectedNodeForVisualEditing.id
               ? {
                   ...node,
@@ -578,7 +599,7 @@ export function EditorShell(): React.JSX.Element {
           selectedNodeId: selectedNodeForVisualEditing.id,
           selectedNodeIds: [selectedNodeForVisualEditing.id],
           selectedEdgeId: null
-        })
+        }))
         return
       }
 
@@ -621,9 +642,9 @@ export function EditorShell(): React.JSX.Element {
       const actorMap = new Map(safeActors.map((actor) => [actor.id, actor]))
       let updatedCount = 0
 
-      setRuntime({
-        ...runtime,
-        nodes: runtime.nodes.map((node) => {
+      setRuntime((prev) => ({
+        ...prev,
+        nodes: prev.nodes.map((node) => {
           const importedActor = actorMap.get(node.id)
           if (!importedActor || node.type !== 'actor_create') {
             return node
@@ -639,13 +660,13 @@ export function EditorShell(): React.JSX.Element {
             }
           }
         })
-      })
+      }))
 
       if (updatedCount <= 0) {
         window.alert('Visual Editing: imported actor markers do not match any actor_create nodes.')
       }
     },
-    [runtime, setRuntime]
+    [setRuntime]
   )
 
   // Универсальное создание ноды по типу и позиции.
@@ -765,23 +786,35 @@ export function EditorShell(): React.JSX.Element {
   const openVisualEditorWindow = useCallback(() => {
     setVisualEditingOpen(true)
 
+    // Open уже передаёт snapshot в main.
+    // Запоминаем его, чтобы следующий effect не дублировал тот же syncState без причины.
+    lastVisualEditorBridgeSyncKeyRef.current = visualEditorBridgeStateSyncKey
+
     window.api.visualEditor
       .open(visualEditorBridgeState)
       .catch((error) => {
         console.warn('Failed to open visual editor window:', error)
+        lastVisualEditorBridgeSyncKeyRef.current = null
         setVisualEditingOpen(false)
       })
-  }, [visualEditorBridgeState])
+  }, [visualEditorBridgeState, visualEditorBridgeStateSyncKey])
 
   // Пока visual editor окно открыто, держим его snapshot синхронным с main editor state.
   // Это обновляет выбранную ноду, actor preview и room bundle context без ручного refresh.
   useEffect(() => {
     if (!visualEditingOpen) return
 
+    if (lastVisualEditorBridgeSyncKeyRef.current === visualEditorBridgeStateSyncKey) {
+      return
+    }
+
+    lastVisualEditorBridgeSyncKeyRef.current = visualEditorBridgeStateSyncKey
+
     void window.api.visualEditor.syncState(visualEditorBridgeState).catch((error) => {
       console.warn('Failed to sync visual editor state:', error)
+      lastVisualEditorBridgeSyncKeyRef.current = null
     })
-  }, [visualEditingOpen, visualEditorBridgeState])
+  }, [visualEditingOpen, visualEditorBridgeState, visualEditorBridgeStateSyncKey])
 
   // Импорт path остаётся централизованным в EditorShell,
   // поэтому отдельное окно только шлёт points через bridge.
@@ -804,6 +837,7 @@ export function EditorShell(): React.JSX.Element {
   useEffect(() => {
     return window.api.visualEditor.onWindowClosed(() => {
       setVisualEditingOpen(false)
+      lastVisualEditorBridgeSyncKeyRef.current = null
 
       // После закрытия отдельного окна возвращаем keyboard focus в основной editor root.
       // Это помогает не оставлять inspector inputs в подвешенном состоянии после alt-tab/close.
@@ -1918,17 +1952,84 @@ export function EditorShell(): React.JSX.Element {
   // Готовим стиль для док-панели, если она свёрнута.
   const getDockedPanelStyle = (
     panelId: string,
-    baseStyle?: CSSProperties
+    baseStyle?: CSSProperties,
+    options?: { fillRemainingSpace?: boolean }
   ): CSSProperties | undefined => {
     const isCollapsed = Boolean(layout.panels[panelId]?.collapsed)
-    if (!isCollapsed) return baseStyle
-    return {
-      ...(baseStyle ?? {}),
-      flexGrow: 0,
-      flexBasis: COLLAPSED_HEADER_HEIGHT,
-      height: COLLAPSED_HEADER_HEIGHT
+    if (isCollapsed) {
+      return {
+        ...(baseStyle ?? {}),
+        flexGrow: 0,
+        flexShrink: 0,
+        flexBasis: COLLAPSED_HEADER_HEIGHT,
+        height: COLLAPSED_HEADER_HEIGHT
+      }
     }
+
+    if (options?.fillRemainingSpace) {
+      return {
+        ...(baseStyle ?? {}),
+        flexGrow: 1,
+        flexBasis: 0,
+        minHeight: 0
+      }
+    }
+
+    return baseStyle
   }
+
+  // Для вертикального dock важно не просто скрыть body,
+  // а ещё и переставить collapsed panel вниз, чтобы соседняя заняла весь dock.
+  const getVerticalDockRenderState = useCallback(
+    (entries: Array<DockedPanelRenderEntry | null>) => {
+      const normalizedEntries = entries.filter(
+        (entry): entry is DockedPanelRenderEntry => entry !== null
+      )
+
+      if (normalizedEntries.length <= 0) {
+        return {
+          orderedEntries: [] as DockedPanelRenderEntry[],
+          fillRemainingPanelId: null as string | null,
+          showSplitter: false
+        }
+      }
+
+      if (normalizedEntries.length === 1) {
+        return {
+          orderedEntries: normalizedEntries,
+          fillRemainingPanelId: normalizedEntries[0].id,
+          showSplitter: false
+        }
+      }
+
+      const [firstEntry, secondEntry] = normalizedEntries
+      const firstCollapsed = Boolean(layout.panels[firstEntry.id]?.collapsed)
+      const secondCollapsed = Boolean(layout.panels[secondEntry.id]?.collapsed)
+
+      if (firstCollapsed && !secondCollapsed) {
+        return {
+          orderedEntries: [secondEntry, firstEntry],
+          fillRemainingPanelId: secondEntry.id,
+          showSplitter: false
+        }
+      }
+
+      if (!firstCollapsed && secondCollapsed) {
+        return {
+          orderedEntries: [firstEntry, secondEntry],
+          fillRemainingPanelId: firstEntry.id,
+          showSplitter: false
+        }
+      }
+
+      return {
+        orderedEntries: normalizedEntries,
+        fillRemainingPanelId: normalizedEntries.length === 1 ? normalizedEntries[0].id : null,
+        showSplitter: !firstCollapsed && !secondCollapsed
+      }
+    },
+    [layout.panels]
+  )
 
   // Убираем ID панели из всех слотов.
   const removeFromAllSlots = (nextDocked: typeof layout.docked, panelId: string) => {
@@ -3960,6 +4061,21 @@ export function EditorShell(): React.JSX.Element {
         }
       },
       {
+        actionId: 'toggle_all_dock_panels' as const,
+        handler: () => {
+          // Это отдельный shortcut именно для dock-panels.
+          // В отличие от zen mode, он просто переключает состояние видимых dock-зон.
+          setCollapsedDocks((prev) => {
+            const nextCollapsed = !(prev.left && prev.right && prev.bottom)
+            return {
+              left: nextCollapsed,
+              right: nextCollapsed,
+              bottom: nextCollapsed
+            }
+          })
+        }
+      },
+      {
         actionId: 'fit_view' as const,
         handler: () => {
           setFitViewRequestId((prev) => prev + 1)
@@ -4250,6 +4366,70 @@ export function EditorShell(): React.JSX.Element {
   const rightDockedIds = layout.docked.right.filter((id) => layout.panels[id]?.mode === 'docked')
   const bottomDockedIds = layout.docked.bottom.filter((id) => layout.panels[id]?.mode === 'docked')
 
+  // Подготавливаем порядок рендера панелей внутри вертикальных доков.
+  // Если одна панель свёрнута, она опускается вниз до одной шапки.
+  const leftDockRenderState = getVerticalDockRenderState(
+    [
+      leftDockedIds[0]
+        ? {
+            id: leftDockedIds[0],
+            className: ['dockPanelActions', drag?.panelId === leftDockedIds[0] ? 'isDragSource' : '']
+              .filter(Boolean)
+              .join(' '),
+            baseStyle: {
+              flexGrow: leftDockedIds.length >= 2 ? leftTopGrow : 1,
+              flexBasis: 0,
+              minHeight: 0
+            }
+          }
+        : null,
+      leftDockedIds[1]
+        ? {
+            id: leftDockedIds[1],
+            className: ['dockPanelBookmarks', drag?.panelId === leftDockedIds[1] ? 'isDragSource' : '']
+              .filter(Boolean)
+              .join(' '),
+            baseStyle: {
+              flexGrow: leftDockedIds.length >= 2 ? leftBottomGrow : 1,
+              flexBasis: 0,
+              minHeight: 0
+            }
+          }
+        : null
+    ]
+  )
+
+  const rightDockRenderState = getVerticalDockRenderState(
+    [
+      rightDockedIds[0]
+        ? {
+            id: rightDockedIds[0],
+            className: ['dockPanelText', drag?.panelId === rightDockedIds[0] ? 'isDragSource' : '']
+              .filter(Boolean)
+              .join(' '),
+            baseStyle: {
+              flexGrow: rightDockedIds.length >= 2 ? rightTopGrow : 1,
+              flexBasis: 0,
+              minHeight: 0
+            }
+          }
+        : null,
+      rightDockedIds[1]
+        ? {
+            id: rightDockedIds[1],
+            className: ['dockPanelInspector', drag?.panelId === rightDockedIds[1] ? 'isDragSource' : '']
+              .filter(Boolean)
+              .join(' '),
+            baseStyle: {
+              flexGrow: rightDockedIds.length >= 2 ? rightBottomGrow : 1,
+              flexBasis: 0,
+              minHeight: 0
+            }
+          }
+        : null
+    ]
+  )
+
   // Выбираем панели, которые сейчас floating.
   const floatingPanelIds = Object.keys(layout.panels).filter(
     (id) => layout.panels[id]?.mode === 'floating'
@@ -4450,65 +4630,34 @@ export function EditorShell(): React.JSX.Element {
         {/* Точный preview показывает именно верхнюю или нижнюю позицию вставки. */}
         <div ref={leftDockPreviewRef} className="dockDropPreview" aria-hidden="true" />
         <div className="dockCollapseContent">
-        <div className="dockSlotSplit dockSlotSplitLeft">
-          {leftDockedIds[0] ? (
-            <DockPanel
-              title={getPanelTitle(leftDockedIds[0])}
-              className={[
-                'dockPanelActions',
-                drag?.panelId === leftDockedIds[0] ? 'isDragSource' : ''
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              style={getDockedPanelStyle(leftDockedIds[0], {
-                flexGrow: leftDockedIds.length >= 2 ? leftTopGrow : 1,
-                flexBasis: 0,
-                minHeight: 0
-              })}
-              onHeaderPointerDown={startPanelDrag(leftDockedIds[0])}
-              collapsed={layout.panels[leftDockedIds[0]]?.collapsed}
-              onToggleCollapse={() => togglePanelCollapse(leftDockedIds[0])}
-              collapseLabel={collapsePanelLabel}
-              closeLabel={closePanelLabel}
-              onClose={() => togglePanel(leftDockedIds[0])}
-            >
-              {renderPanelContents(leftDockedIds[0])}
-            </DockPanel>
-          ) : null}
-
-          {leftDockedIds[0] && leftDockedIds[1] ? (
-            <div
-              className="internalSplitter"
-              aria-hidden="true"
-              onPointerDown={startResizeDrag('split-left')}
-            />
-          ) : null}
-
-          {leftDockedIds[1] ? (
-            <DockPanel
-              title={getPanelTitle(leftDockedIds[1])}
-              className={[
-                'dockPanelBookmarks',
-                drag?.panelId === leftDockedIds[1] ? 'isDragSource' : ''
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              style={getDockedPanelStyle(leftDockedIds[1], {
-                flexGrow: leftDockedIds.length >= 2 ? leftBottomGrow : 1,
-                flexBasis: 0,
-                minHeight: 0
-              })}
-              onHeaderPointerDown={startPanelDrag(leftDockedIds[1])}
-              collapsed={layout.panels[leftDockedIds[1]]?.collapsed}
-              onToggleCollapse={() => togglePanelCollapse(leftDockedIds[1])}
-              collapseLabel={collapsePanelLabel}
-              closeLabel={closePanelLabel}
-              onClose={() => togglePanel(leftDockedIds[1])}
-            >
-              {renderPanelContents(leftDockedIds[1])}
-            </DockPanel>
-          ) : null}
-        </div>
+          <div className="dockSlotSplit dockSlotSplitLeft">
+            {leftDockRenderState.orderedEntries.map((entry, index) => (
+              <React.Fragment key={entry.id}>
+                <DockPanel
+                  title={getPanelTitle(entry.id)}
+                  className={entry.className}
+                  style={getDockedPanelStyle(entry.id, entry.baseStyle, {
+                    fillRemainingSpace: leftDockRenderState.fillRemainingPanelId === entry.id
+                  })}
+                  onHeaderPointerDown={startPanelDrag(entry.id)}
+                  collapsed={layout.panels[entry.id]?.collapsed}
+                  onToggleCollapse={() => togglePanelCollapse(entry.id)}
+                  collapseLabel={collapsePanelLabel}
+                  closeLabel={closePanelLabel}
+                  onClose={() => togglePanel(entry.id)}
+                >
+                  {renderPanelContents(entry.id)}
+                </DockPanel>
+                {leftDockRenderState.showSplitter && index === 0 ? (
+                  <div
+                    className="internalSplitter"
+                    aria-hidden="true"
+                    onPointerDown={startResizeDrag('split-left')}
+                  />
+                ) : null}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       </aside>
 
@@ -4652,65 +4801,34 @@ export function EditorShell(): React.JSX.Element {
         {/* Preview рисуем поверх дока, а не через outline всего контейнера. */}
         <div ref={rightDockPreviewRef} className="dockDropPreview" aria-hidden="true" />
         <div className="dockCollapseContent">
-        <div className="dockSlotSplit dockSlotSplitRight">
-          {rightDockedIds[0] ? (
-            <DockPanel
-              title={getPanelTitle(rightDockedIds[0])}
-              className={[
-                'dockPanelText',
-                drag?.panelId === rightDockedIds[0] ? 'isDragSource' : ''
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              style={getDockedPanelStyle(rightDockedIds[0], {
-                flexGrow: rightDockedIds.length >= 2 ? rightTopGrow : 1,
-                flexBasis: 0,
-                minHeight: 0
-              })}
-              onHeaderPointerDown={startPanelDrag(rightDockedIds[0])}
-              collapsed={layout.panels[rightDockedIds[0]]?.collapsed}
-              onToggleCollapse={() => togglePanelCollapse(rightDockedIds[0])}
-              collapseLabel={collapsePanelLabel}
-              closeLabel={closePanelLabel}
-              onClose={() => togglePanel(rightDockedIds[0])}
-            >
-              {renderPanelContents(rightDockedIds[0])}
-            </DockPanel>
-          ) : null}
-
-          {rightDockedIds[0] && rightDockedIds[1] ? (
-            <div
-              className="internalSplitter"
-              aria-hidden="true"
-              onPointerDown={startResizeDrag('split-right')}
-            />
-          ) : null}
-
-          {rightDockedIds[1] ? (
-            <DockPanel
-              title={getPanelTitle(rightDockedIds[1])}
-              className={[
-                'dockPanelInspector',
-                drag?.panelId === rightDockedIds[1] ? 'isDragSource' : ''
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              style={getDockedPanelStyle(rightDockedIds[1], {
-                flexGrow: rightDockedIds.length >= 2 ? rightBottomGrow : 1,
-                flexBasis: 0,
-                minHeight: 0
-              })}
-              onHeaderPointerDown={startPanelDrag(rightDockedIds[1])}
-              collapsed={layout.panels[rightDockedIds[1]]?.collapsed}
-              onToggleCollapse={() => togglePanelCollapse(rightDockedIds[1])}
-              collapseLabel={collapsePanelLabel}
-              closeLabel={closePanelLabel}
-              onClose={() => togglePanel(rightDockedIds[1])}
-            >
-              {renderPanelContents(rightDockedIds[1])}
-            </DockPanel>
-          ) : null}
-        </div>
+          <div className="dockSlotSplit dockSlotSplitRight">
+            {rightDockRenderState.orderedEntries.map((entry, index) => (
+              <React.Fragment key={entry.id}>
+                <DockPanel
+                  title={getPanelTitle(entry.id)}
+                  className={entry.className}
+                  style={getDockedPanelStyle(entry.id, entry.baseStyle, {
+                    fillRemainingSpace: rightDockRenderState.fillRemainingPanelId === entry.id
+                  })}
+                  onHeaderPointerDown={startPanelDrag(entry.id)}
+                  collapsed={layout.panels[entry.id]?.collapsed}
+                  onToggleCollapse={() => togglePanelCollapse(entry.id)}
+                  collapseLabel={collapsePanelLabel}
+                  closeLabel={closePanelLabel}
+                  onClose={() => togglePanel(entry.id)}
+                >
+                  {renderPanelContents(entry.id)}
+                </DockPanel>
+                {rightDockRenderState.showSplitter && index === 0 ? (
+                  <div
+                    className="internalSplitter"
+                    aria-hidden="true"
+                    onPointerDown={startResizeDrag('split-right')}
+                  />
+                ) : null}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       </aside>
 
