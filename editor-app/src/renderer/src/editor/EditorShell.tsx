@@ -7,7 +7,13 @@ import { AboutModal } from './AboutModal'
 import { FlowCanvas } from './FlowCanvas'
 import { TopMenuBar } from './TopMenuBar'
 import type { DockSlotId, LayoutState, Size, Vec2 } from './layoutTypes'
-import type { RuntimeEdge, RuntimeNode } from './runtimeTypes'
+import type { RuntimeEdge, RuntimeNode, RuntimeState } from './runtimeTypes'
+import {
+  createDefaultRuntimeState,
+  createEmptyRuntimeState,
+  parseRuntimeState
+} from './runtimeTypes'
+import { reverseCompileCutscene } from './reverseCompile'
 import { parseYarnPreview } from './yarnPreview'
 import { useLayoutState } from './useLayoutState'
 import { useProjectResources } from './useProjectResources'
@@ -15,12 +21,12 @@ import { useRuntimeState } from './useRuntimeState'
 import { compileGraph, stripExport } from './compileGraph'
 import { validateGraph, type ValidationResult, type ValidationContext } from './validateGraph'
 import { PreferencesModal } from './PreferencesModal'
-import { SearchableSelect } from './SearchableSelect'
 import { UpdateNotification } from './UpdateNotification'
-import { FollowPathPreview } from './FollowPathPreview'
 import { PreferencesProvider } from './PreferencesContext'
 import { getAccentCssVariables, usePreferences } from './usePreferences'
 import { useHotkeys } from './useHotkeys'
+import { InspectorPanel } from './InspectorPanel'
+import type { NameConflictModalState } from './inspectorTypes'
 import { createTranslator } from '../i18n'
 
 // MIME-type для drag-and-drop из node palette в FlowCanvas.
@@ -85,14 +91,7 @@ type ResizeDragState = {
   startPanelSize?: Size | null
 }
 
-// Состояние модалки, которая появляется, когда имя ноды уже занято.
-// Мы не блокируем дубликаты, но по умолчанию предлагаем безопасное уникальное имя.
-type NameConflictModalState = {
-  nodeId: string
-  previousName: string
-  conflictingWithNodeId: string
-  value: string
-}
+// Тип NameConflictModalState импортируется из './inspectorTypes'.
 
 // Небольшое описание панели внутри вертикального dock split.
 // Храним тут только то, что нужно для порядка рендера и расчёта flex.
@@ -1407,8 +1406,6 @@ export function EditorShell(): React.JSX.Element {
   const clipboardRef = useRef<ClipboardPayload | null>(null)
   const pasteSerialRef = useRef(0)
 
-  // Ref на input "Wait on edge" — для автофокуса при двойном клике по ребру.
-  const edgeWaitInputRef = useRef<HTMLInputElement | null>(null)
   // Флаг: нужно ли сфокусировать wait input после следующего рендера.
   const shouldFocusEdgeWaitRef = useRef(false)
 
@@ -1495,7 +1492,7 @@ export function EditorShell(): React.JSX.Element {
       }
 
       // Ctrl+C — копировать выделенные ноды и внутренние рёбра.
-      if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+      if ((e.ctrlKey || e.metaKey) && key === 'c') {
         if (isInput) return
         const rt = runtimeRef.current
         const selected = rt.selectedNodeIds?.length
@@ -1537,7 +1534,7 @@ export function EditorShell(): React.JSX.Element {
       }
 
       // Ctrl+X — вырезать (копировать + удалить).
-      if (e.ctrlKey && (e.key === 'x' || e.key === 'X')) {
+      if ((e.ctrlKey || e.metaKey) && key === 'x') {
         if (isInput) return
         const rt = runtimeRef.current
         const selected = rt.selectedNodeIds?.length
@@ -1589,7 +1586,7 @@ export function EditorShell(): React.JSX.Element {
       }
 
       // Ctrl+V — вставить.
-      if (e.ctrlKey && (e.key === 'v' || e.key === 'V')) {
+      if ((e.ctrlKey || e.metaKey) && key === 'v') {
         if (isInput) return
         const rt = runtimeRef.current
         const payload = clipboardRef.current
@@ -1677,7 +1674,7 @@ export function EditorShell(): React.JSX.Element {
   // Экспорт катсцены: валидация → компиляция → JSON → сохранение через IPC.
   const handleExport = async () => {
     // Сначала проверяем граф на ошибки.
-    const val = validateGraph(runtime)
+    const val = validation
     if (val.hasErrors) {
       const errorMessages = val.entries
         .filter((e) => e.severity === 'error')
@@ -1715,8 +1712,21 @@ export function EditorShell(): React.JSX.Element {
   // --- Операции с файлом сцены ---
 
   // Сериализуем runtime в JSON для сохранения (без editor-only полей selectedNodeId и т.д.).
+  const serializeSceneState = (sceneRuntime: RuntimeState): string => {
+    return JSON.stringify(
+      {
+        ...sceneRuntime,
+        selectedNodeId: null,
+        selectedNodeIds: [],
+        selectedEdgeId: null
+      },
+      null,
+      2
+    )
+  }
+
   const serializeScene = (): string => {
-    return JSON.stringify(runtime, null, 2)
+    return serializeSceneState(runtime)
   }
 
   // Храним последний JSON, который уже ушёл в autosave/manual save.
@@ -1764,11 +1774,11 @@ export function EditorShell(): React.JSX.Element {
     if (!preferences.autoSaveEnabled) return
     if (!window.api?.scene?.autosave) return
 
-    const jsonString = serializeScene()
-    if (lastPersistedSceneJsonRef.current === jsonString) return
-
     const intervalMs = Math.max(1, preferences.autoSaveIntervalMinutes) * 60 * 1000
-    const timer = window.setTimeout(() => {
+    const timer = window.setInterval(() => {
+      const jsonString = serializeSceneState(runtimeRef.current)
+      if (lastPersistedSceneJsonRef.current === jsonString) return
+
       window.api.scene
         .autosave(sceneFilePath, jsonString, 5)
         .then(() => {
@@ -1780,9 +1790,14 @@ export function EditorShell(): React.JSX.Element {
     }, intervalMs)
 
     return () => {
-      window.clearTimeout(timer)
+      window.clearInterval(timer)
     }
-  }, [preferences, preferencesLoaded, runtime, sceneFilePath])
+  }, [
+    preferences.autoSaveEnabled,
+    preferences.autoSaveIntervalMinutes,
+    preferencesLoaded,
+    sceneFilePath
+  ])
 
   // Open Scene: открываем .usc.json / .json файл и загружаем в runtime.
   const handleOpenScene = async () => {
@@ -1805,14 +1820,12 @@ export function EditorShell(): React.JSX.Element {
     try {
       const parsed = JSON.parse(result.content)
       // Пытаемся распарсить как RuntimeState.
-      const { parseRuntimeState } = await import('./runtimeTypes')
       const state = parseRuntimeState(parsed)
       if (state) {
         setRuntime(state)
         setSceneFilePath(result.filePath)
-        lastPersistedSceneJsonRef.current = JSON.stringify(state, null, 2)
+        lastPersistedSceneJsonRef.current = serializeSceneState(state)
       } else {
-        const { reverseCompileCutscene } = await import('./reverseCompile')
         const imported = reverseCompileCutscene(parsed)
 
         if (!imported.ok) {
@@ -1843,11 +1856,9 @@ export function EditorShell(): React.JSX.Element {
       t('confirm.newSceneReplace', 'Create a new scene? Unsaved changes will be lost.')
     )
     if (!confirmed) return
-    import('./runtimeTypes').then(({ createEmptyRuntimeState }) => {
-      setRuntime(createEmptyRuntimeState())
-      setSceneFilePath(null)
-      lastPersistedSceneJsonRef.current = null
-    })
+    setRuntime(createEmptyRuntimeState())
+    setSceneFilePath(null)
+    lastPersistedSceneJsonRef.current = null
   }
 
   // Create Example: загружаем демонстрационную сцену с готовым графом.
@@ -1857,11 +1868,9 @@ export function EditorShell(): React.JSX.Element {
       t('confirm.exampleSceneReplace', 'Create an example scene? Unsaved changes will be lost.')
     )
     if (!confirmed) return
-    import('./runtimeTypes').then(({ createDefaultRuntimeState }) => {
-      setRuntime(createDefaultRuntimeState())
-      setSceneFilePath(null)
-      lastPersistedSceneJsonRef.current = null
-    })
+    setRuntime(createDefaultRuntimeState())
+    setSceneFilePath(null)
+    lastPersistedSceneJsonRef.current = null
   }
 
   // Привязываем Save к ref для хоткея Ctrl+S.
@@ -2090,194 +2099,6 @@ export function EditorShell(): React.JSX.Element {
     // Находим выбранный узел один раз, чтобы не повторять логику ниже.
     const selectedNode = runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null
 
-    // Обновляем выбранный узел безопасно.
-    const updateNode = (nodeId: string, patch: Partial<RuntimeNode>) => {
-      setRuntime({
-        ...runtime,
-        nodes: runtime.nodes.map((node) => (node.id === nodeId ? { ...node, ...patch } : node))
-      })
-    }
-
-    // Убираем служебные поля parallel из params, чтобы не оставлять мусор.
-    const stripParallelParams = (params?: RuntimeNode['params']) => {
-      if (!params) return undefined
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { joinId, pairId, branches, ...rest } = params
-      return rest
-    }
-
-    // Удаляем пару parallel (start/join) и внутреннее ребро __pair.
-    // Это нужно, когда пользователь меняет тип параллельной ноды на обычную.
-    const removeParallelPair = (node: RuntimeNode, nodes: RuntimeNode[], edges: RuntimeEdge[]) => {
-      // Определяем, где находится вторая нода пары.
-      const joinId = typeof node.params?.joinId === 'string' ? node.params.joinId : ''
-      const pairId = typeof node.params?.pairId === 'string' ? node.params.pairId : ''
-      const counterpartId =
-        node.type === 'parallel_start' ? joinId : node.type === 'parallel_join' ? pairId : ''
-
-      if (!counterpartId) {
-        return { nodes, edges }
-      }
-
-      // Удаляем вторую ноду пары и все её рёбра.
-      const nextNodes = nodes.filter((n) => n.id !== counterpartId)
-      const nextEdges = edges.filter((e) => {
-        const isPairEdge =
-          e.source === node.id &&
-          e.target === counterpartId &&
-          e.sourceHandle === '__pair' &&
-          e.targetHandle === '__pair'
-        return e.source !== counterpartId && e.target !== counterpartId && !isPairEdge
-      })
-
-      return { nodes: nextNodes, edges: nextEdges }
-    }
-
-    // Меняем тип ноды с учётом special-case для parallel.
-    // Тут мы создаём/удаляем пару start/join и внутреннее ребро.
-    const changeNodeType = (nodeId: string, nextType: string) => {
-      const currentNode = runtime.nodes.find((node) => node.id === nodeId)
-      if (!currentNode) return
-
-      // Готовим набор занятых имён, чтобы не создавать дубликаты.
-      const takenNames = new Set<string>(
-        runtime.nodes
-          .filter((n) => n.id !== nodeId)
-          .map((n) => String(n.name ?? '').trim())
-          .filter((v) => v.length > 0)
-      )
-
-      // Сначала чистим старую пару, если нода была parallel.
-      let nextNodes = runtime.nodes
-      let nextEdges = runtime.edges
-      if (currentNode.type === 'parallel_start' || currentNode.type === 'parallel_join') {
-        const cleaned = removeParallelPair(currentNode, nextNodes, nextEdges)
-        nextNodes = cleaned.nodes
-        nextEdges = cleaned.edges
-      }
-
-      // Позиция для новой join-ноды — справа от выбранной.
-      const anchorPos = currentNode.position ?? { x: 100, y: 150 }
-
-      if (nextType === 'parallel_start') {
-        const joinId = `pjoin-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-        const joinName = suggestUniqueNodeName('Node', takenNames)
-
-        // Обновляем текущую ноду в start.
-        nextNodes = nextNodes.map((node) =>
-          node.id === nodeId
-            ? {
-                ...node,
-                type: 'parallel_start',
-                params: { joinId, branches: ['b0'] }
-              }
-            : node
-        )
-
-        // Добавляем join-ноду пары.
-        nextNodes = [
-          ...nextNodes,
-          {
-            id: joinId,
-            type: 'parallel_join',
-            name: joinName,
-            position: { x: anchorPos.x + 300, y: anchorPos.y },
-            params: { pairId: nodeId, branches: ['b0'] }
-          }
-        ]
-
-        // Добавляем внутреннее ребро между парой.
-        nextEdges = [
-          ...nextEdges,
-          {
-            id: `edge-pair-${nodeId}-${joinId}`,
-            source: nodeId,
-            sourceHandle: '__pair',
-            target: joinId,
-            targetHandle: '__pair'
-          }
-        ]
-      } else {
-        // Обычная нода: просто меняем тип и чистим parallel-поля.
-        nextNodes = nextNodes.map((node) =>
-          node.id === nodeId
-            ? {
-                ...node,
-                type: nextType,
-                params: stripParallelParams(node.params)
-              }
-            : node
-        )
-      }
-
-      setRuntime({
-        ...runtime,
-        nodes: nextNodes,
-        edges: nextEdges
-      })
-    }
-
-    // Пробуем применить новое имя ноды.
-    // Если имя занято — показываем предупреждение с предложением ` (0)`.
-    const commitNodeName = (nodeId: string, nextNameRaw: string) => {
-      const nextName = nextNameRaw.trim()
-
-      // Пустое имя разрешаем (это просто warning в validateGraph).
-      if (!nextName) {
-        updateNode(nodeId, { name: '' })
-        return
-      }
-
-      const prev = runtime.nodes.find((n) => n.id === nodeId)?.name ?? ''
-
-      // Собираем занятые имена (кроме текущей ноды).
-      const taken = new Set(
-        runtime.nodes
-          .filter((n) => n.id !== nodeId)
-          .map((n) => String(n.name ?? '').trim())
-          .filter((v) => v.length > 0)
-      )
-
-      // Если конфликта нет — применяем сразу.
-      if (!taken.has(nextName)) {
-        updateNode(nodeId, { name: nextName })
-        return
-      }
-
-      // Конфликт есть: дубликаты разрешены, но предупреждаем.
-      // По умолчанию предлагаем уникальное имя с постфиксом.
-      const conflictingWithNodeId =
-        runtime.nodes.find((n) => n.id !== nodeId && String(n.name ?? '').trim() === nextName)
-          ?.id ?? ''
-      const suggested = suggestUniqueNodeName(nextName, taken)
-
-      setNameConflictModal({
-        nodeId,
-        previousName: prev,
-        conflictingWithNodeId,
-        value: suggested
-      })
-    }
-
-    // Обновляем один параметр в selectedNode.params.
-    const updateNodeParam = (nodeId: string, key: string, value: unknown) => {
-      const target = runtime.nodes.find((node) => node.id === nodeId)
-      if (!target) return
-
-      const nextParams = { ...(target.params ?? {}) }
-      nextParams[key] = value
-
-      updateNode(nodeId, { params: nextParams })
-    }
-
-    // Обновляем ребро (edge) безопасно.
-    const updateEdge = (edgeId: string, patch: Partial<(typeof runtime.edges)[number]>) => {
-      setRuntime({
-        ...runtime,
-        edges: runtime.edges.map((e) => (e.id === edgeId ? { ...e, ...patch } : e))
-      })
-    }
-
     // Меняем выделение узла.
     const selectNode = (nodeId: string) => {
       setRuntime({
@@ -2457,1059 +2278,24 @@ export function EditorShell(): React.JSX.Element {
     }
 
     if (panelId === 'panel.inspector') {
-      // Доступные типы узлов для выбора (полный список v1).
-      const nodeTypes = [
-        'start',
-        'end',
-        'move',
-        'follow_path',
-        'actor_create',
-        'actor_destroy',
-        'animate',
-        'dialogue',
-        'camera_track',
-        'camera_pan',
-        'camera_shake',
-        'parallel_start',
-        'branch',
-        'run_function',
-        'set_position',
-        'set_depth',
-        'set_facing',
-        'auto_facing',
-        'auto_walk'
-      ]
-
-      // Считаем входящие/исходящие связи для выбранного узла.
-      const incomingCount = selectedNode
-        ? runtime.edges.filter((e) => e.target === selectedNode.id).length
-        : 0
-      const outgoingCount = selectedNode
-        ? runtime.edges.filter((e) => e.source === selectedNode.id).length
-        : 0
-
-      const selectedEdge = runtime.edges.find((e) => e.id === runtime.selectedEdgeId) ?? null
-
-      // Опции ресурсов из .yyp (если проект открыт).
-      const objectOptions = resources?.objects ?? []
-      const spriteOptions = resources?.sprites ?? []
-      const spriteOrObjectOptions = [...objectOptions, ...spriteOptions]
-
       return (
-        <div className="runtimeSection">
-          <div className="runtimeSectionTitle">{t('editor.inspector', 'Inspector')}</div>
-          <label className="runtimeField">
-            <span>{t('editor.sceneTitle', 'Scene title')}</span>
-            <input
-              className="runtimeInput"
-              value={runtime.title}
-              onChange={(event) => setRuntime({ ...runtime, title: event.target.value })}
-            />
-          </label>
-          {selectedNode ? (
-            <>
-              <div className="runtimeHint" style={{ opacity: 0.6 }}>
-                ID: {selectedNode.id}
-              </div>
-              <label className="runtimeField">
-                <span>{t('editor.nodeType', 'Node type')}</span>
-                <select
-                  className="runtimeInput"
-                  value={selectedNode.type}
-                  onChange={(event) => changeNodeType(selectedNode.id, event.target.value)}
-                >
-                  {nodeTypes.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                  {/* Если текущий тип не в списке — показываем его тоже */}
-                  {!nodeTypes.includes(selectedNode.type) && (
-                    <option value={selectedNode.type}>{selectedNode.type} (custom)</option>
-                  )}
-                </select>
-              </label>
-              <label className="runtimeField">
-                <span>{t('editor.nodeName', 'Node name')}</span>
-                <input
-                  className="runtimeInput"
-                  value={pendingNodeName}
-                  placeholder={t('editor.node', 'Node')}
-                  onChange={(event) => setPendingNodeName(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter') return
-                    event.preventDefault()
-                    commitNodeName(selectedNode.id, pendingNodeName)
-                  }}
-                  onBlur={() => commitNodeName(selectedNode.id, pendingNodeName)}
-                />
-              </label>
-
-              {/* Параметры ноды — показываем только релевантные поля. */}
-              {/* wait убран как отдельная нода: пауза хранится на ребре (edge.waitSeconds). */}
-
-              {/* --- move / set_position: target, x, y, speed, collision --- */}
-              {['move', 'set_position'].includes(selectedNode.type) && (
-                <>
-                  <label className="runtimeField">
-                    <span>Target</span>
-                    <SearchableSelect
-                      className="runtimeInput"
-                      options={actorTargetOptions}
-                      placeholder="actor key / player"
-                      value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>X</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      value={String((selectedNode.params?.x as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'x', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Y</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      value={String((selectedNode.params?.y as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'y', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                  {/* speed и collision только для move */}
-                  {selectedNode.type === 'move' && (
-                    <>
-                      <label className="runtimeField">
-                        <span>Speed (px/sec)</span>
-                        <input
-                          className="runtimeInput"
-                          type="number"
-                          placeholder="60"
-                          value={String((selectedNode.params?.speed_px_sec as number) ?? '')}
-                          onChange={(event) =>
-                            updateNodeParam(
-                              selectedNode.id,
-                              'speed_px_sec',
-                              Number(event.target.value)
-                            )
-                          }
-                        />
-                      </label>
-                      <label className="runtimeField">
-                        <span>Collision</span>
-                        <select
-                          className="runtimeInput"
-                          value={String(selectedNode.params?.collision ?? 'false')}
-                          onChange={(event) =>
-                            updateNodeParam(
-                              selectedNode.id,
-                              'collision',
-                              event.target.value === 'true'
-                            )
-                          }
-                        >
-                          <option value="false">false</option>
-                          <option value="true">true</option>
-                        </select>
-                      </label>
-                    </>
-                  )}
-                </>
-              )}
-
-              {/* --- follow_path: target, speed, collision --- */}
-              {selectedNode.type === 'follow_path' && (
-                <>
-                  <label className="runtimeField">
-                    <span>Target</span>
-                    <SearchableSelect
-                      className="runtimeInput"
-                      options={actorTargetOptions}
-                      placeholder="actor key / player"
-                      value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Speed (px/sec)</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      placeholder="60"
-                      value={String((selectedNode.params?.speed_px_sec as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'speed_px_sec', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Collision</span>
-                    <select
-                      className="runtimeInput"
-                      value={String(selectedNode.params?.collision ?? 'false')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'collision', event.target.value === 'true')
-                      }
-                    >
-                      <option value="false">false</option>
-                      <option value="true">true</option>
-                    </select>
-                  </label>
-                  {/* --- Редактор точек пути (waypoints) --- */}
-                  <div className="runtimeSectionTitle" style={{ marginTop: 4 }}>
-                    {t('editor.pathPoints', 'Path Points')}
-                  </div>
-                  {(() => {
-                    // Получаем текущий массив точек или создаём пустой.
-                    const points: { x: number; y: number }[] = Array.isArray(
-                      selectedNode.params?.points
-                    )
-                      ? (selectedNode.params.points as { x: number; y: number }[])
-                      : []
-
-                    // Обновляем весь массив points в параметрах ноды.
-                    const setPoints = (next: { x: number; y: number }[]) => {
-                      updateNodeParam(selectedNode.id, 'points', next)
-                    }
-
-                    return (
-                      <>
-                        {points.map((pt, i) => (
-                          <div
-                            key={i}
-                            style={{
-                              display: 'flex',
-                              gap: 4,
-                              alignItems: 'center',
-                              marginBottom: 2
-                            }}
-                          >
-                            <span style={{ fontSize: 11, opacity: 0.5, minWidth: 18 }}>#{i}</span>
-                            <input
-                              className="runtimeInput"
-                              type="number"
-                              style={{ width: 64 }}
-                              placeholder="x"
-                              value={pt.x}
-                              onChange={(e) => {
-                                const next = [...points]
-                                next[i] = { ...next[i], x: Number(e.target.value) }
-                                setPoints(next)
-                              }}
-                            />
-                            <input
-                              className="runtimeInput"
-                              type="number"
-                              style={{ width: 64 }}
-                              placeholder="y"
-                              value={pt.y}
-                              onChange={(e) => {
-                                const next = [...points]
-                                next[i] = { ...next[i], y: Number(e.target.value) }
-                                setPoints(next)
-                              }}
-                            />
-                            {/* Кнопка вверх */}
-                            <button
-                              style={{ fontSize: 11, padding: '0 4px', cursor: 'pointer' }}
-                              disabled={i === 0}
-                              onClick={() => {
-                                const next = [...points]
-                                ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
-                                setPoints(next)
-                              }}
-                            >
-                              ↑
-                            </button>
-                            {/* Кнопка вниз */}
-                            <button
-                              style={{ fontSize: 11, padding: '0 4px', cursor: 'pointer' }}
-                              disabled={i === points.length - 1}
-                              onClick={() => {
-                                const next = [...points]
-                                ;[next[i], next[i + 1]] = [next[i + 1], next[i]]
-                                setPoints(next)
-                              }}
-                            >
-                              ↓
-                            </button>
-                            {/* Кнопка удалить точку */}
-                            <button
-                              style={{
-                                fontSize: 11,
-                                padding: '0 4px',
-                                cursor: 'pointer',
-                                color: '#e05050'
-                              }}
-                              onClick={() => {
-                                const next = points.filter((_, idx) => idx !== i)
-                                setPoints(next)
-                              }}
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
-                        {/* Кнопка добавить новую точку */}
-                        <button
-                          style={{ fontSize: 12, marginTop: 2, cursor: 'pointer' }}
-                          onClick={() => {
-                            // Новая точка: если есть предыдущие, смещаем на +32 по x.
-                            const last = points[points.length - 1]
-                            const newPt = last ? { x: last.x + 32, y: last.y } : { x: 0, y: 0 }
-                            setPoints([...points, newPt])
-                          }}
-                        >
-                          {t('editor.addPoint', '+ Add Point')}
-                        </button>
-                        {points.length === 0 && (
-                          <div className="runtimeHint" style={{ opacity: 0.5, fontSize: 11 }}>
-                            {t(
-                              'editor.noWaypointsYet',
-                              'No waypoints yet. Click "+ Add Point" to start.'
-                            )}
-                          </div>
-                        )}
-                        <FollowPathPreview
-                          points={points}
-                          speedPxPerSecond={Number(selectedNode.params?.speed_px_sec ?? 60)}
-                          title={t('editor.followPathPreview', 'Path Preview')}
-                          hint={t(
-                            'editor.followPathPreviewHint',
-                            'Animated editor preview of the path shape and waypoint order.'
-                          )}
-                          emptyLabel={t(
-                            'editor.followPathPreviewNoPoints',
-                            'Add at least one point to preview the path.'
-                          )}
-                          worldSpaceLabel={t(
-                            'editor.followPathPreviewWorldSpace',
-                            'Points are shown in normalized world-space proportions.'
-                          )}
-                        />
-                      </>
-                    )
-                  })()}
-                </>
-              )}
-
-              {/* --- actor_create: key, sprite_or_object, x, y --- */}
-              {selectedNode.type === 'actor_create' && (
-                <>
-                  <label className="runtimeField">
-                    <span>Key</span>
-                    <input
-                      className="runtimeInput"
-                      placeholder="npc_guide"
-                      value={String((selectedNode.params?.key as string) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'key', event.target.value)
-                      }
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Sprite / Object</span>
-                    <SearchableSelect
-                      className="runtimeInput"
-                      options={spriteOrObjectOptions}
-                      value={String((selectedNode.params?.sprite_or_object as string) ?? '')}
-                      onChange={(v) => updateNodeParam(selectedNode.id, 'sprite_or_object', v)}
-                      placeholder="obj_actor / spr_..."
-                      style={
-                        selectedNode.params?.sprite_or_object &&
-                        !spriteOrObjectOptions.includes(
-                          String(selectedNode.params.sprite_or_object)
-                        )
-                          ? { borderColor: '#e05050' }
-                          : undefined
-                      }
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>X</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      value={String((selectedNode.params?.x as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'x', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Y</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      value={String((selectedNode.params?.y as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'y', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                </>
-              )}
-
-              {/* --- actor_destroy: target --- */}
-              {selectedNode.type === 'actor_destroy' && (
-                <label className="runtimeField">
-                  <span>Target</span>
-                  <SearchableSelect
-                    className="runtimeInput"
-                    options={actorTargetOptions}
-                    placeholder="actor key"
-                    value={String((selectedNode.params?.target as string) ?? '')}
-                    onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
-                  />
-                </label>
-              )}
-
-              {/* --- animate: target, sprite, image_index, image_speed --- */}
-              {selectedNode.type === 'animate' && (
-                <>
-                  <label className="runtimeField">
-                    <span>Target</span>
-                    <SearchableSelect
-                      className="runtimeInput"
-                      options={actorTargetOptions}
-                      placeholder="actor key / player"
-                      value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Sprite</span>
-                    <SearchableSelect
-                      className="runtimeInput"
-                      options={spriteOptions}
-                      value={String((selectedNode.params?.sprite as string) ?? '')}
-                      onChange={(v) => updateNodeParam(selectedNode.id, 'sprite', v)}
-                      placeholder="spr_..."
-                      style={
-                        selectedNode.params?.sprite &&
-                        !spriteOptions.includes(String(selectedNode.params.sprite))
-                          ? { borderColor: '#e05050' }
-                          : undefined
-                      }
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Image Index</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      placeholder="0"
-                      value={String((selectedNode.params?.image_index as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'image_index', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Image Speed</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      step="0.1"
-                      placeholder="1"
-                      value={String((selectedNode.params?.image_speed as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'image_speed', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                </>
-              )}
-
-              {/* --- dialogue: file, node (autocomplete из .yarn файлов) --- */}
-              {selectedNode.type === 'dialogue' &&
-                (() => {
-                  // Список имён .yarn файлов для autocomplete.
-                  const yarnFileOptions = yarnFiles.map((y) => y.file)
-                  // Ноды из выбранного файла (для autocomplete поля Node).
-                  const currentFile = String(selectedNode.params?.file ?? '')
-                  const yarnNodeOptions = yarnFiles.find((y) => y.file === currentFile)?.nodes ?? []
-
-                  return (
-                    <>
-                      <label className="runtimeField">
-                        <span>File</span>
-                        <SearchableSelect
-                          className="runtimeInput"
-                          options={yarnFileOptions}
-                          value={currentFile}
-                          onChange={(v) => updateNodeParam(selectedNode.id, 'file', v)}
-                          placeholder="dialogue"
-                        />
-                      </label>
-                      <label className="runtimeField">
-                        <span>Node</span>
-                        <SearchableSelect
-                          className="runtimeInput"
-                          options={yarnNodeOptions}
-                          value={String((selectedNode.params?.node as string) ?? '')}
-                          onChange={(v) => updateNodeParam(selectedNode.id, 'node', v)}
-                          placeholder="Intro"
-                        />
-                      </label>
-                    </>
-                  )
-                })()}
-
-              {/* --- camera_track: target, seconds, offset_x, offset_y --- */}
-              {selectedNode.type === 'camera_track' && (
-                <>
-                  <label className="runtimeField">
-                    <span>Target</span>
-                    <SearchableSelect
-                      className="runtimeInput"
-                      options={actorTargetOptions}
-                      placeholder="actor key / player"
-                      value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Seconds</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      step="0.1"
-                      placeholder="2"
-                      value={String((selectedNode.params?.seconds as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Offset X</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      value={String((selectedNode.params?.offset_x as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'offset_x', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Offset Y</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      value={String((selectedNode.params?.offset_y as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'offset_y', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                </>
-              )}
-
-              {/* --- camera_pan: x, y, seconds --- */}
-              {selectedNode.type === 'camera_pan' && (
-                <>
-                  <label className="runtimeField">
-                    <span>X</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      value={String((selectedNode.params?.x as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'x', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Y</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      value={String((selectedNode.params?.y as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'y', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Seconds</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      step="0.1"
-                      placeholder="1"
-                      value={String((selectedNode.params?.seconds as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                </>
-              )}
-
-              {/* --- set_depth: target, depth --- */}
-              {selectedNode.type === 'set_depth' && (
-                <>
-                  <label className="runtimeField">
-                    <span>Target</span>
-                    <SearchableSelect
-                      className="runtimeInput"
-                      options={actorTargetOptions}
-                      placeholder="actor key / player"
-                      value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Depth</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      placeholder="0"
-                      value={String((selectedNode.params?.depth as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'depth', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                </>
-              )}
-
-              {/* --- set_facing: target, direction --- */}
-              {selectedNode.type === 'set_facing' && (
-                <>
-                  <label className="runtimeField">
-                    <span>Target</span>
-                    <SearchableSelect
-                      className="runtimeInput"
-                      options={actorTargetOptions}
-                      placeholder="actor key / player"
-                      value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Direction</span>
-                    <select
-                      className="runtimeInput"
-                      value={String((selectedNode.params?.direction as string) ?? 'right')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'direction', event.target.value)
-                      }
-                    >
-                      <option value="left">left</option>
-                      <option value="right">right</option>
-                      <option value="up">up</option>
-                      <option value="down">down</option>
-                    </select>
-                  </label>
-                </>
-              )}
-
-              {/* --- branch: condition (dropdown из whitelist, если есть) --- */}
-              {selectedNode.type === 'branch' && (
-                <label className="runtimeField">
-                  <span>Condition</span>
-                  <SearchableSelect
-                    className="runtimeInput"
-                    options={engineSettings?.branchConditions ?? []}
-                    value={String((selectedNode.params?.condition as string) ?? '')}
-                    onChange={(v) => updateNodeParam(selectedNode.id, 'condition', v)}
-                    placeholder="e.g. has_item_key"
-                  />
-                </label>
-              )}
-
-              {/* --- run_function: function_name (dropdown из whitelist), args --- */}
-              {selectedNode.type === 'run_function' && (
-                <>
-                  <label className="runtimeField">
-                    <span>Function Name</span>
-                    <SearchableSelect
-                      className="runtimeInput"
-                      options={engineSettings?.runFunctions ?? []}
-                      value={String(
-                        (selectedNode.params?.function as string) ??
-                          (selectedNode.params?.function_name as string) ??
-                          ''
-                      )}
-                      onChange={(v) => updateNodeParam(selectedNode.id, 'function', v)}
-                      placeholder="my_cutscene_func"
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Args (JSON)</span>
-                    <input
-                      className="runtimeInput"
-                      placeholder='["arg1", 42]'
-                      value={String((selectedNode.params?.args as string) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'args', event.target.value)
-                      }
-                    />
-                  </label>
-                </>
-              )}
-
-              {/* --- camera_shake: seconds, magnitude --- */}
-              {selectedNode.type === 'camera_shake' && (
-                <>
-                  <label className="runtimeField">
-                    <span>Duration (seconds)</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      step="0.1"
-                      placeholder="1"
-                      value={String((selectedNode.params?.seconds as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Magnitude (px)</span>
-                    <input
-                      className="runtimeInput"
-                      type="number"
-                      placeholder="4"
-                      value={String((selectedNode.params?.magnitude as number) ?? '')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'magnitude', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                </>
-              )}
-
-              {/* --- auto_facing: target, enabled --- */}
-              {selectedNode.type === 'auto_facing' && (
-                <>
-                  <label className="runtimeField">
-                    <span>Target</span>
-                    <SearchableSelect
-                      className="runtimeInput"
-                      options={actorTargetOptions}
-                      placeholder="actor key / player"
-                      value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Enabled</span>
-                    <select
-                      className="runtimeInput"
-                      value={String(selectedNode.params?.enabled ?? 'true')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'enabled', event.target.value === 'true')
-                      }
-                    >
-                      <option value="true">true</option>
-                      <option value="false">false</option>
-                    </select>
-                  </label>
-                </>
-              )}
-
-              {/* --- auto_walk: target, enabled --- */}
-              {selectedNode.type === 'auto_walk' && (
-                <>
-                  <label className="runtimeField">
-                    <span>Target</span>
-                    <SearchableSelect
-                      className="runtimeInput"
-                      options={actorTargetOptions}
-                      placeholder="actor key / player"
-                      value={String((selectedNode.params?.target as string) ?? '')}
-                      onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)}
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Enabled</span>
-                    <select
-                      className="runtimeInput"
-                      value={String(selectedNode.params?.enabled ?? 'true')}
-                      onChange={(event) =>
-                        updateNodeParam(selectedNode.id, 'enabled', event.target.value === 'true')
-                      }
-                    >
-                      <option value="true">true</option>
-                      <option value="false">false</option>
-                    </select>
-                  </label>
-                </>
-              )}
-              {selectedNode.position && (
-                <div className="runtimeHint" style={{ opacity: 0.6 }}>
-                  Position: {Math.round(selectedNode.position.x)},{' '}
-                  {Math.round(selectedNode.position.y)}
-                </div>
-              )}
-              <div className="runtimeHint" style={{ opacity: 0.6 }}>
-                Edges: {incomingCount} in / {outgoingCount} out
-              </div>
-            </>
-          ) : (
-            <div className="runtimeHint">{t('editor.inspectNodeHint', 'Select a node on the canvas to inspect it.')}</div>
-          )}
-
-          {/* Инспектор ребра: waitSeconds лежит прямо на линии. */}
-          {selectedEdge ? (
-            <>
-              <div className="runtimeSectionTitle" style={{ marginTop: 8 }}>
-                {t('editor.selectedEdge', 'Selected Edge')}
-              </div>
-              <div className="runtimeHint" style={{ opacity: 0.6 }}>
-                ID: {selectedEdge.id}
-              </div>
-              <label className="runtimeField">
-                <span>{t('editor.waitOnEdge', 'Wait on edge (seconds)')}</span>
-                <input
-                  ref={(el) => {
-                    edgeWaitInputRef.current = el
-                    // Если стоит флаг автофокуса — фокусируемся сразу при маунте.
-                    if (el && shouldFocusEdgeWaitRef.current) {
-                      shouldFocusEdgeWaitRef.current = false
-                      requestAnimationFrame(() => el.focus())
-                    }
-                  }}
-                  className="runtimeInput"
-                  type="number"
-                  step="0.1"
-                  value={String(selectedEdge.waitSeconds ?? '')}
-                  onChange={(event) => {
-                    const v = event.target.value
-                    if (v === '') {
-                      updateEdge(selectedEdge.id, { waitSeconds: undefined })
-                    } else {
-                      updateEdge(selectedEdge.id, { waitSeconds: Math.max(0, Number(v)) })
-                    }
-                  }}
-                />
-              </label>
-
-              {/* Condition на ребре: галочка включает условие. */}
-              <label
-                className="runtimeField"
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-              >
-                <input
-                  type="checkbox"
-                  checked={!!selectedEdge.conditionEnabled}
-                  onChange={(event) => {
-                    const enabled = event.target.checked
-                    if (enabled) {
-                      updateEdge(selectedEdge.id, {
-                        conditionEnabled: true,
-                        conditionVar: selectedEdge.conditionVar ?? '',
-                        conditionEquals: selectedEdge.conditionEquals ?? '',
-                        conditionIfFalse: selectedEdge.conditionIfFalse ?? 'skip',
-                        stopWaitingWhen: selectedEdge.stopWaitingWhen ?? 'none'
-                      })
-                    } else {
-                      updateEdge(selectedEdge.id, { conditionEnabled: false })
-                    }
-                  }}
-                />
-                <span>Condition</span>
-              </label>
-
-              {/* Поля условия показываем только если condition включён. */}
-              {selectedEdge.conditionEnabled ? (
-                <>
-                  <label className="runtimeField">
-                    <span>Variable (global key)</span>
-                    <input
-                      className="runtimeInput"
-                      placeholder="e.g. has_key"
-                      value={String(selectedEdge.conditionVar ?? '')}
-                      onChange={(event) =>
-                        updateEdge(selectedEdge.id, { conditionVar: event.target.value })
-                      }
-                    />
-                  </label>
-                  <label className="runtimeField">
-                    <span>Equals</span>
-                    <input
-                      className="runtimeInput"
-                      placeholder="e.g. true / 1 / done"
-                      value={String(selectedEdge.conditionEquals ?? '')}
-                      onChange={(event) =>
-                        updateEdge(selectedEdge.id, { conditionEquals: event.target.value })
-                      }
-                    />
-                  </label>
-
-                  {/* Что делать, если условие false. */}
-                  <label className="runtimeField">
-                    <span>If false</span>
-                    <select
-                      className="runtimeInput"
-                      value={selectedEdge.conditionIfFalse ?? 'skip'}
-                      onChange={(event) => {
-                        const val = event.target.value as 'skip' | 'wait_until_true'
-                        updateEdge(selectedEdge.id, {
-                          conditionIfFalse: val,
-                          // При переключении на skip — сбрасываем поля ожидания.
-                          stopWaitingWhen:
-                            val === 'skip' ? undefined : (selectedEdge.stopWaitingWhen ?? 'none')
-                        })
-                      }}
-                    >
-                      <option value="skip">skip (пропустить)</option>
-                      <option value="wait_until_true">wait until true (ждать)</option>
-                    </select>
-                  </label>
-
-                  {/* Если wait_until_true — показываем настройки прекращения ожидания. */}
-                  {selectedEdge.conditionIfFalse === 'wait_until_true' ? (
-                    <>
-                      <label className="runtimeField">
-                        <span>Stop waiting when</span>
-                        <select
-                          className="runtimeInput"
-                          value={selectedEdge.stopWaitingWhen ?? 'none'}
-                          onChange={(event) =>
-                            updateEdge(selectedEdge.id, {
-                              stopWaitingWhen: event.target.value as
-                                | 'none'
-                                | 'global_var'
-                                | 'node_reached'
-                                | 'timeout'
-                            })
-                          }
-                        >
-                          <option value="none">none (ждать бесконечно)</option>
-                          <option value="global_var">global variable</option>
-                          <option value="node_reached">node reached</option>
-                          <option value="timeout">timeout</option>
-                        </select>
-                      </label>
-
-                      {/* Поля для end-condition: global_var */}
-                      {selectedEdge.stopWaitingWhen === 'global_var' ? (
-                        <>
-                          <label className="runtimeField">
-                            <span>End Variable (global key)</span>
-                            <input
-                              className="runtimeInput"
-                              placeholder="e.g. cutscene_abort"
-                              value={String(selectedEdge.endConditionVar ?? '')}
-                              onChange={(event) =>
-                                updateEdge(selectedEdge.id, { endConditionVar: event.target.value })
-                              }
-                            />
-                          </label>
-                          <label className="runtimeField">
-                            <span>End Equals</span>
-                            <input
-                              className="runtimeInput"
-                              placeholder="e.g. true"
-                              value={String(selectedEdge.endConditionEquals ?? '')}
-                              onChange={(event) =>
-                                updateEdge(selectedEdge.id, {
-                                  endConditionEquals: event.target.value
-                                })
-                              }
-                            />
-                          </label>
-                        </>
-                      ) : null}
-
-                      {/* Поля для end-condition: node_reached */}
-                      {selectedEdge.stopWaitingWhen === 'node_reached' ? (
-                        <label className="runtimeField">
-                          <span>Node name</span>
-                          <input
-                            className="runtimeInput"
-                            placeholder="e.g. End"
-                            value={String(selectedEdge.endNodeName ?? '')}
-                            onChange={(event) =>
-                              updateEdge(selectedEdge.id, { endNodeName: event.target.value })
-                            }
-                          />
-                        </label>
-                      ) : null}
-
-                      {/* Поля для end-condition: timeout */}
-                      {selectedEdge.stopWaitingWhen === 'timeout' ? (
-                        <label className="runtimeField">
-                          <span>Timeout (seconds)</span>
-                          <input
-                            className="runtimeInput"
-                            type="number"
-                            step="0.1"
-                            placeholder="5"
-                            value={String(selectedEdge.endTimeoutSeconds ?? '')}
-                            onChange={(event) => {
-                              const v = event.target.value
-                              if (v === '') {
-                                updateEdge(selectedEdge.id, { endTimeoutSeconds: undefined })
-                              } else {
-                                updateEdge(selectedEdge.id, {
-                                  endTimeoutSeconds: Math.max(0, Number(v))
-                                })
-                              }
-                            }}
-                          />
-                        </label>
-                      ) : null}
-                    </>
-                  ) : null}
-                </>
-              ) : null}
-            </>
-          ) : null}
-
-          {/* Информация о подключённом .yyp проекте. */}
-          <div className="runtimeSectionTitle" style={{ marginTop: 8 }}>
-            {t('editor.project', 'Project')}
-          </div>
-          {resources ? (
-            <div className="runtimeHint">
-              {resources.yypPath}
-              <br />
-              {t('editor.sprites', 'Sprites')}: {resources.sprites.length}
-              <br />
-              {t('editor.objects', 'Objects')}: {resources.objects.length}
-              <br />
-              {t('editor.rooms', 'Rooms')}: {resources.rooms.length}
-              <br />
-              {t('editor.yarnFiles', 'Yarn Files')}: {yarnFiles.length}
-              {resources.restoredFromLastSession ? (
-                <>
-                  <br />
-                  {t(
-                    'editor.projectCacheRestored',
-                    'Restored the last cached GameMaker project.'
-                  )}
-                </>
-              ) : null}
-              <br />
-              {resources.cacheStatus === 'warm'
-                ? t('editor.projectCacheWarmOpen', 'Project resources were restored from cache.')
-                : t('editor.projectCacheColdOpen', 'Project resources were read directly from disk.')}
-              <br />
-              {t(
-                'editor.projectCacheScreenshots',
-                'Room screenshots cache folder is ready for future previews.'
-              )}
-              <br />
-              {t('editor.visualEditingSearchDirs', 'Search Dirs')}:{' '}
-              {roomScreenshotSearchDirs.length > 0 ? roomScreenshotSearchDirs.join(' | ') : '—'}
-            </div>
-          ) : (
-            <div className="runtimeHint">{t('editor.noProjectLoaded', 'No project loaded. File → Open Project...')}</div>
-          )}
-        </div>
+        <InspectorPanel
+          runtime={runtime}
+          setRuntime={setRuntime}
+          selectedNode={selectedNode}
+          actorTargetOptions={actorTargetOptions}
+          resources={resources}
+          engineSettings={engineSettings}
+          yarnFiles={yarnFiles}
+          pendingNodeName={pendingNodeName}
+          setPendingNodeName={setPendingNodeName}
+          suggestUniqueNodeName={suggestUniqueNodeName}
+          setNameConflictModal={setNameConflictModal}
+          roomScreenshotSearchDirs={roomScreenshotSearchDirs}
+          shouldFocusEdgeWaitRef={shouldFocusEdgeWaitRef}
+          t={t}
+          preferences={preferences}
+        />
       )
     }
 
@@ -5160,3 +3946,4 @@ export function EditorShell(): React.JSX.Element {
     </div>
   )
 }
+
