@@ -145,6 +145,52 @@ jobs:
         working-directory: editor-app
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Verify signed Team IDs
+        shell: bash
+        working-directory: editor-app
+        run: |
+          set -euo pipefail
+
+          app_path=$(find dist -maxdepth 2 -type d -name 'Undefscene Editor.app' | head -n 1)
+          if [[ -z "${app_path}" ]]; then
+            echo "Built app bundle not found" >&2
+            exit 1
+          fi
+
+          main_bin="$app_path/Contents/MacOS/Undefscene Editor"
+          framework_bin="$app_path/Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework"
+
+          if [[ ! -f "$main_bin" ]]; then
+            echo "Main executable not found: $main_bin" >&2
+            exit 1
+          fi
+
+          if [[ ! -f "$framework_bin" ]]; then
+            echo "Electron Framework not found: $framework_bin" >&2
+            exit 1
+          fi
+
+          app_team=$(codesign -dvv "$main_bin" 2>&1 | sed -n 's/^.*TeamIdentifier=//p' | tail -n 1)
+          framework_team=$(codesign -dvv "$framework_bin" 2>&1 | sed -n 's/^.*TeamIdentifier=//p' | tail -n 1)
+
+          if [[ -z "$app_team" || -z "$framework_team" ]]; then
+            echo "Unable to read TeamIdentifier from signed binaries" >&2
+            exit 1
+          fi
+
+          if [[ "$app_team" != "$framework_team" ]]; then
+            echo "TeamIdentifier mismatch: app=$app_team framework=$framework_team" >&2
+            exit 1
+          fi
+
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          spctl --assess --type execute --verbose=4 "$app_path"
 
       - name: Upload artifacts to GitHub Release
         uses: softprops/action-gh-release@v2

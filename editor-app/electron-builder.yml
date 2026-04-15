@@ -38,11 +38,14 @@ portable:
 
 # --- macOS ---
 mac:
+  forceCodeSigning: true
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
-  notarize: false
+  notarize: true
 dmg:
   artifactName: UndefsceneEditor-${version}.${ext}
 
