@@ -94,131 +94,107 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-#  build-macos:
-#    runs-on: macos-latest
-#
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@v4
-#
-#      - name: Setup Node.js
-#        uses: actions/setup-node@v4
-#        with:
-#          node-version: 20
-#
-#      - name: Install pnpm
-#        uses: pnpm/action-setup@v4
-#        with:
-#          version: 10
-#          standalone: true
-#          run_install: false
-#
-#      #region Версию приложения синхронизируем с тегом (bash): vX.Y.Z -> X.Y.Z
-#      - name: Set version from tag (macOS)
-#        if: startsWith(github.ref, 'refs/tags/v')
-#        shell: bash
-#        run: |
-#          set -euo pipefail
-#          tag="${GITHUB_REF_NAME}"
-#          version="${tag#v}"
-#
-#          # Приводим к виду X.Y.Z (если пришёл X.Y — дополняем .0; всё остальное считаем ошибкой)
-#          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-#            if [[ "$version" =~ ^[0-9]+\.[0-9]+$ ]]; then
-#              version="${version}.0"
-#            else
-#              echo "Tag '$tag' is not a semver X.Y[.Z]" >&2
-#              exit 1
-#            fi
-#          fi
-#
-#          cd editor-app
-#          pnpm version "$version" --no-git-tag-version
-#      #endregion
-#
-#      - name: Install dependencies
-#        run: pnpm install --frozen-lockfile --prefer-offline
-#        working-directory: editor-app
-#
-#      - name: Validate macOS signing configuration
-#        shell: bash
-#        env:
-#          CSC_LINK: ${{ secrets.CSC_LINK }}
-#          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-#          APPLE_ID: ${{ secrets.APPLE_ID }}
-#          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-#          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-#        run: |
-#          set -euo pipefail
-#
-#          required=(CSC_LINK APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID)
-#          for var_name in "${required[@]}"; do
-#            if [[ -z "${!var_name:-}" ]]; then
-#              echo "Required macOS signing secret is missing: $var_name" >&2
-#              exit 1
-#            fi
-#          done
-#
-#      - name: Build & Package
-#        run: pnpm run build:mac
-#        working-directory: editor-app
-#        env:
-#          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#          CSC_LINK: ${{ secrets.CSC_LINK }}
-#          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-#          APPLE_ID: ${{ secrets.APPLE_ID }}
-#          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-#          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-#
-#      - name: Verify signed Team IDs
-#        shell: bash
-#        working-directory: editor-app
-#        run: |
-#          set -euo pipefail
-#
-#          app_path=$(find dist -maxdepth 2 -type d -name 'Undefscene Editor.app' | head -n 1)
-#          if [[ -z "${app_path}" ]]; then
-#            echo "Built app bundle not found" >&2
-#            exit 1
-#          fi
-#
-#          main_bin="$app_path/Contents/MacOS/Undefscene Editor"
-#          framework_bin="$app_path/Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework"
-#
-#          if [[ ! -f "$main_bin" ]]; then
-#            echo "Main executable not found: $main_bin" >&2
-#            exit 1
-#          fi
-#
-#          if [[ ! -f "$framework_bin" ]]; then
-#            echo "Electron Framework not found: $framework_bin" >&2
-#            exit 1
-#          fi
-#
-#          app_team=$(codesign -dvv "$main_bin" 2>&1 | sed -n 's/^.*TeamIdentifier=//p' | tail -n 1)
-#          framework_team=$(codesign -dvv "$framework_bin" 2>&1 | sed -n 's/^.*TeamIdentifier=//p' | tail -n 1)
-#
-#          if [[ -z "$app_team" || -z "$framework_team" ]]; then
-#            echo "Unable to read TeamIdentifier from signed binaries" >&2
-#            exit 1
-#          fi
-#
-#          if [[ "$app_team" != "$framework_team" ]]; then
-#            echo "TeamIdentifier mismatch: app=$app_team framework=$framework_team" >&2
-#            exit 1
-#          fi
-#
-#          codesign --verify --deep --strict --verbose=2 "$app_path"
-#          spctl --assess --type execute --verbose=4 "$app_path"
-#
-#      - name: Upload artifacts to GitHub Release
-#        uses: softprops/action-gh-release@v2
-#        with:
-#          files: |
-#            editor-app/dist/UndefsceneEditor-*.dmg
-#            editor-app/dist/UndefsceneEditor-*.zip
-#            editor-app/dist/latest-mac.yml
-#          draft: false
-#          prerelease: false
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          standalone: true
+          run_install: false
+
+      #region Версию приложения синхронизируем с тегом (bash): vX.Y.Z -> X.Y.Z
+      - name: Set version from tag (macOS)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+
+          # Приводим к виду X.Y.Z (если пришёл X.Y — дополняем .0; всё остальное считаем ошибкой)
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            if [[ "$version" =~ ^[0-9]+\.[0-9]+$ ]]; then
+              version="${version}.0"
+            else
+              echo "Tag '$tag' is not a semver X.Y[.Z]" >&2
+              exit 1
+            fi
+          fi
+
+          cd editor-app
+          pnpm version "$version" --no-git-tag-version
+      #endregion
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+        working-directory: editor-app
+
+      - name: Create unsigned macOS builder config
+        shell: bash
+        working-directory: editor-app
+        run: |
+          cat > electron-builder.mac-unsigned.yml <<'EOF'
+          appId: com.undefscene.editor
+          productName: Undefscene Editor Unsigned
+          directories:
+            buildResources: build
+          files:
+            - '!**/.vscode/*'
+            - '!src/*'
+            - '!electron.vite.config.{js,ts,mjs,cjs}'
+            - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+            - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+            - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+          asarUnpack:
+            - resources/**
+          mac:
+            artifactName: UndefsceneEditor-unsigned-${version}-${arch}.${ext}
+            identity: null
+            forceCodeSigning: false
+            hardenedRuntime: false
+            notarize: false
+          dmg:
+            artifactName: UndefsceneEditor-unsigned-${version}.${ext}
+          npmRebuild: false
+          publish:
+            provider: github
+            owner: nos0uls
+            repo: Undefscene
+          EOF
+
+      - name: Build & Package
+        run: pnpm exec electron-vite build && pnpm exec electron-builder --mac --config electron-builder.mac-unsigned.yml --publish never
+        working-directory: editor-app
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Rename unsigned update manifest
+        shell: bash
+        working-directory: editor-app
+        run: |
+          if [[ -f dist/latest-mac.yml ]]; then
+            mv dist/latest-mac.yml dist/latest-mac-unsigned.yml
+          fi
+
+      - name: Upload artifacts to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            editor-app/dist/UndefsceneEditor-unsigned-*.dmg
+            editor-app/dist/UndefsceneEditor-unsigned-*.zip
+            editor-app/dist/latest-mac-unsigned.yml
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
