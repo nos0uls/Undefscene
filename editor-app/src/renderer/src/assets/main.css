@@ -341,7 +341,7 @@ code {
 
 /* Панели внутри split-контейнера должны корректно растягиваться,
    чтобы не оставлять белые/пустые зоны при одной панели. */
-.dockSlotSplit > .dockPanel {
+.dockSlotSplit>.dockPanel {
   min-height: 0;
   min-width: 0;
 }
@@ -856,11 +856,13 @@ code {
   outline: none;
 }
 
-.runtimeInput:hover, .runtimeTextarea:hover {
+.runtimeInput:hover,
+.runtimeTextarea:hover {
   background: var(--bg-overlay, var(--color-background-mute));
 }
 
-.runtimeInput:focus, .runtimeTextarea:focus {
+.runtimeInput:focus,
+.runtimeTextarea:focus {
   border-color: var(--accent-default, var(--ev-c-accent));
   background: var(--bg-base, var(--color-background));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-default, var(--ev-c-accent)) 20%, transparent);
@@ -1149,6 +1151,7 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   font-size: 14px;
   line-height: 14px;
   opacity: 0.8;
+
   &:last-child {
     border: none;
   }
@@ -1171,28 +1174,28 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 /* Container for custom node */
 .customNode {
   border: 1px solid var(--border-strong);
-  border-radius: 8px; /* Возвращаем аккуратные современные скругления */
-  /* Легкая прозрачность (90% материала, 10% сквозного) + оптимизированный blur для производительности */
-  background: color-mix(in srgb, var(--bg-surface) 92%, transparent);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  border-radius: 8px;
+  /* Возвращаем аккуратные современные скругления */
+  /* Легкая прозрачность для базового режима */
+  background: color-mix(in srgb, var(--bg-surface) 96%, transparent);
   font-size: 12px;
   color: var(--ev-c-text-1);
   min-width: 140px;
   max-width: 220px;
   /* Оптимизированный RTX-свет: меньше теней для рендера, но тот же эффект направленного света */
-  box-shadow: 
+  box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 8px 20px rgba(0, 0, 0, 0.35);
   overflow: hidden;
   transition: box-shadow 0.1s ease, border-color 0.1s ease;
 }
 
+
 .customNode.isSelected {
   border-color: var(--ev-c-accent);
-  box-shadow: 
+  box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    0 0 0 1px var(--ev-c-accent), 
+    0 0 0 1px var(--ev-c-accent),
     0 12px 28px rgba(0, 0, 0, 0.45);
 }
 
@@ -1208,14 +1211,16 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 .customNodeTitleWrapper {
   display: flex;
   align-items: center;
-  padding: 8px 10px 6px; /* Чуть увеличили нижний отступ */
+  padding: 8px 10px 6px;
+  /* Чуть увеличили нижний отступ */
 }
 
 .customNodeDot {
   display: inline-block;
   width: 6px;
   height: 6px;
-  border-radius: 50%; /* Снова круглая точка */
+  border-radius: 50%;
+  /* Снова круглая точка */
   margin-right: 6px;
   flex-shrink: 0;
 }
@@ -1321,7 +1326,8 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 .customHandle {
   width: 8px;
   height: 8px;
-  border-radius: 50%; /* Круглые элегантные порты */
+  border-radius: 50%;
+  /* Круглые элегантные порты */
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -1385,6 +1391,7 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 /* ========== /Кастомные ноды ========== */
 
 @media (max-width: 350px) {
+
   .tip,
   .actions {
     display: none;
@@ -1425,14 +1432,14 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   border-bottom: none !important;
 }
 
-/* MiniMap стилизация. */
 .react-flow__minimap {
-  background: var(--color-background-soft) !important;
-  border: 1px solid var(--ev-c-gray-2) !important;
+  background: var(--bg-surface) !important;
   border-radius: 8px !important;
+  border: 1px solid var(--border-strong) !important;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4) !important;
   width: clamp(112px, 18vw, 180px) !important;
   height: clamp(78px, 14vh, 120px) !important;
+  overflow: hidden !important;
 }
 
 /* Рёбра на холсте. */
@@ -1455,12 +1462,13 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 .actionButtonPlus {
   width: 32px;
   height: 34px;
-  border-radius: 8px; /* Возвращаем скругление */
+  border-radius: 8px;
+  /* Возвращаем скругление */
   background: color-mix(in srgb, var(--color-background-soft) 80%, var(--ev-c-accent) 20%);
   border: 1px solid color-mix(in srgb, var(--ev-c-gray-1) 80%, var(--ev-c-accent) 20%);
   color: var(--ev-c-accent);
   /* Менее тяжелая тень */
-  box-shadow: 
+  box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--ev-c-text-2) 40%, transparent),
     0 4px 10px rgba(0, 0, 0, 0.25);
   display: flex;
@@ -1476,14 +1484,14 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   color: var(--ev-c-text-1);
   transform: translateY(-1px);
   /* Фокусный свет + тень */
-  box-shadow: 
+  box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--ev-c-text-1) 50%, transparent),
     0 6px 14px rgba(0, 0, 0, 0.35);
 }
 
 .actionButtonPlus:active {
   transform: translateY(1px);
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(0, 0, 0, 0.4),
     0 1px 2px rgba(0, 0, 0, 0.1);
 }
@@ -1680,8 +1688,7 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 }
 
 /* Base icon buttons. */
-.iconButton {
-}
+.iconButton {}
 
 /* Верхняя toolbar-строка: room selector и action buttons. */
 .roomVisualEditorToolbar {
@@ -1708,9 +1715,10 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   flex-wrap: wrap;
 }
 
-/* Боковые tool-группы в sidebar удобнее складывать вертикально,
-   потому что там важнее читаемость, чем плотность кнопок. */
 .roomVisualEditorSidebarActions {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px !important;
   align-items: stretch;
 }
 
@@ -1840,6 +1848,8 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   background: transparent;
 }
 
+
+
 /* SVG overlay живёт поверх stitched canvas и не мешает base PNG слою. */
 .roomVisualEditorOverlay {
   position: absolute;
@@ -1851,7 +1861,6 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 /* Линия пути должна быть заметной на любых тайлах комнаты. */
 .roomVisualEditorPathLine {
   stroke: #5ec8ff;
-  stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
@@ -1860,7 +1869,6 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 /* Preview-сегмент рисуем пунктиром, чтобы его было легко отличить от уже импортируемого path. */
 .roomVisualEditorPathPreviewLine {
   stroke: rgba(255, 255, 255, 0.92);
-  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 8 6;

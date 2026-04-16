@@ -308,6 +308,7 @@ export interface RendererApi {
     openExternal: (url: string) => Promise<void>
     openDevTools: () => Promise<void>
     copyLogToClipboard: () => Promise<{ copied: boolean }>
+    setZoomFactor: (factor: number) => void
   }
 }
 

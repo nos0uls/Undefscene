@@ -4,11 +4,11 @@ export const NODE_COLORS: Record<string, string> = {
   flow: 'var(--node-start)', // start, end, wait — синий
   movement: 'var(--node-animate)', // move, follow_path, set_position — фиолетовый
   actor: 'var(--node-animate)', // actor_create, actor_destroy — фиолетовый
-  visual: 'var(--node-animate)', // animate, set_facing, set_depth, auto_facing, auto_walk
+  visual: 'var(--node-animate)', // animate, set_facing, set_depth, auto_facing, auto_walk, flip, visible
   dialogue: 'var(--node-dialogue)', // dialogue — розовый
-  camera: 'var(--node-camera)', // camera_track, camera_pan, camera_shake — зелёный
-  logic: 'var(--node-logic)', // parallel, branch, run_function — оранжевый
-  audio: 'var(--node-audio)', // play_sound, play_music — бирюзовый
+  camera: 'var(--node-camera)', // camera_track, camera_pan, camera_shake, tween(camera) — зелёный
+  logic: 'var(--node-logic)', // parallel, branch, run_function, instant_mode — оранжевый
+  audio: 'var(--node-audio)', // play_sfx — бирюзовый
   wait: 'var(--node-wait)' // wait-related — серо-синий
 }
 
@@ -33,7 +33,19 @@ export const NODE_CATEGORY: Record<string, string> = {
   run_function: 'logic',
   camera_shake: 'camera',
   auto_facing: 'visual',
-  auto_walk: 'visual'
+  auto_walk: 'visual',
+  tween: 'camera',
+  fade_in: 'camera',
+  fade_out: 'camera',
+  play_sfx: 'audio',
+  emote: 'visual',
+  jump: 'movement',
+  halt: 'movement',
+  flip: 'visual',
+  spin: 'visual',
+  shake_object: 'visual',
+  set_visible: 'visual',
+  instant_mode: 'logic'
 }
 
 // Короткие метки для типов нод (отображаются в заголовке).
@@ -57,5 +69,17 @@ export const NODE_LABELS: Record<string, string> = {
   run_function: 'Run Function',
   camera_shake: 'Camera Shake',
   auto_facing: 'Auto Facing',
-  auto_walk: 'Auto Walk'
+  auto_walk: 'Auto Walk',
+  tween: 'Tween',
+  fade_in: 'Fade In',
+  fade_out: 'Fade Out',
+  play_sfx: 'Play SFX',
+  emote: 'Emote',
+  jump: 'Jump',
+  halt: 'Halt',
+  flip: 'Flip',
+  spin: 'Spin',
+  shake_object: 'Shake Object',
+  set_visible: 'Set Visible',
+  instant_mode: 'Instant Mode'
 }

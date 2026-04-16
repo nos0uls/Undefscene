@@ -53,6 +53,7 @@ type RoomVisualEditorOverlayProps = {
   getActorSpritePreview: (
     actor: RoomVisualEditorOverlayActor
   ) => RoomVisualEditorOverlaySpritePreview | null
+  trueRtx: boolean
 }
 
 // SVG-overlay рисует сетку, path и actor markers поверх canvas.
@@ -78,11 +79,12 @@ export function RoomVisualEditorOverlay({
   selectedActorId,
   playPreviewPoint,
   activeTool,
-  getActorSpritePreview
+  getActorSpritePreview,
+  trueRtx
 }: RoomVisualEditorOverlayProps) {
   return (
     <svg
-      className="roomVisualEditorOverlay"
+      className={['roomVisualEditorOverlay', trueRtx ? 'isTrueRtx' : ''].filter(Boolean).join(' ')}
       width={meta.room_width}
       height={meta.room_height}
       viewBox={`0 0 ${meta.room_width} ${meta.room_height}`}

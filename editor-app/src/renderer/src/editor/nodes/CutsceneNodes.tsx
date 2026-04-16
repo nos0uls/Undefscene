@@ -482,3 +482,128 @@ export function RunFunctionNode({ data, selected }: CutsceneNodeProps): React.JS
     </BaseNode>
   )
 }
+
+export function TweenNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const kind = data.params?.kind ?? 'instance'
+  const target = data.params?.target ?? 'camera'
+  const property = data.params?.property ?? data.params?.field ?? ''
+  const to = data.params?.to ?? data.params?.end_value ?? '?'
+  return (
+    <BaseNode nodeType="tween" selected={selected}>
+      <div className="customNodeParam">{String(kind) === 'camera' ? 'camera' : String(target)}</div>
+      <div className="customNodeParam">{String(property)} → {String(to)}</div>
+    </BaseNode>
+  )
+}
+
+export function FadeInNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const seconds = data.params?.seconds ?? '?'
+  return (
+    <BaseNode nodeType="fade_in" selected={selected}>
+      <div className="customNodeParam">{String(seconds)}s</div>
+    </BaseNode>
+  )
+}
+
+export function FadeOutNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const seconds = data.params?.seconds ?? '?'
+  return (
+    <BaseNode nodeType="fade_out" selected={selected}>
+      <div className="customNodeParam">{String(seconds)}s</div>
+    </BaseNode>
+  )
+}
+
+export function PlaySFXNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const sound = data.params?.sound ?? data.params?.key ?? ''
+  return (
+    <BaseNode nodeType="play_sfx" selected={selected}>
+      {sound && <div className="customNodeParam">{String(sound)}</div>}
+    </BaseNode>
+  )
+}
+
+export function EmoteNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const sprite = data.params?.sprite ?? ''
+  return (
+    <BaseNode nodeType="emote" selected={selected}>
+      <div className="customNodeParam">{String(target)}</div>
+      {sprite && <div className="customNodeParam">{String(sprite)}</div>}
+    </BaseNode>
+  )
+}
+
+export function JumpNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const x = data.params?.x ?? '?'
+  const y = data.params?.y ?? '?'
+  return (
+    <BaseNode nodeType="jump" selected={selected}>
+      <div className="customNodeParam">{String(target)}</div>
+      <div className="customNodeParam">→ {String(x)}, {String(y)}</div>
+    </BaseNode>
+  )
+}
+
+export function HaltNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  return (
+    <BaseNode nodeType="halt" selected={selected}>
+      <div className="customNodeParam">{String(target)}</div>
+    </BaseNode>
+  )
+}
+
+export function FlipNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const flipped = data.params?.flipped ?? true
+  return (
+    <BaseNode nodeType="flip" selected={selected}>
+      <div className="customNodeParam">{String(target)}</div>
+      <div className="customNodeParam">{String(flipped)}</div>
+    </BaseNode>
+  )
+}
+
+export function SpinNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const speed = data.params?.speed ?? '?'
+  return (
+    <BaseNode nodeType="spin" selected={selected}>
+      <div className="customNodeParam">{String(target)}</div>
+      <div className="customNodeParam">speed: {String(speed)}</div>
+    </BaseNode>
+  )
+}
+
+export function ShakeObjectNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const magnitude = data.params?.magnitude ?? 4
+  return (
+    <BaseNode nodeType="shake_object" selected={selected}>
+      <div className="customNodeParam">{String(target)}</div>
+      <div className="customNodeParam">mag: {String(magnitude)}</div>
+    </BaseNode>
+  )
+}
+
+export function SetVisibleNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const visible = data.params?.visible ?? true
+  return (
+    <BaseNode nodeType="set_visible" selected={selected}>
+      <div className="customNodeParam">{String(target)}</div>
+      <div className="customNodeParam">{String(visible)}</div>
+    </BaseNode>
+  )
+}
+
+export function InstantModeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const enabled = data.params?.enabled ?? true
+  return (
+    <BaseNode nodeType="instant_mode" selected={selected}>
+      <div className="customNodeParam">{String(enabled)}</div>
+    </BaseNode>
+  )
+}

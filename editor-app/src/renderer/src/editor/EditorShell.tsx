@@ -710,12 +710,43 @@ export function EditorShell(): React.JSX.Element {
       }
 
       const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      const defaultParamsByType: Record<string, Record<string, unknown>> = {
+        dialogue: { file: '', node: '' },
+        move: { target: 'player', x: 0, y: 0, speed_px_sec: 60, collision: false },
+        follow_path: { target: 'player', points: [], speed_px_sec: 60, collision: false },
+        set_position: { target: 'player', x: 0, y: 0 },
+        actor_create: { key: '', sprite_or_object: '', x: 0, y: 0 },
+        actor_destroy: { target: 'player' },
+        animate: { target: 'player', sprite: '', image_index: 0, image_speed: 1 },
+        camera_track: { target: 'player', seconds: 1, offset_x: 0, offset_y: 0 },
+        camera_pan: { x: 0, y: 0, seconds: 1 },
+        set_depth: { target: 'player', depth: 0 },
+        set_facing: { target: 'player', direction: 'right' },
+        branch: { condition: '' },
+        run_function: { function: '', args: '' },
+        camera_shake: { seconds: 1, magnitude: 4 },
+        auto_facing: { target: 'player', enabled: true },
+        auto_walk: { target: 'player', enabled: true },
+        tween: { kind: 'instance', target: 'player', property: 'x', to: 0, seconds: 1, easing: 'linear' },
+        fade_in: { seconds: 0.5, color: 'black' },
+        fade_out: { seconds: 0.5, color: 'black' },
+        play_sfx: { sound: '', volume: 1, pitch: 1 },
+        emote: { target: 'player', sprite: '', seconds: 1, offset_x: 0, offset_y: -24, scale: 1 },
+        jump: { target: 'player', x: 0, y: 0, seconds: 0.5, height: 16, easing: 'linear' },
+        halt: { target: 'player' },
+        flip: { target: 'player', flipped: true },
+        spin: { target: 'player', speed: 10, seconds: 1 },
+        shake_object: { target: 'player', seconds: 0.5, magnitude: 4 },
+        set_visible: { target: 'player', visible: true },
+        instant_mode: { enabled: true }
+      }
       const newNode: RuntimeNode = {
         id: newId,
         type,
         name: suggestUniqueNodeName('Node', takenNames),
         text: '',
-        position: { x: position.x, y: position.y }
+        position: { x: position.x, y: position.y },
+        params: defaultParamsByType[type]
       }
 
       const newEdges = connectFromNodeId
@@ -2131,7 +2162,19 @@ export function EditorShell(): React.JSX.Element {
         'set_facing',
         'camera_shake',
         'auto_facing',
-        'auto_walk'
+        'auto_walk',
+        'tween',
+        'fade_in',
+        'fade_out',
+        'play_sfx',
+        'emote',
+        'jump',
+        'halt',
+        'flip',
+        'spin',
+        'shake_object',
+        'set_visible',
+        'instant_mode'
       ]
 
       return (

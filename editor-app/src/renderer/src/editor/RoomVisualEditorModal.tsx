@@ -1647,10 +1647,10 @@ export function RoomVisualEditorModal({
 
       <div className="prefsBody roomVisualEditorBody">
         <div className="roomVisualEditorToolbar">
-          <label className="prefsField roomVisualEditorField">
-            <span>{t('editor.visualEditingRoom', 'Room')}</span>
+          <label className="runtimeField roomVisualEditorField" style={{ margin: 0, padding: 0 }}>
+            <span style={{ minWidth: 60 }}>{t('editor.visualEditingRoom', 'Room')}</span>
             <SearchableSelect
-              className="prefsInput"
+              className="runtimeInput"
               options={availableRooms}
               value={selectedRoom}
               onChange={(value) => setSelectedRoom(value)}
@@ -1684,10 +1684,10 @@ export function RoomVisualEditorModal({
         </div>
 
         <div className="roomVisualEditorLayout">
-          <div className="roomVisualEditorSidebar prefsSection">
-            <div className="prefsSectionTitle">{t('editor.visualEditingInfo', 'Info')}</div>
+          <div className="roomVisualEditorSidebar runtimeSection">
+            <div className="runtimeSectionTitle">{t('editor.visualEditingInfo', 'Info')}</div>
 
-            <div className="prefsField roomVisualEditorField">
+            <div className="runtimeField roomVisualEditorField">
               <span>{t('editor.visualEditingSelectedNode', 'Selected Node')}</span>
               <code className="roomVisualEditorCode">
                 {selectedNode
@@ -1696,74 +1696,74 @@ export function RoomVisualEditorModal({
               </code>
             </div>
 
-            {!projectDir ? <div className="prefsHint">{t('editor.visualEditingNoProject', 'Open a project.')}</div> : null}
+            {!projectDir ? <div className="runtimeHint">{t('editor.visualEditingNoProject', 'Open a project.')}</div> : null}
 
             {isLoading ? (
-              <div className="prefsHint">{t('editor.visualEditingLoading', 'Loading screenshots...')}</div>
+              <div className="runtimeHint">{t('editor.visualEditingLoading', 'Loading screenshots...')}</div>
             ) : null}
 
-            {errorMessage ? <div className="prefsHint">{errorMessage}</div> : null}
+            {errorMessage ? <div className="runtimeHint">{errorMessage}</div> : null}
 
-            {bundle?.warning ? <div className="prefsHint">{bundle.warning}</div> : null}
+            {bundle?.warning ? <div className="runtimeHint">{bundle.warning}</div> : null}
 
             {techMode && bundle?.meta ? (
               <>
-                <div className="prefsField roomVisualEditorField">
+                <div className="runtimeField roomVisualEditorField">
                   <span>{t('editor.visualEditingSource', 'Source')}</span>
                   <code className="roomVisualEditorCode">{bundle.sourceDir ?? '—'}</code>
                 </div>
-                <div className="prefsField roomVisualEditorField">
+                <div className="runtimeField roomVisualEditorField">
                   <span>{t('editor.visualEditingSearchDirs', 'Search Dirs')}</span>
                   <code className="roomVisualEditorCode">
                     {bundle.searchedDirs.length > 0 ? bundle.searchedDirs.join(' | ') : '—'}
                   </code>
                 </div>
-                <div className="prefsField roomVisualEditorField">
+                <div className="runtimeField roomVisualEditorField">
                   <span>{t('editor.visualEditingRoomSize', 'Room Size')}</span>
                   <code className="roomVisualEditorCode">
                     {bundle.meta.room_width} × {bundle.meta.room_height}
                   </code>
                 </div>
-                <div className="prefsField roomVisualEditorField">
+                <div className="runtimeField roomVisualEditorField">
                   <span>{t('editor.visualEditingCaptureSize', 'Capture Tile')}</span>
                   <code className="roomVisualEditorCode">
                     {bundle.meta.capture_width} × {bundle.meta.capture_height}
                   </code>
                 </div>
-                <div className="prefsField roomVisualEditorField">
+                <div className="runtimeField roomVisualEditorField">
                   <span>{t('editor.visualEditingGrid', 'Tile Grid')}</span>
                   <code className="roomVisualEditorCode">
                     {bundle.meta.rows} × {bundle.meta.cols}
                   </code>
                 </div>
-                <div className="prefsField roomVisualEditorField">
+                <div className="runtimeField roomVisualEditorField">
                   <span>{t('editor.visualEditingTilesLoaded', 'Tiles Loaded')}</span>
                   <code className="roomVisualEditorCode">{bundle.tiles.length}</code>
                 </div>
-                <div className="prefsField roomVisualEditorField">
+                <div className="runtimeField roomVisualEditorField">
                   <span>{t('editor.visualEditingMissingTiles', 'Missing Tiles')}</span>
                   <code className="roomVisualEditorCode">{bundle.missingTiles.length}</code>
                 </div>
-                <div className="prefsField roomVisualEditorField">
+                <div className="runtimeField roomVisualEditorField">
                   <span>{t('editor.visualEditingZoomLabel', 'Zoom')}</span>
                   <code className="roomVisualEditorCode">{Math.round(zoom * 100)}%</code>
                 </div>
-                <div className="prefsField roomVisualEditorField">
+                <div className="runtimeField roomVisualEditorField">
                   <span>{t('editor.visualEditingPathPoints', 'Path Points')}</span>
                   <code className="roomVisualEditorCode">{draftPathPoints.length}</code>
                 </div>
-                <div className="prefsField roomVisualEditorField">
+                <div className="runtimeField roomVisualEditorField">
                   <span>{t('editor.visualEditingActors', 'Actors')}</span>
                   <code className="roomVisualEditorCode">{draftActors.length}</code>
                 </div>
               </>
             ) : projectDir && selectedRoom && !isLoading && !bundle?.meta ? (
               <>
-                <div className="prefsHint">
+                <div className="runtimeHint">
                   {t('editor.visualEditingNoMeta', 'No room screenshot data found.')}
                 </div>
                 {techMode ? (
-                  <div className="prefsField roomVisualEditorField">
+                  <div className="runtimeField roomVisualEditorField">
                     <span>{t('editor.visualEditingSearchDirs', 'Search Dirs')}</span>
                     <code className="roomVisualEditorCode">
                       {bundle?.searchedDirs?.length ? bundle.searchedDirs.join(' | ') : '—'}
@@ -1774,14 +1774,14 @@ export function RoomVisualEditorModal({
             ) : null}
 
             {!projectDir ? null : !isLoading && availableRooms.length <= 0 ? (
-              <div className="prefsHint">
+              <div className="runtimeHint">
                 {t('editor.visualEditingNoScreenshotRooms', 'No rooms with screenshots.')}
               </div>
             ) : null}
 
-            <div className="prefsSectionTitle">{t('editor.visualEditingPathTools', 'Path Tools')}</div>
+            <div className="runtimeSectionTitle" style={{ marginTop: 12 }}>{t('editor.visualEditingPathTools', 'Path Tools')}</div>
 
-            <label className="prefsField prefsCheckbox">
+            <label className="runtimeField" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <input
                 type="checkbox"
                 checked={visualEditorShowGrid}
@@ -1790,7 +1790,7 @@ export function RoomVisualEditorModal({
               <span>{t('editor.visualEditingShowGrid', 'Show Grid')}</span>
             </label>
 
-            <label className="prefsField prefsCheckbox">
+            <label className="runtimeField" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <input
                 type="checkbox"
                 checked={visualEditorSnapToGrid}
@@ -1801,10 +1801,10 @@ export function RoomVisualEditorModal({
 
             {visualEditorSnapToGrid ? (
               <>
-                <div className="prefsField roomVisualEditorField">
+                <div className="runtimeField roomVisualEditorField">
                   <span>{t('editor.visualEditingGridOffsetX', 'Grid Offset X')}</span>
                   <input
-                    className="prefsInput"
+                    className="runtimeInput"
                     type="number"
                     step={1}
                     value={visualGridOffsetX}
@@ -1817,10 +1817,10 @@ export function RoomVisualEditorModal({
                   />
                 </div>
 
-                <div className="prefsField roomVisualEditorField">
+                <div className="runtimeField roomVisualEditorField">
                   <span>{t('editor.visualEditingGridOffsetY', 'Grid Offset Y')}</span>
                   <input
-                    className="prefsInput"
+                    className="runtimeInput"
                     type="number"
                     step={1}
                     value={visualGridOffsetY}
@@ -1835,10 +1835,10 @@ export function RoomVisualEditorModal({
               </>
             ) : null}
 
-            <div className="prefsField roomVisualEditorField">
+            <div className="runtimeField roomVisualEditorField">
               <span>{t('editor.visualEditingPathSizeMultiplier', 'Path Size Multiplier')}</span>
               <input
-                className="prefsInput"
+                className="runtimeInput"
                 type="number"
                 min={0.5}
                 max={4}
@@ -1886,15 +1886,15 @@ export function RoomVisualEditorModal({
               </button>
             </div>
 
-            <div className="prefsHint">
+            <div className="runtimeHint">
               {t('editor.visualEditingPathHint', 'B: Pencil · G: Eraser · Ctrl+E: Import Path · Shift: straight line')}
             </div>
 
-            <div className="prefsSectionTitle">{t('editor.visualEditingActorTools', 'Actor Preview')}</div>
-            <label className="prefsField roomVisualEditorField">
+            <div className="runtimeSectionTitle" style={{ marginTop: 12 }}>{t('editor.visualEditingActorTools', 'Actor Preview')}</div>
+            <label className="runtimeField roomVisualEditorField">
               <span>{t('editor.visualEditingActorPicker', 'Actor')}</span>
               <select
-                className="prefsInput"
+                className="runtimeInput"
                 value={selectedActorId ?? ''}
                 onChange={(event) => {
                   const nextActorId = event.target.value.trim()
@@ -1914,13 +1914,13 @@ export function RoomVisualEditorModal({
             </label>
 
             {draftActors.length <= 0 ? (
-              <div className="prefsHint">
+              <div className="runtimeHint">
                 {t('editor.visualEditingNoActors', 'No actors available.')}
               </div>
             ) : null}
 
             {selectedActor ? (
-              <div className="prefsField roomVisualEditorField">
+              <div className="runtimeField roomVisualEditorField">
                 <span>{t('editor.visualEditingActorPosition', 'Actor Position')}</span>
                 <code className="roomVisualEditorCode">
                   {`${selectedActor.x}, ${selectedActor.y}`}
@@ -1974,7 +1974,7 @@ export function RoomVisualEditorModal({
             </div>
 
             {selectedActor ? (
-              <div className="prefsHint">
+              <div className="runtimeHint">
                 {t('editor.visualEditingActorHint', 'Select an actor, place it on the room, then import actors when ready.')}
               </div>
             ) : null}
@@ -2034,6 +2034,7 @@ export function RoomVisualEditorModal({
                   playPreviewPoint={playPreviewPoint}
                   activeTool={activeTool}
                   getActorSpritePreview={getActorSpritePreview}
+                  trueRtx={preferences.visualEditorTrueRtx}
                 />
               ) : null}
             </div>

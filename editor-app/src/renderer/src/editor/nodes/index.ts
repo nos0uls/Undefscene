@@ -21,7 +21,19 @@ import {
   RunFunctionNode,
   CameraShakeNode,
   AutoFacingNode,
-  AutoWalkNode
+  AutoWalkNode,
+  TweenNode,
+  FadeInNode,
+  FadeOutNode,
+  PlaySFXNode,
+  EmoteNode,
+  JumpNode,
+  HaltNode,
+  FlipNode,
+  SpinNode,
+  ShakeObjectNode,
+  SetVisibleNode,
+  InstantModeNode
 } from './CutsceneNodes'
 
 // Маппинг: тип ноды → React-компонент.
@@ -48,5 +60,17 @@ export const cutsceneNodeTypes = {
   run_function: RunFunctionNode,
   camera_shake: CameraShakeNode,
   auto_facing: AutoFacingNode,
-  auto_walk: AutoWalkNode
+  auto_walk: AutoWalkNode,
+  tween: TweenNode,
+  fade_in: FadeInNode,
+  fade_out: FadeOutNode,
+  play_sfx: PlaySFXNode,
+  emote: EmoteNode,
+  jump: JumpNode,
+  halt: HaltNode,
+  flip: FlipNode,
+  spin: SpinNode,
+  shake_object: ShakeObjectNode,
+  set_visible: SetVisibleNode,
+  instant_mode: InstantModeNode
 } as const

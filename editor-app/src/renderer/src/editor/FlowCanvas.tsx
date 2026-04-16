@@ -980,11 +980,12 @@ const FlowCanvasInner = ({
         <ScaledBackground />
         {prefs.showMiniMap ? (
           <MiniMap
-            zoomable
-            pannable
+            zoomable={false}
+            pannable={false}
             nodeColor="#7ea4ff"
-            maskColor="rgba(7, 10, 12, 0.6)"
-            style={{ cursor: 'grab', pointerEvents: 'auto' }}
+            maskColor="transparent"
+            maskStrokeColor="transparent"
+            style={{ cursor: 'default', pointerEvents: 'none' }}
           />
         ) : null}
         <Controls showInteractive={false} />

@@ -142,6 +142,10 @@ export interface EditorPreferences {
   // Храним отдельно, чтобы можно было точно выставить вертикальную фазу сетки.
   visualEditorGridOffsetY: number
 
+  // True RTX mode: включает тяжелые, но красивые шейдеры / blending modes
+  // для узлов графа и визуального редактора (динамическое стекло, цвет от фона).
+  visualEditorTrueRtx: boolean
+
   // Множитель визуального размера path line и path points внутри Visual Editing.
   // На сами world-space координаты пути он не влияет — меняется только отображение.
   visualEditorPathSizeMultiplier: number
@@ -184,6 +188,7 @@ export const DEFAULT_PREFERENCES: EditorPreferences = {
   visualEditorSnapToGrid: true,
   visualEditorGridOffsetX: 0,
   visualEditorGridOffsetY: 0,
+  visualEditorTrueRtx: false,
   visualEditorPathSizeMultiplier: 1,
   keybindings: DEFAULT_KEYBINDINGS,
   showNodeNameOnCanvas: true,
@@ -275,6 +280,10 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
       typeof c.visualEditorGridOffsetY === 'number' && c.visualEditorGridOffsetY >= -200 && c.visualEditorGridOffsetY <= 200
         ? Math.round(c.visualEditorGridOffsetY)
         : DEFAULT_PREFERENCES.visualEditorGridOffsetY,
+    visualEditorTrueRtx:
+      typeof c.visualEditorTrueRtx === 'boolean'
+        ? c.visualEditorTrueRtx
+        : DEFAULT_PREFERENCES.visualEditorTrueRtx,
     visualEditorPathSizeMultiplier:
       typeof c.visualEditorPathSizeMultiplier === 'number' &&
       c.visualEditorPathSizeMultiplier >= 0.5 &&

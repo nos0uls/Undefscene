@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webFrame } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 // Кастомные API для renderer.
@@ -187,12 +187,12 @@ const api = {
       }
     }
   },
-  // Базовая информация о приложении для About modal и внешних ссылок.
   appInfo: {
     getVersion: (): Promise<unknown> => ipcRenderer.invoke('app.getVersion'),
     openExternal: (url: string): Promise<unknown> => ipcRenderer.invoke('app.openExternal', url),
     openDevTools: (): Promise<unknown> => ipcRenderer.invoke('app.openDevTools'),
-    copyLogToClipboard: (): Promise<unknown> => ipcRenderer.invoke('app.copyLogToClipboard')
+    copyLogToClipboard: (): Promise<unknown> => ipcRenderer.invoke('app.copyLogToClipboard'),
+    setZoomFactor: (factor: number): void => webFrame.setZoomFactor(factor)
   }
 }
 

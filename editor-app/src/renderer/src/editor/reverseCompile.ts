@@ -369,21 +369,51 @@ function actionToRuntimeNode(
   pendingNodeName: string | null,
   position: { x: number; y: number }
 ): RuntimeNode {
-  const nodeId = nextNodeId(context, action.type)
+  const rawType = String(action.type ?? '')
+  const normalizedType =
+    rawType === 'fadein'
+      ? 'fade_in'
+      : rawType === 'fadeout'
+        ? 'fade_out'
+        : rawType === 'sfx'
+          ? 'play_sfx'
+          : rawType === 'shakeobj'
+            ? 'shake_object'
+            : rawType === 'visible'
+              ? 'set_visible'
+              : rawType === 'set_instant'
+                ? 'instant_mode'
+                : rawType
+
+  const nodeId = nextNodeId(context, normalizedType)
   const params: Record<string, unknown> = {}
 
   for (const [key, value] of Object.entries(action)) {
     if (key === 'type') continue
+    if (normalizedType === 'play_sfx' && key === 'key' && action.sound === undefined) {
+      params.sound = value
+      continue
+    }
+    if (normalizedType === 'tween' && key === 'target_kind' && action.kind === undefined) {
+      params.kind = value
+      continue
+    }
+    if (normalizedType === 'set_visible' && key === 'enabled' && action.visible === undefined) {
+      params.visible = value
+      continue
+    }
+    if (normalizedType === 'instant_mode' && key === 'enabled') {
+      params.enabled = value
+      continue
+    }
     params[key] = value
   }
 
   return {
     id: nodeId,
-    type: action.type,
-    name: pendingNodeName ?? defaultNodeName(action.type, context.serial),
-    // Для dialogue text отдельно не восстанавливается из engine JSON,
-    // потому что экспорт обычно содержит file/node, а не свободный editor text.
-    text: action.type === 'dialogue' ? '' : undefined,
+    type: normalizedType,
+    name: pendingNodeName ?? defaultNodeName(normalizedType, context.serial),
+    text: normalizedType === 'dialogue' ? '' : undefined,
     position,
     params
   }

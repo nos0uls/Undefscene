@@ -191,7 +191,9 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
     'start', 'end', 'move', 'follow_path', 'actor_create', 'actor_destroy',
     'animate', 'dialogue', 'camera_track', 'camera_pan', 'camera_shake',
     'parallel_start', 'branch', 'run_function', 'set_position', 'set_depth',
-    'set_facing', 'auto_facing', 'auto_walk'
+    'set_facing', 'auto_facing', 'auto_walk', 'tween', 'fade_in', 'fade_out',
+    'play_sfx', 'emote', 'jump', 'halt', 'flip', 'spin', 'shake_object',
+    'set_visible', 'instant_mode'
   ]
 
   const incomingCount = selectedNode
@@ -334,7 +336,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
                     ))}
                     <button style={{ fontSize: 12, marginTop: 2, cursor: 'pointer' }} onClick={() => { const last = points[points.length - 1]; setPoints([...points, last ? { x: last.x + 32, y: last.y } : { x: 0, y: 0 }]) }}>{t('editor.addPoint', '+ Add Point')}</button>
                     {points.length === 0 && <div className="runtimeHint" style={{ opacity: 0.5, fontSize: 11 }}>{t('editor.noWaypointsYet', 'No waypoints yet. Click "+ Add Point" to start.')}</div>}
-                    <FollowPathPreview points={points} speedPxPerSecond={Number(selectedNode.params?.speed_px_sec ?? 60)} title={t('editor.followPathPreview', 'Path Preview')} hint={t('editor.followPathPreviewHint', 'Animated editor preview of the path shape and waypoint order.')} emptyLabel={t('editor.followPathPreviewNoPoints', 'Add at least one point to preview the path.')} worldSpaceLabel={t('editor.followPathPreviewWorldSpace', 'Points are shown in normalized world-space proportions.')} />
+                    <FollowPathPreview points={points} speedPxPerSecond={Number(selectedNode.params?.speed_px_sec ?? 60)} title={t('editor.followPathPreview', 'Preview')} hint={t('editor.followPathPreviewHint', 'Path and waypoint order.')} emptyLabel={t('editor.followPathPreviewNoPoints', 'Add a point to preview.')} worldSpaceLabel={t('editor.followPathPreviewWorldSpace', 'Relative world space.')} />
                   </>
                 )
               })()}
@@ -344,7 +346,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {/* --- actor_create --- */}
           {selectedNode.type === 'actor_create' && (
             <>
-              <label className="runtimeField"><span>Key</span><input className="runtimeInput" placeholder="npc_guide" value={String((selectedNode.params?.key as string) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'key', event.target.value)} /></label>
+              <label className="runtimeField"><span>Key</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="npc_guide" value={String((selectedNode.params?.key as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'key', v)} /></label>
               <label className="runtimeField"><span>Sprite / Object</span><SearchableSelect className="runtimeInput" options={spriteOrObjectOptions} value={String((selectedNode.params?.sprite_or_object as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'sprite_or_object', v)} placeholder="obj_actor / spr_..." style={selectedNode.params?.sprite_or_object && !spriteOrObjectOptions.includes(String(selectedNode.params.sprite_or_object)) ? { borderColor: '#e05050' } : undefined} /></label>
               <label className="runtimeField"><span>X</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.x as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'x', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Y</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.y as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'y', Number(event.target.value))} /></label>
@@ -451,6 +453,102 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
             </>
           )}
 
+          {selectedNode.type === 'tween' && (
+            <>
+              <label className="runtimeField"><span>Kind</span><select className="runtimeInput" value={String((selectedNode.params?.kind as string) ?? 'instance')} onChange={(event) => updateNodeParam(selectedNode.id, 'kind', event.target.value)}><option value="instance">instance</option><option value="camera">camera</option></select></label>
+              {String((selectedNode.params?.kind as string) ?? 'instance') !== 'camera' ? (
+                <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              ) : null}
+              <label className="runtimeField"><span>Property</span><input className="runtimeInput" value={String((selectedNode.params?.property as string) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'property', event.target.value)} /></label>
+              <label className="runtimeField"><span>To</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.to as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'to', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>From (optional)</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.from as number) ?? '')} onChange={(event) => { const v = event.target.value; updateNodeParam(selectedNode.id, 'from', v === '' ? '' : Number(v)) }} /></label>
+              <label className="runtimeField"><span>Seconds</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.seconds as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Easing</span><select className="runtimeInput" value={String((selectedNode.params?.easing as string) ?? 'linear')} onChange={(event) => updateNodeParam(selectedNode.id, 'easing', event.target.value)}><option value="linear">linear</option><option value="ease_in">ease_in</option><option value="ease_out">ease_out</option><option value="ease_in_out">ease_in_out</option></select></label>
+            </>
+          )}
+
+          {selectedNode.type === 'fade_in' && (
+            <>
+              <label className="runtimeField"><span>Seconds</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.seconds as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Color</span><input className="runtimeInput" value={String((selectedNode.params?.color as string) ?? 'black')} onChange={(event) => updateNodeParam(selectedNode.id, 'color', event.target.value)} /></label>
+            </>
+          )}
+
+          {selectedNode.type === 'fade_out' && (
+            <>
+              <label className="runtimeField"><span>Seconds</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.seconds as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Color</span><input className="runtimeInput" value={String((selectedNode.params?.color as string) ?? 'black')} onChange={(event) => updateNodeParam(selectedNode.id, 'color', event.target.value)} /></label>
+            </>
+          )}
+
+          {selectedNode.type === 'play_sfx' && (
+            <>
+              <label className="runtimeField"><span>Sound / Key</span><input className="runtimeInput" value={String((selectedNode.params?.sound as string) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'sound', event.target.value)} /></label>
+              <label className="runtimeField"><span>Volume</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.volume as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'volume', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Pitch</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.pitch as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'pitch', Number(event.target.value))} /></label>
+            </>
+          )}
+
+          {selectedNode.type === 'emote' && (
+            <>
+              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <label className="runtimeField"><span>Sprite</span><SearchableSelect className="runtimeInput" options={spriteOptions} value={String((selectedNode.params?.sprite as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'sprite', v)} placeholder="spr_..." /></label>
+              <label className="runtimeField"><span>Seconds</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.seconds as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Offset X</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.offset_x as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'offset_x', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Offset Y</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.offset_y as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'offset_y', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Scale</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.scale as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'scale', Number(event.target.value))} /></label>
+            </>
+          )}
+
+          {selectedNode.type === 'jump' && (
+            <>
+              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <label className="runtimeField"><span>X</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.x as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'x', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Y</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.y as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'y', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Seconds</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.seconds as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Height</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.height as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'height', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Easing</span><select className="runtimeInput" value={String((selectedNode.params?.easing as string) ?? 'linear')} onChange={(event) => updateNodeParam(selectedNode.id, 'easing', event.target.value)}><option value="linear">linear</option><option value="ease_in">ease_in</option><option value="ease_out">ease_out</option><option value="ease_in_out">ease_in_out</option></select></label>
+            </>
+          )}
+
+          {selectedNode.type === 'halt' && (
+            <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+          )}
+
+          {selectedNode.type === 'flip' && (
+            <>
+              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <label className="runtimeField"><span>Flipped</span><select className="runtimeInput" value={String(selectedNode.params?.flipped ?? 'true')} onChange={(event) => updateNodeParam(selectedNode.id, 'flipped', event.target.value === 'true')}><option value="true">true</option><option value="false">false</option></select></label>
+            </>
+          )}
+
+          {selectedNode.type === 'spin' && (
+            <>
+              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <label className="runtimeField"><span>Speed</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.speed as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'speed', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Seconds</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.seconds as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))} /></label>
+            </>
+          )}
+
+          {selectedNode.type === 'shake_object' && (
+            <>
+              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <label className="runtimeField"><span>Seconds</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.seconds as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Magnitude</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.magnitude as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'magnitude', Number(event.target.value))} /></label>
+            </>
+          )}
+
+          {selectedNode.type === 'set_visible' && (
+            <>
+              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <label className="runtimeField"><span>Visible</span><select className="runtimeInput" value={String(selectedNode.params?.visible ?? 'true')} onChange={(event) => updateNodeParam(selectedNode.id, 'visible', event.target.value === 'true')}><option value="true">true</option><option value="false">false</option></select></label>
+            </>
+          )}
+
+          {selectedNode.type === 'instant_mode' && (
+            <label className="runtimeField"><span>Enabled</span><select className="runtimeInput" value={String(selectedNode.params?.enabled ?? 'true')} onChange={(event) => updateNodeParam(selectedNode.id, 'enabled', event.target.value === 'true')}><option value="true">true</option><option value="false">false</option></select></label>
+          )}
+
           {selectedNode.position && (
             <div className="runtimeHint" style={{ opacity: 0.6 }}>
               Position: {Math.round(selectedNode.position.x)}, {Math.round(selectedNode.position.y)}
@@ -504,13 +602,13 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {t('editor.objects', 'Objects')}: {resources.objects.length}<br />
           {t('editor.rooms', 'Rooms')}: {resources.rooms.length}<br />
           {t('editor.yarnFiles', 'Yarn Files')}: {yarnFiles.length}
-          {resources.restoredFromLastSession ? (<><br />{t('editor.projectCacheRestored', 'Restored the last cached GameMaker project.')}</>) : null}<br />
-          {resources.cacheStatus === 'warm' ? t('editor.projectCacheWarmOpen', 'Project resources were restored from cache.') : t('editor.projectCacheColdOpen', 'Project resources were read directly from disk.')}<br />
-          {t('editor.projectCacheScreenshots', 'Room screenshots cache folder is ready for future previews.')}<br />
+          {resources.restoredFromLastSession ? (<><br />{t('editor.projectCacheRestored', 'Restored from previous session')}</>) : null}<br />
+          {resources.cacheStatus === 'warm' ? t('editor.projectCacheWarmOpen', 'Cache status: warm') : t('editor.projectCacheColdOpen', 'Cache status: cold')}<br />
+          {t('editor.projectCacheScreenshots', 'Screenshots cache: active')}<br />
           {t('editor.visualEditingSearchDirs', 'Search Dirs')}: {roomScreenshotSearchDirs.length > 0 ? roomScreenshotSearchDirs.join(' | ') : '—'}
         </div>
       ) : (
-        <div className="runtimeHint">{t('editor.noProjectLoaded', 'No project loaded. File → Open Project...')}</div>
+        <div className="runtimeHint">{t('editor.noProjectLoaded', 'Project not loaded.')}</div>
       )}
     </div>
   )

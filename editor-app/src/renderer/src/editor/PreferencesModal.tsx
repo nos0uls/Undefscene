@@ -435,6 +435,17 @@ export function PreferencesModal({
                 disabled={!preferences.autoSaveEnabled}
               />
             </label>
+            <label className="prefsField prefsCheckbox">
+              <input
+                type="checkbox"
+                checked={preferences.visualEditorTrueRtx}
+                onChange={(e) => updatePreferences({ visualEditorTrueRtx: e.target.checked })}
+              />
+              <span>{t('preferences.trueRtxEnabled', 'True RTX (Dynamic transparency & blending)')}</span>
+            </label>
+            <div className="prefsHint">
+              {t('preferences.trueRtxHint', 'When enabled, visual elements react to background colors in real-time. Turn off for static solid colors and better performance.')}
+            </div>
 
             {/* Папка screenshot output помогает явно связать editor и внешний runner.
                 Если override пустой, editor продолжает искать screenshots по своим fallback-путям. */}

@@ -60,7 +60,15 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   follow_path: ['target'],
   camera_shake: [],
   auto_facing: ['target'],
-  auto_walk: ['target']
+  auto_walk: ['target'],
+  tween: ['property'],
+  emote: ['target'],
+  jump: ['target'],
+  halt: ['target'],
+  flip: ['target'],
+  spin: ['target'],
+  shake_object: ['target'],
+  set_visible: ['target']
 }
 
 // Главная функция валидации. Принимает текущее состояние графа и опциональный контекст ресурсов.
@@ -244,6 +252,45 @@ export function validateGraph(
           severity: 'tip',
           nodeId: node.id,
           message: `Branch "${node.id}" has no "false" output — if condition is false, nothing will happen.`
+        })
+      }
+    }
+
+    if (node.type === 'tween') {
+      const kind = String(node.params?.kind ?? 'instance').trim()
+      const target = String(node.params?.target ?? '').trim()
+      const property = String(node.params?.property ?? node.params?.field ?? '').trim()
+      const toValue = node.params?.to ?? node.params?.end_value ?? node.params?.value
+      if (kind !== 'camera' && !target) {
+        entries.push({
+          severity: 'warn',
+          nodeId: node.id,
+          message: `Node "${node.id}" (tween): target is required unless kind is "camera".`
+        })
+      }
+      if (!property) {
+        entries.push({
+          severity: 'warn',
+          nodeId: node.id,
+          message: `Node "${node.id}" (tween): property is empty.`
+        })
+      }
+      if (toValue === undefined || toValue === null || toValue === '') {
+        entries.push({
+          severity: 'warn',
+          nodeId: node.id,
+          message: `Node "${node.id}" (tween): target value "to" is empty.`
+        })
+      }
+    }
+
+    if (node.type === 'play_sfx') {
+      const sound = String(node.params?.sound ?? node.params?.key ?? '').trim()
+      if (!sound) {
+        entries.push({
+          severity: 'warn',
+          nodeId: node.id,
+          message: `Node "${node.id}" (play_sfx): sound/key is empty.`
         })
       }
     }
@@ -762,6 +809,17 @@ export function validateGraph(
             severity: 'warn',
             nodeId: node.id,
             message: `animate: sprite "${sprite}" not found in project resources.`
+          })
+        }
+      }
+
+      if (node.type === 'emote' && context.sprites) {
+        const sprite = String(params.sprite ?? '').trim()
+        if (sprite && context.sprites.length > 0 && !context.sprites.includes(sprite)) {
+          entries.push({
+            severity: 'warn',
+            nodeId: node.id,
+            message: `emote: sprite "${sprite}" not found in project resources.`
           })
         }
       }
