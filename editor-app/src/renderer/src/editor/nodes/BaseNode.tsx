@@ -61,18 +61,25 @@ export function BaseNode({
         ...style
       }}
     >
-      {/* Цветная полоска сверху */}
-      <div
-        className="customNodeAccentBar"
+      {/* Заголовок ноды с градиентом и акцентной точкой (RTX Свет) */}
+      <div 
+        className="customNodeHeader"
         style={{
-          background: color
+          background: `linear-gradient(to right, color-mix(in srgb, ${color} 10%, transparent), transparent)`
         }}
-      />
-      {/* Заголовок ноды */}
-      <div className="customNodeHeader">
-        <span className="customNodeTitle" style={{ color: color }}>
-          {title}
-        </span>
+      >
+        <div className="customNodeTitleWrapper">
+          <span 
+            className="customNodeDot"
+            style={{
+              backgroundColor: color,
+              boxShadow: `0 0 10px ${color}, inset 0 0 4px rgba(255, 255, 255, 0.5)`
+            }} 
+          />
+          <span className="customNodeTitle" style={{ color: color }}>
+            {title}
+          </span>
+        </div>
         {showLabel ? <span className="customNodeLabel">{label}</span> : null}
       </div>
 

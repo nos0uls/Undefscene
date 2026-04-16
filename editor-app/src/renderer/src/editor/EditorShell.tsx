@@ -206,7 +206,7 @@ export function EditorShell(): React.JSX.Element {
     // Это точная публичная страница статьи про Undefscene editor,
     // найденная в my-docs-repo: docs/systems/cutscenes/editor.md.
     void window.api.appInfo.openExternal(
-      'https://nos0uls.github.io/Undefined-documentation/systems/cutscenes/editor/'
+      'https://nos0uls.github.io/Undefined-documentation/systems/cutscenes/undefscene/overview/'
     )
   }
 
@@ -2359,20 +2359,14 @@ export function EditorShell(): React.JSX.Element {
                 <button
                   key={btn.key}
                   type="button"
+                  className="logFilterButton"
                   onClick={() =>
                     setLogsFilters((prev) => ({ ...prev, [btn.key]: !prev[btn.key] }))
                   }
                   style={{
-                    padding: '4px 8px',
-                    fontSize: 11,
-                    fontWeight: 500,
-                    color: isActive ? '#fff' : btn.color,
-                    background: isActive ? btn.color : 'transparent',
-                    border: `1px solid ${btn.color}`,
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                    opacity: isActive ? 1 : 0.7,
-                    transition: 'all 0.12s'
+                    color: isActive ? btn.color : `color-mix(in srgb, ${btn.color} 80%, var(--ev-c-text-2) 20%)`,
+                    background: isActive ? `color-mix(in srgb, ${btn.color} 20%, transparent)` : 'transparent',
+                    border: `1px solid ${isActive ? `color-mix(in srgb, ${btn.color} 40%, transparent)` : 'transparent'}`
                   }}
                 >
                   {btn.label} ({btn.count})

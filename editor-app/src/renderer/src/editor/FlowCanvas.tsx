@@ -4,13 +4,16 @@ import {
   ReactFlowProvider,
   Background,
   Controls,
+  ControlButton,
   MiniMap,
+  Panel,
   Position,
   SelectionMode,
   addEdge,
   useEdgesState,
   useNodesState,
   useReactFlow,
+  useStore,
   type Connection,
   type Edge,
   type Node,
@@ -18,6 +21,7 @@ import {
   type NodeTypes
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import { Plus } from 'lucide-react'
 import type { RuntimeEdge, RuntimeNode } from './runtimeTypes'
 import { cutsceneNodeTypes } from './nodes'
 import { usePreferencesContext } from './PreferencesContext'
@@ -85,6 +89,13 @@ type FlowCanvasProps = {
   // Счётчик-запрос на fit view.
   // Когда число меняется, холст делает fitView один раз.
   fitViewRequestId?: number
+}
+
+// Компонент для фона: размер точек масштабируется вместе с зумом холста
+const ScaledBackground = () => {
+  const zoom = useStore((s) => s.transform[2])
+  const prefs = usePreferencesContext()
+  return <Background color="#262b2f" gap={prefs.gridSize} size={Math.max(1, zoom * 1.5)} />
 }
 
 // Внутренний компонент холста (нужен useReactFlow, который работает только внутри ReactFlowProvider).
@@ -868,6 +879,14 @@ const FlowCanvasInner = ({
     void fitView({ duration: 180, padding: 0.18 })
   }, [fitView, fitViewRequestId])
 
+  const handleFabAdd = useCallback(() => {
+    const rect = flowCanvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const screenCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+    const flowCenter = screenToFlowPosition(screenCenter)
+    onPaneClickCreateRef.current?.(flowCenter.x, flowCenter.y)
+  }, [screenToFlowPosition])
+
   return (
     <div
       ref={flowCanvasRef}
@@ -958,7 +977,7 @@ const FlowCanvasInner = ({
       >
         {/* Размер сетки теперь реально читается из Preferences,
             чтобы настройка grid size меняла canvas, а не висела мёртвым полем. */}
-        <Background color="#262b2f" gap={prefs.gridSize} size={1} />
+        <ScaledBackground />
         {prefs.showMiniMap ? (
           <MiniMap
             zoomable
@@ -969,6 +988,17 @@ const FlowCanvasInner = ({
           />
         ) : null}
         <Controls showInteractive={false} />
+        {/* Кнопка создания ноды, вынесенная рядом с Controls в нижний левый угол */}
+        <Panel position="bottom-left" style={{ marginLeft: 74, marginBottom: 15 }}>
+          <button 
+            className="actionButtonPlus" 
+            onClick={handleFabAdd}
+            title="Add New Node (Middle Click)"
+            aria-label="Add Node"
+          >
+            <Plus size={18} strokeWidth={2.5} />
+          </button>
+        </Panel>
       </ReactFlow>
     </div>
   )
