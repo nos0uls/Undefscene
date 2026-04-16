@@ -712,6 +712,7 @@ export function EditorShell(): React.JSX.Element {
       const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
       const defaultParamsByType: Record<string, Record<string, unknown>> = {
         dialogue: { file: '', node: '' },
+        wait_for_dialogue: { dialogue_controller: '' },
         move: { target: 'player', x: 0, y: 0, speed_px_sec: 60, collision: false },
         follow_path: { target: 'player', points: [], speed_px_sec: 60, collision: false },
         set_position: { target: 'player', x: 0, y: 0 },
@@ -728,6 +729,7 @@ export function EditorShell(): React.JSX.Element {
         auto_facing: { target: 'player', enabled: true },
         auto_walk: { target: 'player', enabled: true },
         tween: { kind: 'instance', target: 'player', property: 'x', to: 0, seconds: 1, easing: 'linear' },
+        set_property: { kind: 'instance', target: 'player', property: 'image_alpha', value: 1 },
         fade_in: { seconds: 0.5, color: 'black' },
         fade_out: { seconds: 0.5, color: 'black' },
         play_sfx: { sound: '', volume: 1, pitch: 1 },
@@ -2152,6 +2154,7 @@ export function EditorShell(): React.JSX.Element {
         'actor_destroy',
         'animate',
         'dialogue',
+        'wait_for_dialogue',
         'camera_track',
         'camera_pan',
         'parallel_start',
@@ -2164,6 +2167,7 @@ export function EditorShell(): React.JSX.Element {
         'auto_facing',
         'auto_walk',
         'tween',
+        'set_property',
         'fade_in',
         'fade_out',
         'play_sfx',

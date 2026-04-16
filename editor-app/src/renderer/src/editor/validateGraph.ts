@@ -62,6 +62,7 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   auto_facing: ['target'],
   auto_walk: ['target'],
   tween: ['property'],
+  set_property: ['property'],
   emote: ['target'],
   jump: ['target'],
   halt: ['target'],
@@ -280,6 +281,34 @@ export function validateGraph(
           severity: 'warn',
           nodeId: node.id,
           message: `Node "${node.id}" (tween): target value "to" is empty.`
+        })
+      }
+    }
+
+    if (node.type === 'set_property') {
+      const kind = String(node.params?.kind ?? 'instance').trim()
+      const target = String(node.params?.target ?? '').trim()
+      const property = String(node.params?.property ?? node.params?.field ?? '').trim()
+      const value = node.params?.value
+      if (kind !== 'camera' && !target) {
+        entries.push({
+          severity: 'warn',
+          nodeId: node.id,
+          message: `Node "${node.id}" (set_property): target is required unless kind is "camera".`
+        })
+      }
+      if (!property) {
+        entries.push({
+          severity: 'warn',
+          nodeId: node.id,
+          message: `Node "${node.id}" (set_property): property is empty.`
+        })
+      }
+      if (value === undefined || value === null || value === '') {
+        entries.push({
+          severity: 'warn',
+          nodeId: node.id,
+          message: `Node "${node.id}" (set_property): value is empty.`
         })
       }
     }

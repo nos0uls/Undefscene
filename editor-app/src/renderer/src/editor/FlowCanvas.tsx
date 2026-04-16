@@ -4,7 +4,6 @@ import {
   ReactFlowProvider,
   Background,
   Controls,
-  ControlButton,
   MiniMap,
   Panel,
   Position,
@@ -520,6 +519,9 @@ const FlowCanvasInner = ({
   )
 
   // Обёртка над onNodesChange: ловим конец перетаскивания и сохраняем позицию.
+  // Обработчик любых изменений узлов в React Flow (перетаскивание, выделение и т.д.).
+  // Здесь мы ловим момент, когда пользователь закончил тянуть узел, и сохраняем 
+  // его новые координаты (X и Y) в наше основное состояние (runtime).
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
       onNodesChange(changes)
@@ -593,6 +595,8 @@ const FlowCanvasInner = ({
   )
 
   // При соединении нод — создаём ребро и сообщаем runtime.
+  // Когда пользователь протягивает линию от одного узла к другому.
+  // Мы создаем объект "ребра" (edge) и сохраняем его в runtime, чтобы связь не потерялась.
   const onConnect = useCallback(
     (connection: Connection) => {
       if (!connection.source || !connection.target) return
@@ -991,8 +995,8 @@ const FlowCanvasInner = ({
         <Controls showInteractive={false} />
         {/* Кнопка создания ноды, вынесенная рядом с Controls в нижний левый угол */}
         <Panel position="bottom-left" style={{ marginLeft: 74, marginBottom: 15 }}>
-          <button 
-            className="actionButtonPlus" 
+          <button
+            className="actionButtonPlus"
             onClick={handleFabAdd}
             title="Add New Node (Middle Click)"
             aria-label="Add Node"
@@ -1007,6 +1011,9 @@ const FlowCanvasInner = ({
 
 // Обёртка: useReactFlow работает только внутри ReactFlowProvider.
 // Поэтому экспортируем FlowCanvas, который оборачивает FlowCanvasInner.
+// Главный компонент холста, который мы экспортируем.
+// Он оборачивает внутреннюю логику в FlowCanvasInner и добавляет ReactFlowProvider,
+// без которого инструменты React Flow не будут работать.
 export const FlowCanvas = (props: FlowCanvasProps): React.JSX.Element => {
   return (
     <ReactFlowProvider>

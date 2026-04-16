@@ -171,6 +171,16 @@ export function DialogueNode({ data, selected }: CutsceneNodeProps): React.JSX.E
   )
 }
 
+export function WaitForDialogueNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const controller = data.params?.dialogue_controller ?? ''
+  return (
+    <BaseNode nodeType="wait_for_dialogue" selected={selected}>
+      {controller && <div className="customNodeParam">{String(controller)}</div>}
+      {!controller && <div className="customNodeParam">active textbox</div>}
+    </BaseNode>
+  )
+}
+
 // --- Camera ---
 
 // Камера следит за целью.
@@ -492,6 +502,19 @@ export function TweenNode({ data, selected }: CutsceneNodeProps): React.JSX.Elem
     <BaseNode nodeType="tween" selected={selected}>
       <div className="customNodeParam">{String(kind) === 'camera' ? 'camera' : String(target)}</div>
       <div className="customNodeParam">{String(property)} → {String(to)}</div>
+    </BaseNode>
+  )
+}
+
+export function SetPropertyNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const kind = data.params?.kind ?? 'instance'
+  const target = data.params?.target ?? 'camera'
+  const property = data.params?.property ?? data.params?.field ?? ''
+  const value = data.params?.value ?? '?'
+  return (
+    <BaseNode nodeType="set_property" selected={selected}>
+      <div className="customNodeParam">{String(kind) === 'camera' ? 'camera' : String(target)}</div>
+      <div className="customNodeParam">{String(property)} = {String(value)}</div>
     </BaseNode>
   )
 }

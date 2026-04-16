@@ -381,9 +381,11 @@ function actionToRuntimeNode(
             ? 'shake_object'
             : rawType === 'visible'
               ? 'set_visible'
-              : rawType === 'set_instant'
-                ? 'instant_mode'
-                : rawType
+              : rawType === 'waittalk'
+                ? 'wait_for_dialogue'
+                : rawType === 'set_instant'
+                  ? 'instant_mode'
+                  : rawType
 
   const nodeId = nextNodeId(context, normalizedType)
   const params: Record<string, unknown> = {}
@@ -396,6 +398,18 @@ function actionToRuntimeNode(
     }
     if (normalizedType === 'tween' && key === 'target_kind' && action.kind === undefined) {
       params.kind = value
+      continue
+    }
+    if (normalizedType === 'set_property' && key === 'target_kind' && action.kind === undefined) {
+      params.kind = value
+      continue
+    }
+    if (normalizedType === 'set_property' && key === 'field' && action.property === undefined) {
+      params.property = value
+      continue
+    }
+    if (normalizedType === 'set_property' && key === 'value') {
+      params.value = typeof value === 'string' ? value : JSON.stringify(value)
       continue
     }
     if (normalizedType === 'set_visible' && key === 'enabled' && action.visible === undefined) {

@@ -189,9 +189,9 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
   // --- Computed ---
   const nodeTypes = [
     'start', 'end', 'move', 'follow_path', 'actor_create', 'actor_destroy',
-    'animate', 'dialogue', 'camera_track', 'camera_pan', 'camera_shake',
+    'animate', 'dialogue', 'wait_for_dialogue', 'camera_track', 'camera_pan', 'camera_shake',
     'parallel_start', 'branch', 'run_function', 'set_position', 'set_depth',
-    'set_facing', 'auto_facing', 'auto_walk', 'tween', 'fade_in', 'fade_out',
+    'set_facing', 'auto_facing', 'auto_walk', 'tween', 'set_property', 'fade_in', 'fade_out',
     'play_sfx', 'emote', 'jump', 'halt', 'flip', 'spin', 'shake_object',
     'set_visible', 'instant_mode'
   ]
@@ -381,6 +381,10 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
             )
           })()}
 
+          {selectedNode.type === 'wait_for_dialogue' && (
+            <label className="runtimeField"><span>Dialogue Controller (optional)</span><input className="runtimeInput" value={String((selectedNode.params?.dialogue_controller as string) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'dialogue_controller', event.target.value)} placeholder="instance ref / leave empty for active textbox" /></label>
+          )}
+
           {/* --- camera_track --- */}
           {selectedNode.type === 'camera_track' && (
             <>
@@ -464,6 +468,17 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
               <label className="runtimeField"><span>From (optional)</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.from as number) ?? '')} onChange={(event) => { const v = event.target.value; updateNodeParam(selectedNode.id, 'from', v === '' ? '' : Number(v)) }} /></label>
               <label className="runtimeField"><span>Seconds</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.seconds as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Easing</span><select className="runtimeInput" value={String((selectedNode.params?.easing as string) ?? 'linear')} onChange={(event) => updateNodeParam(selectedNode.id, 'easing', event.target.value)}><option value="linear">linear</option><option value="ease_in">ease_in</option><option value="ease_out">ease_out</option><option value="ease_in_out">ease_in_out</option></select></label>
+            </>
+          )}
+
+          {selectedNode.type === 'set_property' && (
+            <>
+              <label className="runtimeField"><span>Kind</span><select className="runtimeInput" value={String((selectedNode.params?.kind as string) ?? 'instance')} onChange={(event) => updateNodeParam(selectedNode.id, 'kind', event.target.value)}><option value="instance">instance</option><option value="camera">camera</option></select></label>
+              {String((selectedNode.params?.kind as string) ?? 'instance') !== 'camera' ? (
+                <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              ) : null}
+              <label className="runtimeField"><span>Property</span><input className="runtimeInput" value={String((selectedNode.params?.property as string) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'property', event.target.value)} /></label>
+              <label className="runtimeField"><span>Value</span><input className="runtimeInput" value={String(selectedNode.params?.value ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'value', event.target.value)} /></label>
             </>
           )}
 

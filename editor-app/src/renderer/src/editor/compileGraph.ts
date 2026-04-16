@@ -507,6 +507,39 @@ export function compileGraph(state: RuntimeState): CompileResult {
       return action
     }
 
+    if (node.type === 'set_property') {
+      const kind =
+        (typeof node.params?.kind === 'string' && node.params.kind) ||
+        (typeof node.params?.target_kind === 'string' && node.params.target_kind) ||
+        'instance'
+      const property =
+        (typeof node.params?.property === 'string' && node.params.property) ||
+        (typeof node.params?.field === 'string' && node.params.field) ||
+        ''
+
+      if (kind) action.kind = kind
+      if (kind !== 'camera' && typeof node.params?.target === 'string' && node.params.target) {
+        action.target = node.params.target
+      }
+      if (property) action.property = property
+
+      const rawValue = node.params?.value
+      if (typeof rawValue === 'string') {
+        const trimmed = rawValue.trim()
+        if (trimmed.length > 0) {
+          try {
+            action.value = JSON.parse(trimmed) as unknown
+          } catch {
+            action.value = rawValue
+          }
+        }
+      } else if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
+        action.value = rawValue
+      }
+
+      return action
+    }
+
     // Копируем все параметры ноды (кроме editor-only полей).
     if (node.params) {
       for (const [key, value] of Object.entries(node.params)) {
