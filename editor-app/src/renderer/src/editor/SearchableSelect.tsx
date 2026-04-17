@@ -86,11 +86,11 @@ export function SearchableSelect({
   const filtered =
     query.length > 0
       ? [
-          ...options.filter((opt) => opt.toLowerCase().startsWith(lowerQuery)),
-          ...options.filter(
-            (opt) => opt.toLowerCase().includes(lowerQuery) && !opt.toLowerCase().startsWith(lowerQuery)
-          )
-        ]
+        ...options.filter((opt) => opt.toLowerCase().startsWith(lowerQuery)),
+        ...options.filter(
+          (opt) => opt.toLowerCase().includes(lowerQuery) && !opt.toLowerCase().startsWith(lowerQuery)
+        )
+      ]
       : options
 
   // Лучший кандидат для автодополнения.
@@ -117,7 +117,7 @@ export function SearchableSelect({
     if (highlightIndex < 0 || !listRef.current) return
     const items = listRef.current.children
     if (items[highlightIndex]) {
-      ;(items[highlightIndex] as HTMLElement).scrollIntoView({ block: 'nearest' })
+      ; (items[highlightIndex] as HTMLElement).scrollIntoView({ block: 'nearest' })
     }
   }, [highlightIndex])
 

@@ -846,7 +846,7 @@ code {
 .runtimeInput {
   border-radius: 4px;
   border: 1px solid var(--border-default, var(--ev-c-gray-3));
-  background: var(--bg-elevated, var(--color-background-soft));
+  background-color: var(--bg-elevated, var(--color-background-soft));
   color: var(--text-primary, var(--ev-c-text-1));
   width: 100%;
   box-sizing: border-box;
@@ -858,13 +858,13 @@ code {
 
 .runtimeInput:hover,
 .runtimeTextarea:hover {
-  background: var(--bg-overlay, var(--color-background-mute));
+  background-color: var(--bg-overlay, var(--color-background-mute));
 }
 
 .runtimeInput:focus,
 .runtimeTextarea:focus {
   border-color: var(--accent-default, var(--ev-c-accent));
-  background: var(--bg-base, var(--color-background));
+  background-color: var(--bg-base, var(--color-background));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-default, var(--ev-c-accent)) 20%, transparent);
 }
 

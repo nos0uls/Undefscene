@@ -356,9 +356,9 @@ export function EditorShell(): React.JSX.Element {
 
     return Array.isArray(selectedNodeForVisualEditing.params?.points)
       ? (selectedNodeForVisualEditing.params?.points as Array<{ x: number; y: number }>).map((point) => ({
-          x: Number(point.x ?? 0),
-          y: Number(point.y ?? 0)
-        }))
+        x: Number(point.x ?? 0),
+        y: Number(point.y ?? 0)
+      }))
       : []
   }, [selectedNodeForVisualEditing])
 
@@ -440,10 +440,10 @@ export function EditorShell(): React.JSX.Element {
       visualEditorTechMode: preferences.visualEditorTechMode,
       selectedNode: selectedNodeForVisualEditing
         ? {
-            id: selectedNodeForVisualEditing.id,
-            type: selectedNodeForVisualEditing.type,
-            name: selectedNodeForVisualEditing.name
-          }
+          id: selectedNodeForVisualEditing.id,
+          type: selectedNodeForVisualEditing.type,
+          name: selectedNodeForVisualEditing.name
+        }
         : null,
       selectedActorTarget: selectedVisualActorTarget,
       selectedPathPoints: selectedVisualPathPoints,
@@ -568,17 +568,17 @@ export function EditorShell(): React.JSX.Element {
           nodes: prev.nodes.map((node) =>
             node.id === selectedNodeForVisualEditing.id
               ? {
-                  ...node,
-                  type: 'follow_path',
-                  params: {
-                    target: typeof previousParams.target === 'string' ? previousParams.target : '',
-                    speed_px_sec:
-                      typeof previousParams.speed_px_sec === 'number' ? previousParams.speed_px_sec : 60,
-                    collision:
-                      typeof previousParams.collision === 'boolean' ? previousParams.collision : false,
-                    points: normalizedPoints
-                  }
+                ...node,
+                type: 'follow_path',
+                params: {
+                  target: typeof previousParams.target === 'string' ? previousParams.target : '',
+                  speed_px_sec:
+                    typeof previousParams.speed_px_sec === 'number' ? previousParams.speed_px_sec : 60,
+                  collision:
+                    typeof previousParams.collision === 'boolean' ? previousParams.collision : false,
+                  points: normalizedPoints
                 }
+              }
               : node
           ),
           selectedNodeId: selectedNodeForVisualEditing.id,
@@ -883,224 +883,224 @@ export function EditorShell(): React.JSX.Element {
       resizeFrameId = requestAnimationFrame(() => {
         resizeFrameId = null
         const prevWidth = prevWindowSizeRef.current.width
-      const prevHeight = prevWindowSizeRef.current.height
-      const rootRect = rootRef.current?.getBoundingClientRect()
-      const newWidth = rootRect?.width ?? window.innerWidth
-      const newHeight = rootRect?.height ?? window.innerHeight
+        const prevHeight = prevWindowSizeRef.current.height
+        const rootRect = rootRef.current?.getBoundingClientRect()
+        const newWidth = rootRect?.width ?? window.innerWidth
+        const newHeight = rootRect?.height ?? window.innerHeight
 
-      const currentLayout = layoutRef.current
-      const currentCollapsedDocks = collapsedDocksRef.current
-      const topBarHeight = 30
-      const isGrowingHorizontally = newWidth > prevWidth
-      const isGrowingVertically = newHeight > prevHeight
-      const leftDockCount = currentLayout.docked.left.filter(
-        (id) => currentLayout.panels[id]?.mode === 'docked'
-      ).length
-      const rightDockCount = currentLayout.docked.right.filter(
-        (id) => currentLayout.panels[id]?.mode === 'docked'
-      ).length
-      const bottomDockCount = currentLayout.docked.bottom.filter(
-        (id) => currentLayout.panels[id]?.mode === 'docked'
-      ).length
+        const currentLayout = layoutRef.current
+        const currentCollapsedDocks = collapsedDocksRef.current
+        const topBarHeight = 30
+        const isGrowingHorizontally = newWidth > prevWidth
+        const isGrowingVertically = newHeight > prevHeight
+        const leftDockCount = currentLayout.docked.left.filter(
+          (id) => currentLayout.panels[id]?.mode === 'docked'
+        ).length
+        const rightDockCount = currentLayout.docked.right.filter(
+          (id) => currentLayout.panels[id]?.mode === 'docked'
+        ).length
+        const bottomDockCount = currentLayout.docked.bottom.filter(
+          (id) => currentLayout.panels[id]?.mode === 'docked'
+        ).length
 
-      // Считаем доступное место без минимального центра.
-      // Это позволяет хранить именно отношение доков к рабочей зоне.
-      const prevHorizontalSpace = Math.max(
-        MIN_LEFT_WIDTH + MIN_RIGHT_WIDTH,
-        prevWidth - MIN_CENTER_WIDTH
-      )
-      const nextHorizontalSpace = Math.max(
-        MIN_LEFT_WIDTH + MIN_RIGHT_WIDTH,
-        newWidth - MIN_CENTER_WIDTH
-      )
-      const prevVerticalSpace = Math.max(MIN_BOTTOM_HEIGHT, prevHeight - topBarHeight - MIN_CENTER_HEIGHT)
-      const nextVerticalSpace = Math.max(MIN_BOTTOM_HEIGHT, newHeight - topBarHeight - MIN_CENTER_HEIGHT)
+        // Считаем доступное место без минимального центра.
+        // Это позволяет хранить именно отношение доков к рабочей зоне.
+        const prevHorizontalSpace = Math.max(
+          MIN_LEFT_WIDTH + MIN_RIGHT_WIDTH,
+          prevWidth - MIN_CENTER_WIDTH
+        )
+        const nextHorizontalSpace = Math.max(
+          MIN_LEFT_WIDTH + MIN_RIGHT_WIDTH,
+          newWidth - MIN_CENTER_WIDTH
+        )
+        const prevVerticalSpace = Math.max(MIN_BOTTOM_HEIGHT, prevHeight - topBarHeight - MIN_CENTER_HEIGHT)
+        const nextVerticalSpace = Math.max(MIN_BOTTOM_HEIGHT, newHeight - topBarHeight - MIN_CENTER_HEIGHT)
 
-      const leftRatio = currentLayout.dockSizes.leftWidth / prevHorizontalSpace
-      const rightRatio = currentLayout.dockSizes.rightWidth / prevHorizontalSpace
-      const bottomRatio = currentLayout.dockSizes.bottomHeight / prevVerticalSpace
+        const leftRatio = currentLayout.dockSizes.leftWidth / prevHorizontalSpace
+        const rightRatio = currentLayout.dockSizes.rightWidth / prevHorizontalSpace
+        const bottomRatio = currentLayout.dockSizes.bottomHeight / prevVerticalSpace
 
-      // Восстанавливаем размеры из долей. Если места стало слишком мало,
-      // clamp естественно упрёт панели в минимум, а центр заберёт остаток.
-      // Важный UX-момент: при расширении окна доки не должны сами раздуваться.
-      // Иначе bottom dock после узкого окна начинает занимать слишком большую долю экрана.
-      let nextLeftWidth = isGrowingHorizontally
-        ? currentLayout.dockSizes.leftWidth
-        : clamp(
+        // Восстанавливаем размеры из долей. Если места стало слишком мало,
+        // clamp естественно упрёт панели в минимум, а центр заберёт остаток.
+        // Важный UX-момент: при расширении окна доки не должны сами раздуваться.
+        // Иначе bottom dock после узкого окна начинает занимать слишком большую долю экрана.
+        let nextLeftWidth = isGrowingHorizontally
+          ? currentLayout.dockSizes.leftWidth
+          : clamp(
             Math.round(nextHorizontalSpace * leftRatio),
             MIN_LEFT_WIDTH,
             Math.max(MIN_LEFT_WIDTH, newWidth - currentLayout.dockSizes.rightWidth - MIN_CENTER_WIDTH)
           )
-      let nextRightWidth = isGrowingHorizontally
-        ? currentLayout.dockSizes.rightWidth
-        : clamp(
+        let nextRightWidth = isGrowingHorizontally
+          ? currentLayout.dockSizes.rightWidth
+          : clamp(
             Math.round(nextHorizontalSpace * rightRatio),
             MIN_RIGHT_WIDTH,
             Math.max(MIN_RIGHT_WIDTH, newWidth - nextLeftWidth - MIN_CENTER_WIDTH)
           )
 
-      // После пересчёта правого дока ещё раз поджимаем левый,
-      // чтобы сумма точно не съела центр при очень узком окне.
-      nextLeftWidth = clamp(
-        nextLeftWidth,
-        MIN_LEFT_WIDTH,
-        Math.max(MIN_LEFT_WIDTH, newWidth - nextRightWidth - MIN_CENTER_WIDTH)
-      )
+        // После пересчёта правого дока ещё раз поджимаем левый,
+        // чтобы сумма точно не съела центр при очень узком окне.
+        nextLeftWidth = clamp(
+          nextLeftWidth,
+          MIN_LEFT_WIDTH,
+          Math.max(MIN_LEFT_WIDTH, newWidth - nextRightWidth - MIN_CENTER_WIDTH)
+        )
 
-      const nextBottomHeight = isGrowingVertically
-        ? clamp(
+        const nextBottomHeight = isGrowingVertically
+          ? clamp(
             currentLayout.dockSizes.bottomHeight,
             MIN_BOTTOM_HEIGHT,
             Math.max(MIN_BOTTOM_HEIGHT, newHeight - topBarHeight - MIN_CENTER_HEIGHT)
           )
-        : clamp(
+          : clamp(
             Math.round(nextVerticalSpace * bottomRatio),
             MIN_BOTTOM_HEIGHT,
             Math.max(MIN_BOTTOM_HEIGHT, newHeight - topBarHeight - MIN_CENTER_HEIGHT)
           )
 
-      let nextCollapsedLeft = currentCollapsedDocks.left
-      let nextCollapsedRight = currentCollapsedDocks.right
-      let nextCollapsedBottom = currentCollapsedDocks.bottom
-      let effectiveLeftWidth = nextCollapsedLeft ? COLLAPSED_DOCK_SIZE : nextLeftWidth
-      let effectiveRightWidth = nextCollapsedRight ? COLLAPSED_DOCK_SIZE : nextRightWidth
-      let effectiveBottomHeight = nextCollapsedBottom ? COLLAPSED_DOCK_SIZE : nextBottomHeight
+        let nextCollapsedLeft = currentCollapsedDocks.left
+        let nextCollapsedRight = currentCollapsedDocks.right
+        let nextCollapsedBottom = currentCollapsedDocks.bottom
+        let effectiveLeftWidth = nextCollapsedLeft ? COLLAPSED_DOCK_SIZE : nextLeftWidth
+        let effectiveRightWidth = nextCollapsedRight ? COLLAPSED_DOCK_SIZE : nextRightWidth
+        let effectiveBottomHeight = nextCollapsedBottom ? COLLAPSED_DOCK_SIZE : nextBottomHeight
 
-      // Если центр начинает терять minimum width, автоматически сворачиваем боковые доки.
-      // Сначала сворачиваем тот, который уже дошёл до минимума, затем второй при необходимости.
-      let horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
-      if (horizontalShortage > 0 && leftDockCount > 0 && !nextCollapsedLeft && nextLeftWidth <= MIN_LEFT_WIDTH + 8) {
-        nextCollapsedLeft = true
-        effectiveLeftWidth = COLLAPSED_DOCK_SIZE
-        horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
-      }
-      if (horizontalShortage > 0 && rightDockCount > 0 && !nextCollapsedRight && nextRightWidth <= MIN_RIGHT_WIDTH + 8) {
-        nextCollapsedRight = true
-        effectiveRightWidth = COLLAPSED_DOCK_SIZE
-        horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
-      }
-      if (horizontalShortage > 0 && leftDockCount > 0 && !nextCollapsedLeft) {
-        nextCollapsedLeft = true
-        effectiveLeftWidth = COLLAPSED_DOCK_SIZE
-        horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
-      }
-      if (horizontalShortage > 0 && rightDockCount > 0 && !nextCollapsedRight) {
-        nextCollapsedRight = true
-        effectiveRightWidth = COLLAPSED_DOCK_SIZE
-      }
+        // Если центр начинает терять minimum width, автоматически сворачиваем боковые доки.
+        // Сначала сворачиваем тот, который уже дошёл до минимума, затем второй при необходимости.
+        let horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
+        if (horizontalShortage > 0 && leftDockCount > 0 && !nextCollapsedLeft && nextLeftWidth <= MIN_LEFT_WIDTH + 8) {
+          nextCollapsedLeft = true
+          effectiveLeftWidth = COLLAPSED_DOCK_SIZE
+          horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
+        }
+        if (horizontalShortage > 0 && rightDockCount > 0 && !nextCollapsedRight && nextRightWidth <= MIN_RIGHT_WIDTH + 8) {
+          nextCollapsedRight = true
+          effectiveRightWidth = COLLAPSED_DOCK_SIZE
+          horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
+        }
+        if (horizontalShortage > 0 && leftDockCount > 0 && !nextCollapsedLeft) {
+          nextCollapsedLeft = true
+          effectiveLeftWidth = COLLAPSED_DOCK_SIZE
+          horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
+        }
+        if (horizontalShortage > 0 && rightDockCount > 0 && !nextCollapsedRight) {
+          nextCollapsedRight = true
+          effectiveRightWidth = COLLAPSED_DOCK_SIZE
+        }
 
-      // Если центр начинает терять minimum height, так же сворачиваем нижний док.
-      const verticalShortage = effectiveBottomHeight + topBarHeight + MIN_CENTER_HEIGHT - newHeight
-      if (verticalShortage > 0 && bottomDockCount > 0 && !nextCollapsedBottom) {
-        nextCollapsedBottom = true
-        effectiveBottomHeight = COLLAPSED_DOCK_SIZE
-      }
+        // Если центр начинает терять minimum height, так же сворачиваем нижний док.
+        const verticalShortage = effectiveBottomHeight + topBarHeight + MIN_CENTER_HEIGHT - newHeight
+        if (verticalShortage > 0 && bottomDockCount > 0 && !nextCollapsedBottom) {
+          nextCollapsedBottom = true
+          effectiveBottomHeight = COLLAPSED_DOCK_SIZE
+        }
 
-      const shouldKeepLeftAutoCollapsed =
-        leftDockCount > 0 &&
-        effectiveRightWidth + nextLeftWidth + MIN_CENTER_WIDTH > newWidth &&
-        nextCollapsedLeft
-      const shouldKeepRightAutoCollapsed =
-        rightDockCount > 0 &&
-        effectiveLeftWidth + nextRightWidth + MIN_CENTER_WIDTH > newWidth &&
-        nextCollapsedRight
-      const shouldKeepBottomAutoCollapsed =
-        bottomDockCount > 0 &&
-        nextBottomHeight + topBarHeight + MIN_CENTER_HEIGHT > newHeight &&
-        nextCollapsedBottom
+        const shouldKeepLeftAutoCollapsed =
+          leftDockCount > 0 &&
+          effectiveRightWidth + nextLeftWidth + MIN_CENTER_WIDTH > newWidth &&
+          nextCollapsedLeft
+        const shouldKeepRightAutoCollapsed =
+          rightDockCount > 0 &&
+          effectiveLeftWidth + nextRightWidth + MIN_CENTER_WIDTH > newWidth &&
+          nextCollapsedRight
+        const shouldKeepBottomAutoCollapsed =
+          bottomDockCount > 0 &&
+          nextBottomHeight + topBarHeight + MIN_CENTER_HEIGHT > newHeight &&
+          nextCollapsedBottom
 
-      // Возвращаем автоматически свёрнутые доки, когда места снова достаточно.
-      if (autoCollapsedDocksRef.current.left && !shouldKeepLeftAutoCollapsed) {
-        nextCollapsedLeft = false
-        effectiveLeftWidth = nextLeftWidth
-      }
-      if (autoCollapsedDocksRef.current.right && !shouldKeepRightAutoCollapsed) {
-        nextCollapsedRight = false
-        effectiveRightWidth = nextRightWidth
-      }
-      if (autoCollapsedDocksRef.current.bottom && !shouldKeepBottomAutoCollapsed) {
-        nextCollapsedBottom = false
-        effectiveBottomHeight = nextBottomHeight
-      }
+        // Возвращаем автоматически свёрнутые доки, когда места снова достаточно.
+        if (autoCollapsedDocksRef.current.left && !shouldKeepLeftAutoCollapsed) {
+          nextCollapsedLeft = false
+          effectiveLeftWidth = nextLeftWidth
+        }
+        if (autoCollapsedDocksRef.current.right && !shouldKeepRightAutoCollapsed) {
+          nextCollapsedRight = false
+          effectiveRightWidth = nextRightWidth
+        }
+        if (autoCollapsedDocksRef.current.bottom && !shouldKeepBottomAutoCollapsed) {
+          nextCollapsedBottom = false
+          effectiveBottomHeight = nextBottomHeight
+        }
 
-      autoCollapsedDocksRef.current = {
-        left: nextCollapsedLeft && !currentCollapsedDocks.left ? true : shouldKeepLeftAutoCollapsed,
-        right: nextCollapsedRight && !currentCollapsedDocks.right ? true : shouldKeepRightAutoCollapsed,
-        bottom: nextCollapsedBottom && !currentCollapsedDocks.bottom ? true : shouldKeepBottomAutoCollapsed
-      }
+        autoCollapsedDocksRef.current = {
+          left: nextCollapsedLeft && !currentCollapsedDocks.left ? true : shouldKeepLeftAutoCollapsed,
+          right: nextCollapsedRight && !currentCollapsedDocks.right ? true : shouldKeepRightAutoCollapsed,
+          bottom: nextCollapsedBottom && !currentCollapsedDocks.bottom ? true : shouldKeepBottomAutoCollapsed
+        }
 
-      const leftChanged = Math.abs(nextLeftWidth - currentLayout.dockSizes.leftWidth) > 1
-      const rightChanged = Math.abs(nextRightWidth - currentLayout.dockSizes.rightWidth) > 1
-      const bottomChanged = Math.abs(nextBottomHeight - currentLayout.dockSizes.bottomHeight) > 1
-      const collapsedChanged =
-        nextCollapsedLeft !== currentCollapsedDocks.left ||
-        nextCollapsedRight !== currentCollapsedDocks.right ||
-        nextCollapsedBottom !== currentCollapsedDocks.bottom
+        const leftChanged = Math.abs(nextLeftWidth - currentLayout.dockSizes.leftWidth) > 1
+        const rightChanged = Math.abs(nextRightWidth - currentLayout.dockSizes.rightWidth) > 1
+        const bottomChanged = Math.abs(nextBottomHeight - currentLayout.dockSizes.bottomHeight) > 1
+        const collapsedChanged =
+          nextCollapsedLeft !== currentCollapsedDocks.left ||
+          nextCollapsedRight !== currentCollapsedDocks.right ||
+          nextCollapsedBottom !== currentCollapsedDocks.bottom
 
-      // Плавающие панели тоже нужно поджимать под новый размер editorRoot.
-      // Иначе после resize они могут остаться в старой точке и закрывать canvas.
-      let floatingPanelsChanged = false
-      const nextPanels = Object.fromEntries(
-        Object.entries(currentLayout.panels).map(([panelId, panel]) => {
-          if (panel.mode !== 'floating' || !panel.position || !panel.size) {
+        // Плавающие панели тоже нужно поджимать под новый размер editorRoot.
+        // Иначе после resize они могут остаться в старой точке и закрывать canvas.
+        let floatingPanelsChanged = false
+        const nextPanels = Object.fromEntries(
+          Object.entries(currentLayout.panels).map(([panelId, panel]) => {
+            if (panel.mode !== 'floating' || !panel.position || !panel.size) {
+              return [panelId, panel]
+            }
+
+            const clampedWidth = clamp(panel.size.width, MIN_FLOAT_WIDTH, Math.max(MIN_FLOAT_WIDTH, newWidth - 24))
+            const clampedHeight = clamp(
+              panel.size.height,
+              MIN_FLOAT_HEIGHT,
+              Math.max(MIN_FLOAT_HEIGHT, newHeight - 24)
+            )
+            const clampedX = clamp(panel.position.x, 0, Math.max(0, newWidth - clampedWidth))
+            const clampedY = clamp(panel.position.y, 0, Math.max(0, newHeight - clampedHeight))
+
+            if (
+              clampedWidth !== panel.size.width ||
+              clampedHeight !== panel.size.height ||
+              clampedX !== panel.position.x ||
+              clampedY !== panel.position.y
+            ) {
+              floatingPanelsChanged = true
+              return [
+                panelId,
+                {
+                  ...panel,
+                  position: { x: clampedX, y: clampedY },
+                  size: { width: clampedWidth, height: clampedHeight },
+                  lastFloatingPosition: { x: clampedX, y: clampedY },
+                  lastFloatingSize: { width: clampedWidth, height: clampedHeight }
+                }
+              ]
+            }
+
             return [panelId, panel]
-          }
+          })
+        ) as LayoutState['panels']
 
-          const clampedWidth = clamp(panel.size.width, MIN_FLOAT_WIDTH, Math.max(MIN_FLOAT_WIDTH, newWidth - 24))
-          const clampedHeight = clamp(
-            panel.size.height,
-            MIN_FLOAT_HEIGHT,
-            Math.max(MIN_FLOAT_HEIGHT, newHeight - 24)
-          )
-          const clampedX = clamp(panel.position.x, 0, Math.max(0, newWidth - clampedWidth))
-          const clampedY = clamp(panel.position.y, 0, Math.max(0, newHeight - clampedHeight))
+        if (leftChanged || rightChanged || bottomChanged || floatingPanelsChanged) {
+          setLayout({
+            ...currentLayout,
+            dockSizes: {
+              ...currentLayout.dockSizes,
+              leftWidth: nextLeftWidth,
+              rightWidth: nextRightWidth,
+              bottomHeight: nextBottomHeight
+            },
+            panels: nextPanels
+          })
+        }
 
-          if (
-            clampedWidth !== panel.size.width ||
-            clampedHeight !== panel.size.height ||
-            clampedX !== panel.position.x ||
-            clampedY !== panel.position.y
-          ) {
-            floatingPanelsChanged = true
-            return [
-              panelId,
-              {
-                ...panel,
-                position: { x: clampedX, y: clampedY },
-                size: { width: clampedWidth, height: clampedHeight },
-                lastFloatingPosition: { x: clampedX, y: clampedY },
-                lastFloatingSize: { width: clampedWidth, height: clampedHeight }
-              }
-            ]
-          }
+        if (collapsedChanged) {
+          setCollapsedDocks({
+            left: nextCollapsedLeft,
+            right: nextCollapsedRight,
+            bottom: nextCollapsedBottom
+          })
+        }
 
-          return [panelId, panel]
-        })
-      ) as LayoutState['panels']
-
-      if (leftChanged || rightChanged || bottomChanged || floatingPanelsChanged) {
-        setLayout({
-          ...currentLayout,
-          dockSizes: {
-            ...currentLayout.dockSizes,
-            leftWidth: nextLeftWidth,
-            rightWidth: nextRightWidth,
-            bottomHeight: nextBottomHeight
-          },
-          panels: nextPanels
-        })
-      }
-
-      if (collapsedChanged) {
-        setCollapsedDocks({
-          left: nextCollapsedLeft,
-          right: nextCollapsedRight,
-          bottom: nextCollapsedBottom
-        })
-      }
-
-      // Сохраняем новый размер окна.
-      prevWindowSizeRef.current = { width: newWidth, height: newHeight }
+        // Сохраняем новый размер окна.
+        prevWindowSizeRef.current = { width: newWidth, height: newHeight }
       })
     }
 
@@ -1956,17 +1956,17 @@ export function EditorShell(): React.JSX.Element {
     const nextPanelState =
       panel.mode === 'floating'
         ? {
-            ...panel,
-            collapsed: nextCollapsed,
-            size: nextCollapsed
-              ? { width: currentSize.width, height: COLLAPSED_HEADER_HEIGHT }
-              : (panel.lastFloatingSize ?? currentSize),
-            lastFloatingSize: nextCollapsed ? currentSize : panel.lastFloatingSize
-          }
+          ...panel,
+          collapsed: nextCollapsed,
+          size: nextCollapsed
+            ? { width: currentSize.width, height: COLLAPSED_HEADER_HEIGHT }
+            : (panel.lastFloatingSize ?? currentSize),
+          lastFloatingSize: nextCollapsed ? currentSize : panel.lastFloatingSize
+        }
         : {
-            ...panel,
-            collapsed: nextCollapsed
-          }
+          ...panel,
+          collapsed: nextCollapsed
+        }
 
     setLayout({
       ...layout,
@@ -2573,9 +2573,9 @@ export function EditorShell(): React.JSX.Element {
 
     const size: Size = panelRect
       ? {
-          width: Math.max(120, Math.round(panelRect.width)),
-          height: Math.max(80, Math.round(panelRect.height))
-        }
+        width: Math.max(120, Math.round(panelRect.width)),
+        height: Math.max(80, Math.round(panelRect.height))
+      }
       : { width: 320, height: 220 }
 
     const ghostPosition = getFloatingPositionAtPoint(event.clientX, event.clientY, grabOffset)
@@ -2961,173 +2961,173 @@ export function EditorShell(): React.JSX.Element {
         const rootRect = rootRef.current?.getBoundingClientRect()
         if (!rootRect) return
 
-      const dx = event.clientX - resizeDrag.startX
-      const dy = event.clientY - resizeDrag.startY
+        const dx = event.clientX - resizeDrag.startX
+        const dy = event.clientY - resizeDrag.startY
 
-      if (resizeDrag.kind === 'dock-left') {
-        const maxLeft = Math.max(
-          MIN_LEFT_WIDTH,
-          rootRect.width - currentLayout.dockSizes.rightWidth - MIN_CENTER_WIDTH
-        )
-        const nextLeftWidth = clamp(
-          resizeDrag.startDockSizes.leftWidth + dx,
-          MIN_LEFT_WIDTH,
-          maxLeft
-        )
+        if (resizeDrag.kind === 'dock-left') {
+          const maxLeft = Math.max(
+            MIN_LEFT_WIDTH,
+            rootRect.width - currentLayout.dockSizes.rightWidth - MIN_CENTER_WIDTH
+          )
+          const nextLeftWidth = clamp(
+            resizeDrag.startDockSizes.leftWidth + dx,
+            MIN_LEFT_WIDTH,
+            maxLeft
+          )
 
-        setLayout({
-          ...currentLayout,
-          dockSizes: {
-            ...currentLayout.dockSizes,
-            leftWidth: nextLeftWidth
-          }
-        })
-        return
-      }
-
-      if (resizeDrag.kind === 'dock-right') {
-        const maxRight = Math.max(
-          MIN_RIGHT_WIDTH,
-          rootRect.width - currentLayout.dockSizes.leftWidth - MIN_CENTER_WIDTH
-        )
-        const nextRightWidth = clamp(
-          resizeDrag.startDockSizes.rightWidth - dx,
-          MIN_RIGHT_WIDTH,
-          maxRight
-        )
-
-        setLayout({
-          ...currentLayout,
-          dockSizes: {
-            ...currentLayout.dockSizes,
-            rightWidth: nextRightWidth
-          }
-        })
-        return
-      }
-
-      if (resizeDrag.kind === 'dock-bottom') {
-        const topBarHeight = 30
-        const maxBottom = Math.max(
-          MIN_BOTTOM_HEIGHT,
-          rootRect.height - topBarHeight - MIN_CENTER_HEIGHT
-        )
-        const nextBottomHeight = clamp(
-          resizeDrag.startDockSizes.bottomHeight - dy,
-          MIN_BOTTOM_HEIGHT,
-          maxBottom
-        )
-
-        setLayout({
-          ...currentLayout,
-          dockSizes: {
-            ...currentLayout.dockSizes,
-            bottomHeight: nextBottomHeight
-          }
-        })
-        return
-      }
-
-      if (resizeDrag.kind === 'split-left') {
-        const leftRect = leftDockRef.current?.getBoundingClientRect()
-        if (!leftRect) return
-        const ratio = clamp((event.clientY - leftRect.top) / leftRect.height, 0.15, 0.85)
-
-        setLayout({
-          ...currentLayout,
-          dockSizes: {
-            ...currentLayout.dockSizes,
-            leftSplit: ratio
-          }
-        })
-        return
-      }
-
-      if (resizeDrag.kind === 'split-right') {
-        const rightRect = rightDockRef.current?.getBoundingClientRect()
-        if (!rightRect) return
-        const ratio = clamp((event.clientY - rightRect.top) / rightRect.height, 0.15, 0.85)
-
-        setLayout({
-          ...currentLayout,
-          dockSizes: {
-            ...currentLayout.dockSizes,
-            rightSplit: ratio
-          }
-        })
-        return
-      }
-
-      if (resizeDrag.kind.startsWith('float-') && resizeDrag.panelId) {
-        const panel = currentLayout.panels[resizeDrag.panelId]
-        if (!panel || !resizeDrag.startPanelSize || !resizeDrag.startPanelPosition) return
-
-        const maxWidth = Math.max(MIN_FLOAT_WIDTH, rootRect.width - 24)
-        const maxHeight = Math.max(MIN_FLOAT_HEIGHT, rootRect.height - 24)
-
-        // Определяем, какие стороны двигаются.
-        const affectsTop = resizeDrag.kind.includes('n')
-        const affectsBottom = resizeDrag.kind.includes('s')
-        const affectsLeft = resizeDrag.kind.includes('w')
-        const affectsRight = resizeDrag.kind.includes('e')
-
-        const startPos = resizeDrag.startPanelPosition
-        const startSize = resizeDrag.startPanelSize
-
-        let nextWidth = startSize.width
-        let nextHeight = startSize.height
-        let nextX = startPos.x
-        let nextY = startPos.y
-
-        if (affectsRight) {
-          nextWidth = startSize.width + dx
-        }
-
-        if (affectsBottom) {
-          nextHeight = startSize.height + dy
-        }
-
-        if (affectsLeft) {
-          nextWidth = startSize.width - dx
-          nextX = startPos.x + dx
-        }
-
-        if (affectsTop) {
-          nextHeight = startSize.height - dy
-          nextY = startPos.y + dy
-        }
-
-        // Ограничиваем размеры и корректируем позицию,
-        // чтобы панель не "прыгала" при достижении минимума.
-        const clampedWidth = clamp(nextWidth, MIN_FLOAT_WIDTH, maxWidth)
-        const clampedHeight = clamp(nextHeight, MIN_FLOAT_HEIGHT, maxHeight)
-
-        if (affectsLeft) {
-          nextX = startPos.x + (startSize.width - clampedWidth)
-        }
-
-        if (affectsTop) {
-          nextY = startPos.y + (startSize.height - clampedHeight)
-        }
-
-        const maxX = Math.max(0, rootRect.width - clampedWidth)
-        const maxY = Math.max(0, rootRect.height - clampedHeight)
-
-        nextX = clamp(nextX, 0, maxX)
-        nextY = clamp(nextY, 0, maxY)
-
-        setLayout({
-          ...currentLayout,
-          panels: {
-            ...currentLayout.panels,
-            [resizeDrag.panelId]: {
-              ...panel,
-              position: { x: nextX, y: nextY },
-              size: { width: clampedWidth, height: clampedHeight }
+          setLayout({
+            ...currentLayout,
+            dockSizes: {
+              ...currentLayout.dockSizes,
+              leftWidth: nextLeftWidth
             }
+          })
+          return
+        }
+
+        if (resizeDrag.kind === 'dock-right') {
+          const maxRight = Math.max(
+            MIN_RIGHT_WIDTH,
+            rootRect.width - currentLayout.dockSizes.leftWidth - MIN_CENTER_WIDTH
+          )
+          const nextRightWidth = clamp(
+            resizeDrag.startDockSizes.rightWidth - dx,
+            MIN_RIGHT_WIDTH,
+            maxRight
+          )
+
+          setLayout({
+            ...currentLayout,
+            dockSizes: {
+              ...currentLayout.dockSizes,
+              rightWidth: nextRightWidth
+            }
+          })
+          return
+        }
+
+        if (resizeDrag.kind === 'dock-bottom') {
+          const topBarHeight = 30
+          const maxBottom = Math.max(
+            MIN_BOTTOM_HEIGHT,
+            rootRect.height - topBarHeight - MIN_CENTER_HEIGHT
+          )
+          const nextBottomHeight = clamp(
+            resizeDrag.startDockSizes.bottomHeight - dy,
+            MIN_BOTTOM_HEIGHT,
+            maxBottom
+          )
+
+          setLayout({
+            ...currentLayout,
+            dockSizes: {
+              ...currentLayout.dockSizes,
+              bottomHeight: nextBottomHeight
+            }
+          })
+          return
+        }
+
+        if (resizeDrag.kind === 'split-left') {
+          const leftRect = leftDockRef.current?.getBoundingClientRect()
+          if (!leftRect) return
+          const ratio = clamp((event.clientY - leftRect.top) / leftRect.height, 0.15, 0.85)
+
+          setLayout({
+            ...currentLayout,
+            dockSizes: {
+              ...currentLayout.dockSizes,
+              leftSplit: ratio
+            }
+          })
+          return
+        }
+
+        if (resizeDrag.kind === 'split-right') {
+          const rightRect = rightDockRef.current?.getBoundingClientRect()
+          if (!rightRect) return
+          const ratio = clamp((event.clientY - rightRect.top) / rightRect.height, 0.15, 0.85)
+
+          setLayout({
+            ...currentLayout,
+            dockSizes: {
+              ...currentLayout.dockSizes,
+              rightSplit: ratio
+            }
+          })
+          return
+        }
+
+        if (resizeDrag.kind.startsWith('float-') && resizeDrag.panelId) {
+          const panel = currentLayout.panels[resizeDrag.panelId]
+          if (!panel || !resizeDrag.startPanelSize || !resizeDrag.startPanelPosition) return
+
+          const maxWidth = Math.max(MIN_FLOAT_WIDTH, rootRect.width - 24)
+          const maxHeight = Math.max(MIN_FLOAT_HEIGHT, rootRect.height - 24)
+
+          // Определяем, какие стороны двигаются.
+          const affectsTop = resizeDrag.kind.includes('n')
+          const affectsBottom = resizeDrag.kind.includes('s')
+          const affectsLeft = resizeDrag.kind.includes('w')
+          const affectsRight = resizeDrag.kind.includes('e')
+
+          const startPos = resizeDrag.startPanelPosition
+          const startSize = resizeDrag.startPanelSize
+
+          let nextWidth = startSize.width
+          let nextHeight = startSize.height
+          let nextX = startPos.x
+          let nextY = startPos.y
+
+          if (affectsRight) {
+            nextWidth = startSize.width + dx
           }
-        })
-      }
+
+          if (affectsBottom) {
+            nextHeight = startSize.height + dy
+          }
+
+          if (affectsLeft) {
+            nextWidth = startSize.width - dx
+            nextX = startPos.x + dx
+          }
+
+          if (affectsTop) {
+            nextHeight = startSize.height - dy
+            nextY = startPos.y + dy
+          }
+
+          // Ограничиваем размеры и корректируем позицию,
+          // чтобы панель не "прыгала" при достижении минимума.
+          const clampedWidth = clamp(nextWidth, MIN_FLOAT_WIDTH, maxWidth)
+          const clampedHeight = clamp(nextHeight, MIN_FLOAT_HEIGHT, maxHeight)
+
+          if (affectsLeft) {
+            nextX = startPos.x + (startSize.width - clampedWidth)
+          }
+
+          if (affectsTop) {
+            nextY = startPos.y + (startSize.height - clampedHeight)
+          }
+
+          const maxX = Math.max(0, rootRect.width - clampedWidth)
+          const maxY = Math.max(0, rootRect.height - clampedHeight)
+
+          nextX = clamp(nextX, 0, maxX)
+          nextY = clamp(nextY, 0, maxY)
+
+          setLayout({
+            ...currentLayout,
+            panels: {
+              ...currentLayout.panels,
+              [resizeDrag.panelId]: {
+                ...panel,
+                position: { x: nextX, y: nextY },
+                size: { width: clampedWidth, height: clampedHeight }
+              }
+            }
+          })
+        }
       })
     }
 
@@ -3185,29 +3185,29 @@ export function EditorShell(): React.JSX.Element {
     [
       leftDockedIds[0]
         ? {
-            id: leftDockedIds[0],
-            className: ['dockPanelActions', drag?.panelId === leftDockedIds[0] ? 'isDragSource' : '']
-              .filter(Boolean)
-              .join(' '),
-            baseStyle: {
-              flexGrow: leftDockedIds.length >= 2 ? leftTopGrow : 1,
-              flexBasis: 0,
-              minHeight: 0
-            }
+          id: leftDockedIds[0],
+          className: ['dockPanelActions', drag?.panelId === leftDockedIds[0] ? 'isDragSource' : '']
+            .filter(Boolean)
+            .join(' '),
+          baseStyle: {
+            flexGrow: leftDockedIds.length >= 2 ? leftTopGrow : 1,
+            flexBasis: 0,
+            minHeight: 0
           }
+        }
         : null,
       leftDockedIds[1]
         ? {
-            id: leftDockedIds[1],
-            className: ['dockPanelBookmarks', drag?.panelId === leftDockedIds[1] ? 'isDragSource' : '']
-              .filter(Boolean)
-              .join(' '),
-            baseStyle: {
-              flexGrow: leftDockedIds.length >= 2 ? leftBottomGrow : 1,
-              flexBasis: 0,
-              minHeight: 0
-            }
+          id: leftDockedIds[1],
+          className: ['dockPanelBookmarks', drag?.panelId === leftDockedIds[1] ? 'isDragSource' : '']
+            .filter(Boolean)
+            .join(' '),
+          baseStyle: {
+            flexGrow: leftDockedIds.length >= 2 ? leftBottomGrow : 1,
+            flexBasis: 0,
+            minHeight: 0
           }
+        }
         : null
     ]
   )
@@ -3216,29 +3216,29 @@ export function EditorShell(): React.JSX.Element {
     [
       rightDockedIds[0]
         ? {
-            id: rightDockedIds[0],
-            className: ['dockPanelText', drag?.panelId === rightDockedIds[0] ? 'isDragSource' : '']
-              .filter(Boolean)
-              .join(' '),
-            baseStyle: {
-              flexGrow: rightDockedIds.length >= 2 ? rightTopGrow : 1,
-              flexBasis: 0,
-              minHeight: 0
-            }
+          id: rightDockedIds[0],
+          className: ['dockPanelText', drag?.panelId === rightDockedIds[0] ? 'isDragSource' : '']
+            .filter(Boolean)
+            .join(' '),
+          baseStyle: {
+            flexGrow: rightDockedIds.length >= 2 ? rightTopGrow : 1,
+            flexBasis: 0,
+            minHeight: 0
           }
+        }
         : null,
       rightDockedIds[1]
         ? {
-            id: rightDockedIds[1],
-            className: ['dockPanelInspector', drag?.panelId === rightDockedIds[1] ? 'isDragSource' : '']
-              .filter(Boolean)
-              .join(' '),
-            baseStyle: {
-              flexGrow: rightDockedIds.length >= 2 ? rightBottomGrow : 1,
-              flexBasis: 0,
-              minHeight: 0
-            }
+          id: rightDockedIds[1],
+          className: ['dockPanelInspector', drag?.panelId === rightDockedIds[1] ? 'isDragSource' : '']
+            .filter(Boolean)
+            .join(' '),
+          baseStyle: {
+            flexGrow: rightDockedIds.length >= 2 ? rightBottomGrow : 1,
+            flexBasis: 0,
+            minHeight: 0
           }
+        }
         : null
     ]
   )
@@ -3481,114 +3481,114 @@ export function EditorShell(): React.JSX.Element {
           {/* PreferencesProvider передаёт настройки в ноды (showNodeNameOnCanvas и т.д.) */}
           <PreferencesProvider value={preferences}>
             <FlowCanvas
-            runtimeNodes={runtime.nodes}
-            runtimeEdges={runtime.edges}
-            selectedNodeId={runtime.selectedNodeId}
-            selectedNodeIds={runtime.selectedNodeIds}
-            selectedEdgeId={runtime.selectedEdgeId}
-            onSelectNodes={(nodeIds) => {
-              // Важно: React Flow может звать onSelectionChange даже когда выделение не поменялось.
-              // Если мы будем каждый раз делать setRuntime, получится бесконечный цикл рендера.
-              const nextSelectedNodeId = nodeIds.length === 1 ? nodeIds[0] : null
+              runtimeNodes={runtime.nodes}
+              runtimeEdges={runtime.edges}
+              selectedNodeId={runtime.selectedNodeId}
+              selectedNodeIds={runtime.selectedNodeIds}
+              selectedEdgeId={runtime.selectedEdgeId}
+              onSelectNodes={(nodeIds) => {
+                // Важно: React Flow может звать onSelectionChange даже когда выделение не поменялось.
+                // Если мы будем каждый раз делать setRuntime, получится бесконечный цикл рендера.
+                const nextSelectedNodeId = nodeIds.length === 1 ? nodeIds[0] : null
 
-              const currentIds = runtime.selectedNodeIds ?? []
-              const sameLength = currentIds.length === nodeIds.length
-              const sameIds =
-                sameLength &&
-                nodeIds.every((id) => currentIds.includes(id)) &&
-                currentIds.every((id) => nodeIds.includes(id))
+                const currentIds = runtime.selectedNodeIds ?? []
+                const sameLength = currentIds.length === nodeIds.length
+                const sameIds =
+                  sameLength &&
+                  nodeIds.every((id) => currentIds.includes(id)) &&
+                  currentIds.every((id) => nodeIds.includes(id))
 
-              if (
-                runtime.selectedEdgeId === null &&
-                runtime.selectedNodeId === nextSelectedNodeId &&
-                sameIds
-              ) {
-                return
-              }
+                if (
+                  runtime.selectedEdgeId === null &&
+                  runtime.selectedNodeId === nextSelectedNodeId &&
+                  sameIds
+                ) {
+                  return
+                }
 
-              setRuntime({
-                ...runtime,
-                selectedNodeId: nextSelectedNodeId,
-                selectedNodeIds: nodeIds,
-                selectedEdgeId: null
-              })
-            }}
-            onSelectEdge={(edgeId) => {
-              // Аналогично: не делаем setRuntime, если edge уже выбран.
-              if (
-                runtime.selectedEdgeId === edgeId &&
-                runtime.selectedNodeId === null &&
-                (runtime.selectedNodeIds?.length ?? 0) === 0
-              ) {
-                return
-              }
-
-              setRuntime({
-                ...runtime,
-                selectedNodeId: null,
-                selectedNodeIds: [],
-                selectedEdgeId: edgeId
-              })
-            }}
-            onNodePositionChange={(changes) => {
-              // Сохраняем позиции узлов после перетаскивания в runtime.
-              // changes — массив, чтобы при мультидраге все позиции обновились за один setRuntime.
-              const posMap = new Map(changes.map((c) => [c.id, { x: c.x, y: c.y }]))
-              setRuntime({
-                ...runtime,
-                nodes: runtime.nodes.map((n) => {
-                  const newPos = posMap.get(n.id)
-                  return newPos ? { ...n, position: newPos } : n
+                setRuntime({
+                  ...runtime,
+                  selectedNodeId: nextSelectedNodeId,
+                  selectedNodeIds: nodeIds,
+                  selectedEdgeId: null
                 })
-              })
-            }}
-            onEdgeAdd={(edge) => {
-              // Добавляем новую связь в runtime (если такой ещё нет).
-              if (runtime.edges.some((e) => e.id === edge.id)) return
-              setRuntime({
-                ...runtime,
-                edges: [...runtime.edges, edge]
-              })
-            }}
-            onEdgeRemove={(edgeId) => {
-              // Удаляем связь из runtime.
-              setRuntime({
-                ...runtime,
-                edges: runtime.edges.filter((e) => e.id !== edgeId)
-              })
-            }}
-            onParallelAddBranch={onParallelAddBranch}
-            onParallelRemoveBranch={onParallelRemoveBranch}
-            onNodeDelete={(nodeId) => {
-              // ПКМ по ноде — удаляем ноду и все связанные рёбра.
-              const nextSelectedNodeIds = (runtime.selectedNodeIds ?? []).filter(
-                (id) => id !== nodeId
-              )
-              setRuntime({
-                ...runtime,
-                nodes: runtime.nodes.filter((n) => n.id !== nodeId),
-                edges: runtime.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
-                selectedNodeId: runtime.selectedNodeId === nodeId ? null : runtime.selectedNodeId,
-                selectedNodeIds: nextSelectedNodeIds,
-                selectedEdgeId: null
-              })
-            }}
-            onPaneClickCreate={createDefaultPaneNode}
-            onPaneDropCreate={createPaletteDropNode}
-            onEdgeDelete={(edgeId) => {
-              // ПКМ по связи — удаляем связь.
-              setRuntime({
-                ...runtime,
-                edges: runtime.edges.filter((e) => e.id !== edgeId),
-                selectedEdgeId: runtime.selectedEdgeId === edgeId ? null : runtime.selectedEdgeId
-              })
-            }}
-            onEdgeDoubleClick={() => {
-              // Двойной клик по ребру — после рендера фокусируем wait input.
-              shouldFocusEdgeWaitRef.current = true
-            }}
-            fitViewRequestId={fitViewRequestId}
-          />
+              }}
+              onSelectEdge={(edgeId) => {
+                // Аналогично: не делаем setRuntime, если edge уже выбран.
+                if (
+                  runtime.selectedEdgeId === edgeId &&
+                  runtime.selectedNodeId === null &&
+                  (runtime.selectedNodeIds?.length ?? 0) === 0
+                ) {
+                  return
+                }
+
+                setRuntime({
+                  ...runtime,
+                  selectedNodeId: null,
+                  selectedNodeIds: [],
+                  selectedEdgeId: edgeId
+                })
+              }}
+              onNodePositionChange={(changes) => {
+                // Сохраняем позиции узлов после перетаскивания в runtime.
+                // changes — массив, чтобы при мультидраге все позиции обновились за один setRuntime.
+                const posMap = new Map(changes.map((c) => [c.id, { x: c.x, y: c.y }]))
+                setRuntime({
+                  ...runtime,
+                  nodes: runtime.nodes.map((n) => {
+                    const newPos = posMap.get(n.id)
+                    return newPos ? { ...n, position: newPos } : n
+                  })
+                })
+              }}
+              onEdgeAdd={(edge) => {
+                // Добавляем новую связь в runtime (если такой ещё нет).
+                if (runtime.edges.some((e) => e.id === edge.id)) return
+                setRuntime({
+                  ...runtime,
+                  edges: [...runtime.edges, edge]
+                })
+              }}
+              onEdgeRemove={(edgeId) => {
+                // Удаляем связь из runtime.
+                setRuntime({
+                  ...runtime,
+                  edges: runtime.edges.filter((e) => e.id !== edgeId)
+                })
+              }}
+              onParallelAddBranch={onParallelAddBranch}
+              onParallelRemoveBranch={onParallelRemoveBranch}
+              onNodeDelete={(nodeId) => {
+                // ПКМ по ноде — удаляем ноду и все связанные рёбра.
+                const nextSelectedNodeIds = (runtime.selectedNodeIds ?? []).filter(
+                  (id) => id !== nodeId
+                )
+                setRuntime({
+                  ...runtime,
+                  nodes: runtime.nodes.filter((n) => n.id !== nodeId),
+                  edges: runtime.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
+                  selectedNodeId: runtime.selectedNodeId === nodeId ? null : runtime.selectedNodeId,
+                  selectedNodeIds: nextSelectedNodeIds,
+                  selectedEdgeId: null
+                })
+              }}
+              onPaneClickCreate={createDefaultPaneNode}
+              onPaneDropCreate={createPaletteDropNode}
+              onEdgeDelete={(edgeId) => {
+                // ПКМ по связи — удаляем связь.
+                setRuntime({
+                  ...runtime,
+                  edges: runtime.edges.filter((e) => e.id !== edgeId),
+                  selectedEdgeId: runtime.selectedEdgeId === edgeId ? null : runtime.selectedEdgeId
+                })
+              }}
+              onEdgeDoubleClick={() => {
+                // Двойной клик по ребру — после рендера фокусируем wait input.
+                shouldFocusEdgeWaitRef.current = true
+              }}
+              fitViewRequestId={fitViewRequestId}
+            />
           </PreferencesProvider>
         </div>
       </main>
@@ -3599,6 +3599,7 @@ export function EditorShell(): React.JSX.Element {
         className={['editorRightDock', collapsedDocks.right ? 'isDockVisuallyCollapsed' : '']
           .filter(Boolean)
           .join(' ')}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Невидимый расширенный hitbox для свёрнутого правого дока. */}
         <div ref={rightDockHitboxRef} className="dockDropHitbox dockDropHitboxRight" aria-hidden="true" />
@@ -3654,6 +3655,7 @@ export function EditorShell(): React.JSX.Element {
         ]
           .filter(Boolean)
           .join(' ')}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Невидимый hitbox для нижнего дока живёт отдельно,
             чтобы свёрнутый док оставался узким, но drop всё ещё работал по старой зоне. */}
@@ -3670,8 +3672,8 @@ export function EditorShell(): React.JSX.Element {
         {/* Preview нижнего дока занимает точную область, куда сядет панель. */}
         <div ref={bottomDockPreviewRef} className="dockDropPreview" aria-hidden="true" />
         <div className="dockCollapseContent">
-        {bottomDockedIds.length > 0
-          ? (() => {
+          {bottomDockedIds.length > 0
+            ? (() => {
               // Определяем активную вкладку: если сохранённая не в списке — берём первую.
               const activeId =
                 activeBottomTabId && bottomDockedIds.includes(activeBottomTabId)
@@ -3771,7 +3773,7 @@ export function EditorShell(): React.JSX.Element {
                 </>
               )
             })()
-          : null}
+            : null}
         </div>
       </section>
 

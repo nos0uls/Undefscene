@@ -670,10 +670,11 @@ const FlowCanvasInner = ({
       // Только MMB (колёсико).
       if (event.button !== 1) return
 
-      // Проверяем, не кликнули ли мы по интерактивному элементу в UI-панелях.
+      // Проверяем, не кликнули ли мы по UI-панелям.
+      // Если клик пришел из инспектора или палитры, мы его полностью игнорируем здесь.
       const target = event.target as HTMLElement | null
-      const interactiveTarget = target?.closest('textarea, input, select, button, [contenteditable="true"]')
-      if (interactiveTarget) return
+      const isUiClick = target?.closest('textarea, input, select, button, [contenteditable="true"], .editorLeftDock, .editorRightDock, .editorBottomDock, .prefsOverlay, .topMenuBar, .floatingLayer')
+      if (isUiClick) return
 
       // Разрешаем создание ноды только если клик пришёл по пустому месту (pane).
       const clickedPane = !!target?.closest('.react-flow__pane')
