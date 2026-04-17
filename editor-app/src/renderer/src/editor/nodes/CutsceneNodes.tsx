@@ -549,9 +549,12 @@ export function PlaySFXNode({ data, selected }: CutsceneNodeProps): React.JSX.El
 export function EmoteNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const sprite = data.params?.sprite ?? ''
+  const wait = data.params?.wait === true
   return (
     <BaseNode nodeType="emote" selected={selected}>
-      <div className="customNodeParam">{String(target)}</div>
+      <div className="customNodeParam">
+        {String(target)} {wait && <span style={{ opacity: 0.5, fontSize: '0.9em' }}>(wait)</span>}
+      </div>
       {sprite && <div className="customNodeParam">{String(sprite)}</div>}
     </BaseNode>
   )

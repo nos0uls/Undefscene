@@ -733,7 +733,7 @@ export function EditorShell(): React.JSX.Element {
         fade_in: { seconds: 0.5, color: 'black' },
         fade_out: { seconds: 0.5, color: 'black' },
         play_sfx: { sound: '', volume: 1, pitch: 1 },
-        emote: { target: 'player', sprite: '', seconds: 1, offset_x: 0, offset_y: -24, scale: 1 },
+        emote: { target: 'player', sprite: '', seconds: 1, offset_x: 0, offset_y: -24, scale: 1, wait: false },
         jump: { target: 'player', x: 0, y: 0, seconds: 0.5, height: 16, easing: 'linear' },
         halt: { target: 'player' },
         flip: { target: 'player', flipped: true },

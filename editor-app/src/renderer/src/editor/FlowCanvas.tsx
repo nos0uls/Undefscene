@@ -638,9 +638,14 @@ const FlowCanvasInner = ({
     onNodeDeleteRef.current(node.id)
   }, [])
 
-  // ЛКМ по холсту — создаём новую ноду в позиции курсора.
-  // ПКМ по холсту — React Flow сам панорамирует (panOnDrag={[2]).
+  // ЛКМ по холсту — снимаем выделение.
+  // Мы игнорируем этот клик, если он пришёл из интерактивного элемента (инпут, селект и т.д.).
   const handlePaneClick = useCallback((event: React.MouseEvent) => {
+    // Проверяем, не кликнули ли мы по элементу управления (инспектору, кнопкам).
+    const target = event.target as HTMLElement | null
+    const interactiveTarget = target?.closest('textarea, input, select, button, [contenteditable="true"]')
+    if (interactiveTarget) return
+
     // Если только что создали связь — игнорируем этот клик и сбрасываем флаг.
     if (justConnectedRef.current) {
       justConnectedRef.current = false
@@ -662,11 +667,15 @@ const FlowCanvasInner = ({
   // Используем MouseDown, потому что "click" обычно срабатывает только для ЛКМ.
   const handleMouseDown = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      // Только MMB.
+      // Только MMB (колёсико).
       if (event.button !== 1) return
 
-      // Разрешаем создание ноды только если клик пришёл по пустому месту (pane).
+      // Проверяем, не кликнули ли мы по интерактивному элементу в UI-панелях.
       const target = event.target as HTMLElement | null
+      const interactiveTarget = target?.closest('textarea, input, select, button, [contenteditable="true"]')
+      if (interactiveTarget) return
+
+      // Разрешаем создание ноды только если клик пришёл по пустому месту (pane).
       const clickedPane = !!target?.closest('.react-flow__pane')
       if (!clickedPane) return
 

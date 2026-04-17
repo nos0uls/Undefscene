@@ -512,6 +512,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
               <label className="runtimeField"><span>Offset X</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.offset_x as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'offset_x', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Offset Y</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.offset_y as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'offset_y', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Scale</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.scale as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'scale', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Wait</span><select className="runtimeInput" value={String(selectedNode.params?.wait ?? 'false')} onChange={(event) => updateNodeParam(selectedNode.id, 'wait', event.target.value === 'true')}><option value="false">false (fire and forget)</option><option value="true">true (wait for finish)</option></select></label>
             </>
           )}
 
