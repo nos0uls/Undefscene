@@ -1706,28 +1706,13 @@ export function RoomVisualEditorModal({
 
             {bundle?.warning ? <div className="runtimeHint">{bundle.warning}</div> : null}
 
+            {/* Техническая информация о скриншотах: размеры комнаты, сетка тайлов и т.д. */}
             {techMode && bundle?.meta ? (
               <>
-                <div className="runtimeField roomVisualEditorField">
-                  <span>{t('editor.visualEditingSource', 'Source')}</span>
-                  <code className="roomVisualEditorCode">{bundle.sourceDir ?? '—'}</code>
-                </div>
-                <div className="runtimeField roomVisualEditorField">
-                  <span>{t('editor.visualEditingSearchDirs', 'Search Dirs')}</span>
-                  <code className="roomVisualEditorCode">
-                    {bundle.searchedDirs.length > 0 ? bundle.searchedDirs.join(' | ') : '—'}
-                  </code>
-                </div>
                 <div className="runtimeField roomVisualEditorField">
                   <span>{t('editor.visualEditingRoomSize', 'Room Size')}</span>
                   <code className="roomVisualEditorCode">
                     {bundle.meta.room_width} × {bundle.meta.room_height}
-                  </code>
-                </div>
-                <div className="runtimeField roomVisualEditorField">
-                  <span>{t('editor.visualEditingCaptureSize', 'Capture Tile')}</span>
-                  <code className="roomVisualEditorCode">
-                    {bundle.meta.capture_width} × {bundle.meta.capture_height}
                   </code>
                 </div>
                 <div className="runtimeField roomVisualEditorField">
@@ -1741,36 +1726,14 @@ export function RoomVisualEditorModal({
                   <code className="roomVisualEditorCode">{bundle.tiles.length}</code>
                 </div>
                 <div className="runtimeField roomVisualEditorField">
-                  <span>{t('editor.visualEditingMissingTiles', 'Missing Tiles')}</span>
-                  <code className="roomVisualEditorCode">{bundle.missingTiles.length}</code>
-                </div>
-                <div className="runtimeField roomVisualEditorField">
                   <span>{t('editor.visualEditingZoomLabel', 'Zoom')}</span>
                   <code className="roomVisualEditorCode">{Math.round(zoom * 100)}%</code>
                 </div>
-                <div className="runtimeField roomVisualEditorField">
-                  <span>{t('editor.visualEditingPathPoints', 'Path Points')}</span>
-                  <code className="roomVisualEditorCode">{draftPathPoints.length}</code>
-                </div>
-                <div className="runtimeField roomVisualEditorField">
-                  <span>{t('editor.visualEditingActors', 'Actors')}</span>
-                  <code className="roomVisualEditorCode">{draftActors.length}</code>
-                </div>
               </>
             ) : projectDir && selectedRoom && !isLoading && !bundle?.meta ? (
-              <>
-                <div className="runtimeHint">
-                  {t('editor.visualEditingNoMeta', 'No room screenshot data found.')}
-                </div>
-                {techMode ? (
-                  <div className="runtimeField roomVisualEditorField">
-                    <span>{t('editor.visualEditingSearchDirs', 'Search Dirs')}</span>
-                    <code className="roomVisualEditorCode">
-                      {bundle?.searchedDirs?.length ? bundle.searchedDirs.join(' | ') : '—'}
-                    </code>
-                  </div>
-                ) : null}
-              </>
+              <div className="runtimeHint">
+                {t('editor.visualEditingNoMeta', 'No room screenshot data found.')}
+              </div>
             ) : null}
 
             {!projectDir ? null : !isLoading && availableRooms.length <= 0 ? (
@@ -2034,7 +1997,8 @@ export function RoomVisualEditorModal({
                   playPreviewPoint={playPreviewPoint}
                   activeTool={activeTool}
                   getActorSpritePreview={getActorSpritePreview}
-                  trueRtx={preferences.visualEditorTrueRtx}
+                  liquidGlassEnabled={preferences.liquidGlassEnabled}
+                  liquidGlassBlur={preferences.liquidGlassBlur}
                 />
               ) : null}
             </div>

@@ -12,6 +12,15 @@ type RuntimeHistory = {
   future: RuntimeState[]
 }
 
+function hasMeaningfulSceneChange(prev: RuntimeState, next: RuntimeState): boolean {
+  return (
+    prev.schemaVersion !== next.schemaVersion ||
+    prev.title !== next.title ||
+    prev.nodes !== next.nodes ||
+    prev.edges !== next.edges
+  )
+}
+
 // Хук для хранения runtime-json состояния и его автосохранения.
 export const useRuntimeState = (): {
   runtime: RuntimeState
@@ -104,8 +113,14 @@ export const useRuntimeState = (): {
         const nextState =
           typeof nextOrUpdater === 'function' ? nextOrUpdater(prev.present) : nextOrUpdater
 
-        // Если состояние не изменилось, не создаем запись в истории
         if (nextState === prev.present) return prev
+
+        if (!hasMeaningfulSceneChange(prev.present, nextState)) {
+          return {
+            ...prev,
+            present: nextState
+          }
+        }
 
         const nextPast = [...prev.past, prev.present]
         if (nextPast.length > MAX_HISTORY) {

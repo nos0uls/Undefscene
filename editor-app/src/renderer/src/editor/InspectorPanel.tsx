@@ -233,9 +233,9 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           onChange={(event) => setRuntime({ ...runtime, title: event.target.value })}
         />
       </label>
+      {/* Выбранная нода: тип, имя и параметры. ID больше не показываем пользователю. */}
       {selectedNode ? (
         <>
-          <div className="runtimeHint" style={{ opacity: 0.6 }}>ID: {selectedNode.id}</div>
           <label className="runtimeField">
             <span>{t('editor.nodeType', 'Node type')}</span>
             <select
@@ -571,7 +571,8 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
             </div>
           )}
           <div className="runtimeHint" style={{ opacity: 0.6 }}>
-            Edges: {incomingCount} in / {outgoingCount} out
+            {/* Статистика по связям: сколько стрелок входит и выходит из ноды. */}
+            {t('editor.connections', 'Connections')}: {incomingCount} in / {outgoingCount} out
           </div>
         </>
       ) : (
@@ -609,19 +610,22 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
         </>
       ) : null}
 
-      {/* Информация о проекте */}
+      {/* Информация о загруженном проекте: статистика ресурсов и название файла .yyp. */}
       <div className="runtimeSectionTitle" style={{ marginTop: 8 }}>{t('editor.project', 'Project')}</div>
       {resources ? (
         <div className="runtimeHint">
-          {resources.yypPath}<br />
-          {t('editor.sprites', 'Sprites')}: {resources.sprites.length}<br />
-          {t('editor.objects', 'Objects')}: {resources.objects.length}<br />
-          {t('editor.rooms', 'Rooms')}: {resources.rooms.length}<br />
-          {t('editor.yarnFiles', 'Yarn Files')}: {yarnFiles.length}
-          {resources.restoredFromLastSession ? (<><br />{t('editor.projectCacheRestored', 'Restored from previous session')}</>) : null}<br />
-          {resources.cacheStatus === 'warm' ? t('editor.projectCacheWarmOpen', 'Cache status: warm') : t('editor.projectCacheColdOpen', 'Cache status: cold')}<br />
-          {t('editor.projectCacheScreenshots', 'Screenshots cache: active')}<br />
-          {t('editor.visualEditingSearchDirs', 'Search Dirs')}: {roomScreenshotSearchDirs.length > 0 ? roomScreenshotSearchDirs.join(' | ') : '—'}
+          {/* Показываем только имя файла проекта, полный путь пользователю не нужен. */}
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>
+            {resources.yypPath.split(/[\\/]/).pop()}
+          </div>
+          
+          {/* Компактная статистика ресурсов проекта. */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 8px', fontSize: 11, opacity: 0.8 }}>
+            <span>{t('editor.sprites', 'Sprites')}: {resources.sprites.length}</span>
+            <span>{t('editor.objects', 'Objects')}: {resources.objects.length}</span>
+            <span>{t('editor.rooms', 'Rooms')}: {resources.rooms.length}</span>
+            <span>{t('editor.yarnFiles', 'Yarn Files')}: {yarnFiles.length}</span>
+          </div>
         </div>
       ) : (
         <div className="runtimeHint">{t('editor.noProjectLoaded', 'Project not loaded.')}</div>

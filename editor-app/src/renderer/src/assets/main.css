@@ -1177,7 +1177,7 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   border-radius: 8px;
   /* Возвращаем аккуратные современные скругления */
   /* Легкая прозрачность для базового режима */
-  background: color-mix(in srgb, var(--bg-surface) 96%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) calc(var(--liquid-glass-alpha, 1) * 100%), transparent);
   font-size: 12px;
   color: var(--ev-c-text-1);
   min-width: 140px;
@@ -1187,7 +1187,16 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 8px 20px rgba(0, 0, 0, 0.35);
   overflow: hidden;
-  transition: box-shadow 0.1s ease, border-color 0.1s ease;
+  transition: box-shadow 0.1s ease, border-color 0.1s ease, opacity 0.15s ease;
+}
+
+.customNode.isLiquidGlass {
+  /* Temporarily disabled due to massive performance hits on large graphs. GPU struggles to blur 500+ nodes. */
+  border-color: color-mix(in srgb, var(--ev-c-accent) 40%, var(--border-strong));
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.25),
+    0 0 15px color-mix(in srgb, var(--ev-c-accent) 15%, transparent);
 }
 
 
@@ -1440,6 +1449,18 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   width: clamp(112px, 18vw, 180px) !important;
   height: clamp(78px, 14vh, 120px) !important;
   overflow: hidden !important;
+  pointer-events: none !important;
+}
+
+.flowCanvas .react-flow__panel,
+.flowCanvas .react-flow__panel > * {
+  box-sizing: border-box;
+}
+
+/* Liquid Glass for Visual Editor Overlay */
+.roomVisualEditorOverlay.isLiquidGlass {
+  backdrop-filter: blur(var(--liquid-glass-blur, 4px));
+  -webkit-backdrop-filter: blur(var(--liquid-glass-blur, 4px));
 }
 
 /* Рёбра на холсте. */

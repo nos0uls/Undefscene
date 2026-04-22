@@ -438,13 +438,35 @@ export function PreferencesModal({
             <label className="prefsField prefsCheckbox">
               <input
                 type="checkbox"
-                checked={preferences.visualEditorTrueRtx}
-                onChange={(e) => updatePreferences({ visualEditorTrueRtx: e.target.checked })}
+                checked={preferences.liquidGlassEnabled}
+                onChange={(e) => updatePreferences({ liquidGlassEnabled: e.target.checked })}
               />
-              <span>{t('preferences.trueRtxEnabled', 'True RTX (Dynamic transparency & blending)')}</span>
+              <span>{t('preferences.liquidGlassEnabled', 'Liquid Glass')}</span>
             </label>
+            {preferences.liquidGlassEnabled && (
+              <label className="prefsField">
+                <span>
+                  {t('preferences.liquidGlassBlur', 'Blur Intensity')} ({Math.round(
+                    preferences.liquidGlassBlur * 100
+                  )}%)
+                </span>
+                <input
+                  className="prefsInput"
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={Math.round(preferences.liquidGlassBlur * 100)}
+                  onChange={(e) =>
+                    updatePreferences({
+                      liquidGlassBlur: Number(e.target.value) / 100
+                    })
+                  }
+                />
+              </label>
+            )}
             <div className="prefsHint">
-              {t('preferences.trueRtxHint', 'When enabled, visual elements react to background colors in real-time. Turn off for static solid colors and better performance.')}
+              {t('editor.liquidGlassHint', 'Dynamic transparency and blurring for nodes and paths.')}
             </div>
 
             {/* Папка screenshot output помогает явно связать editor и внешний runner.

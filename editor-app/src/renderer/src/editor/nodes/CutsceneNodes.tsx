@@ -1,4 +1,5 @@
 import { Handle, Position } from '@xyflow/react'
+import { memo } from 'react'
 import { BaseNode } from './BaseNode'
 
 // Тип данных, которые React Flow передаёт в каждую ноду.
@@ -27,33 +28,33 @@ type CutsceneNodeProps = {
 // --- Flow-ноды ---
 
 // Стартовая нода: только выход, без входа.
-export function StartNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const StartNode = memo(function StartNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   return (
     <BaseNode nodeType="start" label={data.label} hasInput={false} hasOutput selected={selected} />
   )
-}
+})
 
 // Конечная нода: только вход, без выхода.
-export function EndNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const EndNode = memo(function EndNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   return (
     <BaseNode nodeType="end" label={data.label} hasInput hasOutput={false} selected={selected} />
   )
-}
+})
 
 // Пауза: ждём N секунд.
-export function WaitNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const WaitNode = memo(function WaitNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const seconds = data.params?.seconds ?? '?'
   return (
     <BaseNode nodeType="wait" selected={selected}>
       <div className="customNodeParam">{String(seconds)}s</div>
     </BaseNode>
   )
-}
+})
 
 // --- Movement-ноды ---
 
 // Перемещение актёра в точку.
-export function MoveNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const MoveNode = memo(function MoveNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const x = data.params?.x ?? '?'
   const y = data.params?.y ?? '?'
@@ -65,10 +66,10 @@ export function MoveNode({ data, selected }: CutsceneNodeProps): React.JSX.Eleme
       </div>
     </BaseNode>
   )
-}
+})
 
 // Перемещение по набору точек.
-export function FollowPathNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const FollowPathNode = memo(function FollowPathNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const points = Array.isArray(data.params?.points) ? data.params.points.length : 0
   return (
@@ -77,10 +78,10 @@ export function FollowPathNode({ data, selected }: CutsceneNodeProps): React.JSX
       <div className="customNodeParam">{points} points</div>
     </BaseNode>
   )
-}
+})
 
 // Мгновенная установка позиции.
-export function SetPositionNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const SetPositionNode = memo(function SetPositionNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const x = data.params?.x ?? '?'
   const y = data.params?.y ?? '?'
@@ -92,12 +93,12 @@ export function SetPositionNode({ data, selected }: CutsceneNodeProps): React.JS
       </div>
     </BaseNode>
   )
-}
+})
 
 // --- Actor-ноды ---
 
 // Создание актёра.
-export function ActorCreateNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const ActorCreateNode = memo(function ActorCreateNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const key = data.params?.key ?? ''
   const obj = data.params?.sprite_or_object ?? ''
   return (
@@ -106,22 +107,22 @@ export function ActorCreateNode({ data, selected }: CutsceneNodeProps): React.JS
       {obj && <div className="customNodeParam">{String(obj)}</div>}
     </BaseNode>
   )
-}
+})
 
 // Уничтожение актёра.
-export function ActorDestroyNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const ActorDestroyNode = memo(function ActorDestroyNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   return (
     <BaseNode nodeType="actor_destroy" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
     </BaseNode>
   )
-}
+})
 
 // --- Visual-ноды ---
 
 // Анимация спрайта.
-export function AnimateNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const AnimateNode = memo(function AnimateNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const sprite = data.params?.sprite ?? ''
   return (
@@ -130,10 +131,10 @@ export function AnimateNode({ data, selected }: CutsceneNodeProps): React.JSX.El
       {sprite && <div className="customNodeParam">{String(sprite)}</div>}
     </BaseNode>
   )
-}
+})
 
 // Установка направления взгляда.
-export function SetFacingNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const SetFacingNode = memo(function SetFacingNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const direction = data.params?.direction ?? '?'
   return (
@@ -142,10 +143,10 @@ export function SetFacingNode({ data, selected }: CutsceneNodeProps): React.JSX.
       <div className="customNodeParam">dir: {String(direction)}</div>
     </BaseNode>
   )
-}
+})
 
 // Установка глубины.
-export function SetDepthNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const SetDepthNode = memo(function SetDepthNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const depth = data.params?.depth ?? '?'
   return (
@@ -154,12 +155,12 @@ export function SetDepthNode({ data, selected }: CutsceneNodeProps): React.JSX.E
       <div className="customNodeParam">depth: {String(depth)}</div>
     </BaseNode>
   )
-}
+})
 
 // --- Dialogue ---
 
 // Диалоговая нода.
-export function DialogueNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const DialogueNode = memo(function DialogueNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const file = data.params?.file ?? ''
   const node = data.params?.node ?? ''
   return (
@@ -169,9 +170,9 @@ export function DialogueNode({ data, selected }: CutsceneNodeProps): React.JSX.E
       {data.label && !file && <div className="customNodeParam">{data.label}</div>}
     </BaseNode>
   )
-}
+})
 
-export function WaitForDialogueNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const WaitForDialogueNode = memo(function WaitForDialogueNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const controller = data.params?.dialogue_controller ?? ''
   return (
     <BaseNode nodeType="wait_for_dialogue" selected={selected}>
@@ -179,12 +180,12 @@ export function WaitForDialogueNode({ data, selected }: CutsceneNodeProps): Reac
       {!controller && <div className="customNodeParam">active textbox</div>}
     </BaseNode>
   )
-}
+})
 
 // --- Camera ---
 
 // Камера следит за целью.
-export function CameraTrackNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const CameraTrackNode = memo(function CameraTrackNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const seconds = data.params?.seconds ?? '?'
   return (
@@ -193,10 +194,10 @@ export function CameraTrackNode({ data, selected }: CutsceneNodeProps): React.JS
       <div className="customNodeParam">{String(seconds)}s</div>
     </BaseNode>
   )
-}
+})
 
 // Камера панорамирует к точке.
-export function CameraPanNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const CameraPanNode = memo(function CameraPanNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const x = data.params?.x ?? '?'
   const y = data.params?.y ?? '?'
   const seconds = data.params?.seconds ?? '?'
@@ -208,7 +209,7 @@ export function CameraPanNode({ data, selected }: CutsceneNodeProps): React.JSX.
       <div className="customNodeParam">{String(seconds)}s</div>
     </BaseNode>
   )
-}
+})
 
 // --- Logic ---
 
@@ -256,7 +257,7 @@ function renderSharedParallelHandle(kind: 'source' | 'target'): React.JSX.Elemen
 }
 
 // Fork-нода: много выходов.
-export function ParallelStartNode(props: CutsceneNodeProps & { id?: string }): React.JSX.Element {
+export const ParallelStartNode = memo(function ParallelStartNode(props: CutsceneNodeProps & { id?: string }): React.JSX.Element {
   const id = String(props.id ?? '')
   const data = props.data
   const selected = Boolean(props.selected)
@@ -311,10 +312,10 @@ export function ParallelStartNode(props: CutsceneNodeProps & { id?: string }): R
       </div>
     </BaseNode>
   )
-}
+})
 
 // Join-нода: много входов.
-export function ParallelJoinNode(props: CutsceneNodeProps & { id?: string }): React.JSX.Element {
+export const ParallelJoinNode = memo(function ParallelJoinNode(props: CutsceneNodeProps & { id?: string }): React.JSX.Element {
   const id = String((props as { id?: string }).id ?? '')
   const data = props.data
   const selected = Boolean(props.selected)
@@ -371,11 +372,11 @@ export function ParallelJoinNode(props: CutsceneNodeProps & { id?: string }): Re
       </div>
     </BaseNode>
   )
-}
+})
 
 // Ветвление по условию: вход, выход true (вверху справа), выход false (внизу справа).
 // Увеличена высота и разнесены handles для удобства.
-export function BranchNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const BranchNode = memo(function BranchNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const condition = data.params?.condition ?? ''
   return (
     <BaseNode
@@ -441,12 +442,12 @@ export function BranchNode({ data, selected }: CutsceneNodeProps): React.JSX.Ele
       {condition && <div className="customNodeParam">{String(condition)}</div>}
     </BaseNode>
   )
-}
+})
 
 // --- Дополнительные Camera-ноды ---
 
 // Тряска камеры.
-export function CameraShakeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const CameraShakeNode = memo(function CameraShakeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const seconds = data.params?.seconds ?? '?'
   const magnitude = data.params?.magnitude ?? 4
   return (
@@ -455,12 +456,12 @@ export function CameraShakeNode({ data, selected }: CutsceneNodeProps): React.JS
       <div className="customNodeParam">mag: {String(magnitude)}</div>
     </BaseNode>
   )
-}
+})
 
 // --- Дополнительные Visual-ноды ---
 
 // Включить/выключить авто-поворот.
-export function AutoFacingNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const AutoFacingNode = memo(function AutoFacingNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const enabled = data.params?.enabled ?? true
   return (
@@ -469,10 +470,10 @@ export function AutoFacingNode({ data, selected }: CutsceneNodeProps): React.JSX
       <div className="customNodeParam">{String(enabled)}</div>
     </BaseNode>
   )
-}
+})
 
 // Включить/выключить авто-ходьбу.
-export function AutoWalkNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const AutoWalkNode = memo(function AutoWalkNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const enabled = data.params?.enabled ?? true
   return (
@@ -481,19 +482,19 @@ export function AutoWalkNode({ data, selected }: CutsceneNodeProps): React.JSX.E
       <div className="customNodeParam">{String(enabled)}</div>
     </BaseNode>
   )
-}
+})
 
 // Запуск функции/скрипта.
-export function RunFunctionNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const RunFunctionNode = memo(function RunFunctionNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const funcName = data.params?.function_name ?? data.params?.function ?? ''
   return (
     <BaseNode nodeType="run_function" selected={selected}>
       {funcName && <div className="customNodeParam">{String(funcName)}()</div>}
     </BaseNode>
   )
-}
+})
 
-export function TweenNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const TweenNode = memo(function TweenNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const kind = data.params?.kind ?? 'instance'
   const target = data.params?.target ?? 'camera'
   const property = data.params?.property ?? data.params?.field ?? ''
@@ -504,9 +505,9 @@ export function TweenNode({ data, selected }: CutsceneNodeProps): React.JSX.Elem
       <div className="customNodeParam">{String(property)} → {String(to)}</div>
     </BaseNode>
   )
-}
+})
 
-export function SetPropertyNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const SetPropertyNode = memo(function SetPropertyNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const kind = data.params?.kind ?? 'instance'
   const target = data.params?.target ?? 'camera'
   const property = data.params?.property ?? data.params?.field ?? ''
@@ -517,36 +518,36 @@ export function SetPropertyNode({ data, selected }: CutsceneNodeProps): React.JS
       <div className="customNodeParam">{String(property)} = {String(value)}</div>
     </BaseNode>
   )
-}
+})
 
-export function FadeInNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const FadeInNode = memo(function FadeInNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const seconds = data.params?.seconds ?? '?'
   return (
     <BaseNode nodeType="fade_in" selected={selected}>
       <div className="customNodeParam">{String(seconds)}s</div>
     </BaseNode>
   )
-}
+})
 
-export function FadeOutNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const FadeOutNode = memo(function FadeOutNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const seconds = data.params?.seconds ?? '?'
   return (
     <BaseNode nodeType="fade_out" selected={selected}>
       <div className="customNodeParam">{String(seconds)}s</div>
     </BaseNode>
   )
-}
+})
 
-export function PlaySFXNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const PlaySFXNode = memo(function PlaySFXNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const sound = data.params?.sound ?? data.params?.key ?? ''
   return (
     <BaseNode nodeType="play_sfx" selected={selected}>
       {sound && <div className="customNodeParam">{String(sound)}</div>}
     </BaseNode>
   )
-}
+})
 
-export function EmoteNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const EmoteNode = memo(function EmoteNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const sprite = data.params?.sprite ?? ''
   const wait = data.params?.wait === true
@@ -558,9 +559,9 @@ export function EmoteNode({ data, selected }: CutsceneNodeProps): React.JSX.Elem
       {sprite && <div className="customNodeParam">{String(sprite)}</div>}
     </BaseNode>
   )
-}
+})
 
-export function JumpNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const JumpNode = memo(function JumpNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const x = data.params?.x ?? '?'
   const y = data.params?.y ?? '?'
@@ -570,18 +571,18 @@ export function JumpNode({ data, selected }: CutsceneNodeProps): React.JSX.Eleme
       <div className="customNodeParam">→ {String(x)}, {String(y)}</div>
     </BaseNode>
   )
-}
+})
 
-export function HaltNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const HaltNode = memo(function HaltNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   return (
     <BaseNode nodeType="halt" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
     </BaseNode>
   )
-}
+})
 
-export function FlipNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const FlipNode = memo(function FlipNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const flipped = data.params?.flipped ?? true
   return (
@@ -590,9 +591,9 @@ export function FlipNode({ data, selected }: CutsceneNodeProps): React.JSX.Eleme
       <div className="customNodeParam">{String(flipped)}</div>
     </BaseNode>
   )
-}
+})
 
-export function SpinNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const SpinNode = memo(function SpinNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const speed = data.params?.speed ?? '?'
   return (
@@ -601,9 +602,9 @@ export function SpinNode({ data, selected }: CutsceneNodeProps): React.JSX.Eleme
       <div className="customNodeParam">speed: {String(speed)}</div>
     </BaseNode>
   )
-}
+})
 
-export function ShakeObjectNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const ShakeObjectNode = memo(function ShakeObjectNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const magnitude = data.params?.magnitude ?? 4
   return (
@@ -612,9 +613,9 @@ export function ShakeObjectNode({ data, selected }: CutsceneNodeProps): React.JS
       <div className="customNodeParam">mag: {String(magnitude)}</div>
     </BaseNode>
   )
-}
+})
 
-export function SetVisibleNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const SetVisibleNode = memo(function SetVisibleNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const visible = data.params?.visible ?? true
   return (
@@ -623,13 +624,13 @@ export function SetVisibleNode({ data, selected }: CutsceneNodeProps): React.JSX
       <div className="customNodeParam">{String(visible)}</div>
     </BaseNode>
   )
-}
+})
 
-export function InstantModeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const InstantModeNode = memo(function InstantModeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const enabled = data.params?.enabled ?? true
   return (
     <BaseNode nodeType="instant_mode" selected={selected}>
       <div className="customNodeParam">{String(enabled)}</div>
     </BaseNode>
   )
-}
+})

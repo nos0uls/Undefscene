@@ -1,4 +1,5 @@
 import { Handle, Position } from '@xyflow/react'
+import { memo } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { NODE_CATEGORY, NODE_COLORS, NODE_LABELS } from './nodeConstants'
 import { usePreferencesContext } from '../PreferencesContext'
@@ -33,7 +34,7 @@ type BaseNodeProps = {
 
 // Базовый компонент ноды — общий каркас для всех типов.
 // Рисует цветной заголовок, порты и тело с параметрами.
-export function BaseNode({
+export const BaseNode = memo(function BaseNode({
   nodeType,
   label,
   hasInput = true,
@@ -53,13 +54,22 @@ export function BaseNode({
 
   return (
     <div
-      className={['customNode', selected ? 'isSelected' : ''].filter(Boolean).join(' ')}
+      className={[
+        'customNode',
+        selected ? 'isSelected' : '',
+        prefs.liquidGlassEnabled ? 'isLiquidGlass' : ''
+      ]
+        .filter(Boolean)
+        .join(' ')}
       style={{
         minWidth: 140,
         // Branch нода выше, чтобы TRUE/FALSE handles были хорошо разнесены.
         minHeight: nodeType === 'branch' ? 90 : undefined,
+        // Передаем интенсивность Liquid Glass через CSS variables для гибкой стилизации.
+        '--liquid-glass-blur': prefs.liquidGlassEnabled ? `${prefs.liquidGlassBlur * 20}px` : '0px',
+        '--liquid-glass-alpha': prefs.liquidGlassEnabled ? 0.4 + (1 - prefs.liquidGlassBlur) * 0.5 : 1,
         ...style
-      }}
+      } as CSSProperties}
     >
       {/* Заголовок ноды с градиентом и акцентной точкой (RTX Свет) */}
       <div 
@@ -96,4 +106,4 @@ export function BaseNode({
       {extraHandles}
     </div>
   )
-}
+})

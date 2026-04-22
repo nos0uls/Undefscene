@@ -53,7 +53,8 @@ type RoomVisualEditorOverlayProps = {
   getActorSpritePreview: (
     actor: RoomVisualEditorOverlayActor
   ) => RoomVisualEditorOverlaySpritePreview | null
-  trueRtx: boolean
+  liquidGlassEnabled: boolean
+  liquidGlassBlur: number
 }
 
 // SVG-overlay рисует сетку, path и actor markers поверх canvas.
@@ -80,11 +81,20 @@ export function RoomVisualEditorOverlay({
   playPreviewPoint,
   activeTool,
   getActorSpritePreview,
-  trueRtx
+  liquidGlassEnabled,
+  liquidGlassBlur
 }: RoomVisualEditorOverlayProps) {
   return (
     <svg
-      className={['roomVisualEditorOverlay', trueRtx ? 'isTrueRtx' : ''].filter(Boolean).join(' ')}
+      className={[
+        'roomVisualEditorOverlay',
+        liquidGlassEnabled ? 'isLiquidGlass' : ''
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      style={{
+        '--liquid-glass-blur': liquidGlassEnabled ? `${liquidGlassBlur * 12}px` : '0px'
+      } as React.CSSProperties}
       width={meta.room_width}
       height={meta.room_height}
       viewBox={`0 0 ${meta.room_width} ${meta.room_height}`}

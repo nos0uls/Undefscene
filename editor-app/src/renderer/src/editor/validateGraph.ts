@@ -103,11 +103,11 @@ export function validateGraph(
   for (const [name, ids] of nameToNodeIds.entries()) {
     if (ids.length <= 1) continue
     for (const id of ids) {
-      // Дубликаты имён — совет, не ошибка.
+      // Имена-дубликаты — это лишь подсказка для порядка, а не критическая ошибка.
       entries.push({
         severity: 'tip',
         nodeId: id,
-        message: `Node name "${name}" is used by ${ids.length} nodes (${ids.join(', ')}).`
+        message: `Имя "${name}" используется несколькими нодами (${ids.length} шт).`
       })
     }
   }
@@ -117,16 +117,16 @@ export function validateGraph(
   const endNodes = nodes.filter((n) => n.type === 'end')
 
   if (startNodes.length === 0) {
-    entries.push({ severity: 'error', message: 'Graph has no "start" node.' })
+    entries.push({ severity: 'error', message: 'В графе отсутствует нода "start".' })
   }
   if (startNodes.length > 1) {
     entries.push({
       severity: 'error',
-      message: `Graph has ${startNodes.length} "start" nodes — only 1 is allowed.`
+      message: `В графе ${startNodes.length} нод "start" — разрешена только одна.`
     })
   }
   if (endNodes.length === 0) {
-    entries.push({ severity: 'error', message: 'Graph has no "end" node.' })
+    entries.push({ severity: 'error', message: 'В графе отсутствует нода "end".' })
   }
 
   // --- 2. Карты для быстрого доступа ---
@@ -155,7 +155,7 @@ export function validateGraph(
       entries.push({
         severity: 'warn',
         nodeId: node.id,
-        message: `"start" node "${node.id}" has ${incoming.length} incoming edge(s) — start should have none.`
+        message: `Нода "start" имеет входящие связи — начало должно быть свободным.`
       })
     }
 
@@ -164,7 +164,7 @@ export function validateGraph(
       entries.push({
         severity: 'error',
         nodeId: node.id,
-        message: `"start" node "${node.id}" has no outgoing edges — graph cannot proceed.`
+        message: `Нода "start" никуда не ведет — добавьте связь к следующему шагу.`
       })
     }
 
@@ -173,24 +173,25 @@ export function validateGraph(
       entries.push({
         severity: 'warn',
         nodeId: node.id,
-        message: `"end" node "${node.id}" has ${outgoing.length} outgoing edge(s) — end should have none.`
+        message: `Нода "end" имеет исходящие связи — завершение должно быть финальным шагом.`
       })
     }
 
     // Висящая нода: нет ни входящих, ни исходящих (кроме start/end).
+    const nodeDisplayName = node.name && node.name.length > 0 ? `"${node.name}"` : `Нода (${node.type})`
     if (node.type !== 'start' && node.type !== 'end' && node.type !== 'parallel_join') {
       if (incoming.length === 0 && outgoing.length === 0) {
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `Node "${node.id}" (${node.type}) is disconnected — no edges at all.`
+          message: `${nodeDisplayName} не имеет связей.`
         })
       } else if (incoming.length === 0 && node.type !== 'parallel_start') {
         // Нода без входящих — до неё нельзя добраться от start.
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `Node "${node.id}" (${node.type}) has no incoming edges — unreachable from start.`
+          message: `${nodeDisplayName} недоступна от начала графа.`
         })
       }
     }
@@ -207,7 +208,7 @@ export function validateGraph(
       entries.push({
         severity: 'warn',
         nodeId: node.id,
-        message: `Node "${node.id}" (${node.type}) has ${outgoing.length} outgoing edges — only 1 expected.`
+        message: `${nodeDisplayName} имеет несколько выходов — ожидается только один.`
       })
     }
 
@@ -220,7 +221,7 @@ export function validateGraph(
           entries.push({
             severity: 'warn',
             nodeId: node.id,
-            message: `Node "${node.id}" (${node.type}): required field "${field}" is empty.`
+            message: `${nodeDisplayName}: поле "${field}" не заполнено.`
           })
         }
       }
@@ -237,7 +238,7 @@ export function validateGraph(
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `Node "${node.id}" (actor_create): neither "sprite_or_object" nor "copy_from" is set — engine will use default object.`
+          message: `${nodeDisplayName}: не указан объект или спрайт (будет использован стандартный).`
         })
       }
     }
@@ -252,7 +253,7 @@ export function validateGraph(
         entries.push({
           severity: 'tip',
           nodeId: node.id,
-          message: `Branch "${node.id}" has no "false" output — if condition is false, nothing will happen.`
+          message: `${nodeDisplayName}: выход "false" пуст. Если условие не выполнится, ничего не произойдет.`
         })
       }
     }
@@ -266,21 +267,21 @@ export function validateGraph(
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `Node "${node.id}" (tween): target is required unless kind is "camera".`
+          message: `${nodeDisplayName}: необходимо указать цель (Target), если тип не "camera".`
         })
       }
       if (!property) {
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `Node "${node.id}" (tween): property is empty.`
+          message: `${nodeDisplayName}: не выбрано свойство для анимации.`
         })
       }
       if (toValue === undefined || toValue === null || toValue === '') {
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `Node "${node.id}" (tween): target value "to" is empty.`
+          message: `${nodeDisplayName}: не указано конечное значение (To).`
         })
       }
     }
@@ -294,21 +295,21 @@ export function validateGraph(
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `Node "${node.id}" (set_property): target is required unless kind is "camera".`
+          message: `${nodeDisplayName}: необходимо указать цель (Target), если тип не "camera".`
         })
       }
       if (!property) {
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `Node "${node.id}" (set_property): property is empty.`
+          message: `${nodeDisplayName}: не выбрано свойство.`
         })
       }
       if (value === undefined || value === null || value === '') {
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `Node "${node.id}" (set_property): value is empty.`
+          message: `${nodeDisplayName}: значение не заполнено.`
         })
       }
     }
@@ -319,7 +320,7 @@ export function validateGraph(
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `Node "${node.id}" (play_sfx): sound/key is empty.`
+          message: `${nodeDisplayName}: не выбран звук.`
         })
       }
     }
@@ -335,7 +336,7 @@ export function validateGraph(
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `Node "${node.id}" (run_function): required field "function" is empty.`
+          message: `${nodeDisplayName}: имя функции не заполнено.`
         })
       }
 
@@ -348,7 +349,7 @@ export function validateGraph(
           entries.push({
             severity: 'warn',
             nodeId: node.id,
-            message: `Node "${node.id}" (run_function): args is not valid JSON.`
+            message: `${nodeDisplayName}: ошибка в формате JSON аргументов.`
           })
         }
       }
@@ -364,13 +365,13 @@ export function validateGraph(
         entries.push({
           severity: 'error',
           nodeId: node.id,
-          message: `parallel_start "${node.id}" has no joinId — missing parallel_join pair.`
+          message: `parallel_start "${node.id}": отсутствует пара parallel_join.`
         })
       } else if (!nodeMap.has(joinId)) {
         entries.push({
           severity: 'error',
           nodeId: node.id,
-          message: `parallel_start "${node.id}" references joinId "${joinId}" which does not exist.`
+          message: `parallel_start "${node.id}": указанный joinId не найден.`
         })
       } else {
         const joinNode = nodeMap.get(joinId)
@@ -378,7 +379,7 @@ export function validateGraph(
           entries.push({
             severity: 'error',
             nodeId: node.id,
-            message: `parallel_start "${node.id}" references "${joinId}", but that node is not parallel_join.`
+            message: `parallel_start "${node.id}": пара не является нодой parallel_join.`
           })
         }
 
@@ -404,7 +405,7 @@ export function validateGraph(
           entries.push({
             severity: 'warn',
             nodeId: node.id,
-            message: `parallel_start "${node.id}" and join "${joinId}" have different params.branches.`
+            message: `Разный список веток (branches) у пары parallel: ${nodeDisplayName} и join-ноды.`
           })
         }
       }
@@ -455,7 +456,7 @@ export function validateGraph(
             severity: 'warn',
             nodeId: node.id,
             edgeId: edge.id,
-            message: `parallel_start "${node.id}" has edge "${edge.id}" for branch "${branchId}" not listed in params.branches.`
+            message: `Ветка "${branchId}" не указана в параметрах parallel_start.`
           })
         }
       }
@@ -491,13 +492,13 @@ export function validateGraph(
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `parallel_join "${node.id}" has no pairId — orphaned join node.`
+          message: `Одинокая нода parallel_join без пары.`
         })
       } else if (!nodeMap.has(pairId)) {
         entries.push({
           severity: 'error',
           nodeId: node.id,
-          message: `parallel_join "${node.id}" references pairId "${pairId}" which does not exist.`
+          message: `parallel_join ссылается на потерянную ноду pairId.`
         })
       } else {
         const startNode = nodeMap.get(pairId)
@@ -741,7 +742,7 @@ export function validateGraph(
     if (unreachableNodes.length > 0) {
       entries.push({
         severity: 'warn',
-        message: `${unreachableNodes.length} node(s) unreachable from start: ${unreachableNodes.map((n) => `"${n.id}"`).join(', ')}.`
+        message: `${unreachableNodes.length} нод недоступны от начала графа (проверьте связи).`
       })
     }
 

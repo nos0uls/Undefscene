@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -130,14 +130,16 @@ const FlowCanvasInner = ({
   const [canvasBackgroundUrl, setCanvasBackgroundUrl] = useState<string | null>(null)
 
   useEffect(() => {
+    setCanvasBackgroundUrl(null)
+
     if (!prefs.canvasBackgroundPath || !window.api?.preferences?.readCanvasBackgroundDataUrl) {
-      setCanvasBackgroundUrl(null)
       return
     }
 
+    const requestedPath = prefs.canvasBackgroundPath
     let cancelled = false
     window.api.preferences
-      .readCanvasBackgroundDataUrl(prefs.canvasBackgroundPath)
+      .readCanvasBackgroundDataUrl(requestedPath)
       .then((dataUrl) => {
         if (cancelled) return
         setCanvasBackgroundUrl(typeof dataUrl === 'string' ? dataUrl : null)
@@ -339,29 +341,72 @@ const FlowCanvasInner = ({
   // Синхронизируем данные нод (без выделения) когда runtime меняется.
   useEffect(() => {
     setNodes((prev) => {
-      // Сохраняем текущее выделение React Flow при обновлении данных.
-      const selectionMap = new Map<string, boolean>()
-      for (const n of prev) {
-        if (n.selected) selectionMap.set(n.id, true)
-      }
-      return initialNodes.map((n) => ({
-        ...n,
-        selected: selectionMap.get(n.id) ?? false
-      }))
+      const prevById = new Map(prev.map((node) => [node.id, node]))
+      let changed = prev.length !== initialNodes.length
+
+      const next = initialNodes.map((node) => {
+        const prevNode = prevById.get(node.id)
+        const selected = prevNode?.selected ?? false
+
+        if (
+          prevNode &&
+          prevNode.type === node.type &&
+          prevNode.position.x === node.position.x &&
+          prevNode.position.y === node.position.y &&
+          prevNode.targetPosition === node.targetPosition &&
+          prevNode.sourcePosition === node.sourcePosition &&
+          prevNode.data?.label === node.data.label &&
+          prevNode.data?.params === node.data.params &&
+          prevNode.data?.onAddParallelBranch === node.data.onAddParallelBranch &&
+          prevNode.data?.onRemoveParallelBranch === node.data.onRemoveParallelBranch &&
+          prevNode.data?.parallelBranchPortMode === node.data.parallelBranchPortMode &&
+          prevNode.selected === selected
+        ) {
+          return prevNode
+        }
+
+        changed = true
+        return {
+          ...node,
+          selected
+        }
+      })
+
+      return changed ? next : prev
     })
   }, [initialNodes, setNodes])
 
   // Синхронизируем данные рёбер (без выделения) когда runtime меняется.
   useEffect(() => {
     setEdges((prev) => {
-      const selectionMap = new Map<string, boolean>()
-      for (const e of prev) {
-        if (e.selected) selectionMap.set(e.id, true)
-      }
-      return initialEdges.map((e) => ({
-        ...e,
-        selected: selectionMap.get(e.id) ?? false
-      }))
+      const prevById = new Map(prev.map((edge) => [edge.id, edge]))
+      let changed = prev.length !== initialEdges.length
+
+      const next = initialEdges.map((edge) => {
+        const prevEdge = prevById.get(edge.id)
+        const selected = prevEdge?.selected ?? false
+
+        if (
+          prevEdge &&
+          prevEdge.source === edge.source &&
+          prevEdge.sourceHandle === edge.sourceHandle &&
+          prevEdge.target === edge.target &&
+          prevEdge.targetHandle === edge.targetHandle &&
+          prevEdge.label === edge.label &&
+          prevEdge.selectable === edge.selectable &&
+          prevEdge.selected === selected
+        ) {
+          return prevEdge
+        }
+
+        changed = true
+        return {
+          ...edge,
+          selected
+        }
+      })
+
+      return changed ? next : prev
     })
   }, [initialEdges, setEdges])
 
@@ -795,8 +840,10 @@ const FlowCanvasInner = ({
     if (ignoreSelectionUntilEmptyRef.current) {
       if (ids.length === 0) {
         ignoreSelectionUntilEmptyRef.current = false
+        return
       }
-      return
+
+      ignoreSelectionUntilEmptyRef.current = false
     }
 
     // Используем refs, чтобы всегда сравнивать с актуальным состоянием,
@@ -962,6 +1009,10 @@ const FlowCanvasInner = ({
         proOptions={{ hideAttribution: true }}
         // Панорамирование холста — только ПКМ (кнопка 2).
         panOnDrag={[2]}
+        // Явно разрешаем выделение элементов и рамочное выделение,
+        // чтобы xyflow не зависел от внутренних дефолтов между версиями.
+        elementsSelectable
+        selectNodesOnDrag={false}
         // ЛКМ drag по пустому месту — рамка выделения (area select).
         selectionOnDrag
         // Режим выделения: достаточно задеть кусочек ноды, не нужно полное покрытие.
@@ -999,7 +1050,8 @@ const FlowCanvasInner = ({
             nodeColor="#7ea4ff"
             maskColor="transparent"
             maskStrokeColor="transparent"
-            style={{ cursor: 'default', pointerEvents: 'none' }}
+            offsetScale={0}
+            style={{ cursor: 'default', pointerEvents: 'none', overflow: 'hidden' }}
           />
         ) : null}
         <Controls showInteractive={false} />
@@ -1024,10 +1076,10 @@ const FlowCanvasInner = ({
 // Главный компонент холста, который мы экспортируем.
 // Он оборачивает внутреннюю логику в FlowCanvasInner и добавляет ReactFlowProvider,
 // без которого инструменты React Flow не будут работать.
-export const FlowCanvas = (props: FlowCanvasProps): React.JSX.Element => {
+export const FlowCanvas = memo((props: FlowCanvasProps): React.JSX.Element => {
   return (
     <ReactFlowProvider>
       <FlowCanvasInner {...props} />
     </ReactFlowProvider>
   )
-}
+})

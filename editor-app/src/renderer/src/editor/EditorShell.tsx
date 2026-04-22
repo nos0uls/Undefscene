@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 
 import { DockPanel } from './DockPanel'
@@ -300,10 +300,20 @@ export function EditorShell(): React.JSX.Element {
     }
   }, [resources?.projectDir, runtime.nodes, runtime.selectedNodeId])
 
-  // Реактивная валидация графа — пересчитывается при каждом изменении runtime.
+  // Реактивная валидация графа — пересчитывается только когда реально меняется содержимое сцены,
+  // а не при каждом клике по selection на холсте.
   const validation: ValidationResult = useMemo(
-    () => validateGraph(runtime, validationContext),
-    [runtime, validationContext]
+    () =>
+      validateGraph(
+        {
+          ...runtime,
+          selectedNodeId: null,
+          selectedNodeIds: [],
+          selectedEdgeId: null
+        },
+        validationContext
+      ),
+    [runtime.schemaVersion, runtime.title, runtime.nodes, runtime.edges, validationContext]
   )
 
   // Toggle-фильтры для Logs панели: какие категории показывать.
@@ -2243,7 +2253,7 @@ export function EditorShell(): React.JSX.Element {
                     type="button"
                     onClick={() => selectNode(node.id)}
                   >
-                    {String(node.name ?? '').trim() ? String(node.name) : node.type} · {node.id}
+                    {String(node.name ?? '').trim() ? String(node.name) : node.type}
                   </button>
                 </li>
               ))}
@@ -3506,11 +3516,15 @@ export function EditorShell(): React.JSX.Element {
                   return
                 }
 
-                setRuntime({
-                  ...runtime,
-                  selectedNodeId: nextSelectedNodeId,
-                  selectedNodeIds: nodeIds,
-                  selectedEdgeId: null
+                // Используем startTransition, чтобы перерендер EditorShell (с кучей доков)
+                // не блокировал drag box selection в FlowCanvas
+                startTransition(() => {
+                  setRuntime({
+                    ...runtime,
+                    selectedNodeId: nextSelectedNodeId,
+                    selectedNodeIds: nodeIds,
+                    selectedEdgeId: null
+                  })
                 })
               }}
               onSelectEdge={(edgeId) => {
@@ -3523,16 +3537,16 @@ export function EditorShell(): React.JSX.Element {
                   return
                 }
 
-                setRuntime({
-                  ...runtime,
-                  selectedNodeId: null,
-                  selectedNodeIds: [],
-                  selectedEdgeId: edgeId
+                startTransition(() => {
+                  setRuntime({
+                    ...runtime,
+                    selectedNodeId: null,
+                    selectedNodeIds: [],
+                    selectedEdgeId: edgeId
+                  })
                 })
               }}
               onNodePositionChange={(changes) => {
-                // Сохраняем позиции узлов после перетаскивания в runtime.
-                // changes — массив, чтобы при мультидраге все позиции обновились за один setRuntime.
                 const posMap = new Map(changes.map((c) => [c.id, { x: c.x, y: c.y }]))
                 setRuntime({
                   ...runtime,
