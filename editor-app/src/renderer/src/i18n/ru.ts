@@ -190,6 +190,31 @@ export const ru = {
     visualEditingActorHint:
       'Выберите actor marker, затем включите Place Selected Actor и кликните по room preview, чтобы локально переставить его внутри visual editor. Когда захотите применить staged позиции обратно в graph, нажмите Import Actors.'
   },
+  toasts: {
+    exported: 'Экспорт завершён',
+    logCopied: 'Лог скопирован',
+    logCopyFailed: 'Не удалось скопировать',
+    updateAvailable: 'Доступно обновление',
+    noUpdates: 'Обновлений нет',
+    updateCheckFailed: 'Ошибка проверки обновлений',
+    screenshotCopied: 'Скриншот скопирован',
+    screenshotCopyFailed: 'Не удалось скопировать скриншот'
+  },
+  dialog: {
+    exportBlockedTitle: 'Экспорт заблокирован',
+    exportBlockedMessage: 'Исправьте {count} ошибок перед экспортом.',
+    exportFailedTitle: 'Ошибка экспорта',
+    unsavedChangesTitle: 'Несохранённые изменения',
+    openSceneConfirm: 'Переключить сцену? Несохранённые изменения будут утеряны.',
+    newSceneConfirm: 'Новая сцена? Несохранённые изменения будут утеряны.',
+    exampleSceneConfirm: 'Загрузить пример? Несохранённые изменения будут утеряны.',
+    confirmLabel: 'Подтвердить',
+    cancelLabel: 'Отмена',
+    replaceNodeTitle: 'Заменить ноду',
+    replaceNodeMessage: 'Заменить выбранную ноду «{name}» импортированными данными пути?',
+    createNodeTitle: 'Создать ноду',
+    createNodeMessage: 'Создать новую follow_path ноду из импортированного пути?'
+  },
   confirm: {
     openSceneReplace: 'Открыть другую сцену? Несохранённые изменения текущей сцены будут потеряны.',
     newSceneReplace: 'Создать новую сцену? Несохранённые изменения будут потеряны.',

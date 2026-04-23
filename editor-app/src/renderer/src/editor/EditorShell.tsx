@@ -22,6 +22,8 @@ import { compileGraph, stripExport } from './compileGraph'
 import { validateGraph, type ValidationResult, type ValidationContext } from './validateGraph'
 import { PreferencesModal } from './PreferencesModal'
 import { UpdateNotification } from './UpdateNotification'
+import { ToastProvider, useToasts, pushSuccess, pushError, pushWarning, pushInfo } from './ToastHub'
+import { ConfirmProvider, useConfirm } from './ConfirmDialog'
 import { PreferencesProvider } from './PreferencesContext'
 import { getAccentCssVariables, usePreferences } from './usePreferences'
 import { useHotkeys } from './useHotkeys'
@@ -157,6 +159,10 @@ export function EditorShell(): React.JSX.Element {
   // Храним runtime-json (узлы, выбор, undo/redo).
   // Это отдельное состояние, не связанное с layout.
   const { runtime, setRuntime, undo, redo, canUndo, canRedo } = useRuntimeState()
+
+  // Централизованные toast-уведомления и кастомные confirm-диалоги (замена window.alert/confirm).
+  const toasts = useToasts()
+  const confirm = useConfirm()
 
   // Ресурсы GameMaker проекта (для autocomplete и валидации) + настройки движка.
   const { resources, engineSettings, yarnFiles, isLoading: isProjectLoading, openProject } = useProjectResources()
@@ -598,22 +604,23 @@ export function EditorShell(): React.JSX.Element {
   // Visual editing окно импортирует только path points.
   // По вашему правилу: если нода выбрана — подтверждаем замену, если нет — подтверждаем создание новой follow_path.
   const importPathFromVisualEditing = useCallback(
-    (points: Array<{ x: number; y: number }>) => {
+    async (points: Array<{ x: number; y: number }>) => {
       const normalizedPoints = points.map((point) => ({
         x: Math.round(Number(point.x ?? 0)),
         y: Math.round(Number(point.y ?? 0))
       }))
 
       if (normalizedPoints.length <= 0) {
-        window.alert('Visual Editing: draw at least one path point before import.')
+        pushWarning(toasts, 'Draw at least one path point before import.', { title: 'Visual Editing' })
         return
       }
 
       if (selectedNodeForVisualEditing) {
         const nodeLabel = String(selectedNodeForVisualEditing.name ?? selectedNodeForVisualEditing.type)
-        const confirmed = window.confirm(
-          `Replace selected node "${nodeLabel}" with imported follow_path data?`
-        )
+        const confirmed = await confirm({
+          message: t('dialog.replaceNodeMessage', 'Replace selected node "{name}" with imported path data?').replace('{name}', nodeLabel),
+          title: t('dialog.replaceNodeTitle', 'Replace node')
+        })
         if (!confirmed) return
 
         const previousParams = selectedNodeForVisualEditing.params ?? {}
@@ -642,11 +649,14 @@ export function EditorShell(): React.JSX.Element {
         return
       }
 
-      const confirmed = window.confirm('No node is selected. Create a new follow_path node from imported path?')
+      const confirmed = await confirm({
+        message: t('dialog.createNodeMessage', 'Create a new follow_path node from the imported path?'),
+        title: t('dialog.createNodeTitle', 'Create node')
+      })
       if (!confirmed) return
       createFollowPathNodeFromVisualEditing(normalizedPoints)
     },
-    [createFollowPathNodeFromVisualEditing, runtime, selectedNodeForVisualEditing, setRuntime]
+    [createFollowPathNodeFromVisualEditing, runtime, selectedNodeForVisualEditing, setRuntime, confirm, toasts, t]
   )
 
   // Visual editing может локально переставить actor preview markers,
@@ -674,7 +684,7 @@ export function EditorShell(): React.JSX.Element {
         }))
 
       if (safeActors.length <= 0) {
-        window.alert('Visual Editing: no actor positions to import.')
+        pushWarning(toasts, 'No actor positions to import.', { title: 'Visual Editing' })
         return
       }
 
@@ -702,10 +712,10 @@ export function EditorShell(): React.JSX.Element {
       }))
 
       if (updatedCount <= 0) {
-        window.alert('Visual Editing: imported actor markers do not match any actor_create nodes.')
+        pushWarning(toasts, 'Imported actor markers do not match any actor_create nodes.', { title: 'Visual Editing' })
       }
     },
-    [setRuntime]
+    [setRuntime, toasts]
   )
 
   // Универсальное создание ноды по типу и позиции.
@@ -1913,17 +1923,17 @@ export function EditorShell(): React.JSX.Element {
     // Сначала проверяем граф на ошибки.
     const val = validation
     if (val.hasErrors) {
-      const errorMessages = val.entries
-        .filter((e) => e.severity === 'error')
-        .map((e) => `• ${e.message}`)
-        .join('\n')
-      alert(`${t('alerts.exportHasErrors', 'Cannot export — graph has errors:')}\n\n${errorMessages}`)
+      const errorCount = val.entries.filter((e) => e.severity === 'error').length
+      pushError(toasts, `Fix ${errorCount} error(s) before exporting.`, {
+        title: t('dialog.exportBlockedTitle', 'Export blocked'),
+        duration: 0
+      })
       return
     }
 
     const result = compileGraph(runtime)
     if (!result.ok) {
-      alert(`${t('alerts.exportFailed', 'Export failed:')}\n${result.error}`)
+      pushError(toasts, result.error, { title: t('dialog.exportFailedTitle', 'Export failed'), duration: 0 })
       return
     }
     const exported = stripExport(runtime, result.actions)
@@ -1940,7 +1950,7 @@ export function EditorShell(): React.JSX.Element {
       filePath?: string
     }
     if (saveResult.saved) {
-      alert(`${t('alerts.exportedTo', 'Exported to:')}\n${saveResult.filePath}`)
+      pushSuccess(toasts, saveResult.filePath ?? '', { title: t('toasts.exported', 'Exported') })
     }
   }
   // Привязываем к ref, чтобы хоткей Ctrl+E мог вызвать.
@@ -2044,12 +2054,11 @@ export function EditorShell(): React.JSX.Element {
       return
     }
 
-    const confirmed = window.confirm(
-      t(
-        'confirm.openSceneReplace',
-        'Open another scene? Unsaved changes in the current scene will be lost.'
-      )
-    )
+    const confirmed = await confirm({
+      message: t('dialog.openSceneConfirm', 'Switch scene? Unsaved work will be lost.'),
+      title: t('dialog.unsavedChangesTitle', 'Unsaved changes'),
+      danger: true
+    })
     if (!confirmed) return
 
     const result = (await window.api.scene.open()) as { filePath: string; content: string } | null
@@ -2066,12 +2075,7 @@ export function EditorShell(): React.JSX.Element {
         const imported = reverseCompileCutscene(parsed)
 
         if (!imported.ok) {
-          alert(
-            `${t(
-              'alerts.openSceneInvalidFormat',
-              'Failed to parse scene file — invalid or unsupported format.'
-            )}\n\n${imported.error}`
-          )
+          pushError(toasts, imported.error, { title: t('alerts.openSceneInvalidFormat', 'Open failed'), duration: 0 })
           return
         }
 
@@ -2079,19 +2083,21 @@ export function EditorShell(): React.JSX.Element {
         setSceneFilePath(null)
         lastPersistedSceneJsonRef.current = null
         if (imported.warnings.length > 0) {
-          alert(imported.warnings.join('\n'))
+          imported.warnings.forEach((w) => pushWarning(toasts, w))
         }
       }
     } catch {
-      alert(t('alerts.openSceneInvalidJson', 'Failed to read scene file — invalid JSON.'))
+      pushError(toasts, t('alerts.openSceneInvalidJson', 'File corrupted (invalid JSON).'), { title: 'Open failed', duration: 0 })
     }
   }
 
   // New Scene: сбрасываем runtime в начальное состояние.
-  const handleNew = () => {
-    const confirmed = window.confirm(
-      t('confirm.newSceneReplace', 'Create a new scene? Unsaved changes will be lost.')
-    )
+  const handleNew = async () => {
+    const confirmed = await confirm({
+      message: t('dialog.newSceneConfirm', 'New scene? Unsaved work will be lost.'),
+      title: t('dialog.unsavedChangesTitle', 'Unsaved changes'),
+      danger: true
+    })
     if (!confirmed) return
     setRuntime(createEmptyRuntimeState())
     setSceneFilePath(null)
@@ -2100,10 +2106,12 @@ export function EditorShell(): React.JSX.Element {
 
   // Create Example: загружаем демонстрационную сцену с готовым графом.
   // Это удобно для быстрого знакомства с редактором без ручной сборки узлов с нуля.
-  const handleCreateExample = () => {
-    const confirmed = window.confirm(
-      t('confirm.exampleSceneReplace', 'Create an example scene? Unsaved changes will be lost.')
-    )
+  const handleCreateExample = async () => {
+    const confirmed = await confirm({
+      message: t('dialog.exampleSceneConfirm', 'Load example? Unsaved work will be lost.'),
+      title: t('dialog.unsavedChangesTitle', 'Unsaved changes'),
+      danger: true
+    })
     if (!confirmed) return
     setRuntime(createDefaultRuntimeState())
     setSceneFilePath(null)
@@ -3403,8 +3411,10 @@ export function EditorShell(): React.JSX.Element {
   )
 
   return (
-    <div
-      ref={rootRef}
+    <ToastProvider>
+      <ConfirmProvider>
+        <div
+          ref={rootRef}
       tabIndex={-1}
       className="editorRoot"
       style={
@@ -3490,21 +3500,21 @@ export function EditorShell(): React.JSX.Element {
               .check()
               .then((res) => {
                 if (res.status === 'available') {
-                  alert(`${t('alerts.updateAvailable', 'Update available:')} v${res.version}`)
+                  pushInfo(toasts, `v${res.version}`, { title: t('toasts.updateAvailable', 'Update available') })
                   return
                 }
 
                 if (res.status === 'none') {
-                  alert(t('alerts.noUpdatesAvailable', 'No updates available.'))
+                  pushInfo(toasts, t('toasts.noUpdates', 'No updates'))
                   return
                 }
 
-                alert(`${t('alerts.updateCheckFailed', 'Update check failed:')} ${res.message}`)
+                pushError(toasts, res.message, { title: t('toasts.updateCheckFailed', 'Update check failed') })
               })
               .catch((err) => {
                 // Если IPC-хэндлер не зарегистрирован или что-то пошло не так — покажем ошибку.
                 const msg = err instanceof Error ? err.message : String(err)
-                alert(`${t('alerts.updateCheckFailed', 'Update check failed:')} ${msg}`)
+                pushError(toasts, msg, { title: t('toasts.updateCheckFailed', 'Update check failed') })
               })
           }}
           onToggleRuntimeJson={() => togglePanel('panel.runtime_json')}
@@ -3519,15 +3529,15 @@ export function EditorShell(): React.JSX.Element {
               .copyLogToClipboard()
               .then((result) => {
                 if (result.copied) {
-                  alert(t('alerts.logCopied', 'Log copied to clipboard.'))
+                  pushSuccess(toasts, t('toasts.logCopied', 'Log copied'))
                   return
                 }
 
-                alert(t('alerts.logCopyFailed', 'Failed to copy log to clipboard.'))
+                pushError(toasts, t('toasts.logCopyFailed', 'Copy failed'))
               })
               .catch((err) => {
                 const msg = err instanceof Error ? err.message : String(err)
-                alert(`${t('alerts.logCopyFailed', 'Failed to copy log to clipboard.')} ${msg}`)
+                pushError(toasts, msg, { title: t('toasts.logCopyFailed', 'Copy failed') })
               })
           }}
           onOpenDevTools={() => {
@@ -4051,7 +4061,9 @@ export function EditorShell(): React.JSX.Element {
           </div>
         </div>
       ) : null}
-    </div>
+        </div>
+      </ConfirmProvider>
+    </ToastProvider>
   )
 }
 

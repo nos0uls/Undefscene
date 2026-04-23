@@ -201,6 +201,33 @@ export const en = {
     newSceneReplace: 'Create a new scene? Unsaved changes will be lost.',
     exampleSceneReplace: 'Create an example? Unsaved changes will be lost.'
   },
+  // Toast notifications (short, natural copy)
+  toasts: {
+    exported: 'Exported',
+    logCopied: 'Log copied',
+    logCopyFailed: 'Copy failed',
+    updateAvailable: 'Update available',
+    noUpdates: 'No updates',
+    updateCheckFailed: 'Update check failed',
+    screenshotCopied: 'Screenshot copied',
+    screenshotCopyFailed: 'Screenshot copy failed'
+  },
+  // Custom confirm dialogs
+  dialog: {
+    exportBlockedTitle: 'Export blocked',
+    exportBlockedMessage: 'Fix {count} errors before exporting.',
+    exportFailedTitle: 'Export failed',
+    unsavedChangesTitle: 'Unsaved changes',
+    openSceneConfirm: 'Switch scene? Unsaved work will be lost.',
+    newSceneConfirm: 'New scene? Unsaved work will be lost.',
+    exampleSceneConfirm: 'Load example? Unsaved work will be lost.',
+    confirmLabel: 'Confirm',
+    cancelLabel: 'Cancel',
+    replaceNodeTitle: 'Replace node',
+    replaceNodeMessage: 'Replace selected node "{name}" with imported path data?',
+    createNodeTitle: 'Create node',
+    createNodeMessage: 'Create a new follow_path node from the imported path?'
+  },
   // System alerts and errors
   alerts: {
     exportHasErrors: 'Graph has errors:',
