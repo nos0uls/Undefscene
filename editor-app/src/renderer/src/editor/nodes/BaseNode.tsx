@@ -75,7 +75,7 @@ export const BaseNode = memo(function BaseNode({
       <div 
         className="customNodeHeader"
         style={{
-          background: `linear-gradient(to right, color-mix(in srgb, ${color} 10%, transparent), transparent)`
+          background: `rgba(0, 0, 0, 0.15)` // Simplified for performance on large graphs
         }}
       >
         <div className="customNodeTitleWrapper">
@@ -83,7 +83,7 @@ export const BaseNode = memo(function BaseNode({
             className="customNodeDot"
             style={{
               backgroundColor: color,
-              boxShadow: `0 0 10px ${color}, inset 0 0 4px rgba(255, 255, 255, 0.5)`
+              // box-shadow is disabled in CSS for performance
             }} 
           />
           <span className="customNodeTitle" style={{ color: color }}>

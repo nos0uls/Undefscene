@@ -15,7 +15,10 @@ import {
   DialogueNode,
   WaitForDialogueNode,
   CameraTrackNode,
+  CameraTrackUntilStopNode,
   CameraPanNode,
+  CameraPanObjNode,
+  CameraCenterNode,
   ParallelStartNode,
   ParallelJoinNode,
   BranchNode,
@@ -24,6 +27,7 @@ import {
   AutoFacingNode,
   AutoWalkNode,
   TweenNode,
+  TweenCameraNode,
   SetPropertyNode,
   FadeInNode,
   FadeOutNode,
@@ -35,7 +39,8 @@ import {
   SpinNode,
   ShakeObjectNode,
   SetVisibleNode,
-  InstantModeNode
+  InstantModeNode,
+  MarkNodeNode
 } from './CutsceneNodes'
 
 // Маппинг: тип ноды → React-компонент.
@@ -55,7 +60,10 @@ export const cutsceneNodeTypes = {
   dialogue: DialogueNode,
   wait_for_dialogue: WaitForDialogueNode,
   camera_track: CameraTrackNode,
+  camera_track_until_stop: CameraTrackUntilStopNode,
   camera_pan: CameraPanNode,
+  camera_pan_obj: CameraPanObjNode,
+  camera_center: CameraCenterNode,
   // Parallel делаем как пару нод: fork + join.
   parallel_start: ParallelStartNode,
   parallel_join: ParallelJoinNode,
@@ -65,6 +73,7 @@ export const cutsceneNodeTypes = {
   auto_facing: AutoFacingNode,
   auto_walk: AutoWalkNode,
   tween: TweenNode,
+  tween_camera: TweenCameraNode,
   set_property: SetPropertyNode,
   fade_in: FadeInNode,
   fade_out: FadeOutNode,
@@ -76,5 +85,6 @@ export const cutsceneNodeTypes = {
   spin: SpinNode,
   shake_object: ShakeObjectNode,
   set_visible: SetVisibleNode,
-  instant_mode: InstantModeNode
+  instant_mode: InstantModeNode,
+  mark_node: MarkNodeNode
 } as const

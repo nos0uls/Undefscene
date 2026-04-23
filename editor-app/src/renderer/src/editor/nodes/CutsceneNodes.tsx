@@ -1,5 +1,5 @@
 import { Handle, Position } from '@xyflow/react'
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import { BaseNode } from './BaseNode'
 
 // Тип данных, которые React Flow передаёт в каждую ноду.
@@ -270,28 +270,36 @@ export const ParallelStartNode = memo(function ParallelStartNode(props: Cutscene
   // Поэтому плавно подращиваем minHeight, чтобы между точками оставался читаемый интервал.
   const extraBranchCount = Math.max(0, branches.length - 4)
   const parallelMinHeight = extraBranchCount > 0 ? 90 + extraBranchCount * 18 : undefined
+  const baseNodeStyle = useMemo(
+    () => ({ minHeight: parallelMinHeight }),
+    [parallelMinHeight]
+  )
+  const extraHandles = useMemo(
+    () => (
+      <>
+        {/* Скрытый handle для внутренней связи пары start→join */}
+        <Handle
+          type="source"
+          id="__pair"
+          position={Position.Right}
+          className="customHandle"
+          style={{ top: '50%', opacity: 0, pointerEvents: 'none' }}
+        />
+        {portMode === 'separate'
+          ? renderParallelHandles('source', branches)
+          : renderSharedParallelHandle('source')}
+      </>
+    ),
+    [portMode, branches]
+  )
 
   return (
     <BaseNode
       nodeType="parallel"
       selected={selected}
-      style={{ minHeight: parallelMinHeight }}
+      style={baseNodeStyle}
       hasOutput={false}
-      extraHandles={
-        <>
-          {/* Скрытый handle для внутренней связи пары start→join */}
-          <Handle
-            type="source"
-            id="__pair"
-            position={Position.Right}
-            className="customHandle"
-            style={{ top: '50%', opacity: 0, pointerEvents: 'none' }}
-          />
-          {portMode === 'separate'
-            ? renderParallelHandles('source', branches)
-            : renderSharedParallelHandle('source')}
-        </>
-      }
+      extraHandles={extraHandles}
     >
       <div className="customNodeButtonRow">
         <button
@@ -329,28 +337,36 @@ export const ParallelJoinNode = memo(function ParallelJoinNode(props: CutsceneNo
   // чтобы пара нод визуально оставалась одной высоты.
   const extraBranchCount = Math.max(0, branches.length - 4)
   const parallelMinHeight = extraBranchCount > 0 ? 90 + extraBranchCount * 18 : undefined
+  const baseNodeStyle = useMemo(
+    () => ({ minHeight: parallelMinHeight }),
+    [parallelMinHeight]
+  )
+  const extraHandles = useMemo(
+    () => (
+      <>
+        {/* Скрытый handle для внутренней связи пары start→join */}
+        <Handle
+          type="target"
+          id="__pair"
+          position={Position.Left}
+          className="customHandle"
+          style={{ top: '50%', opacity: 0, pointerEvents: 'none' }}
+        />
+        {portMode === 'separate'
+          ? renderParallelHandles('target', branches)
+          : renderSharedParallelHandle('target')}
+      </>
+    ),
+    [portMode, branches]
+  )
 
   return (
     <BaseNode
       nodeType="parallel"
       selected={selected}
-      style={{ minHeight: parallelMinHeight }}
+      style={baseNodeStyle}
       hasInput={false}
-      extraHandles={
-        <>
-          {/* Скрытый handle для внутренней связи пары start→join */}
-          <Handle
-            type="target"
-            id="__pair"
-            position={Position.Left}
-            className="customHandle"
-            style={{ top: '50%', opacity: 0, pointerEvents: 'none' }}
-          />
-          {portMode === 'separate'
-            ? renderParallelHandles('target', branches)
-            : renderSharedParallelHandle('target')}
-        </>
-      }
+      extraHandles={extraHandles}
     >
       <div className="customNodeButtonRow">
         <button
@@ -631,6 +647,61 @@ export const InstantModeNode = memo(function InstantModeNode({ data, selected }:
   return (
     <BaseNode nodeType="instant_mode" selected={selected}>
       <div className="customNodeParam">{String(enabled)}</div>
+    </BaseNode>
+  )
+})
+
+export const MarkNodeNode = memo(function MarkNodeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const name = data.params?.name ?? ''
+  return (
+    <BaseNode nodeType="mark_node" selected={selected}>
+      <div className="customNodeParam">{String(name)}</div>
+    </BaseNode>
+  )
+})
+
+export const CameraTrackUntilStopNode = memo(function CameraTrackUntilStopNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const ox = data.params?.offset_x ?? 0
+  const oy = data.params?.offset_y ?? 0
+  return (
+    <BaseNode nodeType="camera_track_until_stop" selected={selected}>
+      <div className="customNodeParam">{String(target)}</div>
+      <div className="customNodeParam">ox:{String(ox)} oy:{String(oy)}</div>
+    </BaseNode>
+  )
+})
+
+export const CameraCenterNode = memo(function CameraCenterNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const x = data.params?.x ?? 0
+  const y = data.params?.y ?? 0
+  return (
+    <BaseNode nodeType="camera_center" selected={selected}>
+      <div className="customNodeParam">({String(x)}, {String(y)})</div>
+    </BaseNode>
+  )
+})
+
+export const CameraPanObjNode = memo(function CameraPanObjNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const seconds = data.params?.seconds ?? 1
+  return (
+    <BaseNode nodeType="camera_pan_obj" selected={selected}>
+      <div className="customNodeParam">{String(target)}</div>
+      <div className="customNodeParam">{String(seconds)}s</div>
+    </BaseNode>
+  )
+})
+
+export const TweenCameraNode = memo(function TweenCameraNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const property = data.params?.property ?? ''
+  const to_value = data.params?.to_value ?? 0
+  const seconds = data.params?.seconds ?? 1
+  const easing = data.params?.easing ?? 'linear'
+  return (
+    <BaseNode nodeType="tween_camera" selected={selected}>
+      <div className="customNodeParam">camera.{String(property)} → {String(to_value)}</div>
+      <div className="customNodeParam">{String(seconds)}s {String(easing)}</div>
     </BaseNode>
   )
 })

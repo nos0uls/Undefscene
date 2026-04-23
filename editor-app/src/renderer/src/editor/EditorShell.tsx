@@ -26,12 +26,56 @@ import { PreferencesProvider } from './PreferencesContext'
 import { getAccentCssVariables, usePreferences } from './usePreferences'
 import { useHotkeys } from './useHotkeys'
 import { InspectorPanel } from './InspectorPanel'
+import { BookmarksPanel } from './BookmarksPanel'
 import type { NameConflictModalState } from './inspectorTypes'
 import { createTranslator } from '../i18n'
 
 // MIME-type для drag-and-drop из node palette в FlowCanvas.
 // Дублируем локально в renderer-файлах, чтобы не тянуть отдельный shared constants module ради одной строки.
 const NODE_PALETTE_DRAG_MIME = 'application/x-undefscene-node-type'
+
+// Статичный список типов нод для палитры (Actions panel).
+// Вынесен за пределы компонента, чтобы не создавать массив на каждый рендер.
+const PALETTE_NODE_TYPES = [
+  'start',
+  'end',
+  'move',
+  'follow_path',
+  'actor_create',
+  'actor_destroy',
+  'animate',
+  'dialogue',
+  'wait_for_dialogue',
+  'camera_track',
+  'camera_track_until_stop',
+  'camera_pan',
+  'camera_pan_obj',
+  'camera_center',
+  'parallel_start',
+  'branch',
+  'run_function',
+  'set_position',
+  'set_depth',
+  'set_facing',
+  'camera_shake',
+  'auto_facing',
+  'auto_walk',
+  'tween',
+  'tween_camera',
+  'set_property',
+  'fade_in',
+  'fade_out',
+  'play_sfx',
+  'emote',
+  'jump',
+  'halt',
+  'flip',
+  'spin',
+  'shake_object',
+  'set_visible',
+  'instant_mode',
+  'mark_node'
+] as const
 
 type DragState = {
   // Какая панель сейчас перетаскивается.
@@ -730,7 +774,10 @@ export function EditorShell(): React.JSX.Element {
         actor_destroy: { target: 'player' },
         animate: { target: 'player', sprite: '', image_index: 0, image_speed: 1 },
         camera_track: { target: 'player', seconds: 1, offset_x: 0, offset_y: 0 },
+        camera_track_until_stop: { target: 'player', offset_x: 0, offset_y: 0 },
         camera_pan: { x: 0, y: 0, seconds: 1 },
+        camera_pan_obj: { target: 'player', seconds: 1 },
+        camera_center: { x: 0, y: 0 },
         set_depth: { target: 'player', depth: 0 },
         set_facing: { target: 'player', direction: 'right' },
         branch: { condition: '' },
@@ -739,6 +786,7 @@ export function EditorShell(): React.JSX.Element {
         auto_facing: { target: 'player', enabled: true },
         auto_walk: { target: 'player', enabled: true },
         tween: { kind: 'instance', target: 'player', property: 'x', to: 0, seconds: 1, easing: 'linear' },
+        tween_camera: { property: 'x', to_value: 0, seconds: 1, easing: 'linear', from_value: undefined },
         set_property: { kind: 'instance', target: 'player', property: 'image_alpha', value: 1 },
         fade_in: { seconds: 0.5, color: 'black' },
         fade_out: { seconds: 0.5, color: 'black' },
@@ -750,7 +798,8 @@ export function EditorShell(): React.JSX.Element {
         spin: { target: 'player', speed: 10, seconds: 1 },
         shake_object: { target: 'player', seconds: 0.5, magnitude: 4 },
         set_visible: { target: 'player', visible: true },
-        instant_mode: { enabled: true }
+        instant_mode: { enabled: true },
+        mark_node: { name: '' }
       }
       const newNode: RuntimeNode = {
         id: newId,
@@ -808,6 +857,131 @@ export function EditorShell(): React.JSX.Element {
     },
     [createNodeAtPosition]
   )
+
+  // Стабильные коллбеки для FlowCanvas — обязательно useCallback,
+  // иначе каждый рендер EditorShell будет создавать новые функции,
+  // и memo(FlowCanvas) не сработает, вызывая перерендер 500+ нод.
+  // Все используют функциональную форму setRuntime, чтобы не зависеть от runtime.
+  const handleSelectNodes = useCallback(
+    (nodeIds: string[]) => {
+      const nextSelectedNodeId = nodeIds.length === 1 ? nodeIds[0] : null
+      startTransition(() => {
+        setRuntime((prev) => {
+          const currentIds = prev.selectedNodeIds ?? []
+          const sameLength = currentIds.length === nodeIds.length
+          const sameIds =
+            sameLength &&
+            nodeIds.every((id) => currentIds.includes(id)) &&
+            currentIds.every((id) => nodeIds.includes(id))
+          if (
+            prev.selectedEdgeId === null &&
+            prev.selectedNodeId === nextSelectedNodeId &&
+            sameIds
+          ) {
+            return prev
+          }
+          return {
+            ...prev,
+            selectedNodeId: nextSelectedNodeId,
+            selectedNodeIds: nodeIds,
+            selectedEdgeId: null
+          }
+        })
+      })
+    },
+    [setRuntime]
+  )
+
+  const handleSelectEdge = useCallback(
+    (edgeId: string | null) => {
+      startTransition(() => {
+        setRuntime((prev) => {
+          if (
+            prev.selectedEdgeId === edgeId &&
+            prev.selectedNodeId === null &&
+            (prev.selectedNodeIds?.length ?? 0) === 0
+          ) {
+            return prev
+          }
+          return {
+            ...prev,
+            selectedNodeId: null,
+            selectedNodeIds: [],
+            selectedEdgeId: edgeId
+          }
+        })
+      })
+    },
+    [setRuntime]
+  )
+
+  const handleNodePositionChange = useCallback(
+    (changes: Array<{ id: string; x: number; y: number }>) => {
+      const posMap = new Map(changes.map((c) => [c.id, { x: c.x, y: c.y }]))
+      startTransition(() => {
+        setRuntime((prev) => ({
+          ...prev,
+          nodes: prev.nodes.map((n) => {
+            const newPos = posMap.get(n.id)
+            return newPos ? { ...n, position: newPos } : n
+          })
+        }))
+      })
+    },
+    [setRuntime]
+  )
+
+  const handleEdgeAdd = useCallback(
+    (edge: RuntimeEdge) => {
+      setRuntime((prev) => {
+        if (prev.edges.some((e) => e.id === edge.id)) return prev
+        return { ...prev, edges: [...prev.edges, edge] }
+      })
+    },
+    [setRuntime]
+  )
+
+  const handleEdgeRemove = useCallback(
+    (edgeId: string) => {
+      setRuntime((prev) => ({
+        ...prev,
+        edges: prev.edges.filter((e) => e.id !== edgeId)
+      }))
+    },
+    [setRuntime]
+  )
+
+  const handleNodeDelete = useCallback(
+    (nodeId: string) => {
+      setRuntime((prev) => {
+        const nextSelectedNodeIds = (prev.selectedNodeIds ?? []).filter((id) => id !== nodeId)
+        return {
+          ...prev,
+          nodes: prev.nodes.filter((n) => n.id !== nodeId),
+          edges: prev.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
+          selectedNodeId: prev.selectedNodeId === nodeId ? null : prev.selectedNodeId,
+          selectedNodeIds: nextSelectedNodeIds,
+          selectedEdgeId: null
+        }
+      })
+    },
+    [setRuntime]
+  )
+
+  const handleEdgeDelete = useCallback(
+    (edgeId: string) => {
+      setRuntime((prev) => ({
+        ...prev,
+        edges: prev.edges.filter((e) => e.id !== edgeId),
+        selectedEdgeId: prev.selectedEdgeId === edgeId ? null : prev.selectedEdgeId
+      }))
+    },
+    [setRuntime]
+  )
+
+  const handleEdgeDoubleClick = useCallback(() => {
+    shouldFocusEdgeWaitRef.current = true
+  }, [])
 
   // Открываем отдельное native окно visual editor и сразу отправляем туда текущий snapshot.
   // Так окно стартует уже с нужной комнатой, выбранной нодой и preview-маркерами.
@@ -1463,7 +1637,27 @@ export function EditorShell(): React.JSX.Element {
         tag === 'SELECT' ||
         (tag === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(inputType)) ||
         target?.closest('[contenteditable="true"]') !== null
-      const key = e.key.toLowerCase()
+      // Используем code для букв/цифр, чтобы сочетания не зависели от раскладки.
+      const key =
+        e.code.startsWith('Key') ? e.code.slice(3).toLowerCase() :
+        e.code.startsWith('Digit') ? e.code.slice(5).toLowerCase() :
+        e.key.toLowerCase()
+
+      // Ctrl+A — выделить все ноды.
+      if ((e.ctrlKey || e.metaKey) && key === 'a') {
+        if (isInput) return
+        e.preventDefault()
+        const rt = runtimeRef.current
+        const allIds = rt.nodes.map((n) => n.id)
+        if (allIds.length === 0) return
+        setRuntimeRef.current({
+          ...rt,
+          selectedNodeId: allIds.length === 1 ? allIds[0] : null,
+          selectedNodeIds: allIds,
+          selectedEdgeId: null
+        })
+        return
+      }
 
       // Ctrl+Z — Undo.
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && key === 'z') {
@@ -2135,62 +2329,31 @@ export function EditorShell(): React.JSX.Element {
     })
   }
 
+  // Выбранный узел — мемоизируем, чтобы не вызывать InspectorPanel ре-рендер при каждом вызове.
+  const selectedNode = useMemo(
+    () => runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null,
+    [runtime.nodes, runtime.selectedNodeId]
+  )
+
+  // Стабильный коллбек для выбора ноды — нужен BookmarksPanel (memo).
+  const selectNode = useCallback(
+    (nodeId: string) => {
+      setRuntime((prev) => ({
+        ...prev,
+        selectedNodeId: nodeId,
+        selectedNodeIds: [nodeId],
+        selectedEdgeId: null
+      }))
+    },
+    [setRuntime]
+  )
+
   // Возвращаем содержимое панели по ID.
   // Пока что это просто заглушки, но так мы сможем переиспользовать их
   // и для docked, и для floating.
   const renderPanelContents = (panelId: string): React.JSX.Element => {
-    // Находим выбранный узел один раз, чтобы не повторять логику ниже.
-    const selectedNode = runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null
-
-    // Меняем выделение узла.
-    const selectNode = (nodeId: string) => {
-      setRuntime({
-        ...runtime,
-        // Держим оба поля (single + multi) синхронно.
-        selectedNodeId: nodeId,
-        selectedNodeIds: [nodeId],
-        selectedEdgeId: null
-      })
-    }
 
     if (panelId === 'panel.actions') {
-      // Список доступных типов нод (включая parallel).
-      const palette = [
-        'start',
-        'end',
-        'move',
-        'follow_path',
-        'actor_create',
-        'actor_destroy',
-        'animate',
-        'dialogue',
-        'wait_for_dialogue',
-        'camera_track',
-        'camera_pan',
-        'parallel_start',
-        'branch',
-        'run_function',
-        'set_position',
-        'set_depth',
-        'set_facing',
-        'camera_shake',
-        'auto_facing',
-        'auto_walk',
-        'tween',
-        'set_property',
-        'fade_in',
-        'fade_out',
-        'play_sfx',
-        'emote',
-        'jump',
-        'halt',
-        'flip',
-        'spin',
-        'shake_object',
-        'set_visible',
-        'instant_mode'
-      ]
-
       return (
         <div className="runtimeSection runtimeSectionActions">
           <div className="runtimeSectionTitle">{t('editor.actions', 'Actions')}</div>
@@ -2210,7 +2373,7 @@ export function EditorShell(): React.JSX.Element {
             {t('editor.nodePalette', 'Node Palette')}
           </div>
           <ul className="runtimeList runtimeListScrollable">
-            {palette.map((type) => (
+            {PALETTE_NODE_TYPES.map((type) => (
               <li key={type}>
                 <button
                   className="runtimeListItem"
@@ -2235,31 +2398,12 @@ export function EditorShell(): React.JSX.Element {
 
     if (panelId === 'panel.bookmarks') {
       return (
-        <div className="runtimeSection">
-          <div className="runtimeSectionTitle">{t('editor.nodes', 'Nodes')}</div>
-          {runtime.nodes.length === 0 ? (
-            <div className="runtimeHint">{t('editor.noNodesYet', 'No nodes yet. Click “Add Node”.')}</div>
-          ) : (
-            <ul className="runtimeList">
-              {runtime.nodes.map((node) => (
-                <li key={node.id}>
-                  <button
-                    className={[
-                      'runtimeListItem',
-                      node.id === runtime.selectedNodeId ? 'isActive' : ''
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    type="button"
-                    onClick={() => selectNode(node.id)}
-                  >
-                    {String(node.name ?? '').trim() ? String(node.name) : node.type}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <BookmarksPanel
+          nodes={runtime.nodes}
+          selectedNodeId={runtime.selectedNodeId}
+          selectNode={selectNode}
+          t={t}
+        />
       )
     }
 
@@ -3496,111 +3640,18 @@ export function EditorShell(): React.JSX.Element {
               selectedNodeId={runtime.selectedNodeId}
               selectedNodeIds={runtime.selectedNodeIds}
               selectedEdgeId={runtime.selectedEdgeId}
-              onSelectNodes={(nodeIds) => {
-                // Важно: React Flow может звать onSelectionChange даже когда выделение не поменялось.
-                // Если мы будем каждый раз делать setRuntime, получится бесконечный цикл рендера.
-                const nextSelectedNodeId = nodeIds.length === 1 ? nodeIds[0] : null
-
-                const currentIds = runtime.selectedNodeIds ?? []
-                const sameLength = currentIds.length === nodeIds.length
-                const sameIds =
-                  sameLength &&
-                  nodeIds.every((id) => currentIds.includes(id)) &&
-                  currentIds.every((id) => nodeIds.includes(id))
-
-                if (
-                  runtime.selectedEdgeId === null &&
-                  runtime.selectedNodeId === nextSelectedNodeId &&
-                  sameIds
-                ) {
-                  return
-                }
-
-                // Используем startTransition, чтобы перерендер EditorShell (с кучей доков)
-                // не блокировал drag box selection в FlowCanvas
-                startTransition(() => {
-                  setRuntime({
-                    ...runtime,
-                    selectedNodeId: nextSelectedNodeId,
-                    selectedNodeIds: nodeIds,
-                    selectedEdgeId: null
-                  })
-                })
-              }}
-              onSelectEdge={(edgeId) => {
-                // Аналогично: не делаем setRuntime, если edge уже выбран.
-                if (
-                  runtime.selectedEdgeId === edgeId &&
-                  runtime.selectedNodeId === null &&
-                  (runtime.selectedNodeIds?.length ?? 0) === 0
-                ) {
-                  return
-                }
-
-                startTransition(() => {
-                  setRuntime({
-                    ...runtime,
-                    selectedNodeId: null,
-                    selectedNodeIds: [],
-                    selectedEdgeId: edgeId
-                  })
-                })
-              }}
-              onNodePositionChange={(changes) => {
-                const posMap = new Map(changes.map((c) => [c.id, { x: c.x, y: c.y }]))
-                setRuntime({
-                  ...runtime,
-                  nodes: runtime.nodes.map((n) => {
-                    const newPos = posMap.get(n.id)
-                    return newPos ? { ...n, position: newPos } : n
-                  })
-                })
-              }}
-              onEdgeAdd={(edge) => {
-                // Добавляем новую связь в runtime (если такой ещё нет).
-                if (runtime.edges.some((e) => e.id === edge.id)) return
-                setRuntime({
-                  ...runtime,
-                  edges: [...runtime.edges, edge]
-                })
-              }}
-              onEdgeRemove={(edgeId) => {
-                // Удаляем связь из runtime.
-                setRuntime({
-                  ...runtime,
-                  edges: runtime.edges.filter((e) => e.id !== edgeId)
-                })
-              }}
+              onSelectNodes={handleSelectNodes}
+              onSelectEdge={handleSelectEdge}
+              onNodePositionChange={handleNodePositionChange}
+              onEdgeAdd={handleEdgeAdd}
+              onEdgeRemove={handleEdgeRemove}
               onParallelAddBranch={onParallelAddBranch}
               onParallelRemoveBranch={onParallelRemoveBranch}
-              onNodeDelete={(nodeId) => {
-                // ПКМ по ноде — удаляем ноду и все связанные рёбра.
-                const nextSelectedNodeIds = (runtime.selectedNodeIds ?? []).filter(
-                  (id) => id !== nodeId
-                )
-                setRuntime({
-                  ...runtime,
-                  nodes: runtime.nodes.filter((n) => n.id !== nodeId),
-                  edges: runtime.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
-                  selectedNodeId: runtime.selectedNodeId === nodeId ? null : runtime.selectedNodeId,
-                  selectedNodeIds: nextSelectedNodeIds,
-                  selectedEdgeId: null
-                })
-              }}
+              onNodeDelete={handleNodeDelete}
               onPaneClickCreate={createDefaultPaneNode}
               onPaneDropCreate={createPaletteDropNode}
-              onEdgeDelete={(edgeId) => {
-                // ПКМ по связи — удаляем связь.
-                setRuntime({
-                  ...runtime,
-                  edges: runtime.edges.filter((e) => e.id !== edgeId),
-                  selectedEdgeId: runtime.selectedEdgeId === edgeId ? null : runtime.selectedEdgeId
-                })
-              }}
-              onEdgeDoubleClick={() => {
-                // Двойной клик по ребру — после рендера фокусируем wait input.
-                shouldFocusEdgeWaitRef.current = true
-              }}
+              onEdgeDelete={handleEdgeDelete}
+              onEdgeDoubleClick={handleEdgeDoubleClick}
               fitViewRequestId={fitViewRequestId}
             />
           </PreferencesProvider>

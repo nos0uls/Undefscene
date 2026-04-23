@@ -27,7 +27,10 @@ export const NODE_CATEGORY: Record<string, string> = {
   set_depth: 'visual',
   dialogue: 'dialogue',
   camera_track: 'camera',
+  camera_track_until_stop: 'camera',
   camera_pan: 'camera',
+  camera_pan_obj: 'camera',
+  camera_center: 'camera',
   parallel: 'logic',
   branch: 'logic',
   run_function: 'logic',
@@ -35,6 +38,7 @@ export const NODE_CATEGORY: Record<string, string> = {
   auto_facing: 'visual',
   auto_walk: 'visual',
   tween: 'camera',
+  tween_camera: 'camera',
   fade_in: 'camera',
   fade_out: 'camera',
   play_sfx: 'audio',
@@ -45,7 +49,8 @@ export const NODE_CATEGORY: Record<string, string> = {
   spin: 'visual',
   shake_object: 'visual',
   set_visible: 'visual',
-  instant_mode: 'logic'
+  instant_mode: 'logic',
+  mark_node: 'logic'
 }
 
 // Короткие метки для типов нод (отображаются в заголовке).
@@ -63,7 +68,10 @@ export const NODE_LABELS: Record<string, string> = {
   set_depth: 'Set Depth',
   dialogue: 'Dialogue',
   camera_track: 'Camera Track',
+  camera_track_until_stop: 'Camera Track Until Stop',
   camera_pan: 'Camera Pan',
+  camera_pan_obj: 'Camera Pan To Object',
+  camera_center: 'Camera Center',
   parallel: 'Parallel',
   branch: 'Branch',
   run_function: 'Run Function',
@@ -71,6 +79,7 @@ export const NODE_LABELS: Record<string, string> = {
   auto_facing: 'Auto Facing',
   auto_walk: 'Auto Walk',
   tween: 'Tween',
+  tween_camera: 'Tween Camera',
   fade_in: 'Fade In',
   fade_out: 'Fade Out',
   play_sfx: 'Play SFX',
@@ -81,5 +90,6 @@ export const NODE_LABELS: Record<string, string> = {
   spin: 'Spin',
   shake_object: 'Shake Object',
   set_visible: 'Set Visible',
-  instant_mode: 'Instant Mode'
+  instant_mode: 'Instant Mode',
+  mark_node: 'Mark Node'
 }

@@ -97,6 +97,41 @@ const ScaledBackground = () => {
   return <Background color="#262b2f" gap={prefs.gridSize} size={Math.max(1, zoom * 1.5)} />
 }
 
+// LOD-контроллер: единственный компонент, который подписывается на zoom из store
+// и выставляет класс на корне .react-flow. Это ключевая оптимизация для 500+ нод:
+// вместо того, чтобы каждая нода перерендеривалась при zoom, мы просто меняем
+// один класс, а CSS-правила отключают тяжёлый paint (body, header, box-shadow, color-mix)
+// на далёком зуме, где детали всё равно нечитаемы.
+//
+// Используем только ОДИН порог zoomLow. Второй порог (zoomVeryLow / display:none
+// на всё содержимое) создавал рывок при пересечении — все 500 нод
+// одновременно re-lay-out'ились, и это ощущалось как "скачок".
+// Лучше иметь одну плавную границу, чем две с спайками.
+const ZoomLODController = memo(function ZoomLODController(): null {
+  const zoom = useStore((s) => s.transform[2])
+
+  // Кэшируем последнее применённое состояние, чтобы не дёргать classList
+  // при каждом микро-изменении zoom (wheel zoom шлёт много frame'ов подряд).
+  // Без этого браузер делает style invalidation на каждый frame zoom,
+  // хотя класс фактически не меняется.
+  const lastLowRef = useRef<boolean | null>(null)
+
+  useEffect(() => {
+    const isLow = zoom < 0.4
+
+    // Идемпотентность: мутируем DOM только если порог реально пересекли.
+    if (lastLowRef.current === isLow) return
+    lastLowRef.current = isLow
+
+    const root = document.querySelector('.react-flow') as HTMLElement | null
+    if (!root) return
+
+    root.classList.toggle('zoomLow', isLow)
+  }, [zoom])
+
+  return null
+})
+
 // Внутренний компонент холста (нужен useReactFlow, который работает только внутри ReactFlowProvider).
 const FlowCanvasInner = ({
   runtimeNodes,
@@ -828,6 +863,10 @@ const FlowCanvasInner = ({
     onEdgeDoubleClickRef.current?.(edge.id)
   }, [])
 
+  // Дебаунсер для выделения: когда мы тянем рамку выделения (box select),
+  // React Flow спамит onSelectionChange на каждый кадр. Мы не хотим перерисовывать
+  // весь EditorShell 60 раз в секунду.
+  const selectionTimeoutRef = useRef<number | null>(null)
   const handleSelectionChange = useCallback((sel: { nodes?: Array<{ id: string }> }) => {
     const ids = (sel?.nodes ?? []).map((n) => String(n.id))
 
@@ -862,7 +901,13 @@ const FlowCanvasInner = ({
       return
     }
 
-    onSelectNodesRef.current(ids)
+    if (selectionTimeoutRef.current !== null) {
+      window.clearTimeout(selectionTimeoutRef.current)
+    }
+
+    selectionTimeoutRef.current = window.setTimeout(() => {
+      onSelectNodesRef.current(ids)
+    }, 50)
   }, [])
 
   // Управляем wheel zoom вручную, потому что у React Flow нет прямого prop для zoom speed.
@@ -1043,6 +1088,9 @@ const FlowCanvasInner = ({
         {/* Размер сетки теперь реально читается из Preferences,
             чтобы настройка grid size меняла canvas, а не висела мёртвым полем. */}
         <ScaledBackground />
+        {/* LOD: переключает zoomLow/zoomVeryLow классы на корне .react-flow.
+            Подписывается на zoom через useStore, не трогая ноды. */}
+        <ZoomLODController />
         {prefs.showMiniMap ? (
           <MiniMap
             zoomable={false}

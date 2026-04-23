@@ -865,7 +865,7 @@ code {
 .runtimeTextarea:focus {
   border-color: var(--accent-default, var(--ev-c-accent));
   background-color: var(--bg-base, var(--color-background));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-default, var(--ev-c-accent)) 20%, transparent);
+  box-shadow: none;
 }
 
 select.runtimeInput {
@@ -1169,43 +1169,83 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   }
 }
 
-/* ========== Custom Nodes React Flow ========== */
+/* ========== React Flow Selection Overrides ========== */
+.react-flow__nodesselection-rect, .react-flow__nodesselection {
+  display: none !important; /* Hide the ugly blue bounding box around selected nodes */
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+.react-flow__selectionpane {
+  display: none !important; /* Hide pane that might block clicks */
+}
+
+.react-flow__selection {
+  /* Keep the drag-to-select box visible, but make it match our theme */
+  background: rgba(var(--ev-c-accent-rgb), 0.15) !important;
+  border: 1px solid var(--ev-c-accent) !important;
+  border-radius: 4px;
+}
 
 /* Container for custom node */
 .customNode {
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  /* Возвращаем аккуратные современные скругления */
-  /* Легкая прозрачность для базового режима */
+  border-radius: 4px;
   background: color-mix(in srgb, var(--bg-surface) calc(var(--liquid-glass-alpha, 1) * 100%), transparent);
   font-size: 12px;
   color: var(--ev-c-text-1);
   min-width: 140px;
   max-width: 220px;
-  /* Оптимизированный RTX-свет: меньше теней для рендера, но тот же эффект направленного света */
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 8px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
   overflow: hidden;
-  transition: box-shadow 0.1s ease, border-color 0.1s ease, opacity 0.15s ease;
+
+  /* CSS containment: говорим браузеру, что изменения внутри ноды
+     не могут повлиять на layout соседей. Только `layout` — специально НЕ
+     используем `paint`/`style`, потому что на 500+ нодах `contain: paint`
+     создаёт 500 stacking contexts (каждая нода становится отдельным GPU
+     слоем), что УХУДШАЕТ композитинг вместо ускорения. `layout` без paint
+     даёт изоляцию reflow без этой платы. */
+  contain: layout;
+}
+
+/* === LOD (Level of Detail) для большого зум-аута ===
+   На далёком zoom'е детали нечитаемы и только жрут paint. Класс zoomLow
+   ставится контроллером ZoomLODController на корень .react-flow,
+   CSS-каскад применяется ко всем нодам без React re-render.
+
+   Используем ОДИН порог (z < 0.4). Раньше был второй порог zoomVeryLow
+   с display:none на всё содержимое нод, но пересечение этого порога
+   вызывало одновременный re-layout 500 нод и ощущалось как рывок.
+   Одна граница без второго спайка — компромисс за стабильность. */
+
+/* zoomLow: прячем body/params/label — их не видно на таком масштабе.
+   Оставляем только header с цветной точкой и заголовком. */
+.react-flow.zoomLow .customNodeBody,
+.react-flow.zoomLow .customNodeLabel {
+  display: none;
+}
+
+/* zoomLow: убираем тяжёлые color-mix и box-shadow.
+   Один flat background × 500 нод рисуется в разы быстрее. */
+.react-flow.zoomLow .customNode {
+  background: var(--bg-surface);
+  box-shadow: none;
+}
+
+.react-flow.zoomLow .customNodeHeader {
+  background: transparent;
+  border-bottom: none;
 }
 
 .customNode.isLiquidGlass {
   /* Temporarily disabled due to massive performance hits on large graphs. GPU struggles to blur 500+ nodes. */
   border-color: color-mix(in srgb, var(--ev-c-accent) 40%, var(--border-strong));
-  box-shadow: 
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 4px 12px rgba(0, 0, 0, 0.25),
-    0 0 15px color-mix(in srgb, var(--ev-c-accent) 15%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 90%, transparent);
 }
-
 
 .customNode.isSelected {
   border-color: var(--ev-c-accent);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    0 0 0 1px var(--ev-c-accent),
-    0 12px 28px rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 0 0 1px var(--ev-c-accent);
 }
 
 /* Header wrapping */
@@ -1213,15 +1253,14 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  /* Разделитель между шапкой и контентом */
   border-bottom: 1px solid var(--border-subtle);
+  background: rgba(0, 0, 0, 0.1);
 }
 
 .customNodeTitleWrapper {
   display: flex;
   align-items: center;
-  padding: 8px 10px 6px;
-  /* Чуть увеличили нижний отступ */
+  padding: 4px 6px 4px;
 }
 
 .customNodeDot {
@@ -1229,9 +1268,9 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  /* Снова круглая точка */
   margin-right: 6px;
   flex-shrink: 0;
+  box-shadow: none !important;
 }
 
 /* Title text */

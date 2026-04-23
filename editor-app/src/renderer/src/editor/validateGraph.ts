@@ -50,7 +50,10 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   actor_destroy: ['target'],
   animate: ['target'],
   camera_track: ['target'],
+  camera_track_until_stop: ['target'],
   camera_pan: ['x', 'y'],
+  camera_pan_obj: ['target'],
+  camera_center: [],
   set_depth: ['target'],
   set_facing: ['target'],
   branch: ['condition'],
@@ -62,6 +65,7 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   auto_facing: ['target'],
   auto_walk: ['target'],
   tween: ['property'],
+  tween_camera: ['property'],
   set_property: ['property'],
   emote: ['target'],
   jump: ['target'],
@@ -69,7 +73,8 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   flip: ['target'],
   spin: ['target'],
   shake_object: ['target'],
-  set_visible: ['target']
+  set_visible: ['target'],
+  mark_node: ['name']
 }
 
 // Главная функция валидации. Принимает текущее состояние графа и опциональный контекст ресурсов.
