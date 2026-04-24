@@ -204,7 +204,7 @@ export const DEFAULT_PREFERENCES: EditorPreferences = {
 // Если данные некорректные — возвращает null.
 function parsePreferences(raw: unknown): EditorPreferences | null {
   if (!raw || typeof raw !== 'object') return null
-  const c = raw as Partial<EditorPreferences>
+  const c = raw as Record<string, unknown>
   if (c.schemaVersion !== 1) return null
 
   // Собираем с fallback на дефолтные значения.

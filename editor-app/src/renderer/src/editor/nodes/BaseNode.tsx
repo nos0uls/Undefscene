@@ -1,7 +1,7 @@
 import { Handle, Position } from '@xyflow/react'
 import { memo } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import { NODE_CATEGORY, NODE_COLORS, NODE_LABELS } from './nodeConstants'
+import { NODE_CATEGORY, NODE_LABELS } from './nodeConstants'
 import { usePreferencesContext } from '../PreferencesContext'
 
 // Пропсы для базовой ноды: тип, метка, дочерние элементы, порты.
@@ -45,56 +45,47 @@ export const BaseNode = memo(function BaseNode({
   children
 }: BaseNodeProps): React.JSX.Element {
   const category = NODE_CATEGORY[nodeType] ?? 'flow'
-  const color = NODE_COLORS[category] ?? '#888'
   const title = NODE_LABELS[nodeType] ?? nodeType
+  // Цвет раньше проставлялся inline на каждой ноде (dot + title) — 2 style prop'а
+  // × 500 нод = 1000 setValueForStyle вызовов на mount (~77ms по трейсу).
+  // Теперь цвет категории задаётся через `data-category` и CSS-селекторы в main.css,
+  // что сокращает DOM-мутации до 1 атрибута на ноду.
 
   // Читаем настройку: показывать ли имя ноды на холсте.
   const prefs = usePreferencesContext()
   const showLabel = prefs.showNodeNameOnCanvas && label
 
+  // Классы собираем без filter/join — это дешевле массивной аллокации на mount 500 нод.
+  let nodeClass = 'customNode'
+  if (selected) nodeClass += ' isSelected'
+  if (prefs.liquidGlassEnabled) nodeClass += ' isLiquidGlass'
+
+  // Для branch ноды нужен минимальный height, иначе TRUE/FALSE handle'ы слипаются.
+  // Для остальных нод style либо не задан, либо приходит извне (parallel start/join).
+  // ВАЖНО: liquid-glass CSS-переменные раньше задавались inline на КАЖДОЙ ноде.
+  // Теперь они глобальные (ставит FlowCanvas через document root), поэтому
+  // здесь мы их НЕ вычисляем — экономим ~500 object allocations на mount.
+  const needsMinHeight = nodeType === 'branch'
+  const rootStyle: CSSProperties | undefined = needsMinHeight || style
+    ? { minHeight: needsMinHeight ? 90 : undefined, ...style }
+    : undefined
+
   return (
-    <div
-      className={[
-        'customNode',
-        selected ? 'isSelected' : '',
-        prefs.liquidGlassEnabled ? 'isLiquidGlass' : ''
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      style={{
-        minWidth: 140,
-        // Branch нода выше, чтобы TRUE/FALSE handles были хорошо разнесены.
-        minHeight: nodeType === 'branch' ? 90 : undefined,
-        // Передаем интенсивность Liquid Glass через CSS variables для гибкой стилизации.
-        '--liquid-glass-blur': prefs.liquidGlassEnabled ? `${prefs.liquidGlassBlur * 20}px` : '0px',
-        '--liquid-glass-alpha': prefs.liquidGlassEnabled ? 0.4 + (1 - prefs.liquidGlassBlur) * 0.5 : 1,
-        ...style
-      } as CSSProperties}
-    >
-      {/* Заголовок ноды с градиентом и акцентной точкой (RTX Свет) */}
-      <div 
-        className="customNodeHeader"
-        style={{
-          background: `rgba(0, 0, 0, 0.15)` // Simplified for performance on large graphs
-        }}
-      >
-        <div className="customNodeTitleWrapper">
-          <span 
-            className="customNodeDot"
-            style={{
-              backgroundColor: color,
-              // box-shadow is disabled in CSS for performance
-            }} 
-          />
-          <span className="customNodeTitle" style={{ color: color }}>
-            {title}
-          </span>
-        </div>
+    <div className={nodeClass} style={rootStyle} data-category={category}>
+      {/* Заголовок ноды: dot + title + опциональный label.
+          Раньше был лишний .customNodeTitleWrapper div — убрали,
+          теперь header сам flex-wrap'ит label на новую строку через CSS.
+          Цвет dot/title приходит через CSS var `--node-color`, выставляемую
+          правилом `.customNode[data-category="..."]` — inline-стилей больше нет. */}
+      <div className="customNodeHeader">
+        <span className="customNodeDot" />
+        <span className="customNodeTitle">{title}</span>
         {showLabel ? <span className="customNodeLabel">{label}</span> : null}
       </div>
 
-      {/* Тело (детали) */}
-      <div className="customNodeBody">{children}</div>
+      {/* Тело (детали параметров). Рендерим только если параметры есть —
+          start/end ноды теперь не создают пустой div. */}
+      {children ? <div className="customNodeBody">{children}</div> : null}
 
       {/* Входной порт (слева) */}
       {hasInput && <Handle type="target" position={Position.Left} className="customHandle" />}

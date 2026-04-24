@@ -1191,7 +1191,10 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 .customNode {
   border: 1px solid var(--border-strong);
   border-radius: 4px;
-  background: color-mix(in srgb, var(--bg-surface) calc(var(--liquid-glass-alpha, 1) * 100%), transparent);
+  /* Плоский background для default-случая: color-mix с calc — дорогая операция
+     (~145ms Recalculate style на 500 нод при смене zoom/selection класса).
+     Вариант с прозрачностью/liquid-glass применяется только через .isLiquidGlass. */
+  background: var(--bg-surface);
   font-size: 12px;
   color: var(--ev-c-text-1);
   min-width: 140px;
@@ -1219,10 +1222,17 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
    Одна граница без второго спайка — компромисс за стабильность. */
 
 /* zoomLow: прячем body/params/label — их не видно на таком масштабе.
-   Оставляем только header с цветной точкой и заголовком. */
+   Оставляем только header с цветной точкой и заголовком.
+
+   ВАЖНО: используем `visibility: hidden` вместо `display: none`.
+   display:none убрал бы элементы из layout'а → высоты всех 500 нод менялись бы
+   одновременно → xyflow переполижил бы все edges → reflow на ~500ms
+   (это и был виновник 497ms presentation delay при нажатии Space / fitView).
+   visibility:hidden сохраняет layout-box: paint не происходит, но размеры
+   стабильны и reflow не триггерится при пересечении порога zoom. */
 .react-flow.zoomLow .customNodeBody,
 .react-flow.zoomLow .customNodeLabel {
-  display: none;
+  visibility: hidden;
 }
 
 /* zoomLow: убираем тяжёлые color-mix и box-shadow.
@@ -1234,7 +1244,9 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 
 .react-flow.zoomLow .customNodeHeader {
   background: transparent;
-  border-bottom: none;
+  /* border-bottom:none сменил бы размер box'а (1px height) → reflow.
+     Прозрачный цвет визуально эквивалентен и не трогает layout. */
+  border-bottom-color: transparent;
 }
 
 .customNode.isLiquidGlass {
@@ -1248,20 +1260,30 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   box-shadow: inset 0 0 0 1px var(--ev-c-accent);
 }
 
-/* Header wrapping */
+/* Header wrapping: теперь flex-wrap, чтобы label уходил на новую строку
+   без дополнительного .customNodeTitleWrapper div (экономия DOM на 500 нодах). */
 .customNodeHeader {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: center;
   min-width: 0;
+  padding: 4px 6px;
   border-bottom: 1px solid var(--border-subtle);
   background: rgba(0, 0, 0, 0.1);
 }
 
-.customNodeTitleWrapper {
-  display: flex;
-  align-items: center;
-  padding: 4px 6px 4px;
-}
+/* Цвет категории ноды: задаётся на root .customNode через data-category,
+   dot и title наследуют его через var(--node-color). Это позволяет не писать
+   inline style на каждой из 500 нод (экономия ~77ms setValueForStyle на mount). */
+.customNode[data-category='flow'] { --node-color: var(--node-start); }
+.customNode[data-category='movement'],
+.customNode[data-category='actor'],
+.customNode[data-category='visual'] { --node-color: var(--node-animate); }
+.customNode[data-category='dialogue'] { --node-color: var(--node-dialogue); }
+.customNode[data-category='camera'] { --node-color: var(--node-camera); }
+.customNode[data-category='logic'] { --node-color: var(--node-logic); }
+.customNode[data-category='audio'] { --node-color: var(--node-audio); }
+.customNode[data-category='wait'] { --node-color: var(--node-wait); }
 
 .customNodeDot {
   display: inline-block;
@@ -1271,10 +1293,12 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   margin-right: 6px;
   flex-shrink: 0;
   box-shadow: none !important;
+  background-color: var(--node-color, #888);
 }
 
 /* Title text */
 .customNodeTitle {
+  color: var(--node-color, inherit);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -1294,10 +1318,12 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   min-width: 0;
 }
 
-/* Label text */
+/* Label text — лейбл лежит ВНУТРИ header-flex'а, flex-basis: 100%
+   переносит его на отдельную строку под title-dot. */
 .customNodeLabel {
+  flex-basis: 100%;
   font-size: 11px;
-  padding: 0 10px;
+  padding: 0;
   margin-top: 2px;
   color: var(--ev-c-text-2);
   word-break: break-word;

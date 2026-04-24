@@ -17,12 +17,12 @@ function App(): React.JSX.Element {
   const [globalZoom, setGlobalZoom] = useState(1)
 
   useEffect(() => {
-    if (preferences.visualEditorTrueRtx) {
+    if (preferences.liquidGlassEnabled) {
       document.body.classList.add('isTrueRtx')
     } else {
       document.body.classList.remove('isTrueRtx')
     }
-  }, [preferences.visualEditorTrueRtx])
+  }, [preferences.liquidGlassEnabled])
 
   useEffect(() => {
     // Применяем встроенный Electron webFrame zoom,

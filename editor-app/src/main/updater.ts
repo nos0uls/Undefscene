@@ -5,6 +5,7 @@
 
 import { autoUpdater } from 'electron-updater'
 import { BrowserWindow, ipcMain, app } from 'electron'
+import * as semver from 'semver'
 
 // Флаг: приложение запущено как portable (нет installer).
 // В portable режиме мы НЕ запускаем auto-install, только проверяем наличие обновления.
@@ -13,6 +14,17 @@ let isPortable = false
 let mainWindowRef: BrowserWindow | null = null
 // Один раз регистрируем слушатели autoUpdater и отмечаем инициализацию.
 let initialized = false
+
+// Проверяем, что available-версия действительно старше текущей.
+function isNewerVersion(available: string, current: string): boolean {
+  const a = semver.valid(available)
+  const c = semver.valid(current)
+  if (!a || !c) {
+    console.warn('[updater] Invalid semver, skip comparison:', { available, current })
+    return false
+  }
+  return semver.gt(a, c)
+}
 
 // Безопасная отправка события в renderer (если окно есть).
 function sendToRenderer(channel: string, payload?: unknown): void {
@@ -39,11 +51,13 @@ ipcMain.handle('updater:check', async () => {
       return { status: 'none' as const }
     }
 
-    // Если версия релиза равна текущей — значит обновления нет.
-    if (nextVersion === currentVersion) {
+    // Сравниваем semver: только если релиз действительно новее.
+    if (!isNewerVersion(nextVersion, currentVersion)) {
+      console.log('[updater] No newer version:', nextVersion, '<=', currentVersion)
       return { status: 'none' as const }
     }
 
+    console.log('[updater] New version available:', nextVersion, '(current:', currentVersion + ')')
     return { status: 'available' as const, version: nextVersion }
   } catch (err) {
     return {
@@ -77,6 +91,8 @@ export function initAutoUpdater(mainWindow: BrowserWindow, portable: boolean): v
   // Не показываем диалоги electron-updater — всё через IPC.
   autoUpdater.autoDownload = !isPortable
   autoUpdater.autoInstallOnAppQuit = !isPortable
+  autoUpdater.allowPrerelease = false
+  autoUpdater.allowDowngrade = false
 
   // Логируем события в консоль для отладки.
   autoUpdater.logger = console
@@ -85,6 +101,11 @@ export function initAutoUpdater(mainWindow: BrowserWindow, portable: boolean): v
 
   // Найдена новая версия.
   autoUpdater.on('update-available', (info) => {
+    const currentVersion = app.getVersion()
+    if (!isNewerVersion(info.version, currentVersion)) {
+      console.log('[updater] Ignoring update-available for older/equal version:', info.version, 'vs', currentVersion)
+      return
+    }
     sendToRenderer('updater:update-available', {
       version: info.version,
       releaseNotes: info.releaseNotes ?? ''

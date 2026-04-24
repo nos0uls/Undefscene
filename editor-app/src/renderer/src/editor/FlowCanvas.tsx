@@ -29,6 +29,17 @@ import { usePreferencesContext } from './PreferencesContext'
 // Он позволяет не путать наши payload'ы с обычным text/plain drag из браузера.
 const NODE_PALETTE_DRAG_MIME = 'application/x-undefscene-node-type'
 
+// Стабильные ссылки для ReactFlow-пропсов: если передавать объекты/массивы
+// литералами прямо в JSX, они получают новую identity каждый render. xyflow
+// внутренне может реагировать на смену ссылок (useEffect-ами, memo-чеками),
+// что на большом графе приводит к цепочке пере-инициализаций и росту числа
+// event listener'ов. Выносим константы наверх — ссылки стабильны навсегда.
+const RF_PRO_OPTIONS = { hideAttribution: true } as const
+const RF_PAN_ON_DRAG: number[] = [2]
+const RF_STYLE: React.CSSProperties = { background: 'transparent', position: 'relative', zIndex: 1 }
+const RF_MINIMAP_STYLE: React.CSSProperties = { cursor: 'default', pointerEvents: 'none', overflow: 'hidden' }
+const RF_FAB_PANEL_STYLE: React.CSSProperties = { marginLeft: 74, marginBottom: 15 }
+
 // Пропсы для холста: узлы, связи, выбор и коллбеки для синхронизации с runtime.
 type FlowCanvasProps = {
   // Узлы runtime-json, которые показываем на холсте.
@@ -985,6 +996,35 @@ const FlowCanvasInner = ({
     void fitView({ duration: 180, padding: 0.18 })
   }, [fitView, fitViewRequestId])
 
+  // Initial fitView после первого монтирования: раньше это делал boolean prop
+  // `fitView` на <ReactFlow>, но он мог перестреливать на смену nodes-массива.
+  // Делаем один раз в rAF, чтобы xyflow успел померить ноды и посчитать bounds.
+  const didInitialFitRef = useRef(false)
+  useEffect(() => {
+    if (didInitialFitRef.current) return
+    didInitialFitRef.current = true
+    // rAF даёт шанс xyflow замерить размеры нод перед первым fit.
+    const raf = window.requestAnimationFrame(() => {
+      void fitView({ duration: 0, padding: 0.18 })
+    })
+    return () => window.cancelAnimationFrame(raf)
+  }, [fitView])
+
+  // Liquid-glass CSS-переменные ставим ОДИН раз на wrapper — они наследуются
+  // всеми .customNode через CSS cascade. Раньше мы вычисляли их на каждой из
+  // 500 нод в inline style → 500 object allocations на mount. Теперь один.
+  useEffect(() => {
+    const el = flowCanvasRef.current
+    if (!el) return
+    if (prefs.liquidGlassEnabled) {
+      el.style.setProperty('--liquid-glass-blur', `${prefs.liquidGlassBlur * 20}px`)
+      el.style.setProperty('--liquid-glass-alpha', String(0.4 + (1 - prefs.liquidGlassBlur) * 0.5))
+    } else {
+      el.style.setProperty('--liquid-glass-blur', '0px')
+      el.style.setProperty('--liquid-glass-alpha', '1')
+    }
+  }, [prefs.liquidGlassEnabled, prefs.liquidGlassBlur])
+
   const handleFabAdd = useCallback(() => {
     const rect = flowCanvasRef.current?.getBoundingClientRect()
     if (!rect) return
@@ -1049,11 +1089,13 @@ const FlowCanvasInner = ({
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
-        fitView
+        // Initial fitView делаем сами через fitViewRequestId после монтирования,
+        // чтобы xyflow не держал внутренний эффект, который может заново триггериться
+        // при смене nodes-массива в ранних версиях библиотеки.
         // Убираем водяной знак React Flow.
-        proOptions={{ hideAttribution: true }}
+        proOptions={RF_PRO_OPTIONS}
         // Панорамирование холста — только ПКМ (кнопка 2).
-        panOnDrag={[2]}
+        panOnDrag={RF_PAN_ON_DRAG}
         // Явно разрешаем выделение элементов и рамочное выделение,
         // чтобы xyflow не зависел от внутренних дефолтов между версиями.
         elementsSelectable
@@ -1083,7 +1125,7 @@ const FlowCanvasInner = ({
         // Дополнительно защищаемся от бесконечного цикла: не вызываем onSelectNodes,
         // если фактическое выделение не изменилось относительно пропсов.
         onSelectionChange={handleSelectionChange}
-        style={{ background: 'transparent', position: 'relative', zIndex: 1 }}
+        style={RF_STYLE}
       >
         {/* Размер сетки теперь реально читается из Preferences,
             чтобы настройка grid size меняла canvas, а не висела мёртвым полем. */}
@@ -1099,12 +1141,12 @@ const FlowCanvasInner = ({
             maskColor="transparent"
             maskStrokeColor="transparent"
             offsetScale={0}
-            style={{ cursor: 'default', pointerEvents: 'none', overflow: 'hidden' }}
+            style={RF_MINIMAP_STYLE}
           />
         ) : null}
         <Controls showInteractive={false} />
         {/* Кнопка создания ноды, вынесенная рядом с Controls в нижний левый угол */}
-        <Panel position="bottom-left" style={{ marginLeft: 74, marginBottom: 15 }}>
+        <Panel position="bottom-left" style={RF_FAB_PANEL_STYLE}>
           <button
             className="actionButtonPlus"
             onClick={handleFabAdd}

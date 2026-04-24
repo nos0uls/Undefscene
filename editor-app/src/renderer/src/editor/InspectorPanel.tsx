@@ -40,7 +40,6 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
     setPendingNodeName,
     suggestUniqueNodeName,
     setNameConflictModal,
-    roomScreenshotSearchDirs,
     shouldFocusEdgeWaitRef,
     t
   } = props
