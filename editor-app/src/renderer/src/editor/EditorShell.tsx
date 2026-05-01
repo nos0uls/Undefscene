@@ -5,7 +5,7 @@ import { AboutModal } from './AboutModal'
 import { FlowCanvas } from './FlowCanvas'
 import { TopMenuBar } from './TopMenuBar'
 import { parseYarnPreview } from './yarnPreview'
-import { useLayoutState } from './useLayoutState'
+import { useLayoutState, type LayoutState } from './useLayoutState'
 import { useProjectResources } from './useProjectResources'
 import { useRuntimeState } from './useRuntimeState'
 import { validateGraph, type ValidationResult, type ValidationContext } from './validateGraph'
@@ -70,10 +70,28 @@ const PALETTE_NODE_TYPES = [
   'mark_node'
 ] as const
 
+// Внешний слой: создаёт DockingProvider, чтобы внутренний компонент
+// мог использовать useDocking() без ошибки "must be used within DockingProvider".
 export function EditorShell(): React.JSX.Element {
   const { layout, setLayout } = useLayoutState()
-  const { runtime, setRuntime, undo, redo, canUndo, canRedo } = useRuntimeState()
   const rootRef = useRef<HTMLDivElement | null>(null)
+
+  return (
+    <DockingProvider layout={layout} setLayout={setLayout} rootRef={rootRef}>
+      <EditorShellInner layout={layout} setLayout={setLayout} rootRef={rootRef} />
+    </DockingProvider>
+  )
+}
+
+// Внутренний компонент: имеет доступ к DockingContext через DockingProvider выше.
+type EditorShellInnerProps = {
+  layout: LayoutState
+  setLayout: (l: LayoutState) => void
+  rootRef: React.RefObject<HTMLDivElement | null>
+}
+
+function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps): React.JSX.Element {
+  const { runtime, setRuntime, undo, redo, canUndo, canRedo } = useRuntimeState()
 
   const toasts = useToasts()
   const confirm = useConfirm()
@@ -266,8 +284,10 @@ export function EditorShell(): React.JSX.Element {
     tips: false
   })
 
-  const selectedNodeForName =
-    runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null
+  const selectedNodeForName = useMemo(
+    () => runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null,
+    [runtime.nodes, runtime.selectedNodeId]
+  )
 
   const {
     roomScreenshotSearchDirs,
@@ -410,6 +430,76 @@ export function EditorShell(): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [nameConflictModal])
 
+  // --- Memoized heavy panel computations ---
+  // JSON.stringify(runtime) может занимать десятки мс на больших графах.
+  // Мемоизируем и исключаем editor-only поля (selectedNodeId, selectedNodeIds, selectedEdgeId),
+  // которые меняются при каждом клике и вызывают бессмысленную пересериализацию.
+  const runtimeJsonString = useMemo(
+    () =>
+      JSON.stringify(
+        {
+          schemaVersion: runtime.schemaVersion,
+          title: runtime.title,
+          nodes: runtime.nodes,
+          edges: runtime.edges,
+          lastSavedAtMs: runtime.lastSavedAtMs
+        },
+        null,
+        2
+      ),
+    [runtime.schemaVersion, runtime.title, runtime.nodes, runtime.edges, runtime.lastSavedAtMs]
+  )
+
+  // Парсинг Yarn preview — не пересчитываем на каждый рендер.
+  const yarnPreviewNodes = useMemo(
+    () => (yarnPreviewContent ? parseYarnPreview(yarnPreviewContent) : []),
+    [yarnPreviewContent]
+  )
+
+  // Логи: фильтрация validation.entries O(N).
+  // Разбиваем на категории и visible entries один раз.
+  const logsData = useMemo(() => {
+    const errorEntries = validation.entries.filter((e) => e.severity === 'error')
+    const warnEntries = validation.entries.filter((e) => e.severity === 'warn')
+    const tipEntries = validation.entries.filter((e) => e.severity === 'tip')
+
+    const visibleEntries = validation.entries.filter((e) => {
+      if (e.severity === 'error') return logsFilters.errors
+      if (e.severity === 'warn') return logsFilters.warnings
+      if (e.severity === 'tip') return logsFilters.tips
+      return false
+    })
+
+    const severityStyle: Record<string, { color: string; bg: string; icon: string }> = {
+      error: { color: '#e05050', bg: 'rgba(224,80,80,0.08)', icon: '\u25CF' },
+      warn: { color: '#d4a017', bg: 'rgba(212,160,23,0.08)', icon: '\u25CF' },
+      tip: { color: '#58a6ff', bg: 'rgba(88,166,255,0.06)', icon: '\u25CF' }
+    }
+
+    const toggleButtons = [
+      {
+        key: 'errors' as const,
+        label: preferences.language === 'ru' ? '\u041E\u0448\u0438\u0431\u043A\u0438' : 'Errors',
+        count: errorEntries.length,
+        color: '#e05050'
+      },
+      {
+        key: 'warnings' as const,
+        label: preferences.language === 'ru' ? '\u041F\u0440\u0435\u0434\u0443\u043F\u0440\u0435\u0436\u0434\u0435\u043D\u0438\u044F' : 'Warnings',
+        count: warnEntries.length,
+        color: '#d4a017'
+      },
+      {
+        key: 'tips' as const,
+        label: preferences.language === 'ru' ? '\u041F\u043E\u0434\u0441\u043A\u0430\u0437\u043A\u0438' : 'Tips',
+        count: tipEntries.length,
+        color: '#58a6ff'
+      }
+    ]
+
+    return { errorEntries, warnEntries, tipEntries, visibleEntries, severityStyle, toggleButtons }
+  }, [validation.entries, logsFilters.errors, logsFilters.warnings, logsFilters.tips, preferences.language])
+
   // --- renderPanelContents ---
   const renderPanelContents = (panelId: string): React.JSX.Element => {
     if (panelId === 'panel.actions') {
@@ -468,9 +558,8 @@ export function EditorShell(): React.JSX.Element {
     if (panelId === 'panel.text') {
       const selectedYarnFile =
         selectedNode?.type === 'dialogue' ? String(selectedNode.params?.file ?? '').trim() : ''
-      const previewNodes = yarnPreviewContent ? parseYarnPreview(yarnPreviewContent) : []
       const activePreviewNode =
-        previewNodes.find((entry) => entry.title === selectedYarnPreviewTitle) ?? previewNodes[0] ?? null
+        yarnPreviewNodes.find((entry) => entry.title === selectedYarnPreviewTitle) ?? yarnPreviewNodes[0] ?? null
 
       return (
         <div className="runtimeSection">
@@ -485,7 +574,7 @@ export function EditorShell(): React.JSX.Element {
             <div className="runtimeHint">{t('editor.setDialogueFile', 'Set the dialogue File field.')}</div>
           ) : yarnPreviewLoading ? (
             <div className="runtimeHint">{t('editor.loadingYarnPreview', 'Loading Yarn preview...')}</div>
-          ) : previewNodes.length === 0 ? (
+          ) : yarnPreviewNodes.length === 0 ? (
             <div className="runtimeHint">{t('editor.noYarnNodes', 'No previewable Yarn nodes found in this file.')}</div>
           ) : (
             <>
@@ -503,7 +592,7 @@ export function EditorShell(): React.JSX.Element {
                     overflowY: 'auto'
                   }}
                 >
-                  {previewNodes.map((entry) => (
+                  {yarnPreviewNodes.map((entry) => (
                     <button
                       key={entry.title}
                       type="button"
@@ -559,43 +648,7 @@ export function EditorShell(): React.JSX.Element {
     }
 
     if (panelId === 'panel.logs') {
-      const errorEntries = validation.entries.filter((e) => e.severity === 'error')
-      const warnEntries = validation.entries.filter((e) => e.severity === 'warn')
-      const tipEntries = validation.entries.filter((e) => e.severity === 'tip')
-
-      const visibleEntries = validation.entries.filter((e) => {
-        if (e.severity === 'error') return logsFilters.errors
-        if (e.severity === 'warn') return logsFilters.warnings
-        if (e.severity === 'tip') return logsFilters.tips
-        return false
-      })
-
-      const severityStyle: Record<string, { color: string; bg: string; icon: string }> = {
-        error: { color: '#e05050', bg: 'rgba(224,80,80,0.08)', icon: '\u25CF' },
-        warn: { color: '#d4a017', bg: 'rgba(212,160,23,0.08)', icon: '\u25CF' },
-        tip: { color: '#58a6ff', bg: 'rgba(88,166,255,0.06)', icon: '\u25CF' }
-      }
-
-      const toggleButtons = [
-        {
-          key: 'errors' as const,
-          label: preferences.language === 'ru' ? '\u041E\u0448\u0438\u0431\u043A\u0438' : 'Errors',
-          count: errorEntries.length,
-          color: '#e05050'
-        },
-        {
-          key: 'warnings' as const,
-          label: preferences.language === 'ru' ? '\u041F\u0440\u0435\u0434\u0443\u043F\u0440\u0435\u0436\u0434\u0435\u043D\u0438\u044F' : 'Warnings',
-          count: warnEntries.length,
-          color: '#d4a017'
-        },
-        {
-          key: 'tips' as const,
-          label: preferences.language === 'ru' ? '\u041F\u043E\u0434\u0441\u043A\u0430\u0437\u043A\u0438' : 'Tips',
-          count: tipEntries.length,
-          color: '#58a6ff'
-        }
-      ]
+      const { visibleEntries, severityStyle, toggleButtons } = logsData
 
       return (
         <div className="runtimeSection">
@@ -691,7 +744,7 @@ export function EditorShell(): React.JSX.Element {
           <div className="runtimeSectionTitle">
             {t('editor.runtimeJsonContent', 'Runtime JSON content')}
           </div>
-          <pre className="runtimeCode runtimeCodeFill">{JSON.stringify(runtime, null, 2)}</pre>
+          <pre className="runtimeCode runtimeCodeFill">{runtimeJsonString}</pre>
         </div>
       )
     }
@@ -704,8 +757,7 @@ export function EditorShell(): React.JSX.Element {
   }
 
   return (
-    <DockingProvider layout={layout} setLayout={setLayout} rootRef={rootRef}>
-      <DockingLayout
+    <DockingLayout
         renderPanelContents={renderPanelContents}
         getPanelTitle={getPanelTitle}
         collapsePanelLabel={collapsePanelLabel}
@@ -955,6 +1007,5 @@ export function EditorShell(): React.JSX.Element {
           </div>
         ) : null}
       </DockingLayout>
-    </DockingProvider>
   )
 }

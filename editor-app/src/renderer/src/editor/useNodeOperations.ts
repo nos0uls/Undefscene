@@ -26,6 +26,47 @@ type UseNodeOperationsDeps = {
 // Хук управляет всеми операциями с нодами на холсте:
 // создание нод разных типов, удаление, добавление/удаление parallel веток,
 // обработка выбора нод/рёбер, позиционирование при drag.
+// Дефолтные параметры для каждого типа ноды.
+// Вынесены за пределы хука, чтобы не аллоцировать десятки вложенных
+// объектов/массивов на каждое создание ноды (O(1) вместо O(типы нод)).
+const DEFAULT_PARAMS_BY_TYPE: Record<string, Record<string, unknown>> = {
+  dialogue: { file: '', node: '' },
+  wait_for_dialogue: { dialogue_controller: '' },
+  move: { target: 'player', x: 0, y: 0, speed_px_sec: 60, collision: false },
+  follow_path: { target: 'player', points: [], speed_px_sec: 60, collision: false },
+  set_position: { target: 'player', x: 0, y: 0 },
+  actor_create: { key: '', sprite_or_object: '', copy_from: '', x: 0, y: 0 },
+  actor_destroy: { target: 'player' },
+  animate: { target: 'player', sprite: '', image_index: 0, image_speed: 1 },
+  camera_track: { target: 'player', seconds: 1, offset_x: 0, offset_y: 0 },
+  camera_track_until_stop: { target: 'player', offset_x: 0, offset_y: 0 },
+  camera_pan: { x: 0, y: 0, seconds: 1 },
+  camera_pan_obj: { target: 'player', seconds: 1 },
+  camera_center: { x: 0, y: 0 },
+  set_depth: { target: 'player', depth: 0 },
+  set_facing: { target: 'player', direction: 'right' },
+  branch: { condition: '' },
+  run_function: { function: '', args: '' },
+  camera_shake: { seconds: 1, magnitude: 4 },
+  auto_facing: { target: 'player', enabled: true },
+  auto_walk: { target: 'player', enabled: true },
+  tween: { kind: 'instance', target: 'player', property: 'x', to: 0, seconds: 1, easing: 'linear' },
+  tween_camera: { property: 'x', to_value: 0, seconds: 1, easing: 'linear', from_value: undefined },
+  set_property: { kind: 'instance', target: 'player', property: 'image_alpha', value: 1 },
+  fade_in: { seconds: 0.5, color: 'black' },
+  fade_out: { seconds: 0.5, color: 'black' },
+  play_sfx: { sound: '', volume: 1, pitch: 1 },
+  emote: { target: 'player', sprite: '', seconds: 1, offset_x: 0, offset_y: -24, scale: 1, wait: false },
+  jump: { target: 'player', x: 0, y: 0, seconds: 0.5, height: 16, easing: 'linear' },
+  halt: { target: 'player' },
+  flip: { target: 'player', flipped: true },
+  spin: { target: 'player', speed: 10, seconds: 1 },
+  shake_object: { target: 'player', seconds: 0.5, magnitude: 4 },
+  set_visible: { target: 'player', visible: true },
+  instant_mode: { enabled: true },
+  mark_node: { name: '' }
+}
+
 export function useNodeOperations(deps: UseNodeOperationsDeps) {
   const { runtime, setRuntime, shouldFocusEdgeWaitRef } = deps
 
@@ -42,10 +83,11 @@ export function useNodeOperations(deps: UseNodeOperationsDeps) {
         setRuntime((prev) => {
           const currentIds = prev.selectedNodeIds ?? []
           const sameLength = currentIds.length === nodeIds.length
-          const sameIds =
-            sameLength &&
-            nodeIds.every((id) => currentIds.includes(id)) &&
-            currentIds.every((id) => nodeIds.includes(id))
+          let sameIds = sameLength
+          if (sameIds && nodeIds.length > 0) {
+            const currentSet = new Set(currentIds)
+            sameIds = nodeIds.every((id) => currentSet.has(id))
+          }
           if (
             prev.selectedEdgeId === null &&
             prev.selectedNodeId === nextSelectedNodeId &&
@@ -211,64 +253,26 @@ export function useNodeOperations(deps: UseNodeOperationsDeps) {
           ? [{ id: `edge-${connectFromNodeId}-${startId}`, source: connectFromNodeId, target: startId }]
           : []
 
-        setRuntime({
-          ...runtime,
-          nodes: [...runtime.nodes, startNode, joinNode],
-          edges: [...runtime.edges, ...extraEdges, pairEdge],
+        setRuntime((prev) => ({
+          ...prev,
+          nodes: [...prev.nodes, startNode, joinNode],
+          edges: [...prev.edges, ...extraEdges, pairEdge],
           selectedNodeId: startId,
           selectedNodeIds: [startId],
           selectedEdgeId: null
-        })
+        }))
         return
       }
 
       const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 
-      // Дефолтные параметры для каждого типа ноды.
-      const defaultParamsByType: Record<string, Record<string, unknown>> = {
-        dialogue: { file: '', node: '' },
-        wait_for_dialogue: { dialogue_controller: '' },
-        move: { target: 'player', x: 0, y: 0, speed_px_sec: 60, collision: false },
-        follow_path: { target: 'player', points: [], speed_px_sec: 60, collision: false },
-        set_position: { target: 'player', x: 0, y: 0 },
-        actor_create: { key: '', sprite_or_object: '', copy_from: '', x: 0, y: 0 },
-        actor_destroy: { target: 'player' },
-        animate: { target: 'player', sprite: '', image_index: 0, image_speed: 1 },
-        camera_track: { target: 'player', seconds: 1, offset_x: 0, offset_y: 0 },
-        camera_track_until_stop: { target: 'player', offset_x: 0, offset_y: 0 },
-        camera_pan: { x: 0, y: 0, seconds: 1 },
-        camera_pan_obj: { target: 'player', seconds: 1 },
-        camera_center: { x: 0, y: 0 },
-        set_depth: { target: 'player', depth: 0 },
-        set_facing: { target: 'player', direction: 'right' },
-        branch: { condition: '' },
-        run_function: { function: '', args: '' },
-        camera_shake: { seconds: 1, magnitude: 4 },
-        auto_facing: { target: 'player', enabled: true },
-        auto_walk: { target: 'player', enabled: true },
-        tween: { kind: 'instance', target: 'player', property: 'x', to: 0, seconds: 1, easing: 'linear' },
-        tween_camera: { property: 'x', to_value: 0, seconds: 1, easing: 'linear', from_value: undefined },
-        set_property: { kind: 'instance', target: 'player', property: 'image_alpha', value: 1 },
-        fade_in: { seconds: 0.5, color: 'black' },
-        fade_out: { seconds: 0.5, color: 'black' },
-        play_sfx: { sound: '', volume: 1, pitch: 1 },
-        emote: { target: 'player', sprite: '', seconds: 1, offset_x: 0, offset_y: -24, scale: 1, wait: false },
-        jump: { target: 'player', x: 0, y: 0, seconds: 0.5, height: 16, easing: 'linear' },
-        halt: { target: 'player' },
-        flip: { target: 'player', flipped: true },
-        spin: { target: 'player', speed: 10, seconds: 1 },
-        shake_object: { target: 'player', seconds: 0.5, magnitude: 4 },
-        set_visible: { target: 'player', visible: true },
-        instant_mode: { enabled: true },
-        mark_node: { name: '' }
-      }
       const newNode: RuntimeNode = {
         id: newId,
         type,
         name: suggestUniqueNodeName('Node', takenNames),
         text: '',
         position: { x: position.x, y: position.y },
-        params: defaultParamsByType[type]
+        params: DEFAULT_PARAMS_BY_TYPE[type]
       }
 
       // Если указана нода-источник — добавляем ребро от неё к новой ноде.
@@ -276,14 +280,14 @@ export function useNodeOperations(deps: UseNodeOperationsDeps) {
         ? [...runtime.edges, { id: `edge-${connectFromNodeId}-${newId}`, source: connectFromNodeId, target: newId }]
         : runtime.edges
 
-      setRuntime({
-        ...runtime,
-        nodes: [...runtime.nodes, newNode],
+      setRuntime((prev) => ({
+        ...prev,
+        nodes: [...prev.nodes, newNode],
         edges: newEdges,
         selectedNodeId: newId,
         selectedNodeIds: [newId],
         selectedEdgeId: null
-      })
+      }))
     },
     [runtime, setRuntime]
   )

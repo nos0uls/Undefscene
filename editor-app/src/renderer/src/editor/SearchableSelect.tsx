@@ -2,7 +2,7 @@
 // Заменяет нативный <select> для длинных списков ресурсов (спрайты, объекты и т.д.).
 // Поддерживает автоподстановку, Tab/Enter принятие варианта и клавиатурную навигацию.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 // Пропсы компонента.
 type SearchableSelectProps = {
@@ -82,23 +82,26 @@ export function SearchableSelect({
 
   // Фильтруем варианты по подстроке (регистронезависимо).
   // Важно: сначала показываем prefix matches, потом обычные substring matches.
-  const lowerQuery = query.toLowerCase()
-  const filtered =
-    query.length > 0
-      ? [
-        ...options.filter((opt) => opt.toLowerCase().startsWith(lowerQuery)),
-        ...options.filter(
-          (opt) => opt.toLowerCase().includes(lowerQuery) && !opt.toLowerCase().startsWith(lowerQuery)
-        )
-      ]
-      : options
+  // Мемоизируем, чтобы не пересчитывать на каждый рендер при наборе текста.
+  const filtered = useMemo(() => {
+    const lowerQuery = query.toLowerCase()
+    if (query.length === 0) return options
+    const prefixMatches = options.filter((opt) => opt.toLowerCase().startsWith(lowerQuery))
+    const substringMatches = options.filter(
+      (opt) => opt.toLowerCase().includes(lowerQuery) && !opt.toLowerCase().startsWith(lowerQuery)
+    )
+    return [...prefixMatches, ...substringMatches]
+  }, [options, query])
 
   // Лучший кандидат для автодополнения.
   const suggestedOption = filtered[0] ?? null
 
   // Есть ли точное совпадение с одним из вариантов.
   // Это помогает понять, надо ли при Enter брать suggestion или оставить ручной текст как есть.
-  const hasExactMatch = options.some((opt) => opt.toLowerCase() === lowerQuery)
+  const hasExactMatch = useMemo(() => {
+    const lowerQuery = query.toLowerCase()
+    return options.some((opt) => opt.toLowerCase() === lowerQuery)
+  }, [options, query])
 
   // Закрываем список при клике вне компонента.
   useEffect(() => {
