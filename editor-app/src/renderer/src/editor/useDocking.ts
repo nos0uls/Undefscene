@@ -719,6 +719,9 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
         const dx = event.clientX - resizeDrag.startX
         const dy = event.clientY - resizeDrag.startY
 
+        // Для dock-ресайза обновляем CSS-переменные напрямую (DOM-first),
+        // чтобы избежать React ре-рендеров на каждый кадр.
+        // setLayout вызываем один раз на pointerup.
         if (resizeDrag.kind === 'dock-left') {
           const maxLeft = Math.max(
             MIN_LEFT_WIDTH,
@@ -730,13 +733,11 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
             maxLeft
           )
 
-          ctx.setLayout({
-            ...currentLayout,
-            dockSizes: {
-              ...currentLayout.dockSizes,
-              leftWidth: nextLeftWidth
-            }
-          })
+          ctx.rootRef.current?.style.setProperty('--leftDockWidth', `${nextLeftWidth}px`)
+          ctx.layoutRef.current.dockSizes = {
+            ...ctx.layoutRef.current.dockSizes,
+            leftWidth: nextLeftWidth
+          }
           return
         }
 
@@ -751,13 +752,11 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
             maxRight
           )
 
-          ctx.setLayout({
-            ...currentLayout,
-            dockSizes: {
-              ...currentLayout.dockSizes,
-              rightWidth: nextRightWidth
-            }
-          })
+          ctx.rootRef.current?.style.setProperty('--rightDockWidth', `${nextRightWidth}px`)
+          ctx.layoutRef.current.dockSizes = {
+            ...ctx.layoutRef.current.dockSizes,
+            rightWidth: nextRightWidth
+          }
           return
         }
 
@@ -773,13 +772,11 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
             maxBottom
           )
 
-          ctx.setLayout({
-            ...currentLayout,
-            dockSizes: {
-              ...currentLayout.dockSizes,
-              bottomHeight: nextBottomHeight
-            }
-          })
+          ctx.rootRef.current?.style.setProperty('--bottomDockHeight', `${nextBottomHeight}px`)
+          ctx.layoutRef.current.dockSizes = {
+            ...ctx.layoutRef.current.dockSizes,
+            bottomHeight: nextBottomHeight
+          }
           return
         }
 
@@ -905,6 +902,19 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
             }
           })
         }
+      }
+
+      // Для dock-ресайза: сохраняем финальные размеры из ref в React state.
+      // Во время drag мы обновляли CSS-переменные напрямую (минуя React).
+      if (
+        resizeDrag.kind === 'dock-left' ||
+        resizeDrag.kind === 'dock-right' ||
+        resizeDrag.kind === 'dock-bottom'
+      ) {
+        ctx.setLayout({
+          ...ctx.layoutRef.current,
+          dockSizes: { ...ctx.layoutRef.current.dockSizes }
+        })
       }
 
       ctx.setResizeDrag(null)

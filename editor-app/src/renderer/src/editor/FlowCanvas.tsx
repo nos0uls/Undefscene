@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -101,12 +101,13 @@ type FlowCanvasProps = {
   fitViewRequestId?: number
 }
 
-// Компонент для фона: размер точек масштабируется вместе с зумом холста
-const ScaledBackground = () => {
+// Компонент для фона: размер точек масштабируется вместе с зумом холста.
+// Обёрнут в memo, чтобы не ререндериться при несвязанных изменениях preferences.
+const ScaledBackground = memo(function ScaledBackground() {
   const zoom = useStore((s) => s.transform[2])
   const prefs = usePreferencesContext()
   return <Background color="#262b2f" gap={prefs.gridSize} size={Math.max(1, zoom * 1.5)} />
-}
+})
 
 // LOD-контроллер: единственный компонент, который подписывается на zoom из store
 // и выставляет класс на корне .react-flow. Это ключевая оптимизация для 500+ нод:
@@ -167,9 +168,20 @@ const FlowCanvasInner = ({
   // Нужен для конвертации экранных координат в координаты холста.
   const { screenToFlowPosition, getNodes, getViewport, setViewport, fitView } = useReactFlow()
 
-  // Читаем настройки редактора из контекста.
-  // Отсюда берём zoomSpeed, чтобы скорость wheel zoom реально менялась из Preferences.
-  const prefs = usePreferencesContext()
+  // Читаем только те настройки, которые реально нужны холсту.
+  // Деструктуризация не предотвращает ререндер при смене других полей,
+  // но готовит почву для дальнейшей изоляции через refs / вынесение в sub-components.
+  const {
+    zoomSpeed,
+    parallelBranchPortMode,
+    canvasBackgroundPath,
+    showMiniMap,
+    liquidGlassEnabled,
+    liquidGlassBlur,
+    canvasBackgroundAttachment,
+    canvasBackgroundMode,
+    canvasBackgroundOpacity
+  } = usePreferencesContext()
 
   // Data URL кастомного фонового изображения.
   // Читаем его через main IPC, потому что прямой file:// доступ из renderer может блокироваться.
@@ -178,11 +190,11 @@ const FlowCanvasInner = ({
   useEffect(() => {
     setCanvasBackgroundUrl(null)
 
-    if (!prefs.canvasBackgroundPath || !window.api?.preferences?.readCanvasBackgroundDataUrl) {
+    if (!canvasBackgroundPath || !window.api?.preferences?.readCanvasBackgroundDataUrl) {
       return
     }
 
-    const requestedPath = prefs.canvasBackgroundPath
+    const requestedPath = canvasBackgroundPath
     let cancelled = false
     window.api.preferences
       .readCanvasBackgroundDataUrl(requestedPath)
@@ -199,7 +211,7 @@ const FlowCanvasInner = ({
     return () => {
       cancelled = true
     }
-  }, [prefs.canvasBackgroundPath])
+  }, [canvasBackgroundPath])
 
   // Храним ref на DOM-обёртку canvas, чтобы повесить native non-passive wheel listener.
   // Это нужно для trackpad/pinch и чтобы браузер не ругался на preventDefault в passive listener.
@@ -348,10 +360,14 @@ const FlowCanvasInner = ({
         // Коллбек для parallel — не сохраняем в runtime.json, это чисто UI.
         onAddParallelBranch: onParallelAddBranch,
         onRemoveParallelBranch: onParallelRemoveBranchRef.current,
-        parallelBranchPortMode: prefs.parallelBranchPortMode
+        parallelBranchPortMode: parallelBranchPortMode,
+        // Canvas-настройки, которые нужны нодам — передаём через data,
+        // чтобы каждая нода не подписывалась на PreferencesContext.
+        showNodeNameOnCanvas: showNodeNameOnCanvas,
+        liquidGlassEnabled: liquidGlassEnabled
       }
     }))
-  }, [runtimeNodes, onParallelAddBranch, prefs.parallelBranchPortMode])
+  }, [runtimeNodes, onParallelAddBranch, parallelBranchPortMode])
 
   // Строим связи React Flow из runtime-данных.
   // Аналогично нодам — без selected, чтобы не создавать петлю.
@@ -576,7 +592,7 @@ const FlowCanvasInner = ({
       }
 
       // В strict separate-режиме не даём занять тот же branch handle второй раз.
-      if (prefs.parallelBranchPortMode === 'separate') {
+      if (parallelBranchPortMode === 'separate') {
         const sourceHandleBusy =
           nextConnection.sourceHandle?.startsWith('out_') &&
           currentEdges.some(
@@ -606,7 +622,7 @@ const FlowCanvasInner = ({
 
       return nextConnection
     },
-    [prefs.parallelBranchPortMode]
+    [parallelBranchPortMode]
   )
 
   // Обёртка над onNodesChange: ловим конец перетаскивания и сохраняем позицию.
@@ -949,7 +965,7 @@ const FlowCanvasInner = ({
 
       const currentViewport = getViewport()
       const currentZoom = currentViewport.zoom
-      const zoomFactor = Math.exp(-event.deltaY * 0.001 * prefs.zoomSpeed)
+      const zoomFactor = Math.exp(-event.deltaY * 0.001 * zoomSpeed)
       const nextZoom = Math.max(0.1, Math.min(4, currentZoom * zoomFactor))
 
       if (Math.abs(nextZoom - currentZoom) < 0.0001) return
@@ -971,7 +987,7 @@ const FlowCanvasInner = ({
         { duration: 0 }
       )
     },
-    [getViewport, prefs.zoomSpeed, screenToFlowPosition, setViewport]
+    [getViewport, zoomSpeed, screenToFlowPosition, setViewport]
   )
 
   // Навешиваем native wheel listener вручную.
@@ -1016,14 +1032,14 @@ const FlowCanvasInner = ({
   useEffect(() => {
     const el = flowCanvasRef.current
     if (!el) return
-    if (prefs.liquidGlassEnabled) {
-      el.style.setProperty('--liquid-glass-blur', `${prefs.liquidGlassBlur * 20}px`)
-      el.style.setProperty('--liquid-glass-alpha', String(0.4 + (1 - prefs.liquidGlassBlur) * 0.5))
+    if (liquidGlassEnabled) {
+      el.style.setProperty('--liquid-glass-blur', `${liquidGlassBlur * 20}px`)
+      el.style.setProperty('--liquid-glass-alpha', String(0.4 + (1 - liquidGlassBlur) * 0.5))
     } else {
       el.style.setProperty('--liquid-glass-blur', '0px')
       el.style.setProperty('--liquid-glass-alpha', '1')
     }
-  }, [prefs.liquidGlassEnabled, prefs.liquidGlassBlur])
+  }, [liquidGlassEnabled, liquidGlassBlur])
 
   const handleFabAdd = useCallback(() => {
     const rect = flowCanvasRef.current?.getBoundingClientRect()
@@ -1068,17 +1084,17 @@ const FlowCanvasInner = ({
           style={{
             // В режиме viewport фон не живёт внутри canvas bounds,
             // а закрепляется на весь экран редактора.
-            position: prefs.canvasBackgroundAttachment === 'viewport' ? 'fixed' : 'absolute',
+            position: canvasBackgroundAttachment === 'viewport' ? 'fixed' : 'absolute',
             inset: 0,
             pointerEvents: 'none',
             backgroundImage: `url("${canvasBackgroundUrl}")`,
             backgroundRepeat: 'no-repeat',
             backgroundPosition: 'center',
             backgroundSize:
-              prefs.canvasBackgroundMode === 'stretch' ? '100% 100%' : 'cover',
+              canvasBackgroundMode === 'stretch' ? '100% 100%' : 'cover',
             // Прозрачность управляется из Preferences,
             // чтобы фон не мешал читать граф и сетку.
-            opacity: prefs.canvasBackgroundOpacity
+            opacity: canvasBackgroundOpacity
           }}
         />
       ) : null}
@@ -1133,7 +1149,7 @@ const FlowCanvasInner = ({
         {/* LOD: переключает zoomLow/zoomVeryLow классы на корне .react-flow.
             Подписывается на zoom через useStore, не трогая ноды. */}
         <ZoomLODController />
-        {prefs.showMiniMap ? (
+        {showMiniMap ? (
           <MiniMap
             zoomable={false}
             pannable={false}

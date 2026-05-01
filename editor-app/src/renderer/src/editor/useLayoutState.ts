@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { LayoutState } from './layoutTypes'
 
 // Создаём дефолтную раскладку, чтобы редактор всегда стартовал одинаково.
@@ -92,6 +92,24 @@ export function useLayoutState(): {
   const defaultLayout = useMemo(() => createDefaultLayout(), [])
   const [layout, setLayout] = useState<LayoutState>(defaultLayout)
 
+  // Батчим частые setLayout-вызовы (например, при drag resize) через rAF,
+  // чтобы не триггерить React-рендер на каждый mousemove.
+  const pendingLayoutRef = useRef<LayoutState | null>(null)
+  const rafIdRef = useRef<number | null>(null)
+
+  const setLayoutBatched = useCallback((next: LayoutState) => {
+    pendingLayoutRef.current = next
+    if (rafIdRef.current !== null) return
+    rafIdRef.current = requestAnimationFrame(() => {
+      rafIdRef.current = null
+      const pending = pendingLayoutRef.current
+      if (pending) {
+        pendingLayoutRef.current = null
+        setLayout(pending)
+      }
+    })
+  }, [])
+
   // Этот флаг помогает не записывать layout сразу же после загрузки.
   const didLoadRef = useRef(false)
 
@@ -149,5 +167,5 @@ export function useLayoutState(): {
     }
   }, [layout])
 
-  return { layout, setLayout }
+  return { layout, setLayout: setLayoutBatched }
 }
