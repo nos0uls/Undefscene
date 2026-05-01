@@ -57,6 +57,7 @@ export type TopMenuBarProps = {
 
   // Help.
   onAbout: () => void
+  onTutorial?: () => void
   onCheckUpdates?: () => void
   onToggleRuntimeJson?: () => void
   runtimeJsonVisible?: boolean
@@ -100,6 +101,7 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
     onResetLayout,
     onOpenVisualEditing,
     onAbout,
+    onTutorial,
     onCheckUpdates,
     onToggleRuntimeJson,
     runtimeJsonVisible,
@@ -261,7 +263,8 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
           ...(onCheckUpdates
             ? [{ id: 'checkUpdates', label: t('menu.checkForUpdates', 'Check for Updates...'), onSelect: onCheckUpdates }]
             : []),
-          { id: 'about', label: t('menu.aboutAction', 'About'), onSelect: onAbout }
+          { id: 'about', label: t('menu.aboutAction', 'About'), onSelect: onAbout },
+          { id: 'tutorial', label: t('menu.tutorial', 'Tutorial'), onSelect: onTutorial }
         ]
       }
     ]
@@ -294,7 +297,8 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
     onToggleVisualEditorTechMode,
     visualEditorTechModeEnabled,
     hardwareAccelerationDisabled,
-    onAbout
+    onAbout,
+    onTutorial
   ])
 
   // Какая вкладка сейчас “раскрыта”.
