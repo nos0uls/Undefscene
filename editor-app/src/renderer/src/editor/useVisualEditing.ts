@@ -63,8 +63,10 @@ export function useVisualEditing(deps: UseVisualEditingDeps) {
   const [screenshotRooms, setScreenshotRooms] = useState<string[]>([])
 
   // Выбранная нода для visual editing.
-  const selectedNodeForVisualEditing =
-    runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null
+  const selectedNodeForVisualEditing = useMemo(
+    () => runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null,
+    [runtime.nodes, runtime.selectedNodeId]
+  )
 
   // Точки выбранной follow_path-ноды — нужны modal для инициализации path draft.
   const selectedVisualPathPoints = useMemo(() => {

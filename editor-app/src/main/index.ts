@@ -118,16 +118,48 @@ async function rotateLogsIfNeeded(): Promise<void> {
   }
 }
 
-// Записываем строку в лог-файл и при необходимости крутим ротацию.
-async function writeLogLine(level: 'log' | 'warn' | 'error', parts: unknown[]): Promise<void> {
-  const timestamp = new Date().toISOString()
-  const line = `[${timestamp}] [${level.toUpperCase()}] ${parts.map(stringifyLogPart).join(' ')}\n`
+// Параметры буферизации логов: макс строк в памяти и интервал сброса на диск.
+const LOG_BUFFER_MAX_LINES = 50
+const LOG_BUFFER_FLUSH_MS = 100
+
+// In-memory buffer для лог-строк. Сбрасываем batch'ами на диск,
+// чтобы не делать appendFile syscall на каждый console.log.
+let logBuffer: string[] = []
+let logFlushTimer: NodeJS.Timeout | null = null
+
+// Сбрасываем накопленные строки в лог-файл одним write.
+async function flushLogBuffer(): Promise<void> {
+  if (logBuffer.length === 0) return
+  const lines = logBuffer.join('')
+  logBuffer = []
+  logFlushTimer = null
 
   try {
     await rotateLogsIfNeeded()
-    await appendFile(getLogPath(0), line, 'utf-8')
+    await appendFile(getLogPath(0), lines, 'utf-8')
   } catch {
     // Никогда не валим приложение из-за ошибок логгера.
+  }
+}
+
+// Ставим отложенный flush, если его ещё нет.
+function scheduleLogFlush(): void {
+  if (logFlushTimer) return
+  logFlushTimer = setTimeout(() => {
+    void flushLogBuffer()
+  }, LOG_BUFFER_FLUSH_MS)
+}
+
+// Добавляем строку в буфер. При переполнении — сбрасываем сразу.
+function writeLogLine(level: 'log' | 'warn' | 'error', parts: unknown[]): void {
+  const timestamp = new Date().toISOString()
+  const line = `[${timestamp}] [${level.toUpperCase()}] ${parts.map(stringifyLogPart).join(' ')}\n`
+  logBuffer.push(line)
+
+  if (logBuffer.length >= LOG_BUFFER_MAX_LINES) {
+    void flushLogBuffer()
+  } else {
+    scheduleLogFlush()
   }
 }
 
@@ -154,16 +186,28 @@ function installFileLogger(): void {
 
   process.on('uncaughtException', (error) => {
     originalError(error)
-    void writeLogLine('error', ['uncaughtException', error])
+    writeLogLine('error', ['uncaughtException', error])
+    void flushLogBuffer()
   })
 
   process.on('unhandledRejection', (reason) => {
     originalError(reason)
-    void writeLogLine('error', ['unhandledRejection', reason])
+    writeLogLine('error', ['unhandledRejection', reason])
+    void flushLogBuffer()
+  })
+
+  // При shutdown сбрасываем остаток буфера.
+  process.on('beforeExit', () => {
+    void flushLogBuffer()
   })
 }
 
 installFileLogger()
+
+// Гарантируем flush оставшихся логов перед выходом приложения.
+app.on('before-quit', () => {
+  void flushLogBuffer()
+})
 
 // Читаем preferences.json как можно раньше.
 // Это нужно для флага disableHardwareAcceleration, который Electron должен получить
@@ -204,8 +248,10 @@ async function parseYypResources(yypPath: string): Promise<{
   const sounds = new Set<string>()
   const rooms = new Set<string>()
 
-  // Пробегаемся по ресурсам .yyp и читаем их .yy файлы параллельно.
-  const resourcePromises = (data.resources ?? []).map(async (res) => {
+  // Пробегаемся по ресурсам .yyp и читаем их .yy файлы batch'ами.
+  // Ограничиваем concurrency до 32, чтобы не открывать тысячи файлов одновременно
+  // на больших проектах (это вызывает IO-thrashing и замедляет парсинг).
+  await processInBatches(data.resources ?? [], 32, async (res) => {
     const resPath = res?.id?.path
     if (!resPath) return
 
@@ -231,8 +277,6 @@ async function parseYypResources(yypPath: string): Promise<{
       // Пропускаем битые/удалённые ресурсы, чтобы не падать.
     }
   })
-
-  await Promise.all(resourcePromises)
 
   return {
     yypPath,
@@ -400,7 +444,9 @@ async function collectYarnFilesRecursively(
 ): Promise<string[]> {
   const entries = await readdir(currentDir)
 
-  const promises = entries.map(async (entry) => {
+  // Ограничиваем concurrency при рекурсивном сканировании datafiles/.
+  // На проектах с сотнями файлов Promise.all может забивать file descriptors.
+  const results = await mapInBatches(entries, 32, async (entry) => {
     const fullPath = join(currentDir, entry)
 
     try {
@@ -420,8 +466,6 @@ async function collectYarnFilesRecursively(
     }
     return []
   })
-
-  const results = await Promise.all(promises)
   return results.flat()
 }
 
@@ -830,6 +874,35 @@ async function getAvailableScreenshotRooms(
   return result
 }
 
+// Ограничиваем concurrency при batch-обработке массива.
+// Полезно для file I/O, чтобы не открывать сотни файлов одновременно.
+async function processInBatches<T>(
+  items: T[],
+  batchSize: number,
+  fn: (item: T) => Promise<void>
+): Promise<void> {
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize)
+    await Promise.all(batch.map((item) => fn(item)))
+  }
+}
+
+// Аналогично processInBatches, но собирает результаты в массив.
+// Нужен, когда batch-функция возвращает значения (например, список файлов).
+async function mapInBatches<T, R>(
+  items: T[],
+  batchSize: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = []
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize)
+    const batchResults = await Promise.all(batch.map((item) => fn(item)))
+    results.push(...batchResults)
+  }
+  return results
+}
+
 // Читаем весь room screenshot bundle для visual editing окна.
 // Main делает только безопасный file I/O и отдаёт renderer уже удобный пакет данных.
 async function readRoomScreenshotBundle(
@@ -928,32 +1001,28 @@ async function readRoomScreenshotBundle(
   const tiles: RoomScreenshotTilePayload[] = []
   const missingTiles: Array<{ row: number; col: number; fileName: string }> = []
 
-  const tilePromises: Promise<void>[] = []
-  for (const entry of tileFileEntries) {
+  // Ограничиваем concurrency при чтении tile-изображений,
+  // чтобы не забивать event loop и file descriptors на больших комнатах.
+  await processInBatches(tileFileEntries, 8, async (entry) => {
     if (!entry.exists) {
       missingTiles.push({ row: entry.row, col: entry.col, fileName: entry.fileName })
-      continue
+      return
     }
 
-    tilePromises.push(
-      Promise.resolve().then(() => {
-        const image = nativeImage.createFromPath(entry.filePath)
-        if (image.isEmpty()) {
-          missingTiles.push({ row: entry.row, col: entry.col, fileName: entry.fileName })
-          return
-        }
+    const image = nativeImage.createFromPath(entry.filePath)
+    if (image.isEmpty()) {
+      missingTiles.push({ row: entry.row, col: entry.col, fileName: entry.fileName })
+      return
+    }
 
-        tiles.push({
-          row: entry.row,
-          col: entry.col,
-          fileName: entry.fileName,
-          dataUrl: image.toDataURL()
-        })
-      })
-    )
-  }
+    tiles.push({
+      row: entry.row,
+      col: entry.col,
+      fileName: entry.fileName,
+      dataUrl: image.toDataURL()
+    })
+  })
 
-  await Promise.all(tilePromises)
   tiles.sort((a, b) => (a.row === b.row ? a.col - b.col : a.row - b.row))
 
   const bundle = {
@@ -1496,8 +1565,18 @@ app.whenReady().then(() => {
   })
 
   // IPC: Прочитать сохранённый canvas background и вернуть data URL для renderer.
+  // Защищаем от path traversal: разрешаем читать только внутри userData backgrounds dir.
   ipcMain.handle('preferences.readCanvasBackgroundDataUrl', async (_event, filePath: string) => {
     try {
+      const resolved = resolve(filePath)
+      const backgroundsDir = resolve(userDataBackgroundsDir)
+      if (
+        !resolved.startsWith(`${backgroundsDir}${sep}`) &&
+        resolved !== backgroundsDir
+      ) {
+        console.warn('Blocked canvas background read outside userData:', filePath)
+        return null
+      }
       return await readCanvasBackgroundDataUrl(filePath)
     } catch (err) {
       console.warn('Failed to read canvas background data URL:', err)

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { RuntimeState } from './runtimeTypes'
 import {
   createDefaultRuntimeState,
@@ -72,17 +72,12 @@ export function useSceneIO(deps: UseSceneIODeps) {
     )
   }
 
-  const serializeScene = (): string => {
-    return serializeSceneState(runtime)
-  }
-
   // Храним последний JSON, который уже ушёл в autosave/manual save.
   // Это защищает от бессмысленной повторной записи одного и того же состояния.
   const lastPersistedSceneJsonRef = useRef<string | null>(null)
 
   // Экспорт катсцены: валидация → компиляция → JSON → сохранение через IPC.
-  const handleExport = async () => {
-    // Сначала проверяем граф на ошибки.
+  const handleExport = useCallback(async () => {
     const val = validation
     if (val.hasErrors) {
       const errorCount = val.entries.filter((e) => e.severity === 'error').length
@@ -101,7 +96,6 @@ export function useSceneIO(deps: UseSceneIODeps) {
     const exported = stripExport(runtime, result.actions)
     const jsonString = JSON.stringify(exported, null, 2)
 
-    // Проверяем, что мы в Electron-контексте.
     if (!window.api?.export) {
       console.warn('Export API not available')
       return
@@ -114,16 +108,17 @@ export function useSceneIO(deps: UseSceneIODeps) {
     if (saveResult.saved) {
       pushSuccess(toasts, saveResult.filePath ?? '', { title: t('toasts.exported', 'Exported') })
     }
-  }
+  }, [validation, runtime, toasts, t])
 
   // Save As: показываем диалог выбора файла, сохраняем, запоминаем путь.
-  const handleSaveAs = async () => {
+  // Используем runtimeRef.current вместо runtime, чтобы не зависеть от runtime в deps.
+  const handleSaveAs = useCallback(async () => {
     if (!window.api?.scene) {
       console.warn('Scene API not available')
       return
     }
 
-    const jsonString = serializeScene()
+    const jsonString = serializeSceneState(runtimeRef.current)
     const result = (await window.api.scene.saveAs(jsonString)) as {
       saved: boolean
       filePath?: string
@@ -132,23 +127,23 @@ export function useSceneIO(deps: UseSceneIODeps) {
       lastPersistedSceneJsonRef.current = jsonString
       setSceneFilePath(result.filePath)
     }
-  }
+  }, [toasts, t, setSceneFilePath])
 
   // Save: если путь известен — сохраняем туда, иначе Save As.
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!window.api?.scene) {
       console.warn('Scene API not available')
       return
     }
 
     if (sceneFilePath) {
-      const jsonString = serializeScene()
+      const jsonString = serializeSceneState(runtimeRef.current)
       await window.api.scene.save(sceneFilePath, jsonString)
       lastPersistedSceneJsonRef.current = jsonString
     } else {
       await handleSaveAs()
     }
-  }
+  }, [sceneFilePath, handleSaveAs])
 
   // Автосохранение по таймеру — пишет в отдельный файл, не мешая ручному Save.
   useEffect(() => {
@@ -182,7 +177,7 @@ export function useSceneIO(deps: UseSceneIODeps) {
   ])
 
   // Open Scene: открываем .usc.json / .json файл и загружаем в runtime.
-  const handleOpenScene = async () => {
+  const handleOpenScene = useCallback(async () => {
     if (!window.api?.scene) {
       console.warn('Scene API not available')
       return
@@ -199,21 +194,17 @@ export function useSceneIO(deps: UseSceneIODeps) {
     if (!result) return
     try {
       const parsed = JSON.parse(result.content)
-      // Пытаемся распарсить как RuntimeState.
       const state = parseRuntimeState(parsed)
       if (state) {
         setRuntime(state)
         setSceneFilePath(result.filePath)
         lastPersistedSceneJsonRef.current = serializeSceneState(state)
       } else {
-        // Если не похоже на RuntimeState — пробуем reverse-compile из готовой катсцены.
         const imported = reverseCompileCutscene(parsed)
-
         if (!imported.ok) {
           pushError(toasts, imported.error, { title: t('alerts.openSceneInvalidFormat', 'Open failed'), duration: 0 })
           return
         }
-
         setRuntime(imported.state)
         setSceneFilePath(null)
         lastPersistedSceneJsonRef.current = null
@@ -224,10 +215,10 @@ export function useSceneIO(deps: UseSceneIODeps) {
     } catch {
       pushError(toasts, t('alerts.openSceneInvalidJson', 'File corrupted (invalid JSON).'), { title: 'Open failed', duration: 0 })
     }
-  }
+  }, [setRuntime, setSceneFilePath, confirm, t, toasts])
 
   // New Scene: сбрасываем runtime в начальное состояние.
-  const handleNew = async () => {
+  const handleNew = useCallback(async () => {
     const confirmed = await confirm({
       message: t('dialog.newSceneConfirm', 'New scene? Unsaved work will be lost.'),
       title: t('dialog.unsavedChangesTitle', 'Unsaved changes'),
@@ -237,11 +228,10 @@ export function useSceneIO(deps: UseSceneIODeps) {
     setRuntime(createEmptyRuntimeState())
     setSceneFilePath(null)
     lastPersistedSceneJsonRef.current = null
-  }
+  }, [setRuntime, setSceneFilePath, confirm, t, toasts])
 
   // Create Example: загружаем демонстрационную сцену с готовым графом.
-  // Удобно для быстрого знакомства с редактором без ручной сборки узлов с нуля.
-  const handleCreateExample = async () => {
+  const handleCreateExample = useCallback(async () => {
     const confirmed = await confirm({
       message: t('dialog.exampleSceneConfirm', 'Load example? Unsaved work will be lost.'),
       title: t('dialog.unsavedChangesTitle', 'Unsaved changes'),
@@ -251,7 +241,7 @@ export function useSceneIO(deps: UseSceneIODeps) {
     setRuntime(createDefaultRuntimeState())
     setSceneFilePath(null)
     lastPersistedSceneJsonRef.current = null
-  }
+  }, [setRuntime, setSceneFilePath, confirm, t, toasts])
 
   // Ref на save/new/export — нужны, чтобы горячие клавиши могли вызвать эти функции.
   const saveRef = useRef<(() => void) | null>(null)

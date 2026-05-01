@@ -1,10 +1,21 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RuntimeEdge, RuntimeNode, RuntimeState } from './runtimeTypes'
 import type { EngineSettings, ProjectResources, YarnFileInfo } from './useProjectResources'
 import { SearchableSelect } from './SearchableSelect'
 import { FollowPathPreview } from './FollowPathPreview'
 import type { NameConflictModalState } from './inspectorTypes'
+
+// Статический список типов нод для селекта в inspector.
+// Вынесен за компонент, чтобы не создавать новый массив на каждый рендер.
+const NODE_TYPES = [
+  'start', 'end', 'move', 'follow_path', 'actor_create', 'actor_destroy',
+  'animate', 'dialogue', 'wait_for_dialogue', 'camera_track', 'camera_pan', 'camera_shake',
+  'parallel_start', 'branch', 'run_function', 'set_position', 'set_depth',
+  'set_facing', 'auto_facing', 'auto_walk', 'tween', 'set_property', 'fade_in', 'fade_out',
+  'play_sfx', 'emote', 'jump', 'halt', 'flip', 'spin', 'shake_object',
+  'set_visible', 'instant_mode'
+]
 
 // Пропсы InspectorPanel — всё, что нужно для рендера inspector.
 export type InspectorPanelProps = {
@@ -72,12 +83,15 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
 
   // --- Helpers (дословно из EditorShell.renderPanelContents) ---
 
-  const updateNode = (nodeId: string, patch: Partial<RuntimeNode>) => {
-    setRuntime({
-      ...runtime,
-      nodes: runtime.nodes.map((node) => (node.id === nodeId ? { ...node, ...patch } : node))
-    })
-  }
+  const updateNode = useCallback(
+    (nodeId: string, patch: Partial<RuntimeNode>) => {
+      setRuntime((prev) => ({
+        ...prev,
+        nodes: prev.nodes.map((node) => (node.id === nodeId ? { ...node, ...patch } : node))
+      }))
+    },
+    [setRuntime]
+  )
 
   const stripParallelParams = (params?: RuntimeNode['params']) => {
     if (!params) return undefined
@@ -107,142 +121,192 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
     return { nodes: nextNodes, edges: nextEdges }
   }
 
-  const changeNodeType = (nodeId: string, nextType: string) => {
-    const currentNode = runtime.nodes.find((node) => node.id === nodeId)
-    if (!currentNode) return
+  const changeNodeType = useCallback(
+    (nodeId: string, nextType: string) => {
+      setRuntime((prev) => {
+        const currentNode = prev.nodes.find((node) => node.id === nodeId)
+        if (!currentNode) return prev
 
-    const takenNames = new Set<string>(
-      runtime.nodes
-        .filter((n) => n.id !== nodeId)
-        .map((n) => String(n.name ?? '').trim())
-        .filter((v) => v.length > 0)
-    )
+        const takenNames = new Set<string>(
+          prev.nodes
+            .filter((n) => n.id !== nodeId)
+            .map((n) => String(n.name ?? '').trim())
+            .filter((v) => v.length > 0)
+        )
 
-    let nextNodes = runtime.nodes
-    let nextEdges = runtime.edges
-    if (currentNode.type === 'parallel_start' || currentNode.type === 'parallel_join') {
-      const cleaned = removeParallelPair(currentNode, nextNodes, nextEdges)
-      nextNodes = cleaned.nodes
-      nextEdges = cleaned.edges
-    }
-
-    const anchorPos = currentNode.position ?? { x: 100, y: 150 }
-
-    if (nextType === 'parallel_start') {
-      const newJoinId = `pjoin-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-      const joinName = suggestUniqueNodeName('Node', takenNames)
-
-      nextNodes = nextNodes.map((node) =>
-        node.id === nodeId
-          ? { ...node, type: 'parallel_start', params: { joinId: newJoinId, branches: ['b0'] } }
-          : node
-      )
-
-      nextNodes = [
-        ...nextNodes,
-        {
-          id: newJoinId,
-          type: 'parallel_join',
-          name: joinName,
-          position: { x: anchorPos.x + 300, y: anchorPos.y },
-          params: { pairId: nodeId, branches: ['b0'] }
+        let nextNodes = prev.nodes
+        let nextEdges = prev.edges
+        if (currentNode.type === 'parallel_start' || currentNode.type === 'parallel_join') {
+          const cleaned = removeParallelPair(currentNode, nextNodes, nextEdges)
+          nextNodes = cleaned.nodes
+          nextEdges = cleaned.edges
         }
-      ]
 
-      nextEdges = [
-        ...nextEdges,
-        {
-          id: `edge-pair-${nodeId}-${newJoinId}`,
-          source: nodeId,
-          sourceHandle: '__pair',
-          target: newJoinId,
-          targetHandle: '__pair'
+        const anchorPos = currentNode.position ?? { x: 100, y: 150 }
+
+        if (nextType === 'parallel_start') {
+          const newJoinId = `pjoin-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+          const joinName = suggestUniqueNodeName('Node', takenNames)
+
+          nextNodes = nextNodes.map((node) =>
+            node.id === nodeId
+              ? { ...node, type: 'parallel_start', params: { joinId: newJoinId, branches: ['b0'] } }
+              : node
+          )
+
+          nextNodes = [
+            ...nextNodes,
+            {
+              id: newJoinId,
+              type: 'parallel_join',
+              name: joinName,
+              position: { x: anchorPos.x + 300, y: anchorPos.y },
+              params: { pairId: nodeId, branches: ['b0'] }
+            } as RuntimeNode
+          ]
+
+          nextEdges = [
+            ...nextEdges,
+            {
+              id: `edge-pair-${nodeId}-${newJoinId}`,
+              source: nodeId,
+              sourceHandle: '__pair',
+              target: newJoinId,
+              targetHandle: '__pair'
+            } as RuntimeEdge
+          ]
+        } else {
+          nextNodes = nextNodes.map((node) =>
+            node.id === nodeId
+              ? { ...node, type: nextType, params: stripParallelParams(node.params) }
+              : node
+          )
         }
-      ]
-    } else {
-      nextNodes = nextNodes.map((node) =>
-        node.id === nodeId
-          ? { ...node, type: nextType, params: stripParallelParams(node.params) }
-          : node
-      )
-    }
 
-    setRuntime({ ...runtime, nodes: nextNodes, edges: nextEdges })
-  }
+        return { ...prev, nodes: nextNodes, edges: nextEdges }
+      })
+    },
+    [setRuntime, suggestUniqueNodeName]
+  )
 
-  const commitNodeName = (nodeId: string, nextNameRaw: string) => {
-    const nextName = nextNameRaw.trim()
-    if (!nextName) {
-      updateNode(nodeId, { name: '' })
-      return
-    }
-    const prev = runtime.nodes.find((n) => n.id === nodeId)?.name ?? ''
-    const taken = new Set(
-      runtime.nodes
-        .filter((n) => n.id !== nodeId)
-        .map((n) => String(n.name ?? '').trim())
-        .filter((v) => v.length > 0)
-    )
-    if (!taken.has(nextName)) {
-      updateNode(nodeId, { name: nextName })
-      return
-    }
-    const conflictingWithNodeId =
-      runtime.nodes.find((n) => n.id !== nodeId && String(n.name ?? '').trim() === nextName)
-        ?.id ?? ''
-    const suggested = suggestUniqueNodeName(nextName, taken)
-    setNameConflictModal({ nodeId, previousName: prev, conflictingWithNodeId, value: suggested })
-  }
+  const commitNodeName = useCallback(
+    (nodeId: string, nextNameRaw: string) => {
+      const nextName = nextNameRaw.trim()
+      if (!nextName) {
+        updateNode(nodeId, { name: '' })
+        return
+      }
+      setRuntime((prev) => {
+        const prevName = prev.nodes.find((n) => n.id === nodeId)?.name ?? ''
+        const taken = new Set(
+          prev.nodes
+            .filter((n) => n.id !== nodeId)
+            .map((n) => String(n.name ?? '').trim())
+            .filter((v) => v.length > 0)
+        )
+        if (!taken.has(nextName)) {
+          // Сразу применяем имя без модалки.
+          return {
+            ...prev,
+            nodes: prev.nodes.map((n) => (n.id === nodeId ? { ...n, name: nextName } : n))
+          }
+        }
+        const conflictingWithNodeId =
+          prev.nodes.find((n) => n.id !== nodeId && String(n.name ?? '').trim() === nextName)
+            ?.id ?? ''
+        const suggested = suggestUniqueNodeName(nextName, taken)
+        // Модалка конфликта — это side-effect, не может быть в setRuntime.
+        // Поэтому обновляем runtime сразу (пока с prevName), а модалку выставляем отдельно.
+        // Но мы внутри setRuntime, и нельзя вызвать setNameConflictModal здесь.
+        // Возвращаем prev без изменений и выставим модалку через setTimeout.
+        window.setTimeout(() => {
+          setNameConflictModal({ nodeId, previousName: prevName, conflictingWithNodeId, value: suggested })
+        }, 0)
+        return prev
+      })
+    },
+    [setRuntime, suggestUniqueNodeName, updateNode, setNameConflictModal]
+  )
 
-  const updateNodeParam = (nodeId: string, key: string, value: unknown) => {
-    const target = runtime.nodes.find((node) => node.id === nodeId)
-    if (!target) return
-    const nextParams = { ...(target.params ?? {}) }
-    nextParams[key] = value
-    updateNode(nodeId, { params: nextParams })
-  }
+  const updateNodeParam = useCallback(
+    (nodeId: string, key: string, value: unknown) => {
+      setRuntime((prev) => {
+        const target = prev.nodes.find((node) => node.id === nodeId)
+        if (!target) return prev
+        const nextParams = { ...(target.params ?? {}) }
+        nextParams[key] = value
+        return {
+          ...prev,
+          nodes: prev.nodes.map((node) =>
+            node.id === nodeId ? { ...node, params: nextParams } : node
+          )
+        }
+      })
+    },
+    [setRuntime]
+  )
 
-  const updateEdge = (edgeId: string, patch: Partial<(typeof runtime.edges)[number]>) => {
-    setRuntime({
-      ...runtime,
-      edges: runtime.edges.map((e) => (e.id === edgeId ? { ...e, ...patch } : e))
-    })
-  }
+  const updateEdge = useCallback(
+    (edgeId: string, patch: Partial<(typeof runtime.edges)[number]>) => {
+      setRuntime((prev) => ({
+        ...prev,
+        edges: prev.edges.map((e) => (e.id === edgeId ? { ...e, ...patch } : e))
+      }))
+    },
+    [setRuntime]
+  )
 
   // --- Computed ---
-  const nodeTypes = [
-    'start', 'end', 'move', 'follow_path', 'actor_create', 'actor_destroy',
-    'animate', 'dialogue', 'wait_for_dialogue', 'camera_track', 'camera_pan', 'camera_shake',
-    'parallel_start', 'branch', 'run_function', 'set_position', 'set_depth',
-    'set_facing', 'auto_facing', 'auto_walk', 'tween', 'set_property', 'fade_in', 'fade_out',
-    'play_sfx', 'emote', 'jump', 'halt', 'flip', 'spin', 'shake_object',
-    'set_visible', 'instant_mode'
-  ]
-
-  const incomingCount = selectedNode
-    ? runtime.edges.filter((e) => e.target === selectedNode.id).length : 0
-  const outgoingCount = selectedNode
-    ? runtime.edges.filter((e) => e.source === selectedNode.id).length : 0
-  const selectedEdge = runtime.edges.find((e) => e.id === runtime.selectedEdgeId) ?? null
+  const incomingCount = useMemo(
+    () => (selectedNode ? runtime.edges.filter((e) => e.target === selectedNode.id).length : 0),
+    [selectedNode, runtime.edges]
+  )
+  const outgoingCount = useMemo(
+    () => (selectedNode ? runtime.edges.filter((e) => e.source === selectedNode.id).length : 0),
+    [selectedNode, runtime.edges]
+  )
+  const selectedEdge = useMemo(
+    () => runtime.edges.find((e) => e.id === runtime.selectedEdgeId) ?? null,
+    [runtime.edges, runtime.selectedEdgeId]
+  )
   const objectOptions = resources?.objects ?? []
   const spriteOptions = resources?.sprites ?? []
-  const spriteOrObjectOptions = [...objectOptions, ...spriteOptions]
+  const spriteOrObjectOptions = useMemo(
+    () => [...objectOptions, ...spriteOptions],
+    [objectOptions, spriteOptions]
+  )
 
-  const allNodeNamesObjects = Array.from(new Set(runtime.nodes.map((n) => String(n.name ?? '').trim()).filter((v) => v.length > 0)))
-  
-  const allConditionVars = Array.from(new Set(
-    runtime.edges
-      .flatMap((e) => [e.conditionVar, e.endConditionVar])
-      .map((v) => String(v ?? '').trim())
-      .filter((v) => v.length > 0)
-  ))
+  const allNodeNamesObjects = useMemo(
+    () => Array.from(new Set(runtime.nodes.map((n) => String(n.name ?? '').trim()).filter((v) => v.length > 0))),
+    [runtime.nodes]
+  )
 
-  const allConditionEquals = Array.from(new Set([
-    'true', 'false', '1', '0',
-    ...runtime.edges.flatMap((e) => [e.conditionEquals, e.endConditionEquals])
-      .map((v) => String(v ?? '').trim())
-      .filter((v) => v.length > 0)
-  ]))
+  const allConditionVars = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          runtime.edges
+            .flatMap((e) => [e.conditionVar, e.endConditionVar])
+            .map((v) => String(v ?? '').trim())
+            .filter((v) => v.length > 0)
+        )
+      ),
+    [runtime.edges]
+  )
+
+  const allConditionEquals = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          'true', 'false', '1', '0',
+          ...runtime.edges
+            .flatMap((e) => [e.conditionEquals, e.endConditionEquals])
+            .map((v) => String(v ?? '').trim())
+            .filter((v) => v.length > 0)
+        ])
+      ),
+    [runtime.edges]
+  )
 
   // --- JSX ---
   return (
@@ -275,10 +339,10 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
               value={selectedNode.type}
               onChange={(event) => changeNodeType(selectedNode.id, event.target.value)}
             >
-              {nodeTypes.map((nt) => (
+              {NODE_TYPES.map((nt) => (
                 <option key={nt} value={nt}>{nt}</option>
               ))}
-              {!nodeTypes.includes(selectedNode.type) && (
+              {!NODE_TYPES.includes(selectedNode.type) && (
                 <option value={selectedNode.type}>{selectedNode.type} (custom)</option>
               )}
             </select>

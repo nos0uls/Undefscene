@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import React, { useState } from 'react'
+import React, { memo, useState } from 'react'
 import type { CSSProperties } from 'react'
 
 import { DockPanel } from './DockPanel'
@@ -19,7 +19,7 @@ type DockingLayoutProps = React.PropsWithChildren<{
   loadingText?: string
 }>
 
-export function DockingLayout(props: DockingLayoutProps): React.JSX.Element {
+function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
   const {
     renderPanelContents,
     getPanelTitle,
@@ -494,3 +494,5 @@ export function DockingLayout(props: DockingLayoutProps): React.JSX.Element {
     </div>
   )
 }
+
+export const DockingLayout = memo(DockingLayoutInner)

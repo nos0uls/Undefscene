@@ -1,5 +1,5 @@
 import { Undo2, Redo2 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { createTranslator, type SupportedLanguage } from '../i18n'
 import type { EditorKeybindings } from './usePreferences'
 import { formatComboForDisplay } from './useHotkeys'
@@ -83,7 +83,7 @@ export type TopMenuBarProps = {
 
 // Верхняя панель меню, как в классических desktop IDE.
 // Меню раскрывается по наведению мыши (hover).
-export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
+function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
   const {
     panels,
     isPanelVisible,
@@ -399,3 +399,5 @@ export function TopMenuBar(props: TopMenuBarProps): React.JSX.Element {
     </div>
   )
 }
+
+export const TopMenuBar = memo(TopMenuBarInner)

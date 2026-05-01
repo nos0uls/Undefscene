@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { LayoutState } from './layoutTypes'
+export type { LayoutState }
 
 // Создаём дефолтную раскладку, чтобы редактор всегда стартовал одинаково.
 export function createDefaultLayout(): LayoutState {
