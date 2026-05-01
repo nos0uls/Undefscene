@@ -13,6 +13,7 @@ type RuntimeHistory = {
 }
 
 function hasMeaningfulSceneChange(prev: RuntimeState, next: RuntimeState): boolean {
+  if (prev === next) return false
   return (
     prev.schemaVersion !== next.schemaVersion ||
     prev.title !== next.title ||

@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 // ConfirmDialog — замена window.confirm на кастомную модалку.
 // Поддерживает title, message, danger-стиль и promise-based API через useConfirm().
 
-type ConfirmOptions = {
+export type ConfirmOptions = {
   title?: string
   message: string
   confirmLabel?: string
@@ -15,7 +15,7 @@ type ConfirmState = ConfirmOptions & {
   resolve: (value: boolean) => void
 }
 
-type ConfirmContextValue = {
+export type ConfirmContextValue = {
   confirm: (opts: ConfirmOptions) => Promise<boolean>
 }
 

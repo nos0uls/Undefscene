@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 
 import { DockPanel } from './DockPanel'
@@ -7,23 +7,15 @@ import { AboutModal } from './AboutModal'
 import { FlowCanvas } from './FlowCanvas'
 import { TopMenuBar } from './TopMenuBar'
 import type { DockSlotId, LayoutState, Size, Vec2 } from './layoutTypes'
-import type { RuntimeEdge, RuntimeNode, RuntimeState } from './runtimeTypes'
-import {
-  createDefaultRuntimeState,
-  createEmptyRuntimeState,
-  parseRuntimeState
-} from './runtimeTypes'
-import { reverseCompileCutscene } from './reverseCompile'
 import { parseYarnPreview } from './yarnPreview'
 import { useLayoutState } from './useLayoutState'
 import { useProjectResources } from './useProjectResources'
 import { useRuntimeState } from './useRuntimeState'
-import { compileGraph, stripExport } from './compileGraph'
 import { validateGraph, type ValidationResult, type ValidationContext } from './validateGraph'
 import { PreferencesModal } from './PreferencesModal'
 import { UpdateNotification } from './UpdateNotification'
-import { ToastProvider, useToasts, pushSuccess, pushError, pushWarning, pushInfo } from './ToastHub'
-import { ConfirmProvider, useConfirm } from './ConfirmDialog'
+import { useToasts, pushSuccess, pushError, pushInfo } from './ToastHub'
+import { useConfirm } from './ConfirmDialog'
 import { PreferencesProvider } from './PreferencesContext'
 import { getAccentCssVariables, usePreferences } from './usePreferences'
 import { useHotkeys } from './useHotkeys'
@@ -31,6 +23,10 @@ import { InspectorPanel } from './InspectorPanel'
 import { BookmarksPanel } from './BookmarksPanel'
 import type { NameConflictModalState } from './inspectorTypes'
 import { createTranslator } from '../i18n'
+import { useNodeOperations, suggestUniqueNodeName } from './useNodeOperations'
+import { useVisualEditing } from './useVisualEditing'
+import { useEditorShortcuts } from './useEditorShortcuts'
+import { useSceneIO } from './useSceneIO'
 
 // MIME-type для drag-and-drop из node palette в FlowCanvas.
 // Дублируем локально в renderer-файлах, чтобы не тянуть отдельный shared constants module ради одной строки.
@@ -160,6 +156,9 @@ export function EditorShell(): React.JSX.Element {
   // Это отдельное состояние, не связанное с layout.
   const { runtime, setRuntime, undo, redo, canUndo, canRedo } = useRuntimeState()
 
+  // Ref на корневой DOM-элемент — нужен нескольким хукам (visual editing, docking).
+  const rootRef = useRef<HTMLDivElement | null>(null)
+
   // Централизованные toast-уведомления и кастомные confirm-диалоги (замена window.alert/confirm).
   const toasts = useToasts()
   const confirm = useConfirm()
@@ -181,12 +180,7 @@ export function EditorShell(): React.JSX.Element {
   const [aboutOpen, setAboutOpen] = useState(false)
   const [appVersion, setAppVersion] = useState('Loading...')
 
-  // Отдельное окно visual editing для stitched room preview и будущих инструментов.
-  const [visualEditingOpen, setVisualEditingOpen] = useState(false)
-
-  // Комнаты, для которых main уже нашёл screenshot bundle.
-  // Именно их показываем в Visual Editing, чтобы room picker не засорялся пустыми вариантами.
-  const [screenshotRooms, setScreenshotRooms] = useState<string[]>([])
+  // visualEditingOpen / screenshotRooms теперь из useVisualEditing hook.
 
   // Yarn preview для Text panel.
   // Держим отдельно raw content, loading и выбранную preview-ноду,
@@ -366,6 +360,29 @@ export function EditorShell(): React.JSX.Element {
     [runtime.schemaVersion, runtime.title, runtime.nodes, runtime.edges, validationContext]
   )
 
+  // Флаг: нужно ли сфокусировать wait input после следующего рендера.
+  // Вынесен сюда из блока горячих клавиш, чтобы useNodeOperations мог им пользоваться.
+  const shouldFocusEdgeWaitRef = useRef(false)
+
+  // --- Извлечённые хуки ---
+
+  // Операции с нодами: создание, удаление, выбор, parallel-ветки.
+  const {
+    handleSelectNodes,
+    handleSelectEdge,
+    handleNodePositionChange,
+    handleEdgeAdd,
+    handleEdgeRemove,
+    handleNodeDelete,
+    handleEdgeDelete,
+    handleEdgeDoubleClick,
+    addNode,
+    createDefaultPaneNode,
+    createPaletteDropNode,
+    onParallelAddBranch,
+    onParallelRemoveBranch
+  } = useNodeOperations({ runtime, setRuntime, shouldFocusEdgeWaitRef })
+
   // Toggle-фильтры для Logs панели: какие категории показывать.
   const [logsFilters, setLogsFilters] = useState({
     errors: true,
@@ -403,137 +420,20 @@ export function EditorShell(): React.JSX.Element {
   const selectedNodeForName =
     runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null
 
-  // Ту же выбранную ноду используем и для visual editing окна.
-  // Так stitched room editor может импортировать путь обратно в graph без дублирования поиска.
-  const selectedNodeForVisualEditing = selectedNodeForName
-
-  // Точки выбранной follow_path-ноды поднимаем наверх,
-  // чтобы modal мог инициализировать ими свой path draft.
-  const selectedVisualPathPoints = useMemo(() => {
-    if (!selectedNodeForVisualEditing || selectedNodeForVisualEditing.type !== 'follow_path') {
-      return [] as Array<{ x: number; y: number }>
-    }
-
-    return Array.isArray(selectedNodeForVisualEditing.params?.points)
-      ? (selectedNodeForVisualEditing.params?.points as Array<{ x: number; y: number }>).map((point) => ({
-        x: Number(point.x ?? 0),
-        y: Number(point.y ?? 0)
-      }))
-      : []
-  }, [selectedNodeForVisualEditing])
-
-  // Если в graph нет actor_create, visual editor всё равно может сделать preview
-  // для target выбранной actor-related ноды, например для player.
-  const selectedVisualActorTarget = useMemo(() => {
-    const rawTarget = selectedNodeForVisualEditing?.params?.target
-    return typeof rawTarget === 'string' && rawTarget.trim().length > 0 ? rawTarget.trim() : null
-  }, [selectedNodeForVisualEditing])
-
-  // Собираем actor preview markers из actor_create-нод.
-  // Это даёт visual editor-окну ориентиры по уже созданным в graph актёрам.
-  const visualEditorActorPreviews = useMemo(() => {
-    return runtime.nodes
-      .filter((node) => node.type === 'actor_create')
-      .map((node) => ({
-        id: node.id,
-        key: String(node.params?.key ?? node.name ?? node.id),
-        x: Number(node.params?.x ?? 0),
-        y: Number(node.params?.y ?? 0),
-        spriteOrObject: String(node.params?.sprite_or_object ?? '')
-      }))
-  }, [runtime.nodes])
-
-  // Те же search dirs, что visual editor использует для stitched room screenshots.
-  // Держим это и здесь, чтобы Project panel показывала не только cache dir,
-  // но и полный порядок поиска output от внешнего screenshot runner.
-  const roomScreenshotSearchDirs = useMemo(() => {
-    const result: string[] = []
-    const pushUnique = (dirPath: string | null | undefined): void => {
-      const normalized = String(dirPath ?? '').trim()
-      if (!normalized || result.includes(normalized)) return
-      result.push(normalized)
-    }
-
-    // Сначала показываем явный user override, если он задан в Preferences.
-    // Это самый сильный сигнал для пользователя: именно туда editor будет смотреть первым.
-    pushUnique(preferences.screenshotOutputDir)
-    pushUnique(resources?.roomScreenshotsDir)
-    pushUnique(resources?.projectDir ? `${resources.projectDir}/screenshots` : null)
-    return result
-  }, [preferences.screenshotOutputDir, resources?.projectDir, resources?.roomScreenshotsDir])
-
-  // Загружаем только те комнаты, для которых main уже может найти screenshot bundle.
-  // Это делает room picker короче и убирает пустые preview-варианты из обычного UX.
-  useEffect(() => {
-    if (!resources?.projectDir || !Array.isArray(resources.rooms) || resources.rooms.length <= 0) {
-      setScreenshotRooms([])
-      return
-    }
-
-    let cancelled = false
-
-    window.api.project
-      .availableScreenshotRooms(resources.projectDir, resources.rooms, resources.roomScreenshotsDir ?? null)
-      .then((nextRooms) => {
-        if (cancelled) return
-        setScreenshotRooms(Array.isArray(nextRooms) ? nextRooms : [])
-      })
-      .catch((error) => {
-        if (cancelled) return
-        console.warn('Failed to collect screenshot rooms:', error)
-        setScreenshotRooms([])
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [preferences.screenshotOutputDir, resources?.projectDir, resources?.roomScreenshotsDir, resources?.rooms])
-
-  // Собираем единый snapshot для native visual editor окна.
-  // Он пересылается через preload bridge и полностью описывает текущий visual editing context.
-  const visualEditorBridgeState = useMemo(
-    () => ({
-      rooms: resources?.rooms ?? [],
-      screenshotRooms,
-      projectDir: resources?.projectDir ?? null,
-      roomScreenshotsDir: resources?.roomScreenshotsDir ?? null,
-      visualEditorTechMode: preferences.visualEditorTechMode,
-      selectedNode: selectedNodeForVisualEditing
-        ? {
-          id: selectedNodeForVisualEditing.id,
-          type: selectedNodeForVisualEditing.type,
-          name: selectedNodeForVisualEditing.name
-        }
-        : null,
-      selectedActorTarget: selectedVisualActorTarget,
-      selectedPathPoints: selectedVisualPathPoints,
-      actorPreviews: visualEditorActorPreviews,
-      language: preferences.language
-    }),
-    [
-      preferences.language,
-      preferences.visualEditorTechMode,
-      resources?.projectDir,
-      resources?.roomScreenshotsDir,
-      resources?.rooms,
-      screenshotRooms,
-      selectedVisualActorTarget,
-      selectedNodeForVisualEditing,
-      selectedVisualPathPoints,
-      visualEditorActorPreviews
-    ]
-  )
-
-  // Короткий sync-key помогает не слать одинаковый snapshot в отдельное окно повторно.
-  // Это снижает лишний IPC-шум, когда меняются ссылки на массивы, но не само содержимое.
-  const visualEditorBridgeStateSyncKey = useMemo(
-    () => JSON.stringify(visualEditorBridgeState),
-    [visualEditorBridgeState]
-  )
-
-  // Запоминаем последний snapshot, который уже ушёл в native visual editor.
-  // Так main не получает одинаковые syncState-пакеты на каждый лишний render.
-  const lastVisualEditorBridgeSyncKeyRef = useRef<string | null>(null)
+  // Visual editing — теперь через useVisualEditing hook.
+  const {
+    roomScreenshotSearchDirs,
+    openVisualEditorWindow
+  } = useVisualEditing({
+    runtime,
+    setRuntime,
+    resources,
+    preferences,
+    toasts,
+    confirm,
+    t,
+    rootRef
+  })
 
   // Текущее значение в поле “Node name”.
   // Мы держим его отдельно, чтобы не переписывать runtime на каждый символ.
@@ -543,521 +443,11 @@ export function EditorShell(): React.JSX.Element {
   const [nameConflictModal, setNameConflictModal] = useState<NameConflictModalState | null>(null)
   const nameConflictOkRef = useRef<HTMLButtonElement | null>(null)
 
-  // Простой генератор уникального имени.
-  // Если имя уже занято — добавляем постфикс ` (0)`, ` (1)` и т.д.
-  const suggestUniqueNodeName = (baseName: string, takenNames: Set<string>): string => {
-    const trimmed = baseName.trim()
-    if (!trimmed) return ''
-    if (!takenNames.has(trimmed)) return trimmed
-    let i = 0
-    while (takenNames.has(`${trimmed} (${i})`)) i++
-    return `${trimmed} (${i})`
-  }
+  // suggestUniqueNodeName теперь импортируется из useNodeOperations
 
-  // Создаём новую follow_path-ноду из visual editor path import.
-  // Позицию ставим правее выбранного узла или последнего узла, чтобы ноды не накладывались друг на друга.
-  const createFollowPathNodeFromVisualEditing = useCallback(
-    (points: Array<{ x: number; y: number }>) => {
-      setRuntime((prev) => {
-        const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-        const takenNames = new Set<string>(
-          prev.nodes.map((n) => String(n.name ?? '').trim()).filter((value) => value.length > 0)
-        )
-
-        const anchor =
-          prev.nodes.find((node) => node.id === prev.selectedNodeId) ??
-          prev.nodes[prev.nodes.length - 1] ??
-          null
-        const anchorPos = anchor?.position ?? { x: 100, y: 150 }
-
-        const newNode: RuntimeNode = {
-          id: newId,
-          type: 'follow_path',
-          name: suggestUniqueNodeName('Node', takenNames),
-          text: '',
-          position: { x: anchorPos.x + 250, y: anchorPos.y },
-          params: {
-            target: '',
-            speed_px_sec: 60,
-            collision: false,
-            points
-          }
-        }
-
-        const newEdges = anchor
-          ? [...prev.edges, { id: `edge-${anchor.id}-${newId}`, source: anchor.id, target: newId }]
-          : prev.edges
-
-        return {
-          ...prev,
-          nodes: [...prev.nodes, newNode],
-          edges: newEdges,
-          selectedNodeId: newId,
-          selectedNodeIds: [newId],
-          selectedEdgeId: null
-        }
-      })
-    },
-    [setRuntime, suggestUniqueNodeName]
-  )
-
-  // Visual editing окно импортирует только path points.
-  // По вашему правилу: если нода выбрана — подтверждаем замену, если нет — подтверждаем создание новой follow_path.
-  const importPathFromVisualEditing = useCallback(
-    async (points: Array<{ x: number; y: number }>) => {
-      const normalizedPoints = points.map((point) => ({
-        x: Math.round(Number(point.x ?? 0)),
-        y: Math.round(Number(point.y ?? 0))
-      }))
-
-      if (normalizedPoints.length <= 0) {
-        pushWarning(toasts, 'Draw at least one path point before import.', { title: 'Visual Editing' })
-        return
-      }
-
-      if (selectedNodeForVisualEditing) {
-        const nodeLabel = String(selectedNodeForVisualEditing.name ?? selectedNodeForVisualEditing.type)
-        const confirmed = await confirm({
-          message: t('dialog.replaceNodeMessage', 'Replace selected node "{name}" with imported path data?').replace('{name}', nodeLabel),
-          title: t('dialog.replaceNodeTitle', 'Replace node')
-        })
-        if (!confirmed) return
-
-        const previousParams = selectedNodeForVisualEditing.params ?? {}
-        setRuntime((prev) => ({
-          ...prev,
-          nodes: prev.nodes.map((node) =>
-            node.id === selectedNodeForVisualEditing.id
-              ? {
-                ...node,
-                type: 'follow_path',
-                params: {
-                  target: typeof previousParams.target === 'string' ? previousParams.target : '',
-                  speed_px_sec:
-                    typeof previousParams.speed_px_sec === 'number' ? previousParams.speed_px_sec : 60,
-                  collision:
-                    typeof previousParams.collision === 'boolean' ? previousParams.collision : false,
-                  points: normalizedPoints
-                }
-              }
-              : node
-          ),
-          selectedNodeId: selectedNodeForVisualEditing.id,
-          selectedNodeIds: [selectedNodeForVisualEditing.id],
-          selectedEdgeId: null
-        }))
-        return
-      }
-
-      const confirmed = await confirm({
-        message: t('dialog.createNodeMessage', 'Create a new follow_path node from the imported path?'),
-        title: t('dialog.createNodeTitle', 'Create node')
-      })
-      if (!confirmed) return
-      createFollowPathNodeFromVisualEditing(normalizedPoints)
-    },
-    [createFollowPathNodeFromVisualEditing, runtime, selectedNodeForVisualEditing, setRuntime, confirm, toasts, t]
-  )
-
-  // Visual editing может локально переставить actor preview markers,
-  // а здесь мы уже централизованно переносим эти координаты обратно в actor_create nodes.
-  const importActorsFromVisualEditing = useCallback(
-    (
-      actors: Array<{
-        id: string
-        key: string
-        x: number
-        y: number
-        spriteOrObject: string
-        isVirtual?: boolean
-      }>
-    ) => {
-      const safeActors = actors
-        .filter(
-          (actor) =>
-            typeof actor.id === 'string' && actor.id.trim().length > 0 && actor.isVirtual !== true
-        )
-        .map((actor) => ({
-          ...actor,
-          x: Math.round(Number(actor.x ?? 0)),
-          y: Math.round(Number(actor.y ?? 0))
-        }))
-
-      if (safeActors.length <= 0) {
-        pushWarning(toasts, 'No actor positions to import.', { title: 'Visual Editing' })
-        return
-      }
-
-      const actorMap = new Map(safeActors.map((actor) => [actor.id, actor]))
-      let updatedCount = 0
-
-      setRuntime((prev) => ({
-        ...prev,
-        nodes: prev.nodes.map((node) => {
-          const importedActor = actorMap.get(node.id)
-          if (!importedActor || node.type !== 'actor_create') {
-            return node
-          }
-
-          updatedCount += 1
-          return {
-            ...node,
-            params: {
-              ...(node.params ?? {}),
-              x: importedActor.x,
-              y: importedActor.y
-            }
-          }
-        })
-      }))
-
-      if (updatedCount <= 0) {
-        pushWarning(toasts, 'Imported actor markers do not match any actor_create nodes.', { title: 'Visual Editing' })
-      }
-    },
-    [setRuntime, toasts]
-  )
-
-  // Универсальное создание ноды по типу и позиции.
-  // Это общий источник правды для palette click, MMB create и DnD placement на canvas.
-  const createNodeAtPosition = useCallback(
-    (type: string, position: { x: number; y: number }, connectFromNodeId?: string | null) => {
-      const takenNames = new Set<string>(
-        runtime.nodes.map((n) => String(n.name ?? '').trim()).filter((value) => value.length > 0)
-      )
-
-      if (type === 'parallel_start') {
-        const startId = `pstart-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-        const joinId = `pjoin-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-
-        const startName = suggestUniqueNodeName('Node', takenNames)
-        takenNames.add(startName)
-        const joinName = suggestUniqueNodeName('Node', takenNames)
-
-        const startNode: RuntimeNode = {
-          id: startId,
-          type: 'parallel_start',
-          name: startName,
-          position: { x: position.x, y: position.y },
-          params: { joinId, branches: ['b0'] }
-        }
-
-        const joinNode: RuntimeNode = {
-          id: joinId,
-          type: 'parallel_join',
-          name: joinName,
-          position: { x: position.x + 300, y: position.y },
-          params: { pairId: startId, branches: ['b0'] }
-        }
-
-        const pairEdge: RuntimeEdge = {
-          id: `edge-pair-${startId}-${joinId}`,
-          source: startId,
-          sourceHandle: '__pair',
-          target: joinId,
-          targetHandle: '__pair'
-        }
-
-        const extraEdges = connectFromNodeId
-          ? [{ id: `edge-${connectFromNodeId}-${startId}`, source: connectFromNodeId, target: startId }]
-          : []
-
-        setRuntime({
-          ...runtime,
-          nodes: [...runtime.nodes, startNode, joinNode],
-          edges: [...runtime.edges, ...extraEdges, pairEdge],
-          selectedNodeId: startId,
-          selectedNodeIds: [startId],
-          selectedEdgeId: null
-        })
-        return
-      }
-
-      const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-      const defaultParamsByType: Record<string, Record<string, unknown>> = {
-        dialogue: { file: '', node: '' },
-        wait_for_dialogue: { dialogue_controller: '' },
-        move: { target: 'player', x: 0, y: 0, speed_px_sec: 60, collision: false },
-        follow_path: { target: 'player', points: [], speed_px_sec: 60, collision: false },
-        set_position: { target: 'player', x: 0, y: 0 },
-        actor_create: { key: '', sprite_or_object: '', x: 0, y: 0 },
-        actor_destroy: { target: 'player' },
-        animate: { target: 'player', sprite: '', image_index: 0, image_speed: 1 },
-        camera_track: { target: 'player', seconds: 1, offset_x: 0, offset_y: 0 },
-        camera_track_until_stop: { target: 'player', offset_x: 0, offset_y: 0 },
-        camera_pan: { x: 0, y: 0, seconds: 1 },
-        camera_pan_obj: { target: 'player', seconds: 1 },
-        camera_center: { x: 0, y: 0 },
-        set_depth: { target: 'player', depth: 0 },
-        set_facing: { target: 'player', direction: 'right' },
-        branch: { condition: '' },
-        run_function: { function: '', args: '' },
-        camera_shake: { seconds: 1, magnitude: 4 },
-        auto_facing: { target: 'player', enabled: true },
-        auto_walk: { target: 'player', enabled: true },
-        tween: { kind: 'instance', target: 'player', property: 'x', to: 0, seconds: 1, easing: 'linear' },
-        tween_camera: { property: 'x', to_value: 0, seconds: 1, easing: 'linear', from_value: undefined },
-        set_property: { kind: 'instance', target: 'player', property: 'image_alpha', value: 1 },
-        fade_in: { seconds: 0.5, color: 'black' },
-        fade_out: { seconds: 0.5, color: 'black' },
-        play_sfx: { sound: '', volume: 1, pitch: 1 },
-        emote: { target: 'player', sprite: '', seconds: 1, offset_x: 0, offset_y: -24, scale: 1, wait: false },
-        jump: { target: 'player', x: 0, y: 0, seconds: 0.5, height: 16, easing: 'linear' },
-        halt: { target: 'player' },
-        flip: { target: 'player', flipped: true },
-        spin: { target: 'player', speed: 10, seconds: 1 },
-        shake_object: { target: 'player', seconds: 0.5, magnitude: 4 },
-        set_visible: { target: 'player', visible: true },
-        instant_mode: { enabled: true },
-        mark_node: { name: '' }
-      }
-      const newNode: RuntimeNode = {
-        id: newId,
-        type,
-        name: suggestUniqueNodeName('Node', takenNames),
-        text: '',
-        position: { x: position.x, y: position.y },
-        params: defaultParamsByType[type]
-      }
-
-      const newEdges = connectFromNodeId
-        ? [...runtime.edges, { id: `edge-${connectFromNodeId}-${newId}`, source: connectFromNodeId, target: newId }]
-        : runtime.edges
-
-      setRuntime({
-        ...runtime,
-        nodes: [...runtime.nodes, newNode],
-        edges: newEdges,
-        selectedNodeId: newId,
-        selectedNodeIds: [newId],
-        selectedEdgeId: null
-      })
-    },
-    [runtime, setRuntime, suggestUniqueNodeName]
-  )
-
-  // Palette-click добавляет ноду справа от выбранного узла,
-  // сохраняя старое удобное поведение для быстрого graph-building.
-  const addNode = useCallback(
-    (type: string) => {
-      const anchor =
-        runtime.nodes.find((n) => n.id === runtime.selectedNodeId) ??
-        runtime.nodes[runtime.nodes.length - 1] ??
-        null
-
-      const anchorPos = anchor?.position ?? { x: 100, y: 150 }
-      createNodeAtPosition(type, { x: anchorPos.x + 250, y: anchorPos.y }, anchor?.id ?? null)
-    },
-    [createNodeAtPosition, runtime.nodes, runtime.selectedNodeId]
-  )
-
-  // MMB-create остаётся быстрым способом поставить обычную dialogue ноду в точку курсора.
-  const createDefaultPaneNode = useCallback(
-    (x: number, y: number) => {
-      createNodeAtPosition('dialogue', { x, y }, null)
-    },
-    [createNodeAtPosition]
-  )
-
-  // Drop из palette создаёт ноду указанного типа в точке drop.
-  // Поведение согласовано как "MMB create, но с типом из palette".
-  const createPaletteDropNode = useCallback(
-    (type: string, x: number, y: number) => {
-      createNodeAtPosition(type, { x, y }, null)
-    },
-    [createNodeAtPosition]
-  )
-
-  // Стабильные коллбеки для FlowCanvas — обязательно useCallback,
-  // иначе каждый рендер EditorShell будет создавать новые функции,
-  // и memo(FlowCanvas) не сработает, вызывая перерендер 500+ нод.
-  // Все используют функциональную форму setRuntime, чтобы не зависеть от runtime.
-  const handleSelectNodes = useCallback(
-    (nodeIds: string[]) => {
-      const nextSelectedNodeId = nodeIds.length === 1 ? nodeIds[0] : null
-      startTransition(() => {
-        setRuntime((prev) => {
-          const currentIds = prev.selectedNodeIds ?? []
-          const sameLength = currentIds.length === nodeIds.length
-          const sameIds =
-            sameLength &&
-            nodeIds.every((id) => currentIds.includes(id)) &&
-            currentIds.every((id) => nodeIds.includes(id))
-          if (
-            prev.selectedEdgeId === null &&
-            prev.selectedNodeId === nextSelectedNodeId &&
-            sameIds
-          ) {
-            return prev
-          }
-          return {
-            ...prev,
-            selectedNodeId: nextSelectedNodeId,
-            selectedNodeIds: nodeIds,
-            selectedEdgeId: null
-          }
-        })
-      })
-    },
-    [setRuntime]
-  )
-
-  const handleSelectEdge = useCallback(
-    (edgeId: string | null) => {
-      startTransition(() => {
-        setRuntime((prev) => {
-          if (
-            prev.selectedEdgeId === edgeId &&
-            prev.selectedNodeId === null &&
-            (prev.selectedNodeIds?.length ?? 0) === 0
-          ) {
-            return prev
-          }
-          return {
-            ...prev,
-            selectedNodeId: null,
-            selectedNodeIds: [],
-            selectedEdgeId: edgeId
-          }
-        })
-      })
-    },
-    [setRuntime]
-  )
-
-  const handleNodePositionChange = useCallback(
-    (changes: Array<{ id: string; x: number; y: number }>) => {
-      const posMap = new Map(changes.map((c) => [c.id, { x: c.x, y: c.y }]))
-      startTransition(() => {
-        setRuntime((prev) => ({
-          ...prev,
-          nodes: prev.nodes.map((n) => {
-            const newPos = posMap.get(n.id)
-            return newPos ? { ...n, position: newPos } : n
-          })
-        }))
-      })
-    },
-    [setRuntime]
-  )
-
-  const handleEdgeAdd = useCallback(
-    (edge: RuntimeEdge) => {
-      setRuntime((prev) => {
-        if (prev.edges.some((e) => e.id === edge.id)) return prev
-        return { ...prev, edges: [...prev.edges, edge] }
-      })
-    },
-    [setRuntime]
-  )
-
-  const handleEdgeRemove = useCallback(
-    (edgeId: string) => {
-      setRuntime((prev) => ({
-        ...prev,
-        edges: prev.edges.filter((e) => e.id !== edgeId)
-      }))
-    },
-    [setRuntime]
-  )
-
-  const handleNodeDelete = useCallback(
-    (nodeId: string) => {
-      setRuntime((prev) => {
-        const nextSelectedNodeIds = (prev.selectedNodeIds ?? []).filter((id) => id !== nodeId)
-        return {
-          ...prev,
-          nodes: prev.nodes.filter((n) => n.id !== nodeId),
-          edges: prev.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
-          selectedNodeId: prev.selectedNodeId === nodeId ? null : prev.selectedNodeId,
-          selectedNodeIds: nextSelectedNodeIds,
-          selectedEdgeId: null
-        }
-      })
-    },
-    [setRuntime]
-  )
-
-  const handleEdgeDelete = useCallback(
-    (edgeId: string) => {
-      setRuntime((prev) => ({
-        ...prev,
-        edges: prev.edges.filter((e) => e.id !== edgeId),
-        selectedEdgeId: prev.selectedEdgeId === edgeId ? null : prev.selectedEdgeId
-      }))
-    },
-    [setRuntime]
-  )
-
-  const handleEdgeDoubleClick = useCallback(() => {
-    shouldFocusEdgeWaitRef.current = true
-  }, [])
-
-  // Открываем отдельное native окно visual editor и сразу отправляем туда текущий snapshot.
-  // Так окно стартует уже с нужной комнатой, выбранной нодой и preview-маркерами.
-  const openVisualEditorWindow = useCallback(() => {
-    setVisualEditingOpen(true)
-
-    // Open уже передаёт snapshot в main.
-    // Запоминаем его, чтобы следующий effect не дублировал тот же syncState без причины.
-    lastVisualEditorBridgeSyncKeyRef.current = visualEditorBridgeStateSyncKey
-
-    window.api.visualEditor
-      .open(visualEditorBridgeState)
-      .catch((error) => {
-        console.warn('Failed to open visual editor window:', error)
-        lastVisualEditorBridgeSyncKeyRef.current = null
-        setVisualEditingOpen(false)
-      })
-  }, [visualEditorBridgeState, visualEditorBridgeStateSyncKey])
-
-  // Пока visual editor окно открыто, держим его snapshot синхронным с main editor state.
-  // Это обновляет выбранную ноду, actor preview и room bundle context без ручного refresh.
-  useEffect(() => {
-    if (!visualEditingOpen) return
-
-    if (lastVisualEditorBridgeSyncKeyRef.current === visualEditorBridgeStateSyncKey) {
-      return
-    }
-
-    lastVisualEditorBridgeSyncKeyRef.current = visualEditorBridgeStateSyncKey
-
-    void window.api.visualEditor.syncState(visualEditorBridgeState).catch((error) => {
-      console.warn('Failed to sync visual editor state:', error)
-      lastVisualEditorBridgeSyncKeyRef.current = null
-    })
-  }, [visualEditingOpen, visualEditorBridgeState, visualEditorBridgeStateSyncKey])
-
-  // Импорт path остаётся централизованным в EditorShell,
-  // поэтому отдельное окно только шлёт points через bridge.
-  useEffect(() => {
-    return window.api.visualEditor.onImportPath((points) => {
-      importPathFromVisualEditing(points)
-    })
-  }, [importPathFromVisualEditing])
-
-  // Actor import остаётся таким же bridge-flow, как path import:
-  // окно visual editor шлёт staged positions, а EditorShell применяет их к runtime.
-  useEffect(() => {
-    return window.api.visualEditor.onImportActors((actors) => {
-      importActorsFromVisualEditing(actors)
-    })
-  }, [importActorsFromVisualEditing])
-
-  // Когда пользователь закрывает native окно с системной рамки,
-  // main сообщает об этом сюда, чтобы локальное состояние не зависало в open=true.
-  useEffect(() => {
-    return window.api.visualEditor.onWindowClosed(() => {
-      setVisualEditingOpen(false)
-      lastVisualEditorBridgeSyncKeyRef.current = null
-
-      // После закрытия отдельного окна возвращаем keyboard focus в основной editor root.
-      // Это помогает не оставлять inspector inputs в подвешенном состоянии после alt-tab/close.
-      requestAnimationFrame(() => {
-        rootRef.current?.focus()
-      })
-    })
-  }, [])
+  // Все node operation callbacks теперь из useNodeOperations hook.
+  // importPathFromVisualEditing, importActorsFromVisualEditing, openVisualEditorWindow
+  // и все visual editor IPC effects — теперь внутри useVisualEditing hook.
 
   // Когда пользователь выбирает другую ноду — обновляем поле имени.
   useEffect(() => {
@@ -1328,105 +718,10 @@ export function EditorShell(): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [nameConflictModal])
 
-  // Добавляем новую ветку в параллель (start+join).
-  // Мы меняем branches сразу в двух нодах, чтобы handles совпадали.
-  const onParallelAddBranch = useCallback(
-    (parallelStartId: string) => {
-      setRuntime((prevRuntime) => {
-        const startNode = prevRuntime.nodes.find((n) => n.id === parallelStartId)
-        if (!startNode) return prevRuntime
-        const joinId =
-          typeof startNode.params?.joinId === 'string' ? (startNode.params?.joinId as string) : ''
-        const joinNode = prevRuntime.nodes.find((n) => n.id === joinId)
-        if (!joinNode) return prevRuntime
-
-        const branches = (
-          Array.isArray(startNode.params?.branches) ? startNode.params?.branches : ['b0']
-        ) as string[]
-        const newBranchId = `b${branches.length}`
-        const nextBranches = [...branches, newBranchId]
-
-        const nextNodes = prevRuntime.nodes.map((n) => {
-          if (n.id === startNode.id) {
-            return { ...n, params: { ...(n.params ?? {}), branches: nextBranches } }
-          }
-          if (n.id === joinNode.id) {
-            return { ...n, params: { ...(n.params ?? {}), branches: nextBranches } }
-          }
-          return n
-        })
-
-        return {
-          ...prevRuntime,
-          nodes: nextNodes
-        }
-      })
-    },
-    [setRuntime]
-  )
-
-  // Удаляем последнюю ветку у parallel.
-  // Важно: сами ноды внутри ветки не трогаем — убираем только slot ветки и связанные с ним рёбра.
-  const onParallelRemoveBranch = useCallback(
-    (parallelStartId: string) => {
-      setRuntime((prevRuntime) => {
-        const startNode = prevRuntime.nodes.find((n) => n.id === parallelStartId)
-        if (!startNode) return prevRuntime
-
-        const joinId =
-          typeof startNode.params?.joinId === 'string' ? (startNode.params?.joinId as string) : ''
-        const joinNode = prevRuntime.nodes.find((n) => n.id === joinId)
-        if (!joinNode) return prevRuntime
-
-        const branches = (
-          Array.isArray(startNode.params?.branches) ? startNode.params?.branches : ['b0']
-        ) as string[]
-
-        if (branches.length <= 1) return prevRuntime
-
-        const removedBranchId = branches[branches.length - 1]
-        const nextBranches = branches.slice(0, -1)
-        const removedSourceHandle = `out_${removedBranchId}`
-        const removedTargetHandle = `in_${removedBranchId}`
-
-        const nextNodes = prevRuntime.nodes.map((n) => {
-          if (n.id === startNode.id) {
-            return { ...n, params: { ...(n.params ?? {}), branches: nextBranches } }
-          }
-          if (n.id === joinNode.id) {
-            return { ...n, params: { ...(n.params ?? {}), branches: nextBranches } }
-          }
-          return n
-        })
-
-        const removedEdgeIds = new Set(
-          prevRuntime.edges
-            .filter(
-              (edge) =>
-                (edge.source === startNode.id && edge.sourceHandle === removedSourceHandle) ||
-                (edge.target === joinNode.id && edge.targetHandle === removedTargetHandle)
-            )
-            .map((edge) => edge.id)
-        )
-
-        const nextEdges = prevRuntime.edges.filter((edge) => !removedEdgeIds.has(edge.id))
-
-        return {
-          ...prevRuntime,
-          nodes: nextNodes,
-          edges: nextEdges,
-          selectedEdgeId:
-            prevRuntime.selectedEdgeId && removedEdgeIds.has(prevRuntime.selectedEdgeId)
-              ? null
-              : prevRuntime.selectedEdgeId
-        }
-      })
-    },
-    [setRuntime]
-  )
+  // onParallelAddBranch / onParallelRemoveBranch теперь из useNodeOperations hook.
 
   // Ссылки на DOM, чтобы делать hit-test док-зон.
-  const rootRef = useRef<HTMLDivElement | null>(null)
+  // rootRef уже определён выше (перед хуками).
   const leftDockRef = useRef<HTMLElement | null>(null)
   const rightDockRef = useRef<HTMLElement | null>(null)
   const bottomDockRef = useRef<HTMLElement | null>(null)
@@ -1623,506 +918,49 @@ export function EditorShell(): React.JSX.Element {
   // Ref на кнопку Export (чтобы вызвать из хоткея).
   const exportRef = useRef<(() => void) | null>(null)
 
-  // --- Clipboard для Ctrl+C / Ctrl+V / Ctrl+X ---
-  // Мы храним копию выделенных нод + внутренних рёбер.
-  // Вставка создаёт новые id и сдвигает позиции.
-  type ClipboardPayload = {
-    nodes: RuntimeNode[]
-    edges: RuntimeEdge[]
-  }
-  const clipboardRef = useRef<ClipboardPayload | null>(null)
-  const pasteSerialRef = useRef(0)
-
-  // Флаг: нужно ли сфокусировать wait input после следующего рендера.
-  const shouldFocusEdgeWaitRef = useRef(false)
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      // Не перехватываем только текстовый ввод.
-      const target = e.target as HTMLElement | null
-      const tag = target?.tagName ?? ''
-      const inputType = tag === 'INPUT' ? (((target as HTMLInputElement | null)?.type ?? '').toLowerCase()) : ''
-      const isInput =
-        tag === 'TEXTAREA' ||
-        tag === 'SELECT' ||
-        (tag === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(inputType)) ||
-        target?.closest('[contenteditable="true"]') !== null
-      // Используем code для букв/цифр, чтобы сочетания не зависели от раскладки.
-      const key =
-        e.code.startsWith('Key') ? e.code.slice(3).toLowerCase() :
-        e.code.startsWith('Digit') ? e.code.slice(5).toLowerCase() :
-        e.key.toLowerCase()
-
-      // Ctrl+A — выделить все ноды.
-      if ((e.ctrlKey || e.metaKey) && key === 'a') {
-        if (isInput) return
-        e.preventDefault()
-        const rt = runtimeRef.current
-        const allIds = rt.nodes.map((n) => n.id)
-        if (allIds.length === 0) return
-        setRuntimeRef.current({
-          ...rt,
-          selectedNodeId: allIds.length === 1 ? allIds[0] : null,
-          selectedNodeIds: allIds,
-          selectedEdgeId: null
-        })
-        return
-      }
-
-      // Ctrl+Z — Undo.
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && key === 'z') {
-        if (isInput) return
-        e.preventDefault()
-        undoRef.current()
-        return
-      }
-
-      // Ctrl+Y или Ctrl+Shift+Z — Redo.
-      if (((e.ctrlKey || e.metaKey) && key === 'y') || ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 'z')) {
-        if (isInput) return
-        e.preventDefault()
-        redoRef.current()
-        return
-      }
-
-      // Ctrl+S — Save.
-      if ((e.ctrlKey || e.metaKey) && key === 's') {
-        e.preventDefault()
-        saveRef.current?.()
-        return
-      }
-
-      // Ctrl+N — New Scene.
-      if ((e.ctrlKey || e.metaKey) && key === 'n') {
-        e.preventDefault()
-        newRef.current?.()
-        return
-      }
-
-      // Ctrl+E — Export.
-      if ((e.ctrlKey || e.metaKey) && key === 'e') {
-        e.preventDefault()
-        exportRef.current?.()
-        return
-      }
-
-      // Ctrl+P — Preferences.
-      if ((e.ctrlKey || e.metaKey) && key === 'p') {
-        e.preventDefault()
-        e.stopPropagation()
-        setPreferencesOpen(true)
-        return
-      }
-
-      // Delete — удалить выбранную ноду (если фокус не в поле ввода).
-      if (e.key === 'Delete' && !isInput) {
-        const rt = runtimeRef.current
-        const ids = rt.selectedNodeIds?.length
-          ? rt.selectedNodeIds
-          : rt.selectedNodeId
-            ? [rt.selectedNodeId]
-            : []
-        if (ids.length === 0) return
-        e.preventDefault()
-
-        const toDelete = new Set(ids)
-        setRuntimeRef.current({
-          ...rt,
-          nodes: rt.nodes.filter((n) => !toDelete.has(n.id)),
-          edges: rt.edges.filter(
-            (edge) => !toDelete.has(edge.source) && !toDelete.has(edge.target)
-          ),
-          selectedNodeId: null,
-          selectedNodeIds: [],
-          selectedEdgeId: null
-        })
-      }
-
-      // Ctrl+C — копировать выделенные ноды и внутренние рёбра.
-      if ((e.ctrlKey || e.metaKey) && key === 'c') {
-        if (isInput) return
-        const rt = runtimeRef.current
-        const selected = rt.selectedNodeIds?.length
-          ? rt.selectedNodeIds
-          : rt.selectedNodeId
-            ? [rt.selectedNodeId]
-            : []
-        if (selected.length === 0) return
-        e.preventDefault()
-
-        // Собираем множество выбранных нод.
-        // Для parallel добавляем пару (start+join), чтобы вставка не ломала граф.
-        const selectedSet = new Set<string>(selected)
-        for (const id of [...selectedSet]) {
-          const n = rt.nodes.find((x) => x.id === id)
-          if (!n) continue
-          if (n.type === 'parallel_start') {
-            const joinId = typeof n.params?.joinId === 'string' ? (n.params.joinId as string) : ''
-            if (joinId) selectedSet.add(joinId)
-          }
-          if (n.type === 'parallel_join') {
-            const pairId = typeof n.params?.pairId === 'string' ? (n.params.pairId as string) : ''
-            if (pairId) selectedSet.add(pairId)
-          }
-        }
-
-        const nodes = rt.nodes
-          .filter((n) => selectedSet.has(n.id))
-          .map((n) => JSON.parse(JSON.stringify(n)) as RuntimeNode)
-
-        const edges = rt.edges
-          // Копируем только внутренние рёбра (если обе стороны внутри выделения).
-          .filter((ed) => selectedSet.has(ed.source) && selectedSet.has(ed.target))
-          .map((ed) => JSON.parse(JSON.stringify(ed)) as RuntimeEdge)
-
-        clipboardRef.current = { nodes, edges }
-        pasteSerialRef.current = 0
-        return
-      }
-
-      // Ctrl+X — вырезать (копировать + удалить).
-      if ((e.ctrlKey || e.metaKey) && key === 'x') {
-        if (isInput) return
-        const rt = runtimeRef.current
-        const selected = rt.selectedNodeIds?.length
-          ? rt.selectedNodeIds
-          : rt.selectedNodeId
-            ? [rt.selectedNodeId]
-            : []
-        if (selected.length === 0) return
-        e.preventDefault()
-
-        // Сначала делаем копию (логика как в Ctrl+C).
-        const selectedSet = new Set<string>(selected)
-        for (const id of [...selectedSet]) {
-          const n = rt.nodes.find((x) => x.id === id)
-          if (!n) continue
-          if (n.type === 'parallel_start') {
-            const joinId = typeof n.params?.joinId === 'string' ? (n.params.joinId as string) : ''
-            if (joinId) selectedSet.add(joinId)
-          }
-          if (n.type === 'parallel_join') {
-            const pairId = typeof n.params?.pairId === 'string' ? (n.params.pairId as string) : ''
-            if (pairId) selectedSet.add(pairId)
-          }
-        }
-
-        const nodes = rt.nodes
-          .filter((n) => selectedSet.has(n.id))
-          .map((n) => JSON.parse(JSON.stringify(n)) as RuntimeNode)
-
-        const edges = rt.edges
-          .filter((ed) => selectedSet.has(ed.source) && selectedSet.has(ed.target))
-          .map((ed) => JSON.parse(JSON.stringify(ed)) as RuntimeEdge)
-
-        clipboardRef.current = { nodes, edges }
-        pasteSerialRef.current = 0
-
-        // Потом удаляем.
-        setRuntimeRef.current({
-          ...rt,
-          nodes: rt.nodes.filter((n) => !selectedSet.has(n.id)),
-          edges: rt.edges.filter(
-            (ed) => !selectedSet.has(ed.source) && !selectedSet.has(ed.target)
-          ),
-          selectedNodeId: null,
-          selectedNodeIds: [],
-          selectedEdgeId: null
-        })
-        return
-      }
-
-      // Ctrl+V — вставить.
-      if ((e.ctrlKey || e.metaKey) && key === 'v') {
-        if (isInput) return
-        const rt = runtimeRef.current
-        const payload = clipboardRef.current
-        if (!payload || payload.nodes.length === 0) return
-        e.preventDefault()
-
-        // Делаем небольшой сдвиг, чтобы вставка была видна.
-        pasteSerialRef.current += 1
-        const dx = 40 * pasteSerialRef.current
-        const dy = 40 * pasteSerialRef.current
-
-        // Генерируем новые id и собираем map старый->новый.
-        const idMap = new Map<string, string>()
-        const now = Date.now()
-        for (let i = 0; i < payload.nodes.length; i++) {
-          idMap.set(payload.nodes[i].id, `node-${now}-${i}-${Math.floor(Math.random() * 1000)}`)
-        }
-
-        // Для имён делаем авто-уникализацию, чтобы не плодить одинаковые названия.
-        const takenNames = new Set<string>(
-          rt.nodes.map((n) => String(n.name ?? '').trim()).filter((v) => v.length > 0)
-        )
-
-        const newNodes: RuntimeNode[] = payload.nodes.map((n) => {
-          const newId = idMap.get(n.id) ?? n.id
-
-          const baseName = String(n.name ?? '').trim() || 'Node'
-          const uniqueName = suggestUniqueNodeName(baseName, takenNames)
-          takenNames.add(uniqueName)
-
-          const next: RuntimeNode = {
-            ...n,
-            id: newId,
-            name: uniqueName,
-            position: n.position ? { x: n.position.x + dx, y: n.position.y + dy } : n.position
-          }
-
-          // Фиксим ссылки внутри parallel пары.
-          if (next.type === 'parallel_start') {
-            const joinId =
-              typeof next.params?.joinId === 'string' ? (next.params.joinId as string) : ''
-            if (joinId && idMap.has(joinId)) {
-              next.params = { ...(next.params ?? {}), joinId: idMap.get(joinId) }
-            }
-          }
-          if (next.type === 'parallel_join') {
-            const pairId =
-              typeof next.params?.pairId === 'string' ? (next.params.pairId as string) : ''
-            if (pairId && idMap.has(pairId)) {
-              next.params = { ...(next.params ?? {}), pairId: idMap.get(pairId) }
-            }
-          }
-
-          return next
-        })
-
-        const newEdges: RuntimeEdge[] = payload.edges.map((ed, i) => {
-          const src = idMap.get(ed.source) ?? ed.source
-          const tgt = idMap.get(ed.target) ?? ed.target
-          return {
-            ...ed,
-            id: `edge-${now}-${i}-${Math.floor(Math.random() * 1000)}`,
-            source: src,
-            target: tgt
-          }
-        })
-
-        const pastedIds = newNodes.map((n) => n.id)
-        setRuntimeRef.current({
-          ...rt,
-          nodes: [...rt.nodes, ...newNodes],
-          edges: [...rt.edges, ...newEdges],
-          selectedNodeId: pastedIds.length === 1 ? pastedIds[0] : null,
-          selectedNodeIds: pastedIds,
-          selectedEdgeId: null
-        })
-        return
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown, true)
-    return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [])
-
-  // Экспорт катсцены: валидация → компиляция → JSON → сохранение через IPC.
-  const handleExport = async () => {
-    // Сначала проверяем граф на ошибки.
-    const val = validation
-    if (val.hasErrors) {
-      const errorCount = val.entries.filter((e) => e.severity === 'error').length
-      pushError(toasts, `Fix ${errorCount} error(s) before exporting.`, {
-        title: t('dialog.exportBlockedTitle', 'Export blocked'),
-        duration: 0
-      })
-      return
-    }
-
-    const result = compileGraph(runtime)
-    if (!result.ok) {
-      pushError(toasts, result.error, { title: t('dialog.exportFailedTitle', 'Export failed'), duration: 0 })
-      return
-    }
-    const exported = stripExport(runtime, result.actions)
-    const jsonString = JSON.stringify(exported, null, 2)
-
-    // Проверяем, что мы в Electron-контексте.
-    if (!window.api?.export) {
-      console.warn('Export API not available')
-      return
-    }
-
-    const saveResult = (await window.api.export.save(jsonString)) as {
-      saved: boolean
-      filePath?: string
-    }
-    if (saveResult.saved) {
-      pushSuccess(toasts, saveResult.filePath ?? '', { title: t('toasts.exported', 'Exported') })
-    }
-  }
+  // Scene IO (export, save, open, new, example, autosave) — теперь через useSceneIO hook.
+  const {
+    handleExport,
+    handleSave,
+    handleSaveAs,
+    handleOpenScene,
+    handleNew,
+    handleCreateExample
+  } = useSceneIO({
+    runtime,
+    runtimeRef,
+    setRuntime,
+    validation,
+    sceneFilePath,
+    setSceneFilePath,
+    toasts,
+    confirm,
+    t,
+    preferencesLoaded,
+    autoSaveEnabled: preferences.autoSaveEnabled,
+    autoSaveIntervalMinutes: preferences.autoSaveIntervalMinutes
+  })
   // Привязываем к ref, чтобы хоткей Ctrl+E мог вызвать.
   exportRef.current = handleExport
-
-  // --- Операции с файлом сцены ---
-
-  // Сериализуем runtime в JSON для сохранения (без editor-only полей selectedNodeId и т.д.).
-  const serializeSceneState = (sceneRuntime: RuntimeState): string => {
-    return JSON.stringify(
-      {
-        ...sceneRuntime,
-        selectedNodeId: null,
-        selectedNodeIds: [],
-        selectedEdgeId: null
-      },
-      null,
-      2
-    )
-  }
-
-  const serializeScene = (): string => {
-    return serializeSceneState(runtime)
-  }
-
-  // Храним последний JSON, который уже ушёл в autosave/manual save.
-  // Это защищает от бессмысленной повторной записи одного и того же состояния.
-  const lastPersistedSceneJsonRef = useRef<string | null>(null)
-
-  // Save As: показываем диалог, сохраняем, запоминаем путь.
-  const handleSaveAs = async () => {
-    // Проверяем, что мы в Electron-контексте.
-    if (!window.api?.scene) {
-      console.warn('Scene API not available')
-      return
-    }
-
-    const jsonString = serializeScene()
-    const result = (await window.api.scene.saveAs(jsonString)) as {
-      saved: boolean
-      filePath?: string
-    }
-    if (result.saved && result.filePath) {
-      lastPersistedSceneJsonRef.current = jsonString
-      setSceneFilePath(result.filePath)
-    }
-  }
-
-  // Save: если путь известен — сохраняем туда, иначе Save As.
-  const handleSave = async () => {
-    // Проверяем, что мы в Electron-контексте.
-    if (!window.api?.scene) {
-      console.warn('Scene API not available')
-      return
-    }
-
-    if (sceneFilePath) {
-      const jsonString = serializeScene()
-      await window.api.scene.save(sceneFilePath, jsonString)
-      lastPersistedSceneJsonRef.current = jsonString
-    } else {
-      await handleSaveAs()
-    }
-  }
-
-  useEffect(() => {
-    if (!preferencesLoaded) return
-    if (!preferences.autoSaveEnabled) return
-    if (!window.api?.scene?.autosave) return
-
-    const intervalMs = Math.max(1, preferences.autoSaveIntervalMinutes) * 60 * 1000
-    const timer = window.setInterval(() => {
-      const jsonString = serializeSceneState(runtimeRef.current)
-      if (lastPersistedSceneJsonRef.current === jsonString) return
-
-      window.api.scene
-        .autosave(sceneFilePath, jsonString, 5)
-        .then(() => {
-          lastPersistedSceneJsonRef.current = jsonString
-        })
-        .catch((err) => {
-          console.warn('Failed to autosave scene:', err)
-        })
-    }, intervalMs)
-
-    return () => {
-      window.clearInterval(timer)
-    }
-  }, [
-    preferences.autoSaveEnabled,
-    preferences.autoSaveIntervalMinutes,
-    preferencesLoaded,
-    sceneFilePath
-  ])
-
-  // Open Scene: открываем .usc.json / .json файл и загружаем в runtime.
-  const handleOpenScene = async () => {
-    // Проверяем, что мы в Electron-контексте.
-    if (!window.api?.scene) {
-      console.warn('Scene API not available')
-      return
-    }
-
-    const confirmed = await confirm({
-      message: t('dialog.openSceneConfirm', 'Switch scene? Unsaved work will be lost.'),
-      title: t('dialog.unsavedChangesTitle', 'Unsaved changes'),
-      danger: true
-    })
-    if (!confirmed) return
-
-    const result = (await window.api.scene.open()) as { filePath: string; content: string } | null
-    if (!result) return
-    try {
-      const parsed = JSON.parse(result.content)
-      // Пытаемся распарсить как RuntimeState.
-      const state = parseRuntimeState(parsed)
-      if (state) {
-        setRuntime(state)
-        setSceneFilePath(result.filePath)
-        lastPersistedSceneJsonRef.current = serializeSceneState(state)
-      } else {
-        const imported = reverseCompileCutscene(parsed)
-
-        if (!imported.ok) {
-          pushError(toasts, imported.error, { title: t('alerts.openSceneInvalidFormat', 'Open failed'), duration: 0 })
-          return
-        }
-
-        setRuntime(imported.state)
-        setSceneFilePath(null)
-        lastPersistedSceneJsonRef.current = null
-        if (imported.warnings.length > 0) {
-          imported.warnings.forEach((w) => pushWarning(toasts, w))
-        }
-      }
-    } catch {
-      pushError(toasts, t('alerts.openSceneInvalidJson', 'File corrupted (invalid JSON).'), { title: 'Open failed', duration: 0 })
-    }
-  }
-
-  // New Scene: сбрасываем runtime в начальное состояние.
-  const handleNew = async () => {
-    const confirmed = await confirm({
-      message: t('dialog.newSceneConfirm', 'New scene? Unsaved work will be lost.'),
-      title: t('dialog.unsavedChangesTitle', 'Unsaved changes'),
-      danger: true
-    })
-    if (!confirmed) return
-    setRuntime(createEmptyRuntimeState())
-    setSceneFilePath(null)
-    lastPersistedSceneJsonRef.current = null
-  }
-
-  // Create Example: загружаем демонстрационную сцену с готовым графом.
-  // Это удобно для быстрого знакомства с редактором без ручной сборки узлов с нуля.
-  const handleCreateExample = async () => {
-    const confirmed = await confirm({
-      message: t('dialog.exampleSceneConfirm', 'Load example? Unsaved work will be lost.'),
-      title: t('dialog.unsavedChangesTitle', 'Unsaved changes'),
-      danger: true
-    })
-    if (!confirmed) return
-    setRuntime(createDefaultRuntimeState())
-    setSceneFilePath(null)
-    lastPersistedSceneJsonRef.current = null
-  }
 
   // Привязываем Save к ref для хоткея Ctrl+S.
   const saveRef = useRef<(() => void) | null>(null)
   saveRef.current = handleSave
   const newRef = useRef<(() => void) | null>(null)
   newRef.current = handleNew
+
+  // Горячие клавиши — теперь через useEditorShortcuts hook.
+  useEditorShortcuts({
+    runtimeRef,
+    setRuntimeRef,
+    undoRef,
+    redoRef,
+    saveRef,
+    newRef,
+    exportRef,
+    setPreferencesOpen,
+    suggestUniqueNodeName
+  })
 
   // Простая функция для ограничения чисел.
   const clamp = (value: number, min: number, max: number): number =>
@@ -3137,13 +1975,11 @@ export function EditorShell(): React.JSX.Element {
             maxLeft
           )
 
-          setLayout({
-            ...currentLayout,
-            dockSizes: {
-              ...currentLayout.dockSizes,
-              leftWidth: nextLeftWidth
-            }
-          })
+          rootRef.current?.style.setProperty('--leftDockWidth', `${nextLeftWidth}px`)
+          layoutRef.current.dockSizes = {
+            ...layoutRef.current.dockSizes,
+            leftWidth: nextLeftWidth
+          }
           return
         }
 
@@ -3158,13 +1994,11 @@ export function EditorShell(): React.JSX.Element {
             maxRight
           )
 
-          setLayout({
-            ...currentLayout,
-            dockSizes: {
-              ...currentLayout.dockSizes,
-              rightWidth: nextRightWidth
-            }
-          })
+          rootRef.current?.style.setProperty('--rightDockWidth', `${nextRightWidth}px`)
+          layoutRef.current.dockSizes = {
+            ...layoutRef.current.dockSizes,
+            rightWidth: nextRightWidth
+          }
           return
         }
 
@@ -3180,13 +2014,11 @@ export function EditorShell(): React.JSX.Element {
             maxBottom
           )
 
-          setLayout({
-            ...currentLayout,
-            dockSizes: {
-              ...currentLayout.dockSizes,
-              bottomHeight: nextBottomHeight
-            }
-          })
+          rootRef.current?.style.setProperty('--bottomDockHeight', `${nextBottomHeight}px`)
+          layoutRef.current.dockSizes = {
+            ...layoutRef.current.dockSizes,
+            bottomHeight: nextBottomHeight
+          }
           return
         }
 
@@ -3318,6 +2150,16 @@ export function EditorShell(): React.JSX.Element {
         }
       }
 
+      // Для dock-ресайза: сохраняем финальные размеры из ref в React state.
+      // Во время drag мы обновляли CSS-переменные напрямую (минуя React),
+      // а теперь один раз сбрасываем актуальные значения в layout state.
+      if (resizeDrag.kind === 'dock-left' || resizeDrag.kind === 'dock-right' || resizeDrag.kind === 'dock-bottom') {
+        setLayout({
+          ...layoutRef.current,
+          dockSizes: { ...layoutRef.current.dockSizes }
+        })
+      }
+
       setResizeDrag(null)
     }
 
@@ -3411,10 +2253,8 @@ export function EditorShell(): React.JSX.Element {
   )
 
   return (
-    <ToastProvider>
-      <ConfirmProvider>
-        <div
-          ref={rootRef}
+    <div
+      ref={rootRef}
       tabIndex={-1}
       className="editorRoot"
       style={
@@ -4062,8 +2902,6 @@ export function EditorShell(): React.JSX.Element {
         </div>
       ) : null}
         </div>
-      </ConfirmProvider>
-    </ToastProvider>
   )
 }
 

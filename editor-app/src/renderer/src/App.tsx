@@ -2,7 +2,9 @@ import { EditorShell } from './editor/EditorShell'
 import { VisualEditorWindowApp } from './editor/VisualEditorWindowApp'
 import { useTheme } from './editor/useTheme'
 import { usePreferences } from './editor/usePreferences'
-import { useEffect, useState } from 'react'
+import { ToastProvider } from './editor/ToastHub'
+import { ConfirmProvider } from './editor/ConfirmDialog'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 // Главный React-компонент приложения.
 // Мы держим его максимально простым: он выбирает нужную оболочку по типу окна.
@@ -13,8 +15,18 @@ function App(): React.JSX.Element {
   // Инициализируем настройки, чтобы вытянуть глобальный true rtx flag
   const { preferences } = usePreferences()
 
-  // Обработка глобального масштаба интерфейса приложения
-  const [globalZoom, setGlobalZoom] = useState(1)
+  // Обработка глобального масштаба интерфейса приложения.
+  // Храним zoom в ref, а не в state, чтобы wheel/keyboard не триггерили
+  // re-render всего дерева при каждом событии.
+  const zoomRef = useRef(1)
+
+  const applyZoom = useCallback((next: number) => {
+    const clamped = Math.max(0.5, Math.min(next, 3))
+    if (clamped !== zoomRef.current) {
+      zoomRef.current = clamped
+      window.api?.appInfo?.setZoomFactor?.(clamped)
+    }
+  }, [])
 
   useEffect(() => {
     if (preferences.liquidGlassEnabled) {
@@ -25,26 +37,19 @@ function App(): React.JSX.Element {
   }, [preferences.liquidGlassEnabled])
 
   useEffect(() => {
-    // Применяем встроенный Electron webFrame zoom,
-    // который масштабирует весь UI корректно (включая шрифты, меню и отступы),
-    // как на обычном веб-сайте, а не ломает верстку как CSS property `zoom`.
-    window.api?.appInfo?.setZoomFactor?.(globalZoom)
-  }, [globalZoom])
-
-  useEffect(() => {
     const handleZoom = (e: KeyboardEvent) => {
       // Игнорируем события, если зажат не только Ctrl
       if (!e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return
 
       if (e.key === '=' || e.key === '+') {
         e.preventDefault()
-        setGlobalZoom((prev) => Math.min(prev + 0.1, 3))
+        applyZoom(zoomRef.current + 0.1)
       } else if (e.key === '-') {
         e.preventDefault()
-        setGlobalZoom((prev) => Math.max(prev - 0.1, 0.5))
+        applyZoom(zoomRef.current - 0.1)
       } else if (e.key === '0') {
         e.preventDefault()
-        setGlobalZoom(1)
+        applyZoom(1)
       }
     }
 
@@ -52,10 +57,8 @@ function App(): React.JSX.Element {
       if (e.ctrlKey) {
         // Запрещаем дефолтный scale страницы в браузере
         e.preventDefault()
-        setGlobalZoom((prev) => {
-          const delta = e.deltaY > 0 ? -0.1 : 0.1
-          return Math.max(0.5, Math.min(prev + delta, 3))
-        })
+        const delta = e.deltaY > 0 ? -0.1 : 0.1
+        applyZoom(zoomRef.current + delta)
       }
     }
 
@@ -66,7 +69,7 @@ function App(): React.JSX.Element {
       window.removeEventListener('keydown', handleZoom)
       window.removeEventListener('wheel', handleWheel)
     }
-  }, [])
+  }, [applyZoom])
 
   // Второе native окно visual editor приходит с query-параметром,
   // чтобы один renderer bundle мог обслуживать оба сценария.
@@ -76,7 +79,13 @@ function App(): React.JSX.Element {
     return <VisualEditorWindowApp />
   }
 
-  return <EditorShell />
+  return (
+    <ToastProvider>
+      <ConfirmProvider>
+        <EditorShell />
+      </ConfirmProvider>
+    </ToastProvider>
+  )
 }
 
 export default App

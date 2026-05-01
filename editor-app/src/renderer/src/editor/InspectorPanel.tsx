@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import React, { useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import type { RuntimeEdge, RuntimeNode, RuntimeState } from './runtimeTypes'
 import type { EngineSettings, ProjectResources, YarnFileInfo } from './useProjectResources'
 import { SearchableSelect } from './SearchableSelect'
@@ -45,6 +45,30 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
   } = props
 
   const edgeWaitInputRef = useRef<HTMLInputElement | null>(null)
+
+  // Локальный стейт для title с debounce: каждый keystroke не должен
+  // немедленно обновлять runtime и триггерить валидацию/историю.
+  const [localTitle, setLocalTitle] = useState(runtime.title)
+  const titleTimeoutRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    setLocalTitle(runtime.title)
+  }, [runtime.title])
+
+  const flushTitle = (value: string) => {
+    if (titleTimeoutRef.current) window.clearTimeout(titleTimeoutRef.current)
+    titleTimeoutRef.current = null
+    if (value !== runtime.title) {
+      setRuntime({ ...runtime, title: value })
+    }
+  }
+
+  const debounceTitle = (value: string) => {
+    if (titleTimeoutRef.current) window.clearTimeout(titleTimeoutRef.current)
+    titleTimeoutRef.current = window.setTimeout(() => {
+      flushTitle(value)
+    }, 200)
+  }
 
   // --- Helpers (дословно из EditorShell.renderPanelContents) ---
 
@@ -228,8 +252,17 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
         <span>{t('editor.sceneTitle', 'Scene title')}</span>
         <input
           className="runtimeInput"
-          value={runtime.title}
-          onChange={(event) => setRuntime({ ...runtime, title: event.target.value })}
+          value={localTitle}
+          onChange={(event) => {
+            setLocalTitle(event.target.value)
+            debounceTitle(event.target.value)
+          }}
+          onBlur={() => flushTitle(localTitle)}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter') return
+            event.preventDefault()
+            flushTitle(localTitle)
+          }}
         />
       </label>
       {/* Выбранная нода: тип, имя и параметры. ID больше не показываем пользователю. */}
@@ -347,6 +380,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
             <>
               <label className="runtimeField"><span>Key</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="npc_guide" value={String((selectedNode.params?.key as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'key', v)} /></label>
               <label className="runtimeField"><span>Sprite / Object</span><SearchableSelect className="runtimeInput" options={spriteOrObjectOptions} value={String((selectedNode.params?.sprite_or_object as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'sprite_or_object', v)} placeholder="obj_actor / spr_..." style={selectedNode.params?.sprite_or_object && !spriteOrObjectOptions.includes(String(selectedNode.params.sprite_or_object)) ? { borderColor: '#e05050' } : undefined} /></label>
+              <label className="runtimeField"><span>Copy From</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} value={String((selectedNode.params?.copy_from as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'copy_from', v)} placeholder="player / actor key (optional)" /></label>
               <label className="runtimeField"><span>X</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.x as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'x', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Y</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.y as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'y', Number(event.target.value))} /></label>
             </>

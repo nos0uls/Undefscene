@@ -138,22 +138,22 @@ export function validateGraph(
   const nodeMap = new Map<string, RuntimeNode>()
   for (const n of nodes) nodeMap.set(n.id, n)
 
-  // Входящие и исходящие рёбра для каждой ноды.
+  // Входящие и исходящие рёбра для каждой ноды (без internal __pair рёбер).
+  // Предвычисляем один раз, чтобы не фильтровать внутри цикла по нодам.
   const inEdges = new Map<string, RuntimeEdge[]>()
   const outEdges = new Map<string, RuntimeEdge[]>()
   for (const e of edges) {
-    inEdges.set(e.target, [...(inEdges.get(e.target) ?? []), e])
-    outEdges.set(e.source, [...(outEdges.get(e.source) ?? []), e])
+    const isPair = e.sourceHandle === '__pair' && e.targetHandle === '__pair'
+    if (!isPair) {
+      inEdges.set(e.target, [...(inEdges.get(e.target) ?? []), e])
+      outEdges.set(e.source, [...(outEdges.get(e.source) ?? []), e])
+    }
   }
 
   // --- 3. Проверяем каждую ноду ---
   for (const node of nodes) {
-    const incoming = (inEdges.get(node.id) ?? []).filter(
-      (e) => e.sourceHandle !== '__pair' && e.targetHandle !== '__pair'
-    )
-    const outgoing = (outEdges.get(node.id) ?? []).filter(
-      (e) => e.sourceHandle !== '__pair' && e.targetHandle !== '__pair'
-    )
+    const incoming = inEdges.get(node.id) ?? []
+    const outgoing = outEdges.get(node.id) ?? []
 
     // start не должен иметь входящих рёбер.
     if (node.type === 'start' && incoming.length > 0) {
@@ -372,13 +372,14 @@ export function validateGraph(
       }
     }
 
+    // camera_shake: проверяем seconds (не duration — параметр называется seconds).
     if (node.type === 'camera_shake') {
-      const duration = Number(node.params?.duration ?? 0)
-      if (duration <= 0) {
+      const seconds = Number(node.params?.seconds ?? 0)
+      if (seconds <= 0) {
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `${nodeDisplayName}: duration is zero or negative. Set a positive duration.`
+          message: `${nodeDisplayName}: seconds is zero or negative. Set a positive duration.`
         })
       }
     }

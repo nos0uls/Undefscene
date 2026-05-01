@@ -1061,6 +1061,8 @@ function createVisualEditorWindow(): BrowserWindow {
       visualEditorWindowRef = null
     }
 
+    latestVisualEditorState = null
+
     if (mainWindowRef && !mainWindowRef.isDestroyed()) {
       mainWindowRef.focus()
       mainWindowRef.webContents.send('visualEditor.windowClosed')

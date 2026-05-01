@@ -15,7 +15,7 @@ export type Toast = {
   duration: number
 }
 
-type ToastContextValue = {
+export type ToastContextValue = {
   push: (toast: Omit<Toast, 'id'>) => string
   dismiss: (id: string) => void
 }
