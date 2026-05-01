@@ -250,9 +250,7 @@ export function validateGraph(
 
     // branch: если нет false-ветки — это tip (не ошибка, но может быть забыто).
     if (node.type === 'branch') {
-      const outgoing = (outEdges.get(node.id) ?? []).filter(
-        (e) => e.sourceHandle !== '__pair' && e.targetHandle !== '__pair'
-      )
+      const outgoing = outEdges.get(node.id) ?? []
       const hasFalse = outgoing.some((e) => e.sourceHandle === 'out_false')
       if (!hasFalse) {
         entries.push({
@@ -402,9 +400,7 @@ export function validateGraph(
     }
 
     if (node.type === 'halt') {
-      const hasOutgoing = (outEdges.get(node.id) ?? []).some(
-        (e) => e.sourceHandle !== '__pair' && e.targetHandle !== '__pair'
-      )
+      const hasOutgoing = (outEdges.get(node.id) ?? []).length > 0
       if (hasOutgoing) {
         entries.push({
           severity: 'warn',
@@ -513,9 +509,7 @@ export function validateGraph(
         })
       }
 
-      const outgoingEdges = (outEdges.get(node.id) ?? []).filter(
-        (e) => e.sourceHandle !== '__pair' && e.targetHandle !== '__pair'
-      )
+      const outgoingEdges = outEdges.get(node.id) ?? []
       const outgoingHandleUsage = new Map<string, number>()
 
       for (const edge of outgoingEdges) {
@@ -631,9 +625,7 @@ export function validateGraph(
 
       // Проверяем, что входящие handle-ы совпадают с branches.
       const uniqueBranches = new Set(branches)
-      const incomingEdges = (inEdges.get(node.id) ?? []).filter(
-        (e) => e.sourceHandle !== '__pair' && e.targetHandle !== '__pair'
-      )
+      const incomingEdges = inEdges.get(node.id) ?? []
       const incomingHandleUsage = new Map<string, number>()
 
       for (const edge of incomingEdges) {
