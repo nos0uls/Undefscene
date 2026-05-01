@@ -38,7 +38,8 @@ export const en = {
     disableHardwareAcceleration: 'Disable Hardware Acceleration',
     chooseScreenshotOutputDir: 'Choose Screenshot Output Folder...',
     checkForUpdates: 'Check for Updates...',
-    aboutAction: 'About'
+    aboutAction: 'About',
+    tutorial: 'Tutorial'
   },
   // Editor preferences (Preferences modal)
   preferences: {

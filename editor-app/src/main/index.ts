@@ -1112,6 +1112,9 @@ function createVisualEditorWindow(): BrowserWindow {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
+      // TODO: Consider enabling sandbox: true for production security.
+      // Preload only uses electron APIs (contextBridge, ipcRenderer, webFrame),
+      // so sandbox should be safe once verified across all builds.
       sandbox: false
     }
   })
@@ -1158,6 +1161,9 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
+      // TODO: Consider enabling sandbox: true for production security.
+      // Preload only uses electron APIs (contextBridge, ipcRenderer, webFrame),
+      // so sandbox should be safe once verified across all builds.
       sandbox: false
     }
   })
@@ -1260,7 +1266,14 @@ app.whenReady().then(() => {
     'project.availableScreenshotRooms',
     async (_event, projectDir: string, roomNames: string[], roomScreenshotsDir?: string | null) => {
       const normalizedProjectDir = String(projectDir || '').trim()
-      if (!normalizedProjectDir) return []
+      if (!normalizedProjectDir || normalizedProjectDir.includes('..')) {
+        console.warn('Blocked project.availableScreenshotRooms with suspicious path:', projectDir)
+        return []
+      }
+      if (typeof roomScreenshotsDir === 'string' && roomScreenshotsDir.includes('..')) {
+        console.warn('Blocked project.availableScreenshotRooms with suspicious roomScreenshotsDir:', roomScreenshotsDir)
+        return []
+      }
 
       const normalizedRoomNames = Array.isArray(roomNames)
         ? roomNames.map((roomName) => String(roomName || '').trim()).filter(Boolean)
@@ -1281,11 +1294,20 @@ app.whenReady().then(() => {
     'project.readRoomScreenshotBundle',
     async (_event, projectDir: string, roomName: string, roomScreenshotsDir?: string | null) => {
       const normalizedProjectDir = String(projectDir || '').trim()
-      if (!normalizedProjectDir) {
+      if (!normalizedProjectDir || normalizedProjectDir.includes('..')) {
+        console.warn('Blocked project.readRoomScreenshotBundle with suspicious path:', projectDir)
         return createRoomScreenshotWarningBundle({
           roomName: String(roomName || '').trim(),
           searchedDirs: [],
-          warning: 'Project directory is missing.'
+          warning: 'Project directory is missing or invalid.'
+        })
+      }
+      if (typeof roomScreenshotsDir === 'string' && roomScreenshotsDir.includes('..')) {
+        console.warn('Blocked project.readRoomScreenshotBundle with suspicious roomScreenshotsDir:', roomScreenshotsDir)
+        return createRoomScreenshotWarningBundle({
+          roomName: String(roomName || '').trim(),
+          searchedDirs: [],
+          warning: 'Project directory is missing or invalid.'
         })
       }
 
@@ -1308,7 +1330,10 @@ app.whenReady().then(() => {
     'project.readActorSpritePreview',
     async (_event, projectDir: string, spriteOrObject: string) => {
       const normalizedProjectDir = String(projectDir || '').trim()
-      if (!normalizedProjectDir) return null
+      if (!normalizedProjectDir || normalizedProjectDir.includes('..')) {
+        console.warn('Blocked project.readActorSpritePreview with suspicious path:', projectDir)
+        return null
+      }
 
       try {
         return await readActorSpritePreview(normalizedProjectDir, spriteOrObject)
@@ -1588,7 +1613,12 @@ app.whenReady().then(() => {
   // IPC: Чтение cutscene_engine_settings.json из datafiles/ проекта.
   // Возвращает whitelists для branch conditions и run functions.
   ipcMain.handle('settings.readEngine', async (_event, projectDir: string) => {
-    const settingsPath = join(projectDir, 'datafiles', 'cutscene_engine_settings.json')
+    const normalizedProjectDir = String(projectDir || '').trim()
+    if (!normalizedProjectDir || normalizedProjectDir.includes('..')) {
+      console.warn('Blocked settings.readEngine with suspicious path:', projectDir)
+      throw new Error('Invalid project directory')
+    }
+    const settingsPath = join(normalizedProjectDir, 'datafiles', 'cutscene_engine_settings.json')
     try {
       const raw = await readFile(settingsPath, 'utf-8')
       const data = JSON.parse(raw) as Record<string, unknown>
@@ -1624,8 +1654,13 @@ app.whenReady().then(() => {
   // IPC: Сканирование .yarn файлов в datafiles/ проекта.
   // Возвращает массив { file, nodes } для autocomplete в диалоговых нодах.
   ipcMain.handle('yarn.scan', async (_event, projectDir: string) => {
+    const normalizedProjectDir = String(projectDir || '').trim()
+    if (!normalizedProjectDir || normalizedProjectDir.includes('..')) {
+      console.warn('Blocked yarn.scan with suspicious path:', projectDir)
+      return []
+    }
     try {
-      return await scanYarnFiles(projectDir)
+      return await scanYarnFiles(normalizedProjectDir)
     } catch {
       return []
     }
@@ -1633,12 +1668,17 @@ app.whenReady().then(() => {
 
   // IPC: Прочитать полный .yarn файл для preview в Text panel.
   ipcMain.handle('yarn.readFile', async (_event, projectDir: string, fileName: string) => {
+    const normalizedProjectDir = String(projectDir || '').trim()
+    if (!normalizedProjectDir || normalizedProjectDir.includes('..')) {
+      console.warn('Blocked yarn.readFile with suspicious projectDir:', projectDir)
+      return null
+    }
     const rawName = String(fileName || '').trim().replace(/\\/g, '/')
     if (!rawName) return null
     if (rawName.includes('..')) return null
 
     const normalizedFile = rawName.endsWith('.yarn') ? rawName : `${rawName}.yarn`
-    const datafilesDir = resolve(projectDir, 'datafiles')
+    const datafilesDir = resolve(normalizedProjectDir, 'datafiles')
     const fullPath = resolve(datafilesDir, normalizedFile)
 
     // Разрешаем читать только файлы внутри datafiles/.
@@ -1707,6 +1747,12 @@ app.whenReady().then(() => {
       const backupCount = Math.max(1, Math.min(20, Number(payload?.backupCount ?? 5)))
 
       if (filePath) {
+        // Базовая защита от path traversal для автосохранения.
+        const normalized = resolve(filePath)
+        if (!normalized || normalized.includes('..')) {
+          console.warn('Blocked scene.autosave with suspicious path:', filePath)
+          throw new Error('Invalid file path')
+        }
         const dir = dirname(filePath)
         const fileName = basename(filePath)
         const fullExt = fileName.endsWith('.usc.json') ? '.usc.json' : extname(fileName) || '.json'
@@ -1764,8 +1810,14 @@ app.whenReady().then(() => {
   })
 
   // IPC: Открыть внешний URL из renderer безопасным способом через main.
+  // Разрешаем только http/https, чтобы не дать renderer открыть file:// или другие схемы.
   ipcMain.handle('app.openExternal', async (_event, url: string) => {
-    await shell.openExternal(url)
+    const trimmed = String(url || '').trim()
+    if (!/^https?:\/\//i.test(trimmed)) {
+      console.warn('Blocked openExternal with non-HTTP(S) URL:', trimmed.slice(0, 200))
+      return
+    }
+    await shell.openExternal(trimmed)
   })
 
   // IPC: Открыть DevTools для активного окна по запросу из Help menu.

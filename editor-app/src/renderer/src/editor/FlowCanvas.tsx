@@ -349,6 +349,7 @@ const FlowCanvasInner = ({
   // ВАЖНО: НЕ включаем selected сюда — выделение синхронизируем отдельным эффектом.
   // Это разрывает цикл: runtime → initialNodes → setNodes → StoreUpdater → onSelectionChange → setRuntime.
   const initialNodes = useMemo<Node[]>(() => {
+    if (!runtimeNodes) return []
     return runtimeNodes.map((node, index) => ({
       id: node.id,
       // Используем кастомный тип ноды, если он зарегистрирован.
@@ -379,6 +380,7 @@ const FlowCanvasInner = ({
   // Строим связи React Flow из runtime-данных.
   // Аналогично нодам — без selected, чтобы не создавать петлю.
   const initialEdges = useMemo<Edge[]>(() => {
+    if (!runtimeEdges) return []
     return runtimeEdges.map((e) => {
       const isInternalPair = e.sourceHandle === '__pair' && e.targetHandle === '__pair'
 

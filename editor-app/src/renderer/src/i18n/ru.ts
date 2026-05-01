@@ -36,7 +36,8 @@ export const ru = {
     disableHardwareAcceleration: 'Отключить аппаратное ускорение',
     chooseScreenshotOutputDir: 'Выбрать папку источника скриншотов...',
     checkForUpdates: 'Проверить обновления...',
-    aboutAction: 'О программе'
+    aboutAction: 'О программе',
+    tutorial: 'Обучение'
   },
   preferences: {
     general: 'Общие',

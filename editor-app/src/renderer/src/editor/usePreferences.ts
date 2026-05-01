@@ -167,6 +167,13 @@ export interface EditorPreferences {
 
   // Язык интерфейса (пока только en, ru — заглушка на будущее).
   language: 'en' | 'ru'
+
+  // --- Onboarding ---
+  // Завершил ли пользователь начальную настройку (язык, тема).
+  hasCompletedInitialSetup: boolean
+
+  // Завершил ли пользователь интерактивное обучение.
+  hasCompletedTutorial: boolean
 }
 
 // Настройки по умолчанию.
@@ -197,7 +204,9 @@ export const DEFAULT_PREFERENCES: EditorPreferences = {
   keybindings: DEFAULT_KEYBINDINGS,
   showNodeNameOnCanvas: true,
   parallelBranchPortMode: 'shared',
-  language: 'en'
+  language: 'en',
+  hasCompletedInitialSetup: false,
+  hasCompletedTutorial: false
 }
 
 // Проверяет, что объект похож на EditorPreferences.
@@ -309,7 +318,15 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
       c.parallelBranchPortMode === 'shared' || c.parallelBranchPortMode === 'separate'
         ? c.parallelBranchPortMode
         : DEFAULT_PREFERENCES.parallelBranchPortMode,
-    language: c.language === 'en' || c.language === 'ru' ? c.language : DEFAULT_PREFERENCES.language
+    language: c.language === 'en' || c.language === 'ru' ? c.language : DEFAULT_PREFERENCES.language,
+    hasCompletedInitialSetup:
+      typeof c.hasCompletedInitialSetup === 'boolean'
+        ? c.hasCompletedInitialSetup
+        : DEFAULT_PREFERENCES.hasCompletedInitialSetup,
+    hasCompletedTutorial:
+      typeof c.hasCompletedTutorial === 'boolean'
+        ? c.hasCompletedTutorial
+        : DEFAULT_PREFERENCES.hasCompletedTutorial
   }
 }
 

@@ -10,9 +10,10 @@ import { useProjectResources } from './useProjectResources'
 import { useRuntimeState } from './useRuntimeState'
 import { validateGraph, type ValidationResult, type ValidationContext } from './validateGraph'
 import { PreferencesModal } from './PreferencesModal'
+import { WelcomeSetupModal } from './WelcomeSetupModal'
+import { TutorialOverlay } from './TutorialOverlay'
 import { useToasts, pushSuccess, pushError, pushInfo } from './ToastHub'
 import { useConfirm } from './ConfirmDialog'
-import { PreferencesProvider } from './PreferencesContext'
 import { getAccentCssVariables, usePreferences } from './usePreferences'
 import { useHotkeys } from './useHotkeys'
 import { InspectorPanel } from './InspectorPanel'
@@ -101,6 +102,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
   const [sceneFilePath, setSceneFilePath] = useState<string | null>(null)
   const [fitViewRequestId, setFitViewRequestId] = useState(0)
   const [preferencesOpen, setPreferencesOpen] = useState(false)
+  const [isTutorialActive, setIsTutorialActive] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [appVersion, setAppVersion] = useState('Loading...')
 
@@ -109,6 +111,34 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
   const [selectedYarnPreviewTitle, setSelectedYarnPreviewTitle] = useState<string | null>(null)
 
   const { preferences, updatePreferences, loaded: preferencesLoaded } = usePreferences()
+
+  // --- Onboarding Flow ---
+  const [welcomeOpen, setWelcomeOpen] = useState(false)
+
+  useEffect(() => {
+    if (!preferencesLoaded) return
+    if (!preferences.hasCompletedInitialSetup) {
+      setWelcomeOpen(true)
+    } else if (!preferences.hasCompletedTutorial) {
+      setIsTutorialActive(true)
+    }
+  }, [preferencesLoaded, preferences.hasCompletedInitialSetup, preferences.hasCompletedTutorial])
+
+  const handleWelcomeComplete = useCallback(() => {
+    updatePreferences({ hasCompletedInitialSetup: true })
+    setWelcomeOpen(false)
+    // Tutorial will auto-trigger via the useEffect above after preferences update
+  }, [updatePreferences])
+
+  const handleTutorialComplete = useCallback(() => {
+    updatePreferences({ hasCompletedTutorial: true })
+    setIsTutorialActive(false)
+  }, [updatePreferences])
+
+  const handleTutorialSkip = useCallback(() => {
+    updatePreferences({ hasCompletedTutorial: true })
+    setIsTutorialActive(false)
+  }, [updatePreferences])
 
   const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
   const collapsePanelLabel = t('editor.collapsePanel', 'Collapse panel')
@@ -151,16 +181,15 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
       })
   }, [aboutOpen])
 
-  const handleOpenDocs = () => {
+  const handleOpenDocs = useCallback(() => {
     if (!window.api?.appInfo?.openExternal) {
       console.warn('App info API not available')
       return
     }
-
     void window.api.appInfo.openExternal(
       'https://nos0uls.github.io/Undefined-documentation/systems/cutscenes/undefscene/overview/'
     )
-  }
+  }, [])
 
   const validationContext: ValidationContext | undefined = useMemo(() => {
     if (!resources && !engineSettings) return undefined
@@ -870,6 +899,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
             hardwareAccelerationDisabled={preferences.disableHardwareAcceleration}
             onOpenVisualEditing={openVisualEditorWindow}
             onAbout={() => setAboutOpen(true)}
+            onTutorial={() => setIsTutorialActive(true)}
             onExit={() => window.close()}
             onPreferences={() => setPreferencesOpen(true)}
             language={preferences.language}
@@ -880,28 +910,26 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
           <>
             <div className="centerCanvasHeader">{t('editor.nodeEditor', 'Node Editor')}</div>
             <div className="centerCanvasBody">
-              <PreferencesProvider value={preferences}>
-                <FlowCanvas
-                  runtimeNodes={runtime.nodes}
-                  runtimeEdges={runtime.edges}
-                  selectedNodeId={runtime.selectedNodeId}
-                  selectedNodeIds={runtime.selectedNodeIds}
-                  selectedEdgeId={runtime.selectedEdgeId}
-                  onSelectNodes={handleSelectNodes}
-                  onSelectEdge={handleSelectEdge}
-                  onNodePositionChange={handleNodePositionChange}
-                  onEdgeAdd={handleEdgeAdd}
-                  onEdgeRemove={handleEdgeRemove}
-                  onParallelAddBranch={onParallelAddBranch}
-                  onParallelRemoveBranch={onParallelRemoveBranch}
-                  onNodeDelete={handleNodeDelete}
-                  onPaneClickCreate={createDefaultPaneNode}
-                  onPaneDropCreate={createPaletteDropNode}
-                  onEdgeDelete={handleEdgeDelete}
-                  onEdgeDoubleClick={handleEdgeDoubleClick}
-                  fitViewRequestId={fitViewRequestId}
-                />
-              </PreferencesProvider>
+              <FlowCanvas
+                runtimeNodes={runtime.nodes}
+                runtimeEdges={runtime.edges}
+                selectedNodeId={runtime.selectedNodeId}
+                selectedNodeIds={runtime.selectedNodeIds ?? []}
+                selectedEdgeId={runtime.selectedEdgeId}
+                fitViewRequestId={fitViewRequestId}
+                onSelectNodes={handleSelectNodes}
+                onSelectEdge={handleSelectEdge}
+                onNodePositionChange={handleNodePositionChange}
+                onEdgeAdd={handleEdgeAdd}
+                onEdgeRemove={handleEdgeRemove}
+                onEdgeDelete={handleEdgeDelete}
+                onNodeDelete={handleNodeDelete}
+                onEdgeDoubleClick={handleEdgeDoubleClick}
+                onPaneClickCreate={createDefaultPaneNode}
+                onPaneDropCreate={createPaletteDropNode}
+                onParallelAddBranch={onParallelAddBranch}
+                onParallelRemoveBranch={onParallelRemoveBranch}
+              />
             </div>
           </>
         }
@@ -911,6 +939,20 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
           preferences={preferences}
           updatePreferences={updatePreferences}
           onClose={() => setPreferencesOpen(false)}
+        />
+
+        <WelcomeSetupModal
+          open={welcomeOpen}
+          preferences={preferences}
+          updatePreferences={updatePreferences}
+          onComplete={handleWelcomeComplete}
+        />
+
+        <TutorialOverlay
+          active={isTutorialActive}
+          language={preferences.language}
+          onComplete={handleTutorialComplete}
+          onSkip={handleTutorialSkip}
         />
 
         <AboutModal
