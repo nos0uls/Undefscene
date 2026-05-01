@@ -174,6 +174,7 @@ const FlowCanvasInner = ({
   const {
     zoomSpeed,
     parallelBranchPortMode,
+    showNodeNameOnCanvas,
     canvasBackgroundPath,
     showMiniMap,
     liquidGlassEnabled,
@@ -182,6 +183,12 @@ const FlowCanvasInner = ({
     canvasBackgroundMode,
     canvasBackgroundOpacity
   } = usePreferencesContext()
+
+  // Ref для zoomSpeed, чтобы handleWheel не пересоздавался при смене preferences.
+  const zoomSpeedRef = useRef(zoomSpeed)
+  useEffect(() => {
+    zoomSpeedRef.current = zoomSpeed
+  }, [zoomSpeed])
 
   // Data URL кастомного фонового изображения.
   // Читаем его через main IPC, потому что прямой file:// доступ из renderer может блокироваться.
@@ -359,7 +366,7 @@ const FlowCanvasInner = ({
         params: node.params ?? {},
         // Коллбек для parallel — не сохраняем в runtime.json, это чисто UI.
         onAddParallelBranch: onParallelAddBranch,
-        onRemoveParallelBranch: onParallelRemoveBranchRef.current,
+        onRemoveParallelBranch: onParallelRemoveBranch,
         parallelBranchPortMode: parallelBranchPortMode,
         // Canvas-настройки, которые нужны нодам — передаём через data,
         // чтобы каждая нода не подписывалась на PreferencesContext.
@@ -367,7 +374,7 @@ const FlowCanvasInner = ({
         liquidGlassEnabled: liquidGlassEnabled
       }
     }))
-  }, [runtimeNodes, onParallelAddBranch, parallelBranchPortMode])
+  }, [runtimeNodes, onParallelAddBranch, onParallelRemoveBranch, parallelBranchPortMode, showNodeNameOnCanvas, liquidGlassEnabled])
 
   // Строим связи React Flow из runtime-данных.
   // Аналогично нодам — без selected, чтобы не создавать петлю.
@@ -919,10 +926,11 @@ const FlowCanvasInner = ({
     const currentNodeId = selectedNodeIdRef.current
 
     const sameLength = prevIds.length === ids.length
-    const sameSet =
-      sameLength &&
-      ids.every((id) => prevIds.includes(id)) &&
-      prevIds.every((id) => ids.includes(id))
+    let sameSet = sameLength
+    if (sameSet && ids.length > 0) {
+      const prevSet = new Set(prevIds)
+      sameSet = ids.every((id) => prevSet.has(id))
+    }
 
     if (sameSet && currentNodeId === nextSelectedNodeId) {
       return
@@ -934,7 +942,7 @@ const FlowCanvasInner = ({
 
     selectionTimeoutRef.current = window.setTimeout(() => {
       onSelectNodesRef.current(ids)
-    }, 50)
+    }, 100)
   }, [])
 
   // Управляем wheel zoom вручную, потому что у React Flow нет прямого prop для zoom speed.
@@ -965,7 +973,7 @@ const FlowCanvasInner = ({
 
       const currentViewport = getViewport()
       const currentZoom = currentViewport.zoom
-      const zoomFactor = Math.exp(-event.deltaY * 0.001 * zoomSpeed)
+      const zoomFactor = Math.exp(-event.deltaY * 0.001 * zoomSpeedRef.current)
       const nextZoom = Math.max(0.1, Math.min(4, currentZoom * zoomFactor))
 
       if (Math.abs(nextZoom - currentZoom) < 0.0001) return
@@ -987,7 +995,7 @@ const FlowCanvasInner = ({
         { duration: 0 }
       )
     },
-    [getViewport, zoomSpeed, screenToFlowPosition, setViewport]
+    [getViewport, screenToFlowPosition, setViewport]
   )
 
   // Навешиваем native wheel listener вручную.
