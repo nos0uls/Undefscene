@@ -4,7 +4,7 @@ import { useTheme } from './editor/useTheme'
 import { usePreferences } from './editor/usePreferences'
 import { ToastProvider } from './editor/ToastHub'
 import { ConfirmProvider } from './editor/ConfirmDialog'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 // Главный React-компонент приложения.
 // Мы держим его максимально простым: он выбирает нужную оболочку по типу окна.
