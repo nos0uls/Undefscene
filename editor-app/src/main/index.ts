@@ -945,32 +945,33 @@ async function readRoomScreenshotBundle(
 
   const cacheIdentity = `${resolve(metaLocation.sourceDir)}::${safeRoomName}`
 
-  const tileFileEntries = await Promise.all(
-    Array.from({ length: meta.rows * meta.cols }, async (_value, index) => {
-      const row = Math.floor(index / meta.cols)
-      const col = index % meta.cols
-      const fileName = `${meta.file_prefix}-r${padCaptureIndex(row)}-c${padCaptureIndex(col)}.png`
-      const filePath = join(metaLocation.sourceDir, fileName)
-      try {
-        const tileStat = await stat(filePath)
-        if (!tileStat.isFile()) {
-          return { row, col, fileName, filePath, exists: false, mtimeMs: 0, size: 0 }
-        }
-
-        return {
-          row,
-          col,
-          fileName,
-          filePath,
-          exists: true,
-          mtimeMs: tileStat.mtimeMs,
-          size: tileStat.size
-        }
-      } catch {
+  // Собираем список тайлов, но stat() делаем batch'ами — иначе на больших комнатах
+  // (50×50 = 2500 тайлов) мы открываем тысячи файловых дескрипторов одновременно.
+  const tileIndices = Array.from({ length: meta.rows * meta.cols }, (_value, index) => index)
+  const tileFileEntries = await mapInBatches(tileIndices, 32, async (index) => {
+    const row = Math.floor(index / meta.cols)
+    const col = index % meta.cols
+    const fileName = `${meta.file_prefix}-r${padCaptureIndex(row)}-c${padCaptureIndex(col)}.png`
+    const filePath = join(metaLocation.sourceDir, fileName)
+    try {
+      const tileStat = await stat(filePath)
+      if (!tileStat.isFile()) {
         return { row, col, fileName, filePath, exists: false, mtimeMs: 0, size: 0 }
       }
-    })
-  )
+
+      return {
+        row,
+        col,
+        fileName,
+        filePath,
+        exists: true,
+        mtimeMs: tileStat.mtimeMs,
+        size: tileStat.size
+      }
+    } catch {
+      return { row, col, fileName, filePath, exists: false, mtimeMs: 0, size: 0 }
+    }
+  })
 
   const signature = JSON.stringify({
     sourceDir: resolve(metaLocation.sourceDir),
@@ -1569,7 +1570,7 @@ app.whenReady().then(() => {
   ipcMain.handle('preferences.readCanvasBackgroundDataUrl', async (_event, filePath: string) => {
     try {
       const resolved = resolve(filePath)
-      const backgroundsDir = resolve(userDataBackgroundsDir)
+      const backgroundsDir = resolve(app.getPath('userData'), 'canvas-backgrounds')
       if (
         !resolved.startsWith(`${backgroundsDir}${sep}`) &&
         resolved !== backgroundsDir
@@ -1680,7 +1681,13 @@ app.whenReady().then(() => {
   })
 
   // IPC: Сохранить сцену в известный путь (без диалога).
+  // Базовая защита от path traversal: путь должен быть абсолютным и не содержать '..'.
   ipcMain.handle('scene.save', async (_event, filePath: string, jsonString: string) => {
+    const normalized = resolve(filePath)
+    if (!normalized || normalized.includes('..')) {
+      console.warn('Blocked scene.save with suspicious path:', filePath)
+      throw new Error('Invalid file path')
+    }
     await writeFile(filePath, jsonString, 'utf-8')
     return { saved: true, filePath }
   })
