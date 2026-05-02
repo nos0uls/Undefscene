@@ -102,8 +102,8 @@ const INSPECTOR_STEPS: TutorialStep[] = [
   {
     title: { en: 'Editing Complete', ru: 'Редактирование завершено' },
     content: {
-      en: 'You can return to the canvas anytime. Docs: https://undefinedtale-888.readthedocs.io/en/latest/editor/',
-      ru: 'Вы можете вернуться на холст в любой момент. Документация: https://undefinedtale-888.readthedocs.io/ru/latest/editor/'
+      en: 'You can return to the canvas anytime. Docs: https://nos0uls.github.io/Undefined-documentation/systems/cutscenes/undefscene/overview/',
+      ru: 'Вы можете вернуться на холст в любой момент. Документация: https://nos0uls.github.io/Undefined-documentation/systems/cutscenes/undefscene/overview/'
     },
     position: 'center'
   }
@@ -132,8 +132,8 @@ const VISUAL_EDITING_STEPS: TutorialStep[] = [
   {
     title: { en: 'Visual Editing Ready', ru: 'Визуальное редактирование готово' },
     content: {
-      en: 'Click Import to write changes back to the graph. Docs: https://undefinedtale-888.readthedocs.io/en/latest/editor/',
-      ru: 'Нажмите Import, чтобы записать изменения обратно в граф. Документация: https://undefinedtale-888.readthedocs.io/ru/latest/editor/'
+      en: 'Click Import to write changes back to the graph. Docs: https://nos0uls.github.io/Undefined-documentation/systems/cutscenes/undefscene/overview/',
+      ru: 'Нажмите Import, чтобы записать изменения обратно в граф. Документация: https://nos0uls.github.io/Undefined-documentation/systems/cutscenes/undefscene/overview/'
     },
     position: 'center'
   }
@@ -153,6 +153,36 @@ type TutorialOverlayProps = {
   steps?: TutorialStep[]
   onComplete: () => void
   onSkip: () => void
+}
+
+// Рендерит текст, оборачивая http(s) URL в кликабельные ссылки.
+// Клик открывает ссылку через main процесс (shell.openExternal) безопасно.
+function renderContentWithLinks(text: string): React.ReactNode {
+  const urlRegex = /(https?:\/\/[^\s]+)/
+  const parts = text.split(urlRegex)
+
+  return parts.map((part, i) => {
+    if (urlRegex.test(part)) {
+      return (
+        <a
+          key={i}
+          href="#"
+          onClick={(e) => {
+            e.preventDefault()
+            window.api.appInfo.openExternal(part)
+          }}
+          style={{
+            color: 'var(--accent-default)',
+            textDecoration: 'underline',
+            cursor: 'pointer'
+          }}
+        >
+          {part}
+        </a>
+      )
+    }
+    return <span key={i}>{part}</span>
+  })
 }
 
 export function TutorialOverlay({
@@ -348,7 +378,7 @@ export function TutorialOverlay({
           {currentStep.title[language]}
         </div>
         <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ev-c-text-2)' }}>
-          {currentStep.content[language]}
+          {renderContentWithLinks(currentStep.content[language])}
         </div>
         
         {/* Навигация: счётчик, стрелки назад/вперёд, пропуск. */}

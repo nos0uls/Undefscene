@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { CSSProperties, PropsWithChildren } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
@@ -32,8 +33,9 @@ export type DockPanelProps = PropsWithChildren<{
 }>
 
 // Простая базовая панель для доков.
-// Позже мы добавим сюда drag-start на шапке и контекстное меню.
-export function DockPanel(props: DockPanelProps): React.JSX.Element {
+// Обёрнута в memo, чтобы не ререндериться, если пропсы не изменились
+// (title, collapsed, callbacks и т.д. стабильны).
+function DockPanelBase(props: DockPanelProps): React.JSX.Element {
   const {
     title,
     className,
@@ -88,3 +90,6 @@ export function DockPanel(props: DockPanelProps): React.JSX.Element {
     </section>
   )
 }
+
+export const DockPanel = memo(DockPanelBase)
+DockPanel.displayName = 'DockPanel'

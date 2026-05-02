@@ -22,21 +22,43 @@ export function getDictionary(language: SupportedLanguage): TranslationDictionar
 // Читаем строку по пути вида "preferences.language".
 // Такой helper позволяет постепенно переводить UI,
 // не таща большую i18n-библиотеку ради простого desktop editor.
+//
+// Поддерживает интерполяцию параметров: если передан объект,
+// подменяет плейсхолдеры {key} на значения.
+// Второй аргумент может быть fallback-строкой (backward compat) или params-объектом.
 export function translatePath(
   dictionary: TranslationDictionary,
   path: string,
-  fallback?: string
+  fallbackOrParams?: string | Record<string, string | number | undefined>,
+  maybeFallback?: string
 ): string {
+  const params = typeof fallbackOrParams === 'object' ? fallbackOrParams : undefined
+  const fallback = typeof fallbackOrParams === 'string' ? fallbackOrParams : maybeFallback
+
   const value = path.split('.').reduce<unknown>((current, key) => {
     if (!current || typeof current !== 'object') return undefined
     return (current as Record<string, unknown>)[key]
   }, dictionary)
 
-  return typeof value === 'string' ? value : (fallback ?? path)
+  let result = typeof value === 'string' ? value : (fallback ?? path)
+  if (params) {
+    result = result.replace(/\{(\w+)\}/g, (_, key) => {
+      const replacement = params[key]
+      return replacement !== undefined && replacement !== null ? String(replacement) : `{${key}}`
+    })
+  }
+  return result
 }
 
-// Удобный фабричный helper: получаем короткую функцию t(path).
-export function createTranslator(language: SupportedLanguage): (path: string, fallback?: string) => string {
+// Удобный фабричный helper: получаем короткую функцию t(path[, fallbackOrParams][, fallback]).
+export function createTranslator(
+  language: SupportedLanguage
+): (
+  path: string,
+  fallbackOrParams?: string | Record<string, string | number | undefined>,
+  maybeFallback?: string
+) => string {
   const dictionary = getDictionary(language)
-  return (path: string, fallback?: string) => translatePath(dictionary, path, fallback)
+  return (path, fallbackOrParams, maybeFallback) =>
+    translatePath(dictionary, path, fallbackOrParams, maybeFallback)
 }
