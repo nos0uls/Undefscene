@@ -342,38 +342,40 @@ export function TutorialOverlay({
     }
   }
 
+  const overlayStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    zIndex: 10000,
+    transition: 'all 0.3s ease',
+    pointerEvents: 'none',
+    ...clipPathStyle
+  }
+
+  const tooltipBoxStyle: React.CSSProperties = {
+    position: 'fixed',
+    backgroundColor: 'var(--color-background-soft)',
+    border: '1px solid var(--ev-c-gray-3)',
+    borderRadius: 8,
+    padding: '20px 24px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+    color: 'var(--ev-c-text-1)',
+    pointerEvents: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    zIndex: 10001,
+    ...tooltipStyle()
+  }
+
   return (
-    <div 
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        zIndex: 10000,
-        transition: 'all 0.3s ease',
-        pointerEvents: 'none',
-        ...clipPathStyle
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          backgroundColor: 'var(--color-background-soft)',
-          border: '1px solid var(--ev-c-gray-3)',
-          borderRadius: 8,
-          padding: '20px 24px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-          color: 'var(--ev-c-text-1)',
-          pointerEvents: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          ...tooltipStyle()
-        }}
-      >
+    <>
+      <div style={overlayStyle} />
+      <div style={tooltipBoxStyle}>
         <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent-default)' }}>
           {currentStep.title[language]}
         </div>
@@ -430,6 +432,6 @@ export function TutorialOverlay({
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
