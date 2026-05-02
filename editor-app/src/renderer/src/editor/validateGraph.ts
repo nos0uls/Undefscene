@@ -136,7 +136,35 @@ export function validateGraph(
 
   // --- 2. Карты для быстрого доступа ---
   const nodeMap = new Map<string, RuntimeNode>()
-  for (const n of nodes) nodeMap.set(n.id, n)
+  const actorKeys = new Set<string>()
+  const markNodeNames = new Map<string, string[]>()
+  for (const n of nodes) {
+    nodeMap.set(n.id, n)
+    if (n.type === 'actor_create') {
+      const key = String(n.params?.key ?? '').trim()
+      if (key) actorKeys.add(key)
+    }
+    if (n.type === 'mark_node') {
+      const name = String(n.params?.name ?? '').trim()
+      if (name) {
+        const list = markNodeNames.get(name) ?? []
+        list.push(n.id)
+        markNodeNames.set(name, list)
+      }
+    }
+  }
+
+  // Дубликаты имён mark_node — jump не сможет однозначно выбрать цель.
+  for (const [name, ids] of markNodeNames.entries()) {
+    if (ids.length <= 1) continue
+    for (const id of ids) {
+      entries.push({
+        severity: 'warn',
+        nodeId: id,
+        message: `Marker name "${name}" is used by ${ids.length} nodes. jump targets will be ambiguous.`
+      })
+    }
+  }
 
   // Входящие и исходящие рёбра для каждой ноды (без internal __pair рёбер).
   // Предвычисляем один раз, чтобы не фильтровать внутри цикла по нодам.
@@ -439,6 +467,44 @@ export function validateGraph(
           severity: 'warn',
           nodeId: node.id,
           message: `${nodeDisplayName}: jump target is empty. Fill the Target field in the inspector.`
+        })
+      } else if (!markNodeNames.has(jumpTarget)) {
+        entries.push({
+          severity: 'error',
+          nodeId: node.id,
+          message: `${nodeDisplayName}: jump target "${jumpTarget}" does not match any mark_node in the graph.`
+        })
+      }
+    }
+
+    // Actor target resolution: target должен ссылаться на 'player' или actor_create.key в этом графе.
+    const actorTargetTypes = new Set([
+      'move',
+      'actor_destroy',
+      'set_position',
+      'animate',
+      'camera_track',
+      'camera_track_until_stop',
+      'camera_pan_obj',
+      'set_depth',
+      'set_facing',
+      'follow_path',
+      'auto_facing',
+      'auto_walk',
+      'emote',
+      'halt',
+      'flip',
+      'spin',
+      'shake_object',
+      'set_visible'
+    ])
+    if (actorTargetTypes.has(node.type)) {
+      const target = String(node.params?.target ?? '').trim()
+      if (target && target !== 'player' && !actorKeys.has(target)) {
+        entries.push({
+          severity: 'warn',
+          nodeId: node.id,
+          message: `${nodeDisplayName}: target "${target}" is not created by any actor_create node in this graph. Use "player" or create the actor first.`
         })
       }
     }

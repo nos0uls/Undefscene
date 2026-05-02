@@ -41,13 +41,15 @@ function App(): React.JSX.Element {
       // Игнорируем события, если зажат не только Ctrl
       if (!e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return
 
-      if (e.key === '=' || e.key === '+') {
+      // Используем e.code для layout-agnostic распознавания (JCUKEN / QWERTY и т.д.)
+      const code = e.code
+      if (code === 'Equal' || code === 'NumpadAdd') {
         e.preventDefault()
         applyZoom(zoomRef.current + 0.1)
-      } else if (e.key === '-') {
+      } else if (code === 'Minus' || code === 'NumpadSubtract') {
         e.preventDefault()
         applyZoom(zoomRef.current - 0.1)
-      } else if (e.key === '0') {
+      } else if (code === 'Digit0' || code === 'Numpad0') {
         e.preventDefault()
         applyZoom(1)
       }
