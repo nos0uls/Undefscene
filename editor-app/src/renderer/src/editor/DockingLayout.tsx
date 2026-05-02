@@ -11,6 +11,7 @@ import { COLLAPSED_DOCK_SIZE } from './dockingConstants'
 type DockingLayoutProps = React.PropsWithChildren<{
   renderPanelContents: (panelId: string) => React.JSX.Element
   getPanelTitle: (panelId: string) => string
+  getPanelBadge?: (panelId: string) => React.ReactNode
   collapsePanelLabel: string
   closePanelLabel: string
   topBarContent: React.ReactNode
@@ -23,6 +24,7 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
   const {
     renderPanelContents,
     getPanelTitle,
+    getPanelBadge,
     collapsePanelLabel,
     closePanelLabel,
     topBarContent,
@@ -351,6 +353,7 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
                             }}
                           >
                             {getPanelTitle(panelId)}
+                            {getPanelBadge?.(panelId)}
                           </button>
                           <button
                             type="button"
