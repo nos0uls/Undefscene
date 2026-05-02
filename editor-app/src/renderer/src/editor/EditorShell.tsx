@@ -220,13 +220,14 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
   const validationContext: ValidationContext | undefined = useMemo(() => {
     if (!resources && !engineSettings) return undefined
     return {
+      language: preferences.language ?? 'en',
       objects: resources?.objects,
       sprites: resources?.sprites,
       yarnFiles: yarnFiles ? new Map(yarnFiles.map((y) => [y.file, y.nodes])) : undefined,
       runFunctions: engineSettings?.runFunctions,
       branchConditions: engineSettings?.branchConditions
     }
-  }, [resources, engineSettings, yarnFiles])
+  }, [preferences.language, resources, engineSettings, yarnFiles])
 
   const actorTargetOptions = useMemo(() => {
     const result = new Set<string>(['player'])
