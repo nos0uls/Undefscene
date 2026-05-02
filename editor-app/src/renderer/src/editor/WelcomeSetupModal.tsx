@@ -1,7 +1,10 @@
-import React, { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { useTheme, type ThemeId } from './useTheme'
 import type { EditorPreferences, AccentColorId } from './usePreferences'
 import { createTranslator } from '../i18n'
+
+// WelcomeSetupModal.tsx — Модальное окно первого запуска.
+// Отображается как компактная карточка по центру экрана (не fullscreen).
 
 type WelcomeSetupModalProps = {
   open: boolean
@@ -10,6 +13,7 @@ type WelcomeSetupModalProps = {
   onComplete: () => void
 }
 
+// Пресеты акцентных цветов для выпадающего списка.
 const ACCENT_PRESETS: Array<{ id: AccentColorId; label: string; hex: string }> = [
   { id: 'purple', label: 'Purple', hex: '#5e6ad2' },
   { id: 'cyan', label: 'Cyan', hex: '#00c8ff' },
@@ -27,15 +31,28 @@ export function WelcomeSetupModal({
   updatePreferences,
   onComplete
 }: WelcomeSetupModalProps): React.JSX.Element | null {
-  const overlayRef = useRef<HTMLDivElement | null>(null)
   const { theme, setTheme, themes } = useTheme()
   const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
 
   if (!open) return null
 
+  // Backdrop — полупрозрачный фон, но контент центрирован и компактен.
   return (
-    <div ref={overlayRef} className="prefsOverlay">
-      <div className="prefsModal" style={{ maxWidth: 450 }}>
+    <div
+      className="welcomeBackdrop"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.55)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24
+      }}
+    >
+      <div className="prefsModal" style={{ maxWidth: 450, width: '100%', maxHeight: '90vh', overflow: 'auto' }}>
         <div className="prefsHeader">
           <span className="prefsTitle" style={{ fontSize: 20 }}>
             {preferences.language === 'ru' ? 'Добро пожаловать!' : 'Welcome!'}

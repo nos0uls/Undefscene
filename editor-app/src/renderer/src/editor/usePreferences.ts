@@ -172,8 +172,14 @@ export interface EditorPreferences {
   // Завершил ли пользователь начальную настройку (язык, тема).
   hasCompletedInitialSetup: boolean
 
-  // Завершил ли пользователь интерактивное обучение.
+  // Завершил ли пользователь интерактивное обучение по основному UI.
   hasCompletedTutorial: boolean
+
+  // Завершил ли пользователь контекстный тур по инспектору.
+  hasCompletedInspectorTutorial: boolean
+
+  // Завершил ли пользователь контекстный тур по visual editing.
+  hasCompletedVisualEditingTutorial: boolean
 }
 
 // Настройки по умолчанию.
@@ -206,7 +212,9 @@ export const DEFAULT_PREFERENCES: EditorPreferences = {
   parallelBranchPortMode: 'shared',
   language: 'en',
   hasCompletedInitialSetup: false,
-  hasCompletedTutorial: false
+  hasCompletedTutorial: false,
+  hasCompletedInspectorTutorial: false,
+  hasCompletedVisualEditingTutorial: false
 }
 
 // Проверяет, что объект похож на EditorPreferences.
@@ -326,7 +334,15 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
     hasCompletedTutorial:
       typeof c.hasCompletedTutorial === 'boolean'
         ? c.hasCompletedTutorial
-        : DEFAULT_PREFERENCES.hasCompletedTutorial
+        : DEFAULT_PREFERENCES.hasCompletedTutorial,
+    hasCompletedInspectorTutorial:
+      typeof c.hasCompletedInspectorTutorial === 'boolean'
+        ? c.hasCompletedInspectorTutorial
+        : DEFAULT_PREFERENCES.hasCompletedInspectorTutorial,
+    hasCompletedVisualEditingTutorial:
+      typeof c.hasCompletedVisualEditingTutorial === 'boolean'
+        ? c.hasCompletedVisualEditingTutorial
+        : DEFAULT_PREFERENCES.hasCompletedVisualEditingTutorial
   }
 }
 

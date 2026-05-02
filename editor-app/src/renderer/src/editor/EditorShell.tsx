@@ -11,7 +11,7 @@ import { useRuntimeState } from './useRuntimeState'
 import { validateGraph, type ValidationResult, type ValidationContext } from './validateGraph'
 import { PreferencesModal } from './PreferencesModal'
 import { WelcomeSetupModal } from './WelcomeSetupModal'
-import { TutorialOverlay } from './TutorialOverlay'
+import { TutorialOverlay, TUTORIAL_REGISTRY } from './TutorialOverlay'
 import { useToasts, pushSuccess, pushError, pushInfo } from './ToastHub'
 import { useConfirm } from './ConfirmDialog'
 import { getAccentCssVariables, usePreferences } from './usePreferences'
@@ -103,6 +103,11 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
   const [fitViewRequestId, setFitViewRequestId] = useState(0)
   const [preferencesOpen, setPreferencesOpen] = useState(false)
   const [isTutorialActive, setIsTutorialActive] = useState(false)
+
+  // --- Contextual tutorials ---
+  const [inspectorTutorialActive, setInspectorTutorialActive] = useState(false)
+  const [visualEditingTutorialActive, setVisualEditingTutorialActive] = useState(false)
+
   const [aboutOpen, setAboutOpen] = useState(false)
   const [appVersion, setAppVersion] = useState('Loading...')
 
@@ -138,6 +143,27 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
   const handleTutorialSkip = useCallback(() => {
     updatePreferences({ hasCompletedTutorial: true })
     setIsTutorialActive(false)
+  }, [updatePreferences])
+
+  // Контекстный тур по инспектору запускается при первом выборе ноды,
+  // если пользователь уже прошёл онбординг и не проходил этот тур раньше.
+  useEffect(() => {
+    if (!preferencesLoaded) return
+    if (preferences.hasCompletedInspectorTutorial) return
+    if (!preferences.hasCompletedTutorial) return
+    if (runtime.selectedNodeId) {
+      setInspectorTutorialActive(true)
+    }
+  }, [preferencesLoaded, preferences.hasCompletedInspectorTutorial, preferences.hasCompletedTutorial, runtime.selectedNodeId])
+
+  const handleInspectorTutorialComplete = useCallback(() => {
+    updatePreferences({ hasCompletedInspectorTutorial: true })
+    setInspectorTutorialActive(false)
+  }, [updatePreferences])
+
+  const handleInspectorTutorialSkip = useCallback(() => {
+    updatePreferences({ hasCompletedInspectorTutorial: true })
+    setInspectorTutorialActive(false)
   }, [updatePreferences])
 
   const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
@@ -320,7 +346,8 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
 
   const {
     roomScreenshotSearchDirs,
-    openVisualEditorWindow
+    openVisualEditorWindow,
+    visualEditingOpen
   } = useVisualEditing({
     runtime,
     setRuntime,
@@ -380,6 +407,32 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     autoSaveIntervalMinutes: preferences.autoSaveIntervalMinutes
   })
   exportRef.current = handleExport
+
+  // Обработчики завершения/пропуска контекстного тура visual editing.
+  const handleVisualEditingTutorialComplete = useCallback(() => {
+    updatePreferences({ hasCompletedVisualEditingTutorial: true })
+    setVisualEditingTutorialActive(false)
+  }, [updatePreferences])
+
+  const handleVisualEditingTutorialSkip = useCallback(() => {
+    updatePreferences({ hasCompletedVisualEditingTutorial: true })
+    setVisualEditingTutorialActive(false)
+  }, [updatePreferences])
+
+  // Контекстный тур по visual editing запускается при открытии окна visual editor.
+  useEffect(() => {
+    if (!preferencesLoaded) return
+    if (preferences.hasCompletedVisualEditingTutorial) return
+    if (!preferences.hasCompletedTutorial) return
+    if (visualEditingOpen) {
+      setVisualEditingTutorialActive(true)
+    }
+  }, [
+    preferencesLoaded,
+    preferences.hasCompletedVisualEditingTutorial,
+    preferences.hasCompletedTutorial,
+    visualEditingOpen
+  ])
 
   const saveRef = useRef<(() => void) | null>(null)
   saveRef.current = handleSave
@@ -785,10 +838,25 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     )
   }
 
+  const getPanelBadge = useCallback((panelId: string): React.ReactNode | null => {
+    if (panelId !== 'panel.logs') return null
+    const errorCount = validation.entries.filter((e) => e.severity === 'error').length
+    const warnCount = validation.entries.filter((e) => e.severity === 'warn').length
+    const total = errorCount + warnCount
+    if (total === 0) return null
+    const color = errorCount > 0 ? '#e05050' : '#d4a017'
+    return (
+      <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700, color, background: 'rgba(255,255,255,0.08)', borderRadius: 3, padding: '0 3px', lineHeight: 1 }}>
+        {total}
+      </span>
+    )
+  }, [validation.entries])
+
   return (
     <DockingLayout
         renderPanelContents={renderPanelContents}
         getPanelTitle={getPanelTitle}
+        getPanelBadge={getPanelBadge}
         collapsePanelLabel={collapsePanelLabel}
         closePanelLabel={closePanelLabel}
         isProjectLoading={isProjectLoading}
@@ -953,6 +1021,24 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
           language={preferences.language}
           onComplete={handleTutorialComplete}
           onSkip={handleTutorialSkip}
+        />
+
+        {/* Контекстный тур по инспектору (при первом выборе ноды). */}
+        <TutorialOverlay
+          active={inspectorTutorialActive}
+          language={preferences.language}
+          steps={TUTORIAL_REGISTRY.inspector}
+          onComplete={handleInspectorTutorialComplete}
+          onSkip={handleInspectorTutorialSkip}
+        />
+
+        {/* Контекстный тур по visual editing (при первом открытии окна). */}
+        <TutorialOverlay
+          active={visualEditingTutorialActive}
+          language={preferences.language}
+          steps={TUTORIAL_REGISTRY.visualEditing}
+          onComplete={handleVisualEditingTutorialComplete}
+          onSkip={handleVisualEditingTutorialSkip}
         />
 
         <AboutModal

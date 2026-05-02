@@ -1,13 +1,21 @@
-import React, { useState, useEffect, useCallback } from 'react'
+// TutorialOverlay.tsx — Интерактивный пошаговый тур по UI редактора.
+// Подсвечивает DOM-элементы через clip-path и показывает карточку с подсказкой.
+// Поддерживает навигацию вперед/назад, клавиатуру и сброс при повторном запуске.
 
-type TutorialStep = {
+import { useState, useEffect, useCallback } from 'react'
+
+// Позиция тултипа относительно подсвеченного элемента.
+export type TooltipPosition = 'top' | 'bottom' | 'left' | 'right' | 'center'
+
+// Один шаг тура. Может ссылаться на DOM-элемент через selector.
+export type TutorialStep = {
   selector?: string
   title: { en: string; ru: string }
   content: { en: string; ru: string }
-  position?: 'top' | 'bottom' | 'left' | 'right' | 'center'
+  position?: TooltipPosition
 }
 
-const STEPS: TutorialStep[] = [
+const ONBOARDING_STEPS: TutorialStep[] = [
   {
     title: { en: 'Welcome to Undefscene!', ru: 'Добро пожаловать в Undefscene!' },
     content: { 
@@ -63,17 +71,86 @@ const STEPS: TutorialStep[] = [
   },
   {
     title: { en: 'Ready to go!', ru: 'Всё готово!' },
-    content: { 
-      en: 'You are now ready to create amazing cutscenes. Happy editing!', 
-      ru: 'Теперь вы готовы создавать потрясающие катсцены. Приятной работы!' 
+    content: {
+      en: 'You are now ready to create amazing cutscenes. Check the docs for advanced topics.',
+      ru: 'Теперь вы готовы создавать потрясающие катсцены. Документация расскажет о продвинутых возможностях.'
     },
     position: 'center'
   }
 ]
 
+// Шаги тура по инспектору (контекстный).
+const INSPECTOR_STEPS: TutorialStep[] = [
+  {
+    selector: '.editorRightDock',
+    title: { en: 'Inspector Panel', ru: 'Панель инспектора' },
+    content: {
+      en: 'Here you edit the selected node\'s parameters: coordinates, dialogue file, actor target, and more.',
+      ru: 'Здесь редактируются параметры выбранной ноды: координаты, файл диалога, цель актёра и другое.'
+    },
+    position: 'left'
+  },
+  {
+    selector: '.editorRightDock .paramField',
+    title: { en: 'Node Parameters', ru: 'Параметры ноды' },
+    content: {
+      en: 'Each field maps to a GameMaker cutscene action. Hover over labels to see hints.',
+      ru: 'Каждое поле соответствует action в GameMaker. Наведите на название поля — появится подсказка.'
+    },
+    position: 'left'
+  },
+  {
+    title: { en: 'Editing Complete', ru: 'Редактирование завершено' },
+    content: {
+      en: 'You can return to the canvas anytime. Docs: https://undefinedtale-888.readthedocs.io/en/latest/editor/',
+      ru: 'Вы можете вернуться на холст в любой момент. Документация: https://undefinedtale-888.readthedocs.io/ru/latest/editor/'
+    },
+    position: 'center'
+  }
+]
+
+// Шаги тура по visual editing (контекстный).
+const VISUAL_EDITING_STEPS: TutorialStep[] = [
+  {
+    selector: '.roomScreenshotCanvas',
+    title: { en: 'Room Preview', ru: 'Превью комнаты' },
+    content: {
+      en: 'This is the stitched room screenshot. Use it to draw actor paths or place markers precisely.',
+      ru: 'Это склеенный скриншот комнаты. Рисуйте пути актёров или расставляйте маркеры точно по обстановке.'
+    },
+    position: 'center'
+  },
+  {
+    selector: '.visualEditorToolbar',
+    title: { en: 'Toolbar', ru: 'Панель инструментов' },
+    content: {
+      en: 'Select a tool: draw path points, place actor markers, or preview the animation.',
+      ru: 'Выберите инструмент: точки пути, маркеры актёров или предпросмотр анимации.'
+    },
+    position: 'bottom'
+  },
+  {
+    title: { en: 'Visual Editing Ready', ru: 'Визуальное редактирование готово' },
+    content: {
+      en: 'Click Import to write changes back to the graph. Docs: https://undefinedtale-888.readthedocs.io/en/latest/editor/',
+      ru: 'Нажмите Import, чтобы записать изменения обратно в граф. Документация: https://undefinedtale-888.readthedocs.io/ru/latest/editor/'
+    },
+    position: 'center'
+  }
+]
+
+// Реестр доступных туров по идентификатору.
+export const TUTORIAL_REGISTRY: Record<string, TutorialStep[]> = {
+  onboarding: ONBOARDING_STEPS,
+  inspector: INSPECTOR_STEPS,
+  visualEditing: VISUAL_EDITING_STEPS
+}
+
 type TutorialOverlayProps = {
   active: boolean
   language: 'en' | 'ru'
+  // Если не передан — используем онбординг по умолчанию.
+  steps?: TutorialStep[]
   onComplete: () => void
   onSkip: () => void
 }
@@ -81,27 +158,48 @@ type TutorialOverlayProps = {
 export function TutorialOverlay({
   active,
   language,
+  steps: stepsProp,
   onComplete,
   onSkip
 }: TutorialOverlayProps): React.JSX.Element | null {
+  // Выбранный набор шагов.
+  const steps = stepsProp ?? ONBOARDING_STEPS
+
+  // Текущий индекс шага. Сбрасываем в 0 при каждой активации.
   const [stepIndex, setStepIndex] = useState(0)
+
+  // Bounding box подсвеченного DOM-элемента.
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null)
 
-  const currentStep = STEPS[stepIndex]
+  // При активации всегда начинаем с первого шага.
+  useEffect(() => {
+    if (active) {
+      setStepIndex(0)
+      setHighlightRect(null)
+    }
+  }, [active, steps])
 
+  const currentStep = steps[stepIndex]
+
+  // Обновляем highlight-rect выбранного элемента.
+  // Если rect имеет нулевые размеры (элемент ещё не отрисован/скрыт) —
+  // считаем, что элемент не найден, и показываем центрированный шаг.
   const updateHighlight = useCallback(() => {
-    if (!currentStep.selector) {
+    if (!currentStep?.selector) {
       setHighlightRect(null)
       return
     }
 
     const el = document.querySelector(currentStep.selector)
     if (el) {
-      setHighlightRect(el.getBoundingClientRect())
-    } else {
-      setHighlightRect(null)
+      const rect = el.getBoundingClientRect()
+      if (rect.width > 0 && rect.height > 0) {
+        setHighlightRect(rect)
+        return
+      }
     }
-  }, [currentStep.selector])
+    setHighlightRect(null)
+  }, [currentStep?.selector])
 
   useEffect(() => {
     if (!active) return
@@ -117,24 +215,33 @@ export function TutorialOverlay({
     }
   }, [active, updateHighlight])
 
+  // Обработка клавиатуры: Enter — далее, Esc — пропустить, ← → — навигация.
   useEffect(() => {
     if (!active) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Enter') {
-        if (stepIndex < STEPS.length - 1) {
+        if (stepIndex < steps.length - 1) {
           setStepIndex(stepIndex + 1)
         } else {
           onComplete()
         }
       } else if (e.key === 'Escape') {
         onSkip()
+      } else if (e.key === 'ArrowRight') {
+        if (stepIndex < steps.length - 1) {
+          setStepIndex(stepIndex + 1)
+        }
+      } else if (e.key === 'ArrowLeft') {
+        if (stepIndex > 0) {
+          setStepIndex(stepIndex - 1)
+        }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [active, stepIndex, onComplete, onSkip])
+  }, [active, stepIndex, steps.length, onComplete, onSkip])
 
   if (!active) return null
 
@@ -244,29 +351,52 @@ export function TutorialOverlay({
           {currentStep.content[language]}
         </div>
         
+        {/* Навигация: счётчик, стрелки назад/вперёд, пропуск. */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
           <div style={{ fontSize: 11, color: 'var(--ev-c-text-3)' }}>
-            {language === 'ru' ? 'Esc - пропустить' : 'Esc to skip'}
+            {language === 'ru' ? 'Esc — пропустить' : 'Esc to skip'}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-             <div style={{ fontSize: 11, color: 'var(--ev-c-text-3)', alignSelf: 'center' }}>
-                {stepIndex + 1} / {STEPS.length}
-             </div>
-             <button 
-                className="runtimeButton"
-                onClick={() => {
-                  if (stepIndex < STEPS.length - 1) {
-                    setStepIndex(stepIndex + 1)
-                  } else {
-                    onComplete()
-                  }
-                }}
-                style={{ backgroundColor: 'var(--accent-default)', color: 'white', border: 'none' }}
-             >
-                {stepIndex < STEPS.length - 1 
-                  ? (language === 'ru' ? 'Далее (Enter)' : 'Next (Enter)')
-                  : (language === 'ru' ? 'Завершить' : 'Finish')}
-             </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Кнопка «Назад» (неактивна на первом шаге). */}
+            <button
+              className="runtimeButton"
+              disabled={stepIndex <= 0}
+              onClick={() => {
+                if (stepIndex > 0) setStepIndex(stepIndex - 1)
+              }}
+              style={{
+                backgroundColor: 'transparent',
+                color: 'var(--ev-c-text-2)',
+                border: '1px solid var(--ev-c-gray-3)',
+                opacity: stepIndex <= 0 ? 0.4 : 1,
+                cursor: stepIndex <= 0 ? 'not-allowed' : 'pointer'
+              }}
+              title={language === 'ru' ? 'Назад (←)' : 'Previous (←)'}
+            >
+              ←
+            </button>
+
+            {/* Счётчик шагов. */}
+            <div style={{ fontSize: 11, color: 'var(--ev-c-text-3)', userSelect: 'none' }}>
+              {stepIndex + 1} / {steps.length}
+            </div>
+
+            {/* Кнопка «Вперёд / Завершить». */}
+            <button
+              className="runtimeButton"
+              onClick={() => {
+                if (stepIndex < steps.length - 1) {
+                  setStepIndex(stepIndex + 1)
+                } else {
+                  onComplete()
+                }
+              }}
+              style={{ backgroundColor: 'var(--accent-default)', color: 'white', border: 'none' }}
+            >
+              {stepIndex < steps.length - 1
+                ? (language === 'ru' ? 'Далее (→)' : 'Next (→)')
+                : (language === 'ru' ? 'Завершить' : 'Finish')}
+            </button>
           </div>
         </div>
       </div>
