@@ -3,9 +3,12 @@
 // Возвращает массив предупреждений/ошибок, которые показываются в панели Logs.
 
 import type { RuntimeState, RuntimeNode, RuntimeEdge } from './runtimeTypes'
+import { createTranslator, SupportedLanguage } from '../i18n/index'
 
 // Контекст ресурсов проекта для расширенной валидации.
 export type ValidationContext = {
+  // Язык интерфейса ('en' | 'ru').
+  language?: SupportedLanguage
   // Список объектов из .yyp (для проверки actor_create.key, target и т.д.).
   objects?: string[]
   // Список спрайтов из .yyp.
@@ -85,6 +88,9 @@ export function validateGraph(
   const entries: ValidationEntry[] = []
   const { nodes, edges } = state
 
+  // Создаём локализатор на основе языка из контекста (по умолчанию en).
+  const t = createTranslator(context?.language ?? 'en')
+
   // --- 0. Проверяем имена нод (name) ---
   // Имя — это то, что видит пользователь на ноде и в списке.
   // Мы разрешаем дубликаты, но показываем предупреждение, потому что это путает.
@@ -96,7 +102,7 @@ export function validateGraph(
       entries.push({
         severity: 'tip',
         nodeId: n.id,
-        message: `Node ${n.id} (${n.type}) has no name. Double-click the node to set one.`
+        message: t('validation.nodeNoName', { id: n.id, type: n.type })
       })
       continue
     }
@@ -112,7 +118,7 @@ export function validateGraph(
       entries.push({
         severity: 'tip',
         nodeId: id,
-        message: `Name "${name}" is used by ${ids.length} nodes. Rename to avoid confusion.`
+        message: t('validation.duplicateName', { name, count: ids.length })
       })
     }
   }
@@ -122,16 +128,16 @@ export function validateGraph(
   const endNodes = nodes.filter((n) => n.type === 'end')
 
   if (startNodes.length === 0) {
-    entries.push({ severity: 'error', message: 'Missing start node. Add a start node to define the entry point.' })
+    entries.push({ severity: 'error', message: t('validation.missingStartNode') })
   }
   if (startNodes.length > 1) {
     entries.push({
       severity: 'error',
-        message: `Only one start node allowed. Remove ${startNodes.length - 1} extra start node(s).`
+        message: t('validation.tooManyStartNodes', { count: startNodes.length - 1 })
     })
   }
   if (endNodes.length === 0) {
-    entries.push({ severity: 'error', message: 'Missing end node. Add an end node to mark the cutscene completion.' })
+    entries.push({ severity: 'error', message: t('validation.missingEndNode') })
   }
 
   // --- 2. Карты для быстрого доступа ---
@@ -161,7 +167,7 @@ export function validateGraph(
       entries.push({
         severity: 'warn',
         nodeId: id,
-        message: `Marker name "${name}" is used by ${ids.length} nodes. jump targets will be ambiguous.`
+        message: t('validation.duplicateMarkerName', { name, count: ids.length })
       })
     }
   }
@@ -188,7 +194,7 @@ export function validateGraph(
       entries.push({
         severity: 'warn',
         nodeId: node.id,
-        message: `Start node has incoming connections. Remove them — start must be the entry point.`
+        message: t('validation.startIncomingConnections')
       })
     }
 
@@ -197,7 +203,7 @@ export function validateGraph(
       entries.push({
         severity: 'error',
         nodeId: node.id,
-        message: `Start node has no outgoing connection. Link it to the first action.`
+        message: t('validation.startNoOutgoing')
       })
     }
 
@@ -206,25 +212,25 @@ export function validateGraph(
       entries.push({
         severity: 'warn',
         nodeId: node.id,
-        message: `End node has outgoing connections. Remove them — end must be the final step.`
+        message: t('validation.endOutgoingConnections')
       })
     }
 
     // Висящая нода: нет ни входящих, ни исходящих (кроме start/end).
-    const nodeDisplayName = node.name && node.name.length > 0 ? `"${node.name}"` : `Нода (${node.type})`
+    const nodeDisplayName = node.name && node.name.length > 0 ? `"${node.name}"` : t('validation.unnamedNode', { type: node.type })
     if (node.type !== 'start' && node.type !== 'end' && node.type !== 'parallel_join') {
       if (incoming.length === 0 && outgoing.length === 0) {
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `${nodeDisplayName} is isolated. Connect it or delete if unused.`
+          message: t('validation.nodeIsolated', { name: nodeDisplayName })
         })
       } else if (incoming.length === 0 && node.type !== 'parallel_start') {
         // Нода без входящих — до неё нельзя добраться от start.
         entries.push({
           severity: 'warn',
           nodeId: node.id,
-          message: `${nodeDisplayName} is unreachable from start. Check connections.`
+          message: t('validation.nodeUnreachable', { name: nodeDisplayName })
         })
       }
     }
@@ -241,7 +247,7 @@ export function validateGraph(
       entries.push({
         severity: 'warn',
         nodeId: node.id,
-        message: `${nodeDisplayName} has multiple outputs. Only branch and parallel_start support this.`
+        message: t('validation.nodeMultipleOutputs', { name: nodeDisplayName })
       })
     }
 
