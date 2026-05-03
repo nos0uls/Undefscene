@@ -95,17 +95,13 @@ type FlowCanvasProps = {
 
   // Коллбек: двойной клик по ребру — выбрать и сфокусировать wait input.
   onEdgeDoubleClick?: (edgeId: string) => void
-
-  // Счётчик-запрос на fit view.
-  // Когда число меняется, холст делает fitView один раз.
-  fitViewRequestId?: number
 }
 
 // Компонент для фона: размер точек масштабируется вместе с зумом холста.
 // Обёрнут в memo, чтобы не ререндериться при несвязанных изменениях preferences.
 const ScaledBackground = memo(function ScaledBackground() {
   const zoom = useStore((s) => s.transform[2])
-  const prefs = usePreferencesContext()
+  const { preferences: prefs } = usePreferencesContext()
   return <Background color="#262b2f" gap={prefs.gridSize} size={Math.max(1, zoom * 1.5)} />
 })
 
@@ -145,7 +141,7 @@ const ZoomLODController = memo(function ZoomLODController(): null {
 })
 
 // Внутренний компонент холста (нужен useReactFlow, который работает только внутри ReactFlowProvider).
-const FlowCanvasInner = ({
+const FlowCanvasInner = memo(function FlowCanvasInner({
   runtimeNodes,
   runtimeEdges,
   selectedNodeId,
@@ -162,15 +158,15 @@ const FlowCanvasInner = ({
   onPaneClickCreate,
   onPaneDropCreate,
   onEdgeDelete,
-  onEdgeDoubleClick,
-  fitViewRequestId = 0
-}: FlowCanvasProps): React.JSX.Element => {
+  onEdgeDoubleClick
+}: FlowCanvasProps): React.JSX.Element {
   // Нужен для конвертации экранных координат в координаты холста.
   const { screenToFlowPosition, getNodes, getViewport, setViewport, fitView } = useReactFlow()
 
   // Читаем только те настройки, которые реально нужны холсту.
   // Деструктуризация не предотвращает ререндер при смене других полей,
   // но готовит почву для дальнейшей изоляции через refs / вынесение в sub-components.
+  const { preferences, updatePreferences: updatePreferencesFromContext } = usePreferencesContext()
   const {
     zoomSpeed,
     parallelBranchPortMode,
@@ -182,7 +178,7 @@ const FlowCanvasInner = ({
     canvasBackgroundAttachment,
     canvasBackgroundMode,
     canvasBackgroundOpacity
-  } = usePreferencesContext()
+  } = preferences
 
   // Ref для zoomSpeed, чтобы handleWheel не пересоздавался при смене preferences.
   const zoomSpeedRef = useRef(zoomSpeed)
@@ -207,12 +203,20 @@ const FlowCanvasInner = ({
       .readCanvasBackgroundDataUrl(requestedPath)
       .then((dataUrl) => {
         if (cancelled) return
-        setCanvasBackgroundUrl(typeof dataUrl === 'string' ? dataUrl : null)
+        if (typeof dataUrl === 'string') {
+          setCanvasBackgroundUrl(dataUrl)
+        } else {
+          setCanvasBackgroundUrl(null)
+          // Файл фона удалён или повреждён — сбрасываем путь в настройках.
+          updatePreferencesFromContext({ canvasBackgroundPath: null })
+        }
       })
       .catch((err) => {
         if (cancelled) return
         console.warn('Failed to load canvas background image:', err)
         setCanvasBackgroundUrl(null)
+        // При ошибке чтения тоже сбрасываем путь, чтобы UI не показывал "битый" фон.
+        updatePreferencesFromContext({ canvasBackgroundPath: null })
       })
 
     return () => {
@@ -1016,11 +1020,34 @@ const FlowCanvasInner = ({
     }
   }, [handleWheel])
 
-  // Внешний hotkey может попросить аккуратно уместить граф в viewport.
+  // Обрабатываем Space прямо внутри холста: вызываем fitView без подъёма
+  // запроса через state/props. Это предотвращает ре-рендер EditorShell
+  // при каждом нажатии Space на большом графе.
   useEffect(() => {
-    if (fitViewRequestId <= 0) return
-    void fitView({ duration: 180, padding: 0.18 })
-  }, [fitView, fitViewRequestId])
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== 'Space') return
+      if (event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return
+
+      // Не перехватываем Space если фокус в поле ввода.
+      const target = event.target as HTMLElement | null
+      if (!target) return
+      const tag = target.tagName
+      if (tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (tag === 'INPUT') {
+        const inputType = (target as HTMLInputElement).type?.toLowerCase()
+        if (!['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(inputType)) {
+          return
+        }
+      }
+      if (target.closest('[contenteditable="true"]')) return
+
+      event.preventDefault()
+      void fitView({ duration: 0, padding: 0.18 })
+    }
+
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [fitView])
 
   // Initial fitView после первого монтирования: раньше это делал boolean prop
   // `fitView` на <ReactFlow>, но он мог перестреливать на смену nodes-массива.
@@ -1115,10 +1142,8 @@ const FlowCanvasInner = ({
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
-        // Initial fitView делаем сами через fitViewRequestId после монтирования,
-        // чтобы xyflow не держал внутренний эффект, который может заново триггериться
-        // при смене nodes-массива в ранних версиях библиотеки.
-        // Убираем водяной знак React Flow.
+        // Initial fitView делаем через rAF после монтирования, чтобы xyflow успел
+        // замерить ноды и посчитать bounds. Убираем водяной знак React Flow.
         proOptions={RF_PRO_OPTIONS}
         // Панорамирование холста — только ПКМ (кнопка 2).
         panOnDrag={RF_PAN_ON_DRAG}
@@ -1185,7 +1210,7 @@ const FlowCanvasInner = ({
       </ReactFlow>
     </div>
   )
-}
+})
 
 // Обёртка: useReactFlow работает только внутри ReactFlowProvider.
 // Поэтому экспортируем FlowCanvas, который оборачивает FlowCanvasInner.
