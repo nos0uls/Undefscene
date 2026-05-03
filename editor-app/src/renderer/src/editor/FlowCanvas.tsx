@@ -1196,6 +1196,12 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         {showMiniMap ? (
           <MiniMap
             nodeColor="#7ea4ff"
+            nodeStrokeColor="#4a6fcb"
+            nodeBorderRadius={2}
+            nodeStrokeWidth={1}
+            maskColor="rgba(0, 0, 0, 0.5)"
+            maskStrokeColor="rgba(126, 164, 255, 0.35)"
+            maskStrokeWidth={1}
             style={RF_MINIMAP_STYLE}
           />
         ) : null}
