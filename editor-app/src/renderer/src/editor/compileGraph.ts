@@ -4,6 +4,14 @@
 
 import type { RuntimeEdge, RuntimeNode, RuntimeState } from './runtimeTypes'
 
+// Локальный тип translator — точно соответствует createTranslator,
+// чтобы не тянуть зависимость и избежать mismatch при strictFunctionTypes.
+export type Translator = (
+  key: string,
+  fallbackOrParams?: string | Record<string, string | number | undefined>,
+  maybeFallback?: string
+) => string
+
 // Тип одного действия в экспортированном JSON.
 export type CompiledAction = {
   type: string
@@ -25,19 +33,21 @@ export type ExportedCutscene = {
 
 // Компилируем граф в плоский массив actions[].
 // Алгоритм: DFS от start-ноды, следуя по рёбрам.
-export function compileGraph(state: RuntimeState): CompileResult {
+export function compileGraph(state: RuntimeState, t?: Translator): CompileResult {
+  // Если translator не передан — fallback на оригинальный английский текст.
+  const _t: Translator = t ?? ((key, fallbackOrParams, _maybeFallback) => (typeof fallbackOrParams === 'string' ? fallbackOrParams : key))
   const { nodes, edges } = state
 
   // Ищем стартовую ноду.
   const startNode = nodes.find((n) => n.type === 'start')
   if (!startNode) {
-    return { ok: false, error: 'No "start" node found in the graph.' }
+    return { ok: false, error: _t('compileGraph.noStartNode', 'No "start" node found in the graph.') }
   }
 
   // Проверяем, что есть хотя бы одна end-нода.
   const hasEnd = nodes.some((n) => n.type === 'end')
   if (!hasEnd) {
-    return { ok: false, error: 'No "end" node found in the graph.' }
+    return { ok: false, error: _t('compileGraph.noEndNode', 'No "end" node found in the graph.') }
   }
 
   // Карта нод по ID для быстрого доступа.
@@ -112,13 +122,13 @@ export function compileGraph(state: RuntimeState): CompileResult {
   function walkFrom(nodeId: string): CompileResult {
     // Защита от циклов.
     if (visited.has(nodeId)) {
-      return { ok: false, error: `Cycle detected at node "${nodeId}". Cycles are not allowed.` }
+      return { ok: false, error: _t('compileGraph.cycleDetected', { nodeId }, 'Cycle detected at node "{nodeId}". Cycles are not allowed.') }
     }
     visited.add(nodeId)
 
     const node = nodeMap.get(nodeId)
     if (!node) {
-      return { ok: false, error: `Node "${nodeId}" not found.` }
+      return { ok: false, error: _t('compileGraph.nodeNotFound', { nodeId }, 'Node "{nodeId}" not found.') }
     }
 
     const actions: CompiledAction[] = []
@@ -222,7 +232,7 @@ export function compileGraph(state: RuntimeState): CompileResult {
     // Несколько исходящих рёбер — ошибка (кроме parallel/branch, которые обрабатываются отдельно).
     return {
       ok: false,
-      error: `Node "${nodeId}" has ${regularOuts.length} outgoing edges. Only parallel_start and branch can have multiple outputs.`
+      error: _t('compileGraph.tooManyOutputs', { nodeId, count: regularOuts.length }, 'Node "{nodeId}" has {count} outgoing edges. Only parallel_start and branch can have multiple outputs.')
     }
   }
 
@@ -310,13 +320,13 @@ export function compileGraph(state: RuntimeState): CompileResult {
     }
 
     if (visited.has(nodeId)) {
-      return { ok: false, error: `Cycle detected at node "${nodeId}" inside parallel branch.` }
+      return { ok: false, error: _t('compileGraph.cycleInParallel', { nodeId }, 'Cycle detected at node "{nodeId}" inside parallel branch.') }
     }
     visited.add(nodeId)
 
     const node = nodeMap.get(nodeId)
     if (!node) {
-      return { ok: false, error: `Node "${nodeId}" not found in parallel branch.` }
+      return { ok: false, error: _t('compileGraph.nodeNotFoundInParallel', { nodeId }, 'Node "{nodeId}" not found in parallel branch.') }
     }
 
     const actions: CompiledAction[] = []
@@ -344,14 +354,14 @@ export function compileGraph(state: RuntimeState): CompileResult {
     if (outs.length === 0) {
       return {
         ok: false,
-        error: `Parallel branch reached dead-end at node "${nodeId}" before join "${stopNodeId}".`
+        error: _t('compileGraph.parallelDeadEnd', { nodeId, stopNodeId }, 'Parallel branch reached dead-end at node "{nodeId}" before join "{stopNodeId}".')
       }
     }
 
     if (outs.length > 1) {
       return {
         ok: false,
-        error: `Parallel branch has a split at node "${nodeId}" (${outs.length} outgoing edges). Branches must be linear.`
+        error: _t('compileGraph.parallelSplit', { nodeId, count: outs.length }, 'Parallel branch has a split at node "{nodeId}" ({count} outgoing edges). Branches must be linear.')
       }
     }
 

@@ -63,7 +63,7 @@ export function AboutModal({
     >
       <div className="prefsModal">
         <div className="prefsHeader">
-          <span className="prefsTitle">{t('app.about', 'About')} Undefscene Editor</span>
+          <span className="prefsTitle">{t('app.about', 'About')} {t('app.appName', 'Undefscene Editor')}</span>
           <button className="prefsCloseBtn" type="button" onClick={onClose}>
             ✕
           </button>
@@ -71,11 +71,9 @@ export function AboutModal({
 
         <div className="prefsBody">
           <div className="prefsSection">
-            <div className="prefsSectionTitle">Application</div>
+            <div className="prefsSectionTitle">{t('app.aboutApplication', 'Application')}</div>
             <div className="prefsHint" style={{ fontStyle: 'normal' }}>
-              {language === 'ru'
-                ? 'Редактор катсцен для GameMaker.'
-                : 'Cutscene editor for GameMaker.'}
+              {t('app.aboutDescription', 'Cutscene editor for GameMaker.')}
             </div>
             <div className="prefsField">
               <span>{t('app.version', 'Version')}</span>
@@ -84,15 +82,13 @@ export function AboutModal({
           </div>
 
           <div className="prefsSection">
-            <div className="prefsSectionTitle">Documentation</div>
+            <div className="prefsSectionTitle">{t('app.aboutDocumentation', 'Documentation')}</div>
             <div className="prefsHint" style={{ fontStyle: 'normal' }}>
-              {language === 'ru'
-                ? 'Руководство по редактору.'
-                : 'Editor guide.'}
+              {t('app.aboutDocsDescription', 'Editor guide.')}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="runtimeButton" type="button" onClick={onOpenDocs}>
-                {language === 'ru' ? 'Открыть документацию' : 'Open Documentation'}
+                {t('app.openDocumentation', 'Open Documentation')}
               </button>
               <button className="runtimeButton" type="button" onClick={onClose}>
                 {t('app.close', 'Close')}

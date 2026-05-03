@@ -77,7 +77,13 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   spin: ['target'],
   shake_object: ['target'],
   set_visible: ['target'],
-  mark_node: ['name']
+  instant_mode: ['enabled'],
+  mark_node: ['name'],
+  partial_control: [],
+  wait_for_interact: ['target'],
+  set_flag: ['key'],
+  spawn_entity: ['object', 'x', 'y'],
+  destroy_entity: ['target']
 }
 
 // Главная функция валидации. Принимает текущее состояние графа и опциональный контекст ресурсов.

@@ -18,6 +18,8 @@ type DockingLayoutProps = React.PropsWithChildren<{
   centerContent: React.ReactNode
   isProjectLoading?: boolean
   loadingText?: string
+  // Показывать ли предпросмотр при перетаскивании панелей в доки.
+  showDockDropPreview?: boolean
 }>
 
 function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
@@ -31,6 +33,7 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
     centerContent,
     isProjectLoading,
     loadingText,
+    showDockDropPreview,
     children
   } = props
 
@@ -42,7 +45,7 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
     togglePanelCollapse,
     getVerticalDockRenderState,
     getDockedPanelStyle
-  } = useDocking({ getPanelTitle, showDockDropPreview: true })
+  } = useDocking({ getPanelTitle, showDockDropPreview: showDockDropPreview ?? true })
 
   const [activeBottomTabId, setActiveBottomTabId] = useState<string | null>(null)
 

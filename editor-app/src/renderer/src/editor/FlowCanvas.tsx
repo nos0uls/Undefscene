@@ -9,8 +9,6 @@ import {
   Position,
   SelectionMode,
   addEdge,
-  useEdgesState,
-  useNodesState,
   useReactFlow,
   useStore,
   type Connection,
@@ -24,10 +22,14 @@ import { Plus } from 'lucide-react'
 import type { RuntimeEdge, RuntimeNode } from './runtimeTypes'
 import { cutsceneNodeTypes } from './nodes'
 import { usePreferencesContext } from './PreferencesContext'
+import { NodeActionsProvider } from './NodeActionsContext'
 
 // Собственный MIME-type для drag-and-drop из палитры нод.
 // Он позволяет не путать наши payload'ы с обычным text/plain drag из браузера.
 const NODE_PALETTE_DRAG_MIME = 'application/x-undefscene-node-type'
+
+// Singleton для нод без параметров — избегаем O(N) allocations при каждом rebuild initialNodes.
+const EMPTY_PARAMS: Record<string, unknown> = {}
 
 // Стабильные ссылки для ReactFlow-пропсов: если передавать объекты/массивы
 // литералами прямо в JSX, они получают новую identity каждый render. xyflow
@@ -368,18 +370,10 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         // Метка для отображения в ноде.
         label: node.name && node.name.length > 0 ? node.name : node.type,
         // Параметры ноды (для кастомных компонентов).
-        params: node.params ?? {},
-        // Коллбек для parallel — не сохраняем в runtime.json, это чисто UI.
-        onAddParallelBranch: onParallelAddBranch,
-        onRemoveParallelBranch: onParallelRemoveBranch,
-        parallelBranchPortMode: parallelBranchPortMode,
-        // Canvas-настройки, которые нужны нодам — передаём через data,
-        // чтобы каждая нода не подписывалась на PreferencesContext.
-        showNodeNameOnCanvas: showNodeNameOnCanvas,
-        liquidGlassEnabled: liquidGlassEnabled
+        params: node.params || EMPTY_PARAMS
       }
     }))
-  }, [runtimeNodes, onParallelAddBranch, onParallelRemoveBranch, parallelBranchPortMode, showNodeNameOnCanvas, liquidGlassEnabled])
+  }, [runtimeNodes])
 
   // Строим связи React Flow из runtime-данных.
   // Аналогично нодам — без selected, чтобы не создавать петлю.
@@ -408,10 +402,12 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
     })
   }, [runtimeEdges])
 
-  // Локальное состояние узлов React Flow.
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
-  // Локальное состояние связей между узлами.
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
+  // Локальное состояние React Flow.
+  // Мы используем Uncontrolled Mode (без controlled props nodes/edges),
+  // чтобы React Flow сам супер-быстро обновлял узлы при мультидраге через Zustand,
+  // не вызывая дорогой re-render всего компонента FlowCanvasInner 60 раз в секунду.
+  // Для внешних апдейтов (undo/redo) мы всё равно можем вызывать setNodes/setEdges.
+  const { setNodes, setEdges } = useReactFlow()
 
   // Синхронизируем данные нод (без выделения) когда runtime меняется.
   useEffect(() => {
@@ -644,7 +640,8 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   // его новые координаты (X и Y) в наше основное состояние (runtime).
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      onNodesChange(changes)
+      // В Uncontrolled Mode React Flow САМ применяет изменения к своим нодам.
+      // Наша задача — только поймать конец drag и сохранить финальные позиции в runtime.
 
       // Если закончили drag хотя бы одной ноды — сохраняем позиции всех выделенных.
       const didStopDragging = changes.some((c) => c.type === 'position' && c.dragging === false)
@@ -711,7 +708,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         positionCallbackRef.current(singleBatch)
       }
     },
-    [getNodes, onNodesChange]
+    [getNodes]
   )
 
   // При соединении нод — создаём ребро и сообщаем runtime.
@@ -740,16 +737,16 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
 
   // При удалении рёбер — сообщаем runtime.
   const handleEdgesChange = useCallback(
-    (changes: Parameters<typeof onEdgesChange>[0]) => {
-      onEdgesChange(changes)
-
+    (changes: Parameters<NonNullable<React.ComponentProps<typeof ReactFlow>['onEdgesChange']>>[0]) => {
+      // В Uncontrolled Mode React Flow САМ удаляет ребро визуально.
+      // Нам остаётся только уведомить runtimeState.
       for (const change of changes) {
         if (change.type === 'remove') {
           onEdgeRemoveRef.current(change.id)
         }
       }
     },
-    [onEdgesChange]
+    []
   )
 
   // ПКМ по ноде — удаляем её и все связанные рёбра.
@@ -1042,7 +1039,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
       if (target.closest('[contenteditable="true"]')) return
 
       event.preventDefault()
-      void fitView({ duration: 0, padding: 0.18 })
+      void fitView({ duration: 180, padding: 0.18 })
     }
 
     window.addEventListener('keydown', handleKeyDown, true)
@@ -1089,7 +1086,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   return (
     <div
       ref={flowCanvasRef}
-      className="flowCanvas"
+      className={`flowCanvas${showNodeNameOnCanvas ? ' show-node-labels' : ''}${liquidGlassEnabled ? ' liquid-glass-enabled' : ''}`}
       // Запрещаем стандартное контекстное меню браузера на холсте.
       onContextMenu={(e) => e.preventDefault()}
       // MMB по пустому месту — создаём ноду.
@@ -1135,13 +1132,14 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
           }}
         />
       ) : null}
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={cutsceneNodeTypes as NodeTypes}
-        onNodesChange={handleNodesChange}
-        onEdgesChange={handleEdgesChange}
-        onConnect={onConnect}
+      <NodeActionsProvider addBranch={onParallelAddBranch} removeBranch={onParallelRemoveBranch}>
+        <ReactFlow
+          defaultNodes={initialNodes}
+          defaultEdges={initialEdges}
+          nodeTypes={cutsceneNodeTypes as NodeTypes}
+          onNodesChange={handleNodesChange}
+          onEdgesChange={handleEdgesChange}
+          onConnect={onConnect}
         // Initial fitView делаем через rAF после монтирования, чтобы xyflow успел
         // замерить ноды и посчитать bounds. Убираем водяной знак React Flow.
         proOptions={RF_PRO_OPTIONS}
@@ -1158,9 +1156,9 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         // Настройки зума: увеличенный диапазон.
         minZoom={0.1}
         maxZoom={4}
-        // Включаем встроенный visible-elements рендер,
-        // чтобы React Flow не держал полный визуальный DOM для далёких off-screen нод без нужды.
-        onlyRenderVisibleElements
+        // Держим ноды смонтированными во время pan/fitView.
+        // Встроенная visible-elements виртуализация пересчитывала видимость на каждом движении viewport
+        // и могла давать дорогой mount/unmount + paint spike на больших графах.
         // Отключаем встроенный wheel zoom, чтобы не было конфликта с нашим handler.
         zoomOnScroll={false}
         // ПКМ по ноде — удаляем.
@@ -1176,6 +1174,9 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         // Дополнительно защищаемся от бесконечного цикла: не вызываем onSelectNodes,
         // если фактическое выделение не изменилось относительно пропсов.
         onSelectionChange={handleSelectionChange}
+        // Отключаем встроенное удаление, потому что мы обрабатываем Backspace/Delete глобально
+        // в useEditorShortcuts и удаляем элементы из runtime state (Single Source of Truth).
+        deleteKeyCode={null}
         style={RF_STYLE}
       >
         {/* Размер сетки теперь реально читается из Preferences,
@@ -1207,7 +1208,8 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
             <Plus size={18} strokeWidth={2.5} />
           </button>
         </Panel>
-      </ReactFlow>
+        </ReactFlow>
+      </NodeActionsProvider>
     </div>
   )
 })

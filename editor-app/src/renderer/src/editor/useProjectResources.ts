@@ -37,32 +37,34 @@ export const useProjectResources = (): {
   isLoading: boolean
   openProject: () => Promise<void>
 } => {
-  const [resources, setResources] = useState<ProjectResources | null>(null)
-  const [engineSettings, setEngineSettings] = useState<EngineSettings | null>(null)
-  const [yarnFiles, setYarnFiles] = useState<YarnFileInfo[]>([])
+  const [sideData, setSideData] = useState<{
+    resources: ProjectResources | null
+    engineSettings: EngineSettings | null
+    yarnFiles: YarnFileInfo[]
+  }>({ resources: null, engineSettings: null, yarnFiles: [] })
   const [isLoading, setIsLoading] = useState(false)
 
   // Загружаем связанные данные проекта после успешного открытия/восстановления.
-  // Держим это в отдельной функции, чтобы не дублировать логику для open и restore.
+  // Обновляем ВСЕ поля одним setState — React 18 batch-ит в один re-render.
   const loadProjectSideData = useCallback(async (res: ProjectResources): Promise<void> => {
-    setResources(res)
+    let nextEngine: EngineSettings | null = null
+    let nextYarn: YarnFileInfo[] = []
 
     // Пытаемся загрузить настройки движка из проекта.
     try {
-      const settings = (await window.api.settings.readEngine(res.projectDir)) as EngineSettings
-      setEngineSettings(settings)
+      nextEngine = (await window.api.settings.readEngine(res.projectDir)) as EngineSettings
     } catch {
-      // Если не удалось — не страшно, работаем без whitelists.
-      setEngineSettings(null)
+      nextEngine = null
     }
 
     // Сканируем .yarn файлы для autocomplete в dialogue нодах.
     try {
-      const yarn = (await window.api.yarn.scan(res.projectDir)) as YarnFileInfo[]
-      setYarnFiles(yarn)
+      nextYarn = (await window.api.yarn.scan(res.projectDir)) as YarnFileInfo[]
     } catch {
-      setYarnFiles([])
+      nextYarn = []
     }
+
+    setSideData({ resources: res, engineSettings: nextEngine, yarnFiles: nextYarn })
   }, [])
 
   // Открываем .yyp через IPC и сохраняем ресурсы в состояние.
@@ -116,5 +118,11 @@ export const useProjectResources = (): {
     }
   }, [loadProjectSideData])
 
-  return { resources, engineSettings, yarnFiles, isLoading, openProject }
+  return {
+    resources: sideData.resources,
+    engineSettings: sideData.engineSettings,
+    yarnFiles: sideData.yarnFiles,
+    isLoading,
+    openProject
+  }
 }

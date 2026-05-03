@@ -44,7 +44,7 @@ const STORAGE_KEY = 'undefscene-theme'
 const DEFAULT_THEME: ThemeId = 'dark'
 
 // Проверяет, является ли значение валидным ThemeId.
-function isValidTheme(value: unknown): value is ThemeId {
+export function isValidTheme(value: unknown): value is ThemeId {
   return typeof value === 'string' && THEMES.some((t) => t.id === value)
 }
 
@@ -71,7 +71,7 @@ function storeTheme(theme: ThemeId): void {
 }
 
 // Применяет тему к document.documentElement.
-function applyTheme(theme: ThemeId): void {
+export function applyTheme(theme: ThemeId): void {
   document.documentElement.setAttribute('data-theme', theme)
 }
 

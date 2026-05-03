@@ -316,19 +316,27 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     }
   }, [resources?.projectDir, runtime.nodes, runtime.selectedNodeId])
 
-  const validation: ValidationResult = useMemo(
-    () =>
-      validateGraph(
-        {
-          ...runtime,
-          selectedNodeId: null,
-          selectedNodeIds: [],
-          selectedEdgeId: null
-        },
-        validationContext
-      ),
-    [runtime.schemaVersion, runtime.title, runtime.nodes, runtime.edges, validationContext]
-  )
+  const [validation, setValidation] = useState<ValidationResult>({ entries: [], hasErrors: false })
+
+  // Валидация графа — дорогая операция на больших графах.
+  // Откладываем её на следующий macrotask через setTimeout(0),
+  // чтобы drag-stop и другие UI-апдейты не блокировались.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setValidation(
+        validateGraph(
+          {
+            ...runtime,
+            selectedNodeId: null,
+            selectedNodeIds: [],
+            selectedEdgeId: null
+          },
+          validationContext
+        )
+      )
+    }, 0)
+    return () => clearTimeout(id)
+  }, [runtime.schemaVersion, runtime.title, runtime.nodes, runtime.edges, validationContext])
 
   const shouldFocusEdgeWaitRef = useRef(false)
 
@@ -554,24 +562,9 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
   }, [nameConflictModal])
 
   // --- Memoized heavy panel computations ---
-  // JSON.stringify(runtime) может занимать десятки мс на больших графах.
-  // Мемоизируем и исключаем editor-only поля (selectedNodeId, selectedNodeIds, selectedEdgeId),
-  // которые меняются при каждом клике и вызывают бессмысленную пересериализацию.
-  const runtimeJsonString = useMemo(
-    () =>
-      JSON.stringify(
-        {
-          schemaVersion: runtime.schemaVersion,
-          title: runtime.title,
-          nodes: runtime.nodes,
-          edges: runtime.edges,
-          lastSavedAtMs: runtime.lastSavedAtMs
-        },
-        null,
-        2
-      ),
-    [runtime.schemaVersion, runtime.title, runtime.nodes, runtime.edges, runtime.lastSavedAtMs]
-  )
+  // runtimeJsonString убран из EditorShell — теперь JSON.stringify
+  // делается лениво внутри RuntimeJsonPanel (через PanelDataContext),
+  // чтобы не тратить десятки мс на больших графах, если JSON панель не открыта.
 
   // Парсинг Yarn preview — не пересчитываем на каждый рендер.
   const yarnPreviewNodes = useMemo(
@@ -579,19 +572,33 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     [yarnPreviewContent]
   )
 
-  // Логи: фильтрация validation.entries O(N).
-  // Разбиваем на категории и visible entries один раз.
+  // Логи: один проход по validation.entries вместо 4-6 отдельных .filter().
+  // Считаем counts, собираем visible entries и категории за O(N).
   const logsData = useMemo(() => {
-    const errorEntries = validation.entries.filter((e) => e.severity === 'error')
-    const warnEntries = validation.entries.filter((e) => e.severity === 'warn')
-    const tipEntries = validation.entries.filter((e) => e.severity === 'tip')
+    let errorCount = 0
+    let warnCount = 0
+    let tipCount = 0
+    const errorEntries: typeof validation.entries = []
+    const warnEntries: typeof validation.entries = []
+    const tipEntries: typeof validation.entries = []
+    const visibleEntries: typeof validation.entries = []
 
-    const visibleEntries = validation.entries.filter((e) => {
-      if (e.severity === 'error') return logsFilters.errors
-      if (e.severity === 'warn') return logsFilters.warnings
-      if (e.severity === 'tip') return logsFilters.tips
-      return false
-    })
+    for (let i = 0; i < validation.entries.length; i++) {
+      const e = validation.entries[i]
+      if (e.severity === 'error') {
+        errorCount++
+        errorEntries.push(e)
+        if (logsFilters.errors) visibleEntries.push(e)
+      } else if (e.severity === 'warn') {
+        warnCount++
+        warnEntries.push(e)
+        if (logsFilters.warnings) visibleEntries.push(e)
+      } else if (e.severity === 'tip') {
+        tipCount++
+        tipEntries.push(e)
+        if (logsFilters.tips) visibleEntries.push(e)
+      }
+    }
 
     const severityStyle: Record<string, { color: string; bg: string; icon: string }> = {
       error: { color: '#e05050', bg: 'rgba(224,80,80,0.08)', icon: '\u25CF' },
@@ -603,24 +610,24 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
       {
         key: 'errors' as const,
         label: t('logs.errors', 'Errors'),
-        count: errorEntries.length,
+        count: errorCount,
         color: '#e05050'
       },
       {
         key: 'warnings' as const,
         label: t('logs.warnings', 'Warnings'),
-        count: warnEntries.length,
+        count: warnCount,
         color: '#d4a017'
       },
       {
         key: 'tips' as const,
         label: t('logs.tips', 'Tips'),
-        count: tipEntries.length,
+        count: tipCount,
         color: '#58a6ff'
       }
     ]
 
-    return { errorEntries, warnEntries, tipEntries, visibleEntries, severityStyle, toggleButtons }
+    return { errorEntries, warnEntries, tipEntries, visibleEntries, severityStyle, toggleButtons, errorCount, warnCount, tipCount }
   }, [validation.entries, logsFilters.errors, logsFilters.warnings, logsFilters.tips, preferences.language])
 
   // --- renderPanelContents ---
@@ -704,7 +711,6 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
       return (
         <RuntimeJsonPanel
           t={t}
-          runtimeJsonString={runtimeJsonString}
         />
       )
     }
@@ -749,23 +755,22 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     handleToggleLogFilter,
     handleLogsSelectNode,
     handleLogsSelectEdge,
-    runtimeJsonString,
     preferences.language
   ])
 
+  // Badge для вкладки Logs: используем counts из logsData,
+  // чтобы не фильтровать validation.entries повторно.
   const getPanelBadge = useCallback((panelId: string): React.ReactNode | null => {
     if (panelId !== 'panel.logs') return null
-    const errorCount = validation.entries.filter((e) => e.severity === 'error').length
-    const warnCount = validation.entries.filter((e) => e.severity === 'warn').length
-    const total = errorCount + warnCount
+    const total = logsData.errorCount + logsData.warnCount
     if (total === 0) return null
-    const color = errorCount > 0 ? '#e05050' : '#d4a017'
+    const color = logsData.errorCount > 0 ? '#e05050' : '#d4a017'
     return (
       <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700, color, background: 'rgba(255,255,255,0.08)', borderRadius: 3, padding: '0 3px', lineHeight: 1 }}>
         {total}
       </span>
     )
-  }, [validation.entries])
+  }, [logsData.errorCount, logsData.warnCount])
 
   // Данные панелей: передаём через PanelDataContext, чтобы панели могли
   // читать актуальное состояние без необходимости обновлять renderPanelContents.

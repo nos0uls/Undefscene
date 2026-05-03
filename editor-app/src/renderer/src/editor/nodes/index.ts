@@ -40,7 +40,12 @@ import {
   ShakeObjectNode,
   SetVisibleNode,
   InstantModeNode,
-  MarkNodeNode
+  MarkNodeNode,
+  PartialControlNode,
+  WaitInteractNode,
+  SetFlagNode,
+  SpawnEntityNode,
+  DestroyEntityNode
 } from './CutsceneNodes'
 
 // Маппинг: тип ноды → React-компонент.
@@ -86,5 +91,10 @@ export const cutsceneNodeTypes = {
   shake_object: ShakeObjectNode,
   set_visible: SetVisibleNode,
   instant_mode: InstantModeNode,
-  mark_node: MarkNodeNode
+  mark_node: MarkNodeNode,
+  partial_control: PartialControlNode,
+  wait_for_interact: WaitInteractNode,
+  set_flag: SetFlagNode,
+  spawn_entity: SpawnEntityNode,
+  destroy_entity: DestroyEntityNode
 } as const
