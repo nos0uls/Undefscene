@@ -1,7 +1,8 @@
 import { EditorShell } from './editor/EditorShell'
 import { VisualEditorWindowApp } from './editor/VisualEditorWindowApp'
-import { useTheme } from './editor/useTheme'
+import { applyTheme } from './editor/useTheme'
 import { usePreferences } from './editor/usePreferences'
+import { PreferencesProvider } from './editor/PreferencesContext'
 import { ToastProvider } from './editor/ToastHub'
 import { ConfirmProvider } from './editor/ConfirmDialog'
 import { useCallback, useEffect, useRef } from 'react'
@@ -9,11 +10,8 @@ import { useCallback, useEffect, useRef } from 'react'
 // Главный React-компонент приложения.
 // Мы держим его максимально простым: он выбирает нужную оболочку по типу окна.
 function App(): React.JSX.Element {
-  // Инициализируем тему на верхнем уровне, чтобы она применялась сразу при загрузке.
-  useTheme()
-
-  // Инициализируем настройки, чтобы вытянуть глобальный true rtx flag
-  const { preferences } = usePreferences()
+  // Инициализируем настройки, чтобы вытянуть глобальный true rtx flag и тему.
+  const { preferences, loaded: preferencesLoaded, updatePreferences } = usePreferences()
 
   // Обработка глобального масштаба интерфейса приложения.
   // Храним zoom в ref, а не в state, чтобы wheel/keyboard не триггерили
@@ -27,6 +25,13 @@ function App(): React.JSX.Element {
       window.api?.appInfo?.setZoomFactor?.(clamped)
     }
   }, [])
+
+  // Применяем тему из preferences.json (единый источник правды).
+  useEffect(() => {
+    if (preferencesLoaded) {
+      applyTheme(preferences.theme)
+    }
+  }, [preferencesLoaded, preferences.theme])
 
   useEffect(() => {
     if (preferences.liquidGlassEnabled) {
@@ -64,7 +69,7 @@ function App(): React.JSX.Element {
       }
     }
 
-    window.addEventListener('keydown', handleZoom, { passive: false })
+    window.addEventListener('keydown', handleZoom)
     window.addEventListener('wheel', handleWheel, { passive: false })
 
     return () => {
@@ -84,7 +89,9 @@ function App(): React.JSX.Element {
   return (
     <ToastProvider>
       <ConfirmProvider>
-        <EditorShell />
+        <PreferencesProvider value={{ preferences, updatePreferences }}>
+          <EditorShell />
+        </PreferencesProvider>
       </ConfirmProvider>
     </ToastProvider>
   )

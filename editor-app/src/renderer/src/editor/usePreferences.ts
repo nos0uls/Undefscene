@@ -3,6 +3,7 @@
 // Настройки сохраняются в userData и восстанавливаются при запуске.
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { type ThemeId, isValidTheme } from './useTheme'
 
 // Тип акцентного цвета: пресет или кастомный HEX.
 export type AccentColorId =
@@ -74,8 +75,8 @@ export interface EditorPreferences {
   schemaVersion: 1
 
   // --- Appearance ---
-  // Тема (сохраняется отдельно через useTheme/localStorage, но дублируем для полноты).
-  // theme хранится в localStorage через useTheme — тут не трогаем.
+  // Тема редактора (dark, dark-cyan, gray, light).
+  theme: ThemeId
 
   // Акцентный цвет: пресет или кастомный HEX.
   accentColor: AccentColorId
@@ -185,6 +186,7 @@ export interface EditorPreferences {
 // Настройки по умолчанию.
 export const DEFAULT_PREFERENCES: EditorPreferences = {
   schemaVersion: 1,
+  theme: 'dark',
   accentColor: 'purple',
   customAccentHex: '#5e6ad2',
   gridSize: 18,
@@ -227,6 +229,10 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
   // Собираем с fallback на дефолтные значения.
   return {
     schemaVersion: 1,
+    theme:
+      typeof c.theme === 'string' && isValidTheme(c.theme)
+        ? c.theme
+        : DEFAULT_PREFERENCES.theme,
     accentColor:
       typeof c.accentColor === 'string' && isValidAccentColor(c.accentColor)
         ? c.accentColor

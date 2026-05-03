@@ -51,6 +51,7 @@ export const en = {
     backgroundImage: 'Background Image',
     backgroundAttachment: 'Background Attachment',
     theme: 'Theme',
+    custom: 'Custom...',
     customHex: 'Custom HEX',
     gridSize: 'Grid Size',
     gridSizeHint: 'Changes only the visible grid step on the canvas.',
@@ -85,6 +86,11 @@ export const en = {
     shortcutCaptureHint:
       'Click the record button, then press a key combo. Delete or Backspace clears it.'
   },
+  // Welcome / onboarding
+  welcome: {
+    title: 'Welcome!',
+    description: "Let's customize Undefscene for you before we get started."
+  },
   // Main editor workspace elements
   editor: {
     yarnPreview: 'Yarn Preview',
@@ -115,6 +121,9 @@ export const en = {
     selectedEdge: 'Selected Connection',
     connections: 'Connections',
     waitOnEdge: 'Delay (sec)',
+    edgeConditionSkip: 'skip (skip branch)',
+    edgeConditionWait: 'wait until true (wait)',
+    edgeConditionNone: 'none (wait forever)',
     project: 'Project',
     noProjectLoaded: 'No project loaded.',
     sprites: 'Sprites',
