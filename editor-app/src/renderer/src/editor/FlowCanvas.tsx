@@ -39,7 +39,7 @@ const EMPTY_PARAMS: Record<string, unknown> = {}
 const RF_PRO_OPTIONS = { hideAttribution: true } as const
 const RF_PAN_ON_DRAG: number[] = [2]
 const RF_STYLE: React.CSSProperties = { background: 'transparent', position: 'relative', zIndex: 1 }
-const RF_MINIMAP_STYLE: React.CSSProperties = { cursor: 'default', pointerEvents: 'none', overflow: 'hidden' }
+const RF_MINIMAP_STYLE: React.CSSProperties = { cursor: 'default', overflow: 'hidden' }
 const RF_FAB_PANEL_STYLE: React.CSSProperties = { marginLeft: 74, marginBottom: 15 }
 
 // Пропсы для холста: узлы, связи, выбор и коллбеки для синхронизации с runtime.
@@ -427,13 +427,21 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
           prevNode.targetPosition === node.targetPosition &&
           prevNode.sourcePosition === node.sourcePosition &&
           prevNode.data?.label === node.data.label &&
-          prevNode.data?.params === node.data.params &&
-          prevNode.data?.onAddParallelBranch === node.data.onAddParallelBranch &&
-          prevNode.data?.onRemoveParallelBranch === node.data.onRemoveParallelBranch &&
-          prevNode.data?.parallelBranchPortMode === node.data.parallelBranchPortMode &&
           prevNode.selected === selected
         ) {
-          return prevNode
+          // Shallow compare для params — React Flow может клонировать data-объекты,
+          // поэтому строгое === на params ломается. Сравниваем по ключам.
+          const prevParams = prevNode.data?.params as Record<string, unknown> | undefined
+          const nextParams = node.data?.params as Record<string, unknown> | undefined
+          if (
+            (!prevParams && !nextParams) ||
+            (prevParams === nextParams) ||
+            (prevParams && nextParams &&
+              Object.keys(prevParams).length === Object.keys(nextParams).length &&
+              Object.keys(prevParams).every((k) => prevParams[k] === nextParams[k]))
+          ) {
+            return prevNode
+          }
         }
 
         changed = true
@@ -1187,12 +1195,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         <ZoomLODController />
         {showMiniMap ? (
           <MiniMap
-            zoomable={false}
-            pannable={false}
             nodeColor="#7ea4ff"
-            maskColor="transparent"
-            maskStrokeColor="transparent"
-            offsetScale={0}
             style={RF_MINIMAP_STYLE}
           />
         ) : null}
