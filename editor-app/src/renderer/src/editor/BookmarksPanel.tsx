@@ -1,19 +1,22 @@
 import React from 'react'
-import type { RuntimeNode } from './runtimeTypes'
+import { usePanelData } from './PanelDataContext'
 
 export type BookmarksPanelProps = {
-  nodes: RuntimeNode[]
-  selectedNodeId: string | null
   selectNode: (nodeId: string) => void
   t: (key: string, fallback: string) => string
 }
 
 export const BookmarksPanel = React.memo(function BookmarksPanel({
-  nodes,
-  selectedNodeId,
   selectNode,
   t
 }: BookmarksPanelProps) {
+  // Читаем актуальный список нод из контекста, а не из пропсов.
+  // Это позволяет стабилизировать renderPanelContents callback
+  // (DockingLayout не перерендеривается при drag ноды).
+  const { runtime, selectedNode } = usePanelData()
+  const nodes = runtime.nodes
+  const selectedNodeId = selectedNode?.id ?? null
+
   return (
     <div className="runtimeSection">
       <div className="runtimeSectionTitle">{t('editor.nodes', 'Nodes')}</div>

@@ -18,6 +18,11 @@ import { getAccentCssVariables, usePreferences } from './usePreferences'
 import { useHotkeys } from './useHotkeys'
 import { InspectorPanel } from './InspectorPanel'
 import { BookmarksPanel } from './BookmarksPanel'
+import { PanelDataProvider } from './PanelDataContext'
+import { ActionsPanel } from './ActionsPanel'
+import { TextPanel } from './TextPanel'
+import { LogsPanel } from './LogsPanel'
+import { RuntimeJsonPanel } from './RuntimeJsonPanel'
 import type { NameConflictModalState } from './inspectorTypes'
 import { createTranslator } from '../i18n'
 import { useNodeOperations, suggestUniqueNodeName } from './useNodeOperations'
@@ -27,49 +32,6 @@ import { useSceneIO } from './useSceneIO'
 import { DockingProvider } from './DockingContext'
 import { DockingLayout } from './DockingLayout'
 import { useDocking } from './useDocking'
-
-const NODE_PALETTE_DRAG_MIME = 'application/x-undefscene-node-type'
-
-const PALETTE_NODE_TYPES = [
-  'start',
-  'end',
-  'move',
-  'follow_path',
-  'actor_create',
-  'actor_destroy',
-  'animate',
-  'dialogue',
-  'wait_for_dialogue',
-  'camera_track',
-  'camera_track_until_stop',
-  'camera_pan',
-  'camera_pan_obj',
-  'camera_center',
-  'parallel_start',
-  'branch',
-  'run_function',
-  'set_position',
-  'set_depth',
-  'set_facing',
-  'camera_shake',
-  'auto_facing',
-  'auto_walk',
-  'tween',
-  'tween_camera',
-  'set_property',
-  'fade_in',
-  'fade_out',
-  'play_sfx',
-  'emote',
-  'jump',
-  'halt',
-  'flip',
-  'spin',
-  'shake_object',
-  'set_visible',
-  'instant_mode',
-  'mark_node'
-] as const
 
 // Внешний слой: создаёт DockingProvider, чтобы внутренний компонент
 // мог использовать useDocking() без ошибки "must be used within DockingProvider".
@@ -100,7 +62,6 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
   const { resources, engineSettings, yarnFiles, isLoading: isProjectLoading, openProject } = useProjectResources()
 
   const [sceneFilePath, setSceneFilePath] = useState<string | null>(null)
-  const [fitViewRequestId, setFitViewRequestId] = useState(0)
   const [preferencesOpen, setPreferencesOpen] = useState(false)
   const [isTutorialActive, setIsTutorialActive] = useState(false)
 
@@ -191,6 +152,59 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
       document.documentElement.style.setProperty(variableName, variableValue)
     }
   }, [preferences, preferencesLoaded])
+
+  // При смене parallelBranchPortMode переписываем handles рёбер,
+  // чтобы они соответствовали видимым портам нод (shared vs separate).
+  useEffect(() => {
+    if (!preferencesLoaded) return
+
+    const portMode = preferences.parallelBranchPortMode
+    const nodeTypes = new Map(runtime.nodes.map((n) => [n.id, n.type]))
+
+    const edgesBySource = new Map<string, typeof runtime.edges>()
+    const edgesByTarget = new Map<string, typeof runtime.edges>()
+
+    for (const edge of runtime.edges) {
+      if (nodeTypes.get(edge.source) === 'parallel_start') {
+        const list = edgesBySource.get(edge.source) ?? []
+        list.push(edge)
+        edgesBySource.set(edge.source, list)
+      }
+      if (nodeTypes.get(edge.target) === 'parallel_join') {
+        const list = edgesByTarget.get(edge.target) ?? []
+        list.push(edge)
+        edgesByTarget.set(edge.target, list)
+      }
+    }
+
+    let changed = false
+    const nextEdges = runtime.edges.map((edge) => {
+      const nextEdge = { ...edge }
+      if (nodeTypes.get(edge.source) === 'parallel_start') {
+        const list = edgesBySource.get(edge.source)!
+        const idx = list.indexOf(edge)
+        const nextHandle = portMode === 'shared' ? 'out_shared' : `out_b${idx}`
+        if (edge.sourceHandle !== nextHandle) {
+          nextEdge.sourceHandle = nextHandle
+          changed = true
+        }
+      }
+      if (nodeTypes.get(edge.target) === 'parallel_join') {
+        const list = edgesByTarget.get(edge.target)!
+        const idx = list.indexOf(edge)
+        const nextHandle = portMode === 'shared' ? 'in_shared' : `in_b${idx}`
+        if (edge.targetHandle !== nextHandle) {
+          nextEdge.targetHandle = nextHandle
+          changed = true
+        }
+      }
+      return nextEdge
+    })
+
+    if (changed) {
+      setRuntime((prev) => ({ ...prev, edges: nextEdges }))
+    }
+  }, [preferences.parallelBranchPortMode, preferencesLoaded, runtime.nodes, setRuntime])
 
   useEffect(() => {
     if (!aboutOpen) return
@@ -470,6 +484,38 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     [setRuntime]
   )
 
+  // Стабильные коллбеки для LogsPanel, чтобы memo не ломался на inline-стрелках.
+  const handleToggleLogFilter = useCallback(
+    (key: 'errors' | 'warnings' | 'tips') => {
+      setLogsFilters((prev) => ({ ...prev, [key]: !prev[key] }))
+    },
+    [setLogsFilters]
+  )
+
+  const handleLogsSelectNode = useCallback(
+    (nodeId: string) => {
+      setRuntime((prev) => ({
+        ...prev,
+        selectedNodeId: nodeId,
+        selectedNodeIds: [nodeId],
+        selectedEdgeId: null
+      }))
+    },
+    [setRuntime]
+  )
+
+  const handleLogsSelectEdge = useCallback(
+    (edgeId: string) => {
+      setRuntime((prev) => ({
+        ...prev,
+        selectedNodeId: null,
+        selectedNodeIds: [],
+        selectedEdgeId: edgeId
+      }))
+    },
+    [setRuntime]
+  )
+
   // --- Hotkeys ---
   const hotkeyHandlers = useMemo(
     () => [
@@ -477,12 +523,6 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
         actionId: 'toggle_inspector' as const,
         handler: () => togglePanel('panel.inspector')
       },
-      {
-        actionId: 'fit_view' as const,
-        handler: () => {
-          setFitViewRequestId((prev) => prev + 1)
-        }
-      }
     ],
     [togglePanel]
   )
@@ -562,19 +602,19 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     const toggleButtons = [
       {
         key: 'errors' as const,
-        label: preferences.language === 'ru' ? '\u041E\u0448\u0438\u0431\u043A\u0438' : 'Errors',
+        label: t('logs.errors', 'Errors'),
         count: errorEntries.length,
         color: '#e05050'
       },
       {
         key: 'warnings' as const,
-        label: preferences.language === 'ru' ? '\u041F\u0440\u0435\u0434\u0443\u043F\u0440\u0435\u0436\u0434\u0435\u043D\u0438\u044F' : 'Warnings',
+        label: t('logs.warnings', 'Warnings'),
         count: warnEntries.length,
         color: '#d4a017'
       },
       {
         key: 'tips' as const,
-        label: preferences.language === 'ru' ? '\u041F\u043E\u0434\u0441\u043A\u0430\u0437\u043A\u0438' : 'Tips',
+        label: t('logs.tips', 'Tips'),
         count: tipEntries.length,
         color: '#58a6ff'
       }
@@ -584,54 +624,27 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
   }, [validation.entries, logsFilters.errors, logsFilters.warnings, logsFilters.tips, preferences.language])
 
   // --- renderPanelContents ---
-  const renderPanelContents = (panelId: string): React.JSX.Element => {
+  // Каждая панель вынесена в отдельный memoized компонент.
+  // renderPanelContents становится тонким switch — создание JSX элементов
+  // происходит один раз внутри memo-компонентов, а не при каждом вызове.
+  const renderPanelContents = useCallback((panelId: string): React.JSX.Element => {
     if (panelId === 'panel.actions') {
       return (
-        <div className="runtimeSection runtimeSectionActions">
-          <div className="runtimeSectionTitle">{t('editor.actions', 'Actions')}</div>
-          <div className="runtimeRow">
-            <button className="runtimeButton" type="button" onClick={handleSave}>
-              {t('menu.save', 'Save')}
-            </button>
-            <button className="runtimeButton" type="button" onClick={undo} disabled={!canUndo}>
-              {t('menu.undo', 'Undo')}
-            </button>
-            <button className="runtimeButton" type="button" onClick={redo} disabled={!canRedo}>
-              {t('menu.redo', 'Redo')}
-            </button>
-          </div>
-          <div className="runtimeSectionTitle" style={{ marginTop: 6 }}>
-            {t('editor.nodePalette', 'Node Palette')}
-          </div>
-          <ul className="runtimeList runtimeListScrollable">
-            {PALETTE_NODE_TYPES.map((type) => (
-              <li key={type}>
-                <button
-                  className="runtimeListItem"
-                  type="button"
-                  draggable
-                  onDragStart={(event) => {
-                    event.dataTransfer.setData(NODE_PALETTE_DRAG_MIME, type)
-                    event.dataTransfer.setData('text/plain', type)
-                    event.dataTransfer.effectAllowed = 'copy'
-                  }}
-                  onClick={() => addNode(type)}
-                >
-                  {type}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <div className="runtimeHint">{t('editor.actionsHint', 'New nodes appear to the right of the selected node.')}</div>
-        </div>
+        <ActionsPanel
+          t={t}
+          onSave={handleSave}
+          onUndo={undo}
+          onRedo={redo}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onAddNode={addNode}
+        />
       )
     }
 
     if (panelId === 'panel.bookmarks') {
       return (
         <BookmarksPanel
-          nodes={runtime.nodes}
-          selectedNodeId={runtime.selectedNodeId}
           selectNode={selectNode}
           t={t}
         />
@@ -639,72 +652,16 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     }
 
     if (panelId === 'panel.text') {
-      const selectedYarnFile =
-        selectedNode?.type === 'dialogue' ? String(selectedNode.params?.file ?? '').trim() : ''
-      const activePreviewNode =
-        yarnPreviewNodes.find((entry) => entry.title === selectedYarnPreviewTitle) ?? yarnPreviewNodes[0] ?? null
-
       return (
-        <div className="runtimeSection">
-          <div className="runtimeSectionTitle">{t('editor.yarnPreview', 'Yarn Preview')}</div>
-          {!selectedNode ? (
-            <div className="runtimeHint">{t('editor.selectDialogueNode', 'Select a dialogue node.')}</div>
-          ) : selectedNode.type !== 'dialogue' ? (
-            <div className="runtimeHint">{t('editor.textPanelReserved', 'Dialogue preview only.')}</div>
-          ) : !resources?.projectDir ? (
-            <div className="runtimeHint">{t('editor.openProjectForYarn', 'Open a project.')}</div>
-          ) : !selectedYarnFile ? (
-            <div className="runtimeHint">{t('editor.setDialogueFile', 'Set the dialogue File field.')}</div>
-          ) : yarnPreviewLoading ? (
-            <div className="runtimeHint">{t('editor.loadingYarnPreview', 'Loading Yarn preview...')}</div>
-          ) : yarnPreviewNodes.length === 0 ? (
-            <div className="runtimeHint">{t('editor.noYarnNodes', 'No previewable Yarn nodes found in this file.')}</div>
-          ) : (
-            <>
-              <div className="runtimeHint" style={{ marginBottom: 6 }}>
-                {t('editor.file', 'File')}: {selectedYarnFile}
-              </div>
-              <div style={{ display: 'flex', gap: 8, minHeight: 220 }}>
-                <div
-                  style={{
-                    width: 180,
-                    minWidth: 180,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 4,
-                    overflowY: 'auto'
-                  }}
-                >
-                  {yarnPreviewNodes.map((entry) => (
-                    <button
-                      key={entry.title}
-                      type="button"
-                      className={[
-                        'runtimeListItem',
-                        activePreviewNode?.title === entry.title ? 'isActive' : ''
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
-                      onClick={() => setSelectedYarnPreviewTitle(entry.title)}
-                      style={{ textAlign: 'left' }}
-                    >
-                      {entry.title}
-                    </button>
-                  ))}
-                </div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="runtimeHint" style={{ marginBottom: 6 }}>
-                    {t('editor.node', 'Node')}: {activePreviewNode?.title ?? t('editor.unknown', 'Unknown')}
-                  </div>
-                  <pre className="runtimeCode" style={{ minHeight: 220, margin: 0 }}>
-                    {activePreviewNode?.body || '(Empty node body)'}
-                  </pre>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        <TextPanel
+          t={t}
+          selectedNode={selectedNode}
+          yarnPreviewNodes={yarnPreviewNodes}
+          yarnPreviewLoading={yarnPreviewLoading}
+          selectedYarnPreviewTitle={selectedYarnPreviewTitle}
+          onSelectYarnPreviewTitle={setSelectedYarnPreviewTitle}
+          projectDir={resources?.projectDir}
+        />
       )
     }
 
@@ -731,113 +688,70 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     }
 
     if (panelId === 'panel.logs') {
-      const { visibleEntries, severityStyle, toggleButtons } = logsData
-
       return (
-        <div className="runtimeSection">
-          <div
-            style={{
-              display: 'flex',
-              gap: 4,
-              marginBottom: 6,
-              flexWrap: 'wrap'
-            }}
-          >
-            {toggleButtons.map((btn) => {
-              const isActive = logsFilters[btn.key]
-              return (
-                <button
-                  key={btn.key}
-                  type="button"
-                  className="logFilterButton"
-                  onClick={() =>
-                    setLogsFilters((prev) => ({ ...prev, [btn.key]: !prev[btn.key] }))
-                  }
-                  style={{
-                    color: isActive ? btn.color : `color-mix(in srgb, ${btn.color} 80%, var(--ev-c-text-2) 20%)`,
-                    background: isActive ? `color-mix(in srgb, ${btn.color} 20%, transparent)` : 'transparent',
-                    border: `1px solid ${isActive ? `color-mix(in srgb, ${btn.color} 40%, transparent)` : 'transparent'}`
-                  }}
-                >
-                  {btn.label} ({btn.count})
-                </button>
-              )
-            })}
-          </div>
-
-          {visibleEntries.length === 0 ? (
-            <div className="runtimeHint" style={{ color: '#6c6' }}>
-              {!logsFilters.errors && !logsFilters.warnings && !logsFilters.tips
-                ? t('editor.logsEmptyFilters', 'Enable filters to see entries.')
-                : t('editor.logsNoMatches', 'No matching entries.')}
-            </div>
-          ) : (
-            <div style={{ maxHeight: 260, overflowY: 'auto' }}>
-              {visibleEntries.map((entry, i) => {
-                const s = severityStyle[entry.severity] ?? severityStyle.warn
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      padding: '3px 6px',
-                      marginBottom: 2,
-                      fontSize: 12,
-                      borderLeft: `3px solid ${s.color}`,
-                      background: s.bg,
-                      cursor: entry.nodeId || entry.edgeId ? 'pointer' : undefined
-                    }}
-                    onClick={() => {
-                      if (entry.nodeId) {
-                        setRuntime({
-                          ...runtime,
-                          selectedNodeId: entry.nodeId,
-                          selectedNodeIds: [entry.nodeId],
-                          selectedEdgeId: null
-                        })
-                      } else if (entry.edgeId) {
-                        setRuntime({
-                          ...runtime,
-                          selectedNodeId: null,
-                          selectedNodeIds: [],
-                          selectedEdgeId: entry.edgeId
-                        })
-                      }
-                    }}
-                  >
-                    <span style={{ fontWeight: 600, color: s.color }}>{s.icon}</span>{' '}
-                    {entry.message}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+        <LogsPanel
+          t={t}
+          logsData={logsData}
+          logsFilters={logsFilters}
+          onToggleFilter={handleToggleLogFilter}
+          onSelectNode={handleLogsSelectNode}
+          onSelectEdge={handleLogsSelectEdge}
+        />
       )
     }
 
     if (panelId === 'panel.runtime_json') {
       return (
-        <div className="runtimeSection" style={{ height: '100%' }}>
-          <div className="runtimeHint">
-            {t(
-              'editor.runtimeJsonHint',
-              'Raw editor scene state with node positions, selection, and editor-only fields.'
-            )}
-          </div>
-          <div className="runtimeSectionTitle">
-            {t('editor.runtimeJsonContent', 'Runtime JSON content')}
-          </div>
-          <pre className="runtimeCode runtimeCodeFill">{runtimeJsonString}</pre>
-        </div>
+        <RuntimeJsonPanel
+          t={t}
+          runtimeJsonString={runtimeJsonString}
+        />
       )
     }
 
     return (
       <div className="placeholderText">
-        {preferences.language === 'ru' ? '\u041D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u0430\u044F \u043F\u0430\u043D\u0435\u043B\u044C' : 'Unknown panel'}: {panelId}
+        {preferences.language === 'ru' ? '\u041D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u0430\u044F \u043F\u0430\u043D\u0435\u043B\u042C' : 'Unknown panel'}: {panelId}
       </div>
     )
-  }
+  }, [
+    t,
+    handleSave,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    addNode,
+    runtime.nodes,
+    runtime.selectedNodeId,
+    selectNode,
+    selectedNode,
+    yarnPreviewNodes,
+    yarnPreviewLoading,
+    selectedYarnPreviewTitle,
+    setSelectedYarnPreviewTitle,
+    resources?.projectDir,
+    actorTargetOptions,
+    resources,
+    engineSettings,
+    yarnFiles,
+    pendingNodeName,
+    setPendingNodeName,
+    suggestUniqueNodeName,
+    setNameConflictModal,
+    roomScreenshotSearchDirs,
+    shouldFocusEdgeWaitRef,
+    preferences,
+    runtime,
+    setRuntime,
+    logsData,
+    logsFilters,
+    handleToggleLogFilter,
+    handleLogsSelectNode,
+    handleLogsSelectEdge,
+    runtimeJsonString,
+    preferences.language
+  ])
 
   const getPanelBadge = useCallback((panelId: string): React.ReactNode | null => {
     if (panelId !== 'panel.logs') return null
@@ -853,288 +767,410 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     )
   }, [validation.entries])
 
+  // Данные панелей: передаём через PanelDataContext, чтобы панели могли
+  // читать актуальное состояние без необходимости обновлять renderPanelContents.
+  // Это предотвращает re-render DockingLayout при drag ноды.
+  const panelData = useMemo(
+    () => ({
+      runtime,
+      selectedNode
+    }),
+    [runtime, selectedNode]
+  )
+
+  // Стабилизируем renderPanelContents callback через ref.
+  // DockingLayout получает stable prop — он не перерендеривается
+  // при изменении данных панелей (drag, выделение, etc.).
+  // Панели, подписанные на PanelDataContext, обновляются сами.
+  const renderPanelContentsRef = useRef(renderPanelContents)
+  renderPanelContentsRef.current = renderPanelContents
+  const renderPanelContentsStable = useCallback((panelId: string): React.JSX.Element => {
+    return renderPanelContentsRef.current(panelId)
+  }, [])
+
+  // Центральный контент холста: мемоизируем, чтобы DockingLayout не
+  // перерендеривал FlowCanvas (и 200+ нод) при смене несвязанного state
+  // EditorShell (например, toasts, модалки, фильтры логов).
+  const centerContent = useMemo(
+    () => (
+      <>
+        <div className="centerCanvasHeader">{t('editor.nodeEditor', 'Node Editor')}</div>
+        <div className="centerCanvasBody">
+          <FlowCanvas
+            runtimeNodes={runtime.nodes}
+            runtimeEdges={runtime.edges}
+            selectedNodeId={runtime.selectedNodeId}
+            selectedNodeIds={runtime.selectedNodeIds ?? []}
+            selectedEdgeId={runtime.selectedEdgeId}
+            onSelectNodes={handleSelectNodes}
+            onSelectEdge={handleSelectEdge}
+            onNodePositionChange={handleNodePositionChange}
+            onEdgeAdd={handleEdgeAdd}
+            onEdgeRemove={handleEdgeRemove}
+            onEdgeDelete={handleEdgeDelete}
+            onNodeDelete={handleNodeDelete}
+            onEdgeDoubleClick={handleEdgeDoubleClick}
+            onPaneClickCreate={createDefaultPaneNode}
+            onPaneDropCreate={createPaletteDropNode}
+            onParallelAddBranch={onParallelAddBranch}
+            onParallelRemoveBranch={onParallelRemoveBranch}
+          />
+        </div>
+      </>
+    ),
+    [
+      t,
+      runtime.nodes,
+      runtime.edges,
+      runtime.selectedNodeId,
+      runtime.selectedNodeIds,
+      runtime.selectedEdgeId,
+      handleSelectNodes,
+      handleSelectEdge,
+      handleNodePositionChange,
+      handleEdgeAdd,
+      handleEdgeRemove,
+      handleEdgeDelete,
+      handleNodeDelete,
+      handleEdgeDoubleClick,
+      createDefaultPaneNode,
+      createPaletteDropNode,
+      onParallelAddBranch,
+      onParallelRemoveBranch
+    ]
+  )
+
+  // Стабилизируем коллбеки меню через useCallback, чтобы useMemo для
+  // topBarContent не инвалидировался при каждом render из-за inline-функций.
+  const handleResetLayout = useCallback(() => {
+    import('./useLayoutState').then(({ createDefaultLayout }) => {
+      setLayout(createDefaultLayout())
+    })
+  }, [setLayout])
+
+  const handleCheckUpdates = useCallback(() => {
+    if (!window.api?.updater) {
+      console.warn('Updater API not available')
+      return
+    }
+
+    window.api.updater
+      .check()
+      .then((res) => {
+        if (res.status === 'available') {
+          pushInfo(toasts, `v${res.version}`, { title: t('toasts.updateAvailable', 'Update available') })
+          return
+        }
+
+        if (res.status === 'none') {
+          pushInfo(toasts, t('toasts.noUpdates', 'No updates'))
+          return
+        }
+
+        pushError(toasts, res.message, { title: t('toasts.updateCheckFailed', 'Update check failed') })
+      })
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        pushError(toasts, msg, { title: t('toasts.updateCheckFailed', 'Update check failed') })
+      })
+  }, [toasts, t])
+
+  const handleToggleRuntimeJson = useCallback(() => {
+    togglePanel('panel.runtime_json')
+  }, [togglePanel])
+
+  const handleCopyLogToClipboard = useCallback(() => {
+    if (!window.api?.appInfo?.copyLogToClipboard) {
+      console.warn('App info API not available')
+      return
+    }
+
+    window.api.appInfo
+      .copyLogToClipboard()
+      .then((result) => {
+        if (result.copied) {
+          pushSuccess(toasts, t('toasts.logCopied', 'Log copied'))
+          return
+        }
+
+        pushError(toasts, t('toasts.logCopyFailed', 'Copy failed'))
+      })
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        pushError(toasts, msg, { title: t('toasts.logCopyFailed', 'Copy failed') })
+      })
+  }, [toasts, t])
+
+  const handleOpenDevTools = useCallback(() => {
+    if (!window.api?.appInfo?.openDevTools) {
+      console.warn('App info API not available')
+      return
+    }
+
+    void window.api.appInfo.openDevTools()
+  }, [])
+
+  const handleToggleHardwareAcceleration = useCallback(() => {
+    const next = !preferences.disableHardwareAcceleration
+    updatePreferences({
+      disableHardwareAcceleration: next
+    })
+    pushInfo(
+      toasts,
+      next
+        ? 'Аппаратное ускорение отключено. Изменение применится при следующем запуске.'
+        : 'Аппаратное ускорение включено. Изменение применится при следующем запуске.',
+      { title: 'Настройки', duration: 0 }
+    )
+  }, [preferences, updatePreferences, toasts])
+
+  const handleChooseScreenshotOutputDir = useCallback(() => {
+    if (!window.api?.preferences?.chooseScreenshotOutputDir) {
+      console.warn('Preferences API not available')
+      return
+    }
+
+    window.api.preferences
+      .chooseScreenshotOutputDir()
+      .then((dirPath) => {
+        if (!dirPath) return
+        updatePreferences({ screenshotOutputDir: dirPath })
+      })
+      .catch((err) => {
+        console.warn('Failed to choose screenshot output dir:', err)
+      })
+  }, [updatePreferences])
+
+  const handleToggleVisualEditorTechMode = useCallback(() => {
+    updatePreferences({
+      visualEditorTechMode: !preferences.visualEditorTechMode
+    })
+  }, [updatePreferences, preferences])
+
+  const handleAbout = useCallback(() => setAboutOpen(true), [setAboutOpen])
+  const handleTutorial = useCallback(() => setIsTutorialActive(true), [setIsTutorialActive])
+  const handleExit = useCallback(() => window.close(), [])
+  const handlePreferences = useCallback(() => setPreferencesOpen(true), [setPreferencesOpen])
+
+  // topBarContent мемоизируем, чтобы DockingLayout не перерендеривался
+  // при смене несвязанного state EditorShell (toasts, модалки, etc.).
+  const topBarContent = useMemo(
+    () => (
+      <TopMenuBar
+        panels={allPanels}
+        isPanelVisible={isPanelVisible}
+        togglePanel={togglePanel}
+        onOpenProject={openProject}
+        onExport={handleExport}
+        onNew={handleNew}
+        onCreateExample={handleCreateExample}
+        onOpenScene={handleOpenScene}
+        onSave={handleSave}
+        onSaveAs={handleSaveAs}
+        onUndo={undo}
+        onRedo={redo}
+        onResetLayout={handleResetLayout}
+        onCheckUpdates={handleCheckUpdates}
+        onToggleRuntimeJson={handleToggleRuntimeJson}
+        runtimeJsonVisible={isPanelVisible('panel.runtime_json')}
+        onCopyLogToClipboard={handleCopyLogToClipboard}
+        onOpenDevTools={handleOpenDevTools}
+        onToggleHardwareAcceleration={handleToggleHardwareAcceleration}
+        onChooseScreenshotOutputDir={handleChooseScreenshotOutputDir}
+        onToggleVisualEditorTechMode={handleToggleVisualEditorTechMode}
+        visualEditorTechModeEnabled={preferences.visualEditorTechMode}
+        hardwareAccelerationDisabled={preferences.disableHardwareAcceleration}
+        onOpenVisualEditing={openVisualEditorWindow}
+        onAbout={handleAbout}
+        onTutorial={handleTutorial}
+        onExit={handleExit}
+        onPreferences={handlePreferences}
+        language={preferences.language}
+        keybindings={preferences.keybindings}
+      />
+    ),
+    [
+      allPanels,
+      isPanelVisible,
+      togglePanel,
+      openProject,
+      handleExport,
+      handleNew,
+      handleCreateExample,
+      handleOpenScene,
+      handleSave,
+      handleSaveAs,
+      undo,
+      redo,
+      handleResetLayout,
+      handleCheckUpdates,
+      handleToggleRuntimeJson,
+      handleCopyLogToClipboard,
+      handleOpenDevTools,
+      handleToggleHardwareAcceleration,
+      handleChooseScreenshotOutputDir,
+      handleToggleVisualEditorTechMode,
+      preferences.visualEditorTechMode,
+      preferences.disableHardwareAcceleration,
+      preferences.language,
+      preferences.keybindings,
+      openVisualEditorWindow,
+      handleAbout,
+      handleTutorial,
+      handleExit,
+      handlePreferences
+    ]
+  )
+
   return (
-    <DockingLayout
-        renderPanelContents={renderPanelContents}
+    <>
+      <PanelDataProvider value={panelData}>
+        <DockingLayout
+        renderPanelContents={renderPanelContentsStable}
         getPanelTitle={getPanelTitle}
         getPanelBadge={getPanelBadge}
+        showDockDropPreview={preferences.showDockDropPreview}
         collapsePanelLabel={collapsePanelLabel}
         closePanelLabel={closePanelLabel}
         isProjectLoading={isProjectLoading}
         loadingText={t('editor.loadingProject', 'Loading project...')}
-        topBarContent={
-          <TopMenuBar
-            panels={allPanels}
-            isPanelVisible={isPanelVisible}
-            togglePanel={togglePanel}
-            onOpenProject={openProject}
-            onExport={handleExport}
-            onNew={handleNew}
-            onCreateExample={handleCreateExample}
-            onOpenScene={handleOpenScene}
-            onSave={handleSave}
-            onSaveAs={handleSaveAs}
-            onUndo={undo}
-            onRedo={redo}
-            onResetLayout={() => {
-              import('./useLayoutState').then(({ createDefaultLayout }) => {
-                setLayout(createDefaultLayout())
-              })
-            }}
-            onCheckUpdates={() => {
-              if (!window.api?.updater) {
-                console.warn('Updater API not available')
-                return
-              }
+        topBarContent={topBarContent}
+        centerContent={centerContent}
+      />
+      </PanelDataProvider>
 
-              window.api.updater
-                .check()
-                .then((res) => {
-                  if (res.status === 'available') {
-                    pushInfo(toasts, `v${res.version}`, { title: t('toasts.updateAvailable', 'Update available') })
-                    return
-                  }
+      <PreferencesModal
+        open={preferencesOpen}
+        preferences={preferences}
+        updatePreferences={updatePreferences}
+        onClose={() => setPreferencesOpen(false)}
+      />
 
-                  if (res.status === 'none') {
-                    pushInfo(toasts, t('toasts.noUpdates', 'No updates'))
-                    return
-                  }
+      <WelcomeSetupModal
+        open={welcomeOpen}
+        preferences={preferences}
+        updatePreferences={updatePreferences}
+        onComplete={handleWelcomeComplete}
+      />
 
-                  pushError(toasts, res.message, { title: t('toasts.updateCheckFailed', 'Update check failed') })
-                })
-                .catch((err) => {
-                  const msg = err instanceof Error ? err.message : String(err)
-                  pushError(toasts, msg, { title: t('toasts.updateCheckFailed', 'Update check failed') })
-                })
-            }}
-            onToggleRuntimeJson={() => togglePanel('panel.runtime_json')}
-            runtimeJsonVisible={isPanelVisible('panel.runtime_json')}
-            onCopyLogToClipboard={() => {
-              if (!window.api?.appInfo?.copyLogToClipboard) {
-                console.warn('App info API not available')
-                return
-              }
+      <TutorialOverlay
+        active={isTutorialActive}
+        language={preferences.language}
+        onComplete={handleTutorialComplete}
+        onSkip={handleTutorialSkip}
+      />
 
-              window.api.appInfo
-                .copyLogToClipboard()
-                .then((result) => {
-                  if (result.copied) {
-                    pushSuccess(toasts, t('toasts.logCopied', 'Log copied'))
-                    return
-                  }
+      {/* Контекстный тур по инспектору (при первом выборе ноды). */}
+      <TutorialOverlay
+        active={inspectorTutorialActive}
+        language={preferences.language}
+        steps={TUTORIAL_REGISTRY.inspector}
+        onComplete={handleInspectorTutorialComplete}
+        onSkip={handleInspectorTutorialSkip}
+      />
 
-                  pushError(toasts, t('toasts.logCopyFailed', 'Copy failed'))
-                })
-                .catch((err) => {
-                  const msg = err instanceof Error ? err.message : String(err)
-                  pushError(toasts, msg, { title: t('toasts.logCopyFailed', 'Copy failed') })
-                })
-            }}
-            onOpenDevTools={() => {
-              if (!window.api?.appInfo?.openDevTools) {
-                console.warn('App info API not available')
-                return
-              }
+      {/* Контекстный тур по visual editing (при первом открытии окна). */}
+      <TutorialOverlay
+        active={visualEditingTutorialActive}
+        language={preferences.language}
+        steps={TUTORIAL_REGISTRY.visualEditing}
+        onComplete={handleVisualEditingTutorialComplete}
+        onSkip={handleVisualEditingTutorialSkip}
+      />
 
-              void window.api.appInfo.openDevTools()
-            }}
-            onToggleHardwareAcceleration={() => {
-              updatePreferences({
-                disableHardwareAcceleration: !preferences.disableHardwareAcceleration
-              })
-            }}
-            onChooseScreenshotOutputDir={() => {
-              if (!window.api?.preferences?.chooseScreenshotOutputDir) {
-                console.warn('Preferences API not available')
-                return
-              }
+      <AboutModal
+        open={aboutOpen}
+        version={appVersion}
+        onOpenDocs={handleOpenDocs}
+        language={preferences.language}
+        onClose={() => setAboutOpen(false)}
+      />
 
-              window.api.preferences
-                .chooseScreenshotOutputDir()
-                .then((dirPath) => {
-                  if (!dirPath) return
-                  updatePreferences({ screenshotOutputDir: dirPath })
-                })
-                .catch((err) => {
-                  console.warn('Failed to choose screenshot output dir:', err)
-                })
-            }}
-            onToggleVisualEditorTechMode={() => {
-              updatePreferences({
-                visualEditorTechMode: !preferences.visualEditorTechMode
-              })
-            }}
-            visualEditorTechModeEnabled={preferences.visualEditorTechMode}
-            hardwareAccelerationDisabled={preferences.disableHardwareAcceleration}
-            onOpenVisualEditing={openVisualEditorWindow}
-            onAbout={() => setAboutOpen(true)}
-            onTutorial={() => setIsTutorialActive(true)}
-            onExit={() => window.close()}
-            onPreferences={() => setPreferencesOpen(true)}
-            language={preferences.language}
-            keybindings={preferences.keybindings}
-          />
-        }
-        centerContent={
-          <>
-            <div className="centerCanvasHeader">{t('editor.nodeEditor', 'Node Editor')}</div>
-            <div className="centerCanvasBody">
-              <FlowCanvas
-                runtimeNodes={runtime.nodes}
-                runtimeEdges={runtime.edges}
-                selectedNodeId={runtime.selectedNodeId}
-                selectedNodeIds={runtime.selectedNodeIds ?? []}
-                selectedEdgeId={runtime.selectedEdgeId}
-                fitViewRequestId={fitViewRequestId}
-                onSelectNodes={handleSelectNodes}
-                onSelectEdge={handleSelectEdge}
-                onNodePositionChange={handleNodePositionChange}
-                onEdgeAdd={handleEdgeAdd}
-                onEdgeRemove={handleEdgeRemove}
-                onEdgeDelete={handleEdgeDelete}
-                onNodeDelete={handleNodeDelete}
-                onEdgeDoubleClick={handleEdgeDoubleClick}
-                onPaneClickCreate={createDefaultPaneNode}
-                onPaneDropCreate={createPaletteDropNode}
-                onParallelAddBranch={onParallelAddBranch}
-                onParallelRemoveBranch={onParallelRemoveBranch}
-              />
+      {nameConflictModal ? (
+        <div
+          className="prefsOverlay"
+          onClick={() => {
+            setPendingNodeName(nameConflictModal.previousName)
+            setNameConflictModal(null)
+          }}
+        >
+          <div className="prefsModal" onClick={(e) => e.stopPropagation()}>
+            <div className="prefsHeader">
+              <span className="prefsTitle">
+                {preferences.language === 'ru' ? '\u0414\u0443\u0431\u043B\u0438\u0440\u0443\u044E\u0449\u0435\u0435\u0441\u044F \u0438\u043C\u044F \u043D\u043E\u0434\u044B' : 'Duplicate node name'}
+              </span>
+              <button
+                className="prefsCloseBtn"
+                onClick={() => {
+                  setPendingNodeName(nameConflictModal.previousName)
+                  setNameConflictModal(null)
+                }}
+              >
+                {'\u2715'}
+              </button>
             </div>
-          </>
-        }
-      >
-        <PreferencesModal
-          open={preferencesOpen}
-          preferences={preferences}
-          updatePreferences={updatePreferences}
-          onClose={() => setPreferencesOpen(false)}
-        />
 
-        <WelcomeSetupModal
-          open={welcomeOpen}
-          preferences={preferences}
-          updatePreferences={updatePreferences}
-          onComplete={handleWelcomeComplete}
-        />
+            <div className="prefsBody">
+              <div className="prefsHint">
+                {preferences.language === 'ru'
+                  ? '\u042D\u0442\u043E \u0438\u043C\u044F \u0443\u0436\u0435 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u0442\u0441\u044F \u0434\u0440\u0443\u0433\u043E\u0439 \u043D\u043E\u0434\u043E\u0439'
+                  : 'This name is already used by another node'}
+                {nameConflictModal.conflictingWithNodeId
+                  ? ` (${nameConflictModal.conflictingWithNodeId})`
+                  : ''}
+                {preferences.language === 'ru'
+                  ? '. \u0414\u0443\u0431\u043B\u0438\u043A\u0430\u0442\u044B \u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u044B, \u043D\u043E \u043C\u043E\u0433\u0443\u0442 \u043F\u0443\u0442\u0430\u0442\u044C.'
+                  : '. Duplicates are allowed, but it can be confusing.'}
+              </div>
 
-        <TutorialOverlay
-          active={isTutorialActive}
-          language={preferences.language}
-          onComplete={handleTutorialComplete}
-          onSkip={handleTutorialSkip}
-        />
+              <label className="prefsField">
+                <span>{preferences.language === 'ru' ? '\u0418\u043C\u044F' : 'Name'}</span>
+                <input
+                  className="prefsInput"
+                  value={nameConflictModal.value}
+                  onChange={(e) =>
+                    setNameConflictModal({
+                      ...nameConflictModal,
+                      value: e.target.value
+                    })
+                  }
+                />
+              </label>
 
-        {/* Контекстный тур по инспектору (при первом выборе ноды). */}
-        <TutorialOverlay
-          active={inspectorTutorialActive}
-          language={preferences.language}
-          steps={TUTORIAL_REGISTRY.inspector}
-          onComplete={handleInspectorTutorialComplete}
-          onSkip={handleInspectorTutorialSkip}
-        />
-
-        {/* Контекстный тур по visual editing (при первом открытии окна). */}
-        <TutorialOverlay
-          active={visualEditingTutorialActive}
-          language={preferences.language}
-          steps={TUTORIAL_REGISTRY.visualEditing}
-          onComplete={handleVisualEditingTutorialComplete}
-          onSkip={handleVisualEditingTutorialSkip}
-        />
-
-        <AboutModal
-          open={aboutOpen}
-          version={appVersion}
-          onOpenDocs={handleOpenDocs}
-          language={preferences.language}
-          onClose={() => setAboutOpen(false)}
-        />
-
-        {nameConflictModal ? (
-          <div
-            className="prefsOverlay"
-            onClick={() => {
-              setPendingNodeName(nameConflictModal.previousName)
-              setNameConflictModal(null)
-            }}
-          >
-            <div className="prefsModal" onClick={(e) => e.stopPropagation()}>
-              <div className="prefsHeader">
-                <span className="prefsTitle">
-                  {preferences.language === 'ru' ? '\u0414\u0443\u0431\u043B\u0438\u0440\u0443\u044E\u0449\u0435\u0435\u0441\u044F \u0438\u043C\u044F \u043D\u043E\u0434\u044B' : 'Duplicate node name'}
-                </span>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
                 <button
-                  className="prefsCloseBtn"
+                  className="runtimeButton"
+                  type="button"
                   onClick={() => {
                     setPendingNodeName(nameConflictModal.previousName)
                     setNameConflictModal(null)
                   }}
                 >
-                  {'\u2715'}
+                  {preferences.language === 'ru' ? '\u041E\u0442\u043C\u0435\u043D\u0430' : 'Cancel'}
                 </button>
-              </div>
-
-              <div className="prefsBody">
-                <div className="prefsHint">
-                  {preferences.language === 'ru'
-                    ? '\u042D\u0442\u043E \u0438\u043C\u044F \u0443\u0436\u0435 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u0442\u0441\u044F \u0434\u0440\u0443\u0433\u043E\u0439 \u043D\u043E\u0434\u043E\u0439'
-                    : 'This name is already used by another node'}
-                  {nameConflictModal.conflictingWithNodeId
-                    ? ` (${nameConflictModal.conflictingWithNodeId})`
-                    : ''}
-                  {preferences.language === 'ru'
-                    ? '. \u0414\u0443\u0431\u043B\u0438\u043A\u0430\u0442\u044B \u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u044B, \u043D\u043E \u043C\u043E\u0433\u0443\u0442 \u043F\u0443\u0442\u0430\u0442\u044C.'
-                    : '. Duplicates are allowed, but it can be confusing.'}
-                </div>
-
-                <label className="prefsField">
-                  <span>{preferences.language === 'ru' ? '\u0418\u043C\u044F' : 'Name'}</span>
-                  <input
-                    className="prefsInput"
-                    value={nameConflictModal.value}
-                    onChange={(e) =>
-                      setNameConflictModal({
-                        ...nameConflictModal,
-                        value: e.target.value
-                      })
-                    }
-                  />
-                </label>
-
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
-                  <button
-                    className="runtimeButton"
-                    type="button"
-                    onClick={() => {
-                      setPendingNodeName(nameConflictModal.previousName)
-                      setNameConflictModal(null)
-                    }}
-                  >
-                    {preferences.language === 'ru' ? '\u041E\u0442\u043C\u0435\u043D\u0430' : 'Cancel'}
-                  </button>
-                  <button
-                    ref={nameConflictOkRef}
-                    className="runtimeButton"
-                    type="button"
-                    onClick={() => {
-                      const v = nameConflictModal.value
-                      setPendingNodeName(v)
-                      setRuntime({
-                        ...runtime,
-                        nodes: runtime.nodes.map((n) =>
-                          n.id === nameConflictModal.nodeId ? { ...n, name: v.trim() } : n
-                        )
-                      })
-                      setNameConflictModal(null)
-                    }}
-                  >
-                    {preferences.language === 'ru' ? '\u041E\u041A' : 'OK'}
-                  </button>
-                </div>
+                <button
+                  ref={nameConflictOkRef}
+                  className="runtimeButton"
+                  type="button"
+                  onClick={() => {
+                    const v = nameConflictModal.value
+                    setPendingNodeName(v)
+                    setRuntime({
+                      ...runtime,
+                      nodes: runtime.nodes.map((n) =>
+                        n.id === nameConflictModal.nodeId ? { ...n, name: v.trim() } : n
+                      )
+                    })
+                    setNameConflictModal(null)
+                  }}
+                >
+                  {preferences.language === 'ru' ? '\u041E\u041A' : 'OK'}
+                </button>
               </div>
             </div>
           </div>
-        ) : null}
-      </DockingLayout>
+        </div>
+      ) : null}
+  </>
   )
 }
