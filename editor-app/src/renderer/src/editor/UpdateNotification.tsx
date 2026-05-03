@@ -4,6 +4,8 @@
 // Для portable: просто сообщает о новой версии.
 
 import { useEffect, useState } from 'react'
+import { usePreferencesContext } from './PreferencesContext'
+import { createTranslator } from '../i18n'
 
 // Состояния уведомления.
 type UpdateStatus =
@@ -14,6 +16,9 @@ type UpdateStatus =
   | { kind: 'error'; message: string }
 
 export function UpdateNotification(): React.JSX.Element | null {
+  const { preferences } = usePreferencesContext()
+  const t = createTranslator(preferences.language ?? 'en')
+
   const [status, setStatus] = useState<UpdateStatus>({ kind: 'idle' })
 
   // Подписываемся на события обновления из main процесса (один раз).
@@ -91,13 +96,23 @@ export function UpdateNotification(): React.JSX.Element | null {
       {/* Текст уведомления. */}
       {status.kind === 'available' && (
         <span>
-          Update available: <strong>v{status.version}</strong>
+          {t('updateNotification.updateAvailable', 'Update available:')} <strong>v{status.version}</strong>
         </span>
       )}
-      {status.kind === 'downloading' && <span>Downloading update... {status.percent}%</span>}
-      {status.kind === 'ready' && <span>Update ready. Restart to install.</span>}
+      {status.kind === 'downloading' && (
+        <span>
+          {t('updateNotification.downloading', 'Downloading update...')} {status.percent}%
+        </span>
+      )}
+      {status.kind === 'ready' && (
+        <span>
+          {t('updateNotification.ready', 'Update ready. Restart to install.')}
+        </span>
+      )}
       {status.kind === 'error' && (
-        <span style={{ color: '#e05050' }}>Update error: {status.message}</span>
+        <span style={{ color: '#e05050' }}>
+          {t('updateNotification.error', 'Update error:')} {status.message}
+        </span>
       )}
 
       {/* Кнопка "Restart" — показываем, когда обновление скачано. */}
@@ -117,7 +132,7 @@ export function UpdateNotification(): React.JSX.Element | null {
             cursor: 'pointer'
           }}
         >
-          Restart & Update
+          {t('updateNotification.restartAndUpdate', 'Restart & Update')}
         </button>
       )}
 
@@ -136,7 +151,7 @@ export function UpdateNotification(): React.JSX.Element | null {
           cursor: 'pointer'
         }}
       >
-        Dismiss
+        {t('app.dismiss', 'Dismiss')}
       </button>
     </div>
   )

@@ -790,6 +790,20 @@ code {
   padding-right: 4px;
 }
 
+/* Windowed-список: монтируем только видимые ряды. */
+.runtimeVirtualList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.runtimeVirtualListRow {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
 .runtimeListItem {
   width: 100%;
   text-align: left;
@@ -1321,6 +1335,7 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 /* Label text — лейбл лежит ВНУТРИ header-flex'а, flex-basis: 100%
    переносит его на отдельную строку под title-dot. */
 .customNodeLabel {
+  display: none;
   flex-basis: 100%;
   font-size: 11px;
   padding: 0;
@@ -1331,6 +1346,13 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   min-width: 0;
   flex-shrink: 1;
   white-space: normal;
+}
+
+/* Когда FlowCanvas имеет класс .show-node-labels — label видны.
+   Это позволяет управлять видимостью через CSS на контейнере,
+   не пересоздавая data-объекты ВСЕХ нод при смене настройки. */
+.flowCanvas.show-node-labels .customNodeLabel {
+  display: block;
 }
 
 /* Node params */

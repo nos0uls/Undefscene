@@ -5,10 +5,18 @@
 export const ru = {
   app: {
     title: 'Редактор Undefscene',
+    appName: 'Undefscene Editor',
     preferences: 'Настройки',
     about: 'О программе',
+    aboutApplication: 'Приложение',
+    aboutDescription: 'Редактор катсцен для GameMaker.',
+    aboutDocumentation: 'Документация',
+    aboutDocsDescription: 'Руководство по редактору.',
+    openDocumentation: 'Открыть документацию',
     version: 'Версия',
-    close: 'Закрыть'
+    getStarted: 'Начать работу',
+    close: 'Закрыть',
+    dismiss: 'Скрыть'
   },
   menu: {
     file: 'Файл',
@@ -48,6 +56,7 @@ export const ru = {
     backgroundImage: 'Фоновое изображение',
     backgroundAttachment: 'Привязка фона',
     theme: 'Тема',
+    custom: 'Свой...',
     customHex: 'Свой HEX',
     gridSize: 'Размер сетки',
     gridSizeHint: 'Меняет только видимый шаг фоновой сетки на canvas.',
@@ -61,6 +70,7 @@ export const ru = {
     chooseFile: 'Выбрать файл',
     chooseFolder: 'Выбрать папку',
     clear: 'Очистить',
+    unassigned: 'Не назначено',
     noBackgroundSelected: 'Фоновое изображение не выбрано.',
     backgroundMode: 'Режим фона',
     backgroundOpacity: 'Прозрачность фона',
@@ -82,6 +92,10 @@ export const ru = {
     shortcutCaptureHint:
       'Нажми кнопку shortcut, затем введи новое сочетание. Delete или Backspace снимают назначение.'
   },
+  welcome: {
+    title: 'Добро пожаловать!',
+    description: 'Давайте настроим Undefscene под вас перед тем, как начать работу.'
+  },
   editor: {
     yarnPreview: 'Предпросмотр Yarn',
     runtimeJson: 'Runtime JSON',
@@ -96,6 +110,7 @@ export const ru = {
     setDialogueFile: 'Заполните поле File у dialogue-ноды, чтобы смотреть Yarn файл.',
     loadingYarnPreview: 'Загрузка Yarn preview...',
     noYarnNodes: 'В этом файле не найдено previewable Yarn node blocks.',
+    emptyNodeBody: '(Пустое тело ноды)',
     file: 'Файл',
     node: 'Нода',
     unknown: 'Неизвестно',
@@ -111,6 +126,9 @@ export const ru = {
     selectedEdge: 'Выбранная связь',
     connections: 'Связи',
     waitOnEdge: 'Задержка на связи (сек)',
+    edgeConditionSkip: 'пропустить (пропустить ветку)',
+    edgeConditionWait: 'ждать пока не станет true (ждать)',
+    edgeConditionNone: 'нет (ждать бесконечно)',
     project: 'Проект',
     noProjectLoaded: 'Проект не загружен.',
     sprites: 'Спрайты',
@@ -227,11 +245,35 @@ export const ru = {
     exportedTo: 'Экспортировано в:',
     openSceneInvalidFormat: 'Не удалось распарсить файл сцены — формат повреждён или не поддерживается.',
     openSceneInvalidJson: 'Не удалось прочитать файл сцены — невалидный JSON.',
+    openFailedTitle: 'Открытие не удалось',
     updateAvailable: 'Доступно обновление:',
     noUpdatesAvailable: 'Обновлений не найдено.',
     updateCheckFailed: 'Проверка обновлений завершилась ошибкой:',
     logCopied: 'Лог скопирован в буфер обмена.',
     logCopyFailed: 'Не удалось скопировать лог в буфер обмена.'
+  },
+  compileGraph: {
+    noStartNode: 'В графе не найдена стартовая нода.',
+    noEndNode: 'В графе не найдена конечная нода.',
+    cycleDetected: 'Обнаружен цикл на ноде "{nodeId}". Циклы запрещены.',
+    nodeNotFound: 'Нода "{nodeId}" не найдена.',
+    tooManyOutputs: 'Нода "{nodeId}" имеет {count} исходящих рёбер. Несколько выходов разрешены только для parallel_start и branch.',
+    cycleInParallel: 'Обнаружен цикл на ноде "{nodeId}" внутри parallel ветки.',
+    nodeNotFoundInParallel: 'Нода "{nodeId}" не найдена в parallel ветке.',
+    parallelDeadEnd: 'Parallel ветка зашла в тупик на ноде "{nodeId}" до достижения join "{stopNodeId}".',
+    parallelSplit: 'Parallel ветка разветвилась на ноде "{nodeId}" ({count} исходящих рёбер). Ветки должны быть линейными.'
+  },
+  updateNotification: {
+    updateAvailable: 'Доступно обновление:',
+    downloading: 'Скачивание обновления...',
+    ready: 'Обновление готово. Перезапустите для установки.',
+    error: 'Ошибка обновления:',
+    restartAndUpdate: 'Перезапустить и обновить'
+  },
+  logs: {
+    errors: 'Ошибки',
+    warnings: 'Предупреждения',
+    tips: 'Подсказки'
   },
   // Сообщения валидации для панели Logs.
   validation: {

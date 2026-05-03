@@ -1,27 +1,13 @@
 import { Handle, Position } from '@xyflow/react'
 import { memo, useMemo } from 'react'
 import { BaseNode } from './BaseNode'
+import { usePreferencesContext } from '../PreferencesContext'
+import { useNodeActionsRef } from '../NodeActionsContext'
 
 // Тип данных, которые React Flow передаёт в каждую ноду.
 type CutsceneNodeData = {
   label?: string
   params?: Record<string, unknown>
-
-  // Коллбек для кнопки "Add Branch" внутри parallel-ноды.
-  // Это UI-only поле, мы НЕ пишем его в runtime.json.
-  onAddParallelBranch?: (parallelStartId: string) => void
-
-  // Коллбек для удаления последней ветки у parallel.
-  // Удаляем только branch slot / связанные рёбра, но не сами ноды внутри ветки.
-  onRemoveParallelBranch?: (parallelStartId: string) => void
-
-  // Режим отображения портов у parallel.
-  parallelBranchPortMode?: 'shared' | 'separate'
-
-  // Canvas-настройки, приходящие из FlowCanvas через data,
-  // чтобы ноды не подписывались на PreferencesContext.
-  showNodeNameOnCanvas?: boolean
-  liquidGlassEnabled?: boolean
 }
 
 // Тип пропсов, которые React Flow передаёт в custom node component.
@@ -35,14 +21,14 @@ type CutsceneNodeProps = {
 // Стартовая нода: только выход, без входа.
 export const StartNode = memo(function StartNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="start" label={data.label} hasInput={false} hasOutput selected={selected} />
+    <BaseNode  nodeType="start" label={data.label} hasInput={false} hasOutput selected={selected} />
   )
 })
 
 // Конечная нода: только вход, без выхода.
 export const EndNode = memo(function EndNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="end" label={data.label} hasInput hasOutput={false} selected={selected} />
+    <BaseNode  nodeType="end" label={data.label} hasInput hasOutput={false} selected={selected} />
   )
 })
 
@@ -50,7 +36,7 @@ export const EndNode = memo(function EndNode({ data, selected }: CutsceneNodePro
 export const WaitNode = memo(function WaitNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const seconds = data.params?.seconds ?? '?'
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="wait" selected={selected}>
+    <BaseNode  nodeType="wait" selected={selected}>
       <div className="customNodeParam">{String(seconds)}s</div>
     </BaseNode>
   )
@@ -64,7 +50,7 @@ export const MoveNode = memo(function MoveNode({ data, selected }: CutsceneNodeP
   const x = data.params?.x ?? '?'
   const y = data.params?.y ?? '?'
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="move" selected={selected}>
+    <BaseNode  nodeType="move" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">
         → {String(x)}, {String(y)}
@@ -78,7 +64,7 @@ export const FollowPathNode = memo(function FollowPathNode({ data, selected }: C
   const target = data.params?.target ?? ''
   const points = Array.isArray(data.params?.points) ? data.params.points.length : 0
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="follow_path" selected={selected}>
+    <BaseNode  nodeType="follow_path" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">{points} points</div>
     </BaseNode>
@@ -91,7 +77,7 @@ export const SetPositionNode = memo(function SetPositionNode({ data, selected }:
   const x = data.params?.x ?? '?'
   const y = data.params?.y ?? '?'
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="set_position" selected={selected}>
+    <BaseNode  nodeType="set_position" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">
         @ {String(x)}, {String(y)}
@@ -107,7 +93,7 @@ export const ActorCreateNode = memo(function ActorCreateNode({ data, selected }:
   const key = data.params?.key ?? ''
   const obj = data.params?.sprite_or_object ?? ''
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="actor_create" selected={selected}>
+    <BaseNode  nodeType="actor_create" selected={selected}>
       <div className="customNodeParam">{String(key)}</div>
       {obj && <div className="customNodeParam">{String(obj)}</div>}
     </BaseNode>
@@ -118,7 +104,7 @@ export const ActorCreateNode = memo(function ActorCreateNode({ data, selected }:
 export const ActorDestroyNode = memo(function ActorDestroyNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="actor_destroy" selected={selected}>
+    <BaseNode  nodeType="actor_destroy" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
     </BaseNode>
   )
@@ -131,7 +117,7 @@ export const AnimateNode = memo(function AnimateNode({ data, selected }: Cutscen
   const target = data.params?.target ?? ''
   const sprite = data.params?.sprite ?? ''
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="animate" selected={selected}>
+    <BaseNode  nodeType="animate" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       {sprite && <div className="customNodeParam">{String(sprite)}</div>}
     </BaseNode>
@@ -143,7 +129,7 @@ export const SetFacingNode = memo(function SetFacingNode({ data, selected }: Cut
   const target = data.params?.target ?? ''
   const direction = data.params?.direction ?? '?'
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="set_facing" selected={selected}>
+    <BaseNode  nodeType="set_facing" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">dir: {String(direction)}</div>
     </BaseNode>
@@ -155,7 +141,7 @@ export const SetDepthNode = memo(function SetDepthNode({ data, selected }: Cutsc
   const target = data.params?.target ?? ''
   const depth = data.params?.depth ?? '?'
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="set_depth" selected={selected}>
+    <BaseNode  nodeType="set_depth" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">depth: {String(depth)}</div>
     </BaseNode>
@@ -169,7 +155,7 @@ export const DialogueNode = memo(function DialogueNode({ data, selected }: Cutsc
   const file = data.params?.file ?? ''
   const node = data.params?.node ?? ''
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="dialogue" selected={selected}>
+    <BaseNode  nodeType="dialogue" selected={selected}>
       {file && <div className="customNodeParam">{String(file)}</div>}
       {node && <div className="customNodeParam">→ {String(node)}</div>}
       {data.label && !file && <div className="customNodeParam">{data.label}</div>}
@@ -180,7 +166,7 @@ export const DialogueNode = memo(function DialogueNode({ data, selected }: Cutsc
 export const WaitForDialogueNode = memo(function WaitForDialogueNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const controller = data.params?.dialogue_controller ?? ''
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="wait_for_dialogue" selected={selected}>
+    <BaseNode  nodeType="wait_for_dialogue" selected={selected}>
       {controller && <div className="customNodeParam">{String(controller)}</div>}
       {!controller && <div className="customNodeParam">active textbox</div>}
     </BaseNode>
@@ -194,7 +180,7 @@ export const CameraTrackNode = memo(function CameraTrackNode({ data, selected }:
   const target = data.params?.target ?? ''
   const seconds = data.params?.seconds ?? '?'
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="camera_track" selected={selected}>
+    <BaseNode  nodeType="camera_track" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">{String(seconds)}s</div>
     </BaseNode>
@@ -207,7 +193,7 @@ export const CameraPanNode = memo(function CameraPanNode({ data, selected }: Cut
   const y = data.params?.y ?? '?'
   const seconds = data.params?.seconds ?? '?'
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="camera_pan" selected={selected}>
+    <BaseNode  nodeType="camera_pan" selected={selected}>
       <div className="customNodeParam">
         → {String(x)}, {String(y)}
       </div>
@@ -269,7 +255,9 @@ export const ParallelStartNode = memo(function ParallelStartNode(props: Cutscene
   const branches = (
     Array.isArray(data.params?.branches) ? data.params?.branches : ['b0']
   ) as string[]
-  const portMode = data.parallelBranchPortMode ?? 'shared'
+  const { preferences } = usePreferencesContext()
+  const { addBranchRef, removeBranchRef } = useNodeActionsRef()
+  const portMode = preferences.parallelBranchPortMode
 
   // После 4 веток стандартной высоты уже мало: handles начинают стоять слишком плотно.
   // Поэтому плавно подращиваем minHeight, чтобы между точками оставался читаемый интервал.
@@ -299,8 +287,7 @@ export const ParallelStartNode = memo(function ParallelStartNode(props: Cutscene
   )
 
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled}
-      nodeType="parallel"
+    <BaseNode       nodeType="parallel"
       selected={selected}
       style={baseNodeStyle}
       hasOutput={false}
@@ -310,14 +297,14 @@ export const ParallelStartNode = memo(function ParallelStartNode(props: Cutscene
         <button
           className="customNodeButton"
           type="button"
-          onClick={() => data.onAddParallelBranch?.(id)}
+          onClick={() => addBranchRef.current?.(id)}
         >
           + Branch
         </button>
         <button
           className="customNodeButton customNodeButtonDanger"
           type="button"
-          onClick={() => data.onRemoveParallelBranch?.(id)}
+          onClick={() => removeBranchRef.current?.(id)}
           disabled={branches.length <= 1}
         >
           - Branch
@@ -336,7 +323,9 @@ export const ParallelJoinNode = memo(function ParallelJoinNode(props: CutsceneNo
     Array.isArray(data.params?.branches) ? data.params?.branches : ['b0']
   ) as string[]
   const pairId = typeof data.params?.pairId === 'string' ? String(data.params?.pairId) : ''
-  const portMode = data.parallelBranchPortMode ?? 'shared'
+  const { preferences } = usePreferencesContext()
+  const { addBranchRef, removeBranchRef } = useNodeActionsRef()
+  const portMode = preferences.parallelBranchPortMode
 
   // Для join используем ту же формулу роста, что и для start,
   // чтобы пара нод визуально оставалась одной высоты.
@@ -366,8 +355,7 @@ export const ParallelJoinNode = memo(function ParallelJoinNode(props: CutsceneNo
   )
 
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled}
-      nodeType="parallel"
+    <BaseNode       nodeType="parallel"
       selected={selected}
       style={baseNodeStyle}
       hasInput={false}
@@ -378,14 +366,14 @@ export const ParallelJoinNode = memo(function ParallelJoinNode(props: CutsceneNo
           className="customNodeButton"
           type="button"
           // Для join мы добавляем ветку через start-id (pairId).
-          onClick={() => data.onAddParallelBranch?.(pairId || id)}
+          onClick={() => addBranchRef.current?.(pairId || id)}
         >
           + Branch
         </button>
         <button
           className="customNodeButton customNodeButtonDanger"
           type="button"
-          onClick={() => data.onRemoveParallelBranch?.(pairId || id)}
+          onClick={() => removeBranchRef.current?.(pairId || id)}
           disabled={branches.length <= 1}
         >
           - Branch
@@ -400,8 +388,7 @@ export const ParallelJoinNode = memo(function ParallelJoinNode(props: CutsceneNo
 export const BranchNode = memo(function BranchNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const condition = data.params?.condition ?? ''
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled}
-      nodeType="branch"
+    <BaseNode       nodeType="branch"
       selected={selected}
       hasOutput={false}
       extraHandles={
@@ -472,7 +459,7 @@ export const CameraShakeNode = memo(function CameraShakeNode({ data, selected }:
   const seconds = data.params?.seconds ?? '?'
   const magnitude = data.params?.magnitude ?? 4
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="camera_shake" selected={selected}>
+    <BaseNode  nodeType="camera_shake" selected={selected}>
       <div className="customNodeParam">{String(seconds)}s</div>
       <div className="customNodeParam">mag: {String(magnitude)}</div>
     </BaseNode>
@@ -486,7 +473,7 @@ export const AutoFacingNode = memo(function AutoFacingNode({ data, selected }: C
   const target = data.params?.target ?? ''
   const enabled = data.params?.enabled ?? true
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="auto_facing" selected={selected}>
+    <BaseNode  nodeType="auto_facing" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">{String(enabled)}</div>
     </BaseNode>
@@ -498,7 +485,7 @@ export const AutoWalkNode = memo(function AutoWalkNode({ data, selected }: Cutsc
   const target = data.params?.target ?? ''
   const enabled = data.params?.enabled ?? true
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="auto_walk" selected={selected}>
+    <BaseNode  nodeType="auto_walk" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">{String(enabled)}</div>
     </BaseNode>
@@ -509,7 +496,7 @@ export const AutoWalkNode = memo(function AutoWalkNode({ data, selected }: Cutsc
 export const RunFunctionNode = memo(function RunFunctionNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const funcName = data.params?.function_name ?? data.params?.function ?? ''
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="run_function" selected={selected}>
+    <BaseNode  nodeType="run_function" selected={selected}>
       {funcName && <div className="customNodeParam">{String(funcName)}()</div>}
     </BaseNode>
   )
@@ -521,7 +508,7 @@ export const TweenNode = memo(function TweenNode({ data, selected }: CutsceneNod
   const property = data.params?.property ?? data.params?.field ?? ''
   const to = data.params?.to ?? data.params?.end_value ?? '?'
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="tween" selected={selected}>
+    <BaseNode  nodeType="tween" selected={selected}>
       <div className="customNodeParam">{String(kind) === 'camera' ? 'camera' : String(target)}</div>
       <div className="customNodeParam">{String(property)} → {String(to)}</div>
     </BaseNode>
@@ -534,7 +521,7 @@ export const SetPropertyNode = memo(function SetPropertyNode({ data, selected }:
   const property = data.params?.property ?? data.params?.field ?? ''
   const value = data.params?.value ?? '?'
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="set_property" selected={selected}>
+    <BaseNode  nodeType="set_property" selected={selected}>
       <div className="customNodeParam">{String(kind) === 'camera' ? 'camera' : String(target)}</div>
       <div className="customNodeParam">{String(property)} = {String(value)}</div>
     </BaseNode>
@@ -544,7 +531,7 @@ export const SetPropertyNode = memo(function SetPropertyNode({ data, selected }:
 export const FadeInNode = memo(function FadeInNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const seconds = data.params?.seconds ?? '?'
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="fade_in" selected={selected}>
+    <BaseNode  nodeType="fade_in" selected={selected}>
       <div className="customNodeParam">{String(seconds)}s</div>
     </BaseNode>
   )
@@ -553,7 +540,7 @@ export const FadeInNode = memo(function FadeInNode({ data, selected }: CutsceneN
 export const FadeOutNode = memo(function FadeOutNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const seconds = data.params?.seconds ?? '?'
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="fade_out" selected={selected}>
+    <BaseNode  nodeType="fade_out" selected={selected}>
       <div className="customNodeParam">{String(seconds)}s</div>
     </BaseNode>
   )
@@ -562,7 +549,7 @@ export const FadeOutNode = memo(function FadeOutNode({ data, selected }: Cutscen
 export const PlaySFXNode = memo(function PlaySFXNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const sound = data.params?.sound ?? data.params?.key ?? ''
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="play_sfx" selected={selected}>
+    <BaseNode  nodeType="play_sfx" selected={selected}>
       {sound && <div className="customNodeParam">{String(sound)}</div>}
     </BaseNode>
   )
@@ -573,7 +560,7 @@ export const EmoteNode = memo(function EmoteNode({ data, selected }: CutsceneNod
   const sprite = data.params?.sprite ?? ''
   const wait = data.params?.wait === true
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="emote" selected={selected}>
+    <BaseNode  nodeType="emote" selected={selected}>
       <div className="customNodeParam">
         {String(target)} {wait && <span style={{ opacity: 0.5, fontSize: '0.9em' }}>(wait)</span>}
       </div>
@@ -587,7 +574,7 @@ export const JumpNode = memo(function JumpNode({ data, selected }: CutsceneNodeP
   const x = data.params?.x ?? '?'
   const y = data.params?.y ?? '?'
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="jump" selected={selected}>
+    <BaseNode  nodeType="jump" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">→ {String(x)}, {String(y)}</div>
     </BaseNode>
@@ -597,7 +584,7 @@ export const JumpNode = memo(function JumpNode({ data, selected }: CutsceneNodeP
 export const HaltNode = memo(function HaltNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="halt" selected={selected}>
+    <BaseNode  nodeType="halt" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
     </BaseNode>
   )
@@ -607,7 +594,7 @@ export const FlipNode = memo(function FlipNode({ data, selected }: CutsceneNodeP
   const target = data.params?.target ?? ''
   const flipped = data.params?.flipped ?? true
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="flip" selected={selected}>
+    <BaseNode  nodeType="flip" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">{String(flipped)}</div>
     </BaseNode>
@@ -618,7 +605,7 @@ export const SpinNode = memo(function SpinNode({ data, selected }: CutsceneNodeP
   const target = data.params?.target ?? ''
   const speed = data.params?.speed ?? '?'
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="spin" selected={selected}>
+    <BaseNode  nodeType="spin" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">speed: {String(speed)}</div>
     </BaseNode>
@@ -629,7 +616,7 @@ export const ShakeObjectNode = memo(function ShakeObjectNode({ data, selected }:
   const target = data.params?.target ?? ''
   const magnitude = data.params?.magnitude ?? 4
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="shake_object" selected={selected}>
+    <BaseNode  nodeType="shake_object" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">mag: {String(magnitude)}</div>
     </BaseNode>
@@ -640,7 +627,7 @@ export const SetVisibleNode = memo(function SetVisibleNode({ data, selected }: C
   const target = data.params?.target ?? ''
   const visible = data.params?.visible ?? true
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="set_visible" selected={selected}>
+    <BaseNode  nodeType="set_visible" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">{String(visible)}</div>
     </BaseNode>
@@ -650,7 +637,7 @@ export const SetVisibleNode = memo(function SetVisibleNode({ data, selected }: C
 export const InstantModeNode = memo(function InstantModeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const enabled = data.params?.enabled ?? true
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="instant_mode" selected={selected}>
+    <BaseNode  nodeType="instant_mode" selected={selected}>
       <div className="customNodeParam">{String(enabled)}</div>
     </BaseNode>
   )
@@ -659,7 +646,7 @@ export const InstantModeNode = memo(function InstantModeNode({ data, selected }:
 export const MarkNodeNode = memo(function MarkNodeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const name = data.params?.name ?? ''
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="mark_node" selected={selected}>
+    <BaseNode  nodeType="mark_node" selected={selected}>
       <div className="customNodeParam">{String(name)}</div>
     </BaseNode>
   )
@@ -670,7 +657,7 @@ export const CameraTrackUntilStopNode = memo(function CameraTrackUntilStopNode({
   const ox = data.params?.offset_x ?? 0
   const oy = data.params?.offset_y ?? 0
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="camera_track_until_stop" selected={selected}>
+    <BaseNode  nodeType="camera_track_until_stop" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">ox:{String(ox)} oy:{String(oy)}</div>
     </BaseNode>
@@ -681,7 +668,7 @@ export const CameraCenterNode = memo(function CameraCenterNode({ data, selected 
   const x = data.params?.x ?? 0
   const y = data.params?.y ?? 0
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="camera_center" selected={selected}>
+    <BaseNode  nodeType="camera_center" selected={selected}>
       <div className="customNodeParam">({String(x)}, {String(y)})</div>
     </BaseNode>
   )
@@ -691,7 +678,7 @@ export const CameraPanObjNode = memo(function CameraPanObjNode({ data, selected 
   const target = data.params?.target ?? ''
   const seconds = data.params?.seconds ?? 1
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="camera_pan_obj" selected={selected}>
+    <BaseNode  nodeType="camera_pan_obj" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">{String(seconds)}s</div>
     </BaseNode>
@@ -704,9 +691,69 @@ export const TweenCameraNode = memo(function TweenCameraNode({ data, selected }:
   const seconds = data.params?.seconds ?? 1
   const easing = data.params?.easing ?? 'linear'
   return (
-    <BaseNode showLabel={data.showNodeNameOnCanvas} liquidGlass={data.liquidGlassEnabled} nodeType="tween_camera" selected={selected}>
+    <BaseNode  nodeType="tween_camera" selected={selected}>
       <div className="customNodeParam">camera.{String(property)} → {String(to_value)}</div>
       <div className="customNodeParam">{String(seconds)}s {String(easing)}</div>
+    </BaseNode>
+  )
+})
+
+// Partial Control — переключает уровень контроля игрока во время катсцены.
+export const PartialControlNode = memo(function PartialControlNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const type = data.params?.type ?? 0
+  const whitelist = Array.isArray(data.params?.whitelist) ? data.params.whitelist : []
+  return (
+    <BaseNode  nodeType="partial_control" selected={selected}>
+      <div className="customNodeParam">type: {String(type)}</div>
+      {type === 1 && <div className="customNodeParam">whitelist: {whitelist.length} items</div>}
+    </BaseNode>
+  )
+})
+
+// Wait for Interact — ждёт взаимодействия игрока с объектом.
+export const WaitInteractNode = memo(function WaitInteractNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const timeout = data.params?.timeout ?? 0
+  return (
+    <BaseNode  nodeType="wait_for_interact" selected={selected}>
+      <div className="customNodeParam">{String(target)}</div>
+      {Number(timeout) > 0 && <div className="customNodeParam">timeout: {String(timeout)}s</div>}
+    </BaseNode>
+  )
+})
+
+// Set Flag — устанавливает global.flag[key] = value.
+export const SetFlagNode = memo(function SetFlagNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const key = data.params?.key ?? ''
+  const value = data.params?.value ?? 0
+  return (
+    <BaseNode  nodeType="set_flag" selected={selected}>
+      <div className="customNodeParam">{String(key)} = {String(value)}</div>
+    </BaseNode>
+  )
+})
+
+// Spawn Entity — создаёт объект в runtime.
+export const SpawnEntityNode = memo(function SpawnEntityNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const obj = data.params?.object ?? ''
+  const x = data.params?.x ?? 0
+  const y = data.params?.y ?? 0
+  const persistent = data.params?.persistent ?? false
+  return (
+    <BaseNode  nodeType="spawn_entity" selected={selected}>
+      <div className="customNodeParam">{String(obj)}</div>
+      <div className="customNodeParam">({String(x)}, {String(y)})</div>
+      {persistent && <div className="customNodeParam">persistent</div>}
+    </BaseNode>
+  )
+})
+
+// Destroy Entity — уничтожает объект.
+export const DestroyEntityNode = memo(function DestroyEntityNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  return (
+    <BaseNode  nodeType="destroy_entity" selected={selected}>
+      <div className="customNodeParam">{String(target)}</div>
     </BaseNode>
   )
 })

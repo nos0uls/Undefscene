@@ -8,6 +8,7 @@ import {
 } from './runtimeTypes'
 import { reverseCompileCutscene } from './reverseCompile'
 import { compileGraph, stripExport } from './compileGraph'
+import type { Translator } from './compileGraph'
 import type { ValidationResult } from './validateGraph'
 import { pushSuccess, pushError, pushWarning } from './ToastHub'
 import type { ToastContextValue } from './ToastHub'
@@ -32,7 +33,7 @@ type UseSceneIODeps = {
   // Confirm dialog для подтверждения опасных действий.
   confirm: (opts: ConfirmOptions) => Promise<boolean>
   // Функция-переводчик для локализации сообщений.
-  t: (key: string, fallback?: string) => string
+  t: Translator
   // Настройки автосохранения.
   preferencesLoaded: boolean
   autoSaveEnabled: boolean
@@ -81,14 +82,14 @@ export function useSceneIO(deps: UseSceneIODeps) {
     const val = validation
     if (val.hasErrors) {
       const errorCount = val.entries.filter((e) => e.severity === 'error').length
-      pushError(toasts, `Fix ${errorCount} error(s) before exporting.`, {
+      pushError(toasts, t('dialog.exportBlockedMessage', { count: errorCount }, 'Fix {count} error(s) before exporting.'), {
         title: t('dialog.exportBlockedTitle', 'Export blocked'),
         duration: 0
       })
       return
     }
 
-    const result = compileGraph(runtime)
+    const result = compileGraph(runtime, t)
     if (!result.ok) {
       pushError(toasts, result.error, { title: t('dialog.exportFailedTitle', 'Export failed'), duration: 0 })
       return
@@ -213,7 +214,7 @@ export function useSceneIO(deps: UseSceneIODeps) {
         }
       }
     } catch {
-      pushError(toasts, t('alerts.openSceneInvalidJson', 'File corrupted (invalid JSON).'), { title: 'Open failed', duration: 0 })
+      pushError(toasts, t('alerts.openSceneInvalidJson', 'File corrupted (invalid JSON).'), { title: t('alerts.openFailedTitle', 'Open failed'), duration: 0 })
     }
   }, [setRuntime, setSceneFilePath, confirm, t, toasts])
 

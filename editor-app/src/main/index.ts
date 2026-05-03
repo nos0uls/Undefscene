@@ -484,9 +484,6 @@ async function scanYarnFiles(
     return []
   }
 
-  console.log('Yarn scan root:', datafilesDir)
-  console.log('Yarn scan found files:', files)
-
   const resultPromises = files.map(async (file) => {
     try {
       const raw = await readFile(join(datafilesDir, file), 'utf-8')
@@ -511,8 +508,6 @@ async function scanYarnFiles(
 
   const results = await Promise.all(resultPromises)
   const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null)
-
-  console.log('Yarn scan parsed entries:', validResults)
 
   return validResults
 }
@@ -1582,9 +1577,18 @@ app.whenReady().then(() => {
     const sourcePath = result.filePaths[0]
     const extension = extname(sourcePath) || '.png'
     const backgroundsDir = join(app.getPath('userData'), 'canvas-backgrounds')
-    const targetPath = join(backgroundsDir, `canvas-background${extension}`)
+    const targetPath = join(backgroundsDir, `canvas-background-${Date.now()}${extension}`)
 
     await mkdir(backgroundsDir, { recursive: true })
+
+    // Удаляем предыдущие файлы фона, чтобы не копились в userData.
+    const existing = await readdir(backgroundsDir).catch(() => [] as string[])
+    for (const name of existing) {
+      if (name.startsWith('canvas-background')) {
+        await unlink(join(backgroundsDir, name)).catch(() => undefined)
+      }
+    }
+
     await copyFile(sourcePath, targetPath)
 
     return targetPath

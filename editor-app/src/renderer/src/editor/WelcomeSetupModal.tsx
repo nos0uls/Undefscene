@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useTheme, type ThemeId } from './useTheme'
+import { THEMES, type ThemeId } from './useTheme'
 import type { EditorPreferences, AccentColorId } from './usePreferences'
 import { createTranslator } from '../i18n'
 
@@ -31,7 +31,6 @@ export function WelcomeSetupModal({
   updatePreferences,
   onComplete
 }: WelcomeSetupModalProps): React.JSX.Element | null {
-  const { theme, setTheme, themes } = useTheme()
   const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
 
   if (!open) return null
@@ -55,15 +54,13 @@ export function WelcomeSetupModal({
       <div className="prefsModal" style={{ maxWidth: 450, width: '100%', maxHeight: '90vh', overflow: 'auto' }}>
         <div className="prefsHeader">
           <span className="prefsTitle" style={{ fontSize: 20 }}>
-            {preferences.language === 'ru' ? 'Добро пожаловать!' : 'Welcome!'}
+            {t('welcome.title', 'Welcome!')}
           </span>
         </div>
 
         <div className="prefsBody" style={{ padding: '20px 24px' }}>
           <p style={{ marginBottom: 24, color: 'var(--ev-c-text-2)', lineHeight: '1.5' }}>
-            {preferences.language === 'ru' 
-              ? 'Давайте настроим Undefscene под вас перед тем, как начать работу.' 
-              : 'Let\'s customize Undefscene for you before we get started.'}
+            {t('welcome.description', 'Let\'s customize Undefscene for you before we get started.')}
           </p>
 
           <div className="prefsSection" style={{ border: 'none', padding: 0 }}>
@@ -83,10 +80,10 @@ export function WelcomeSetupModal({
               <span>{t('preferences.theme', 'Theme')}</span>
               <select
                 className="prefsInput"
-                value={theme}
-                onChange={(e) => setTheme(e.target.value as ThemeId)}
+                value={preferences.theme}
+                onChange={(e) => updatePreferences({ theme: e.target.value as ThemeId })}
               >
-                {themes.map((t) => (
+                {THEMES.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.label}
                   </option>
@@ -106,8 +103,20 @@ export function WelcomeSetupModal({
                     {p.label}
                   </option>
                 ))}
+                <option value="custom">{t('preferences.custom', 'Custom...')}</option>
               </select>
             </label>
+            {preferences.accentColor === 'custom' && (
+              <label className="prefsField">
+                <span>{t('preferences.customHex', 'Custom HEX')}</span>
+                <input
+                  className="prefsInput"
+                  type="color"
+                  value={preferences.customAccentHex}
+                  onChange={(e) => updatePreferences({ customAccentHex: e.target.value })}
+                />
+              </label>
+            )}
           </div>
 
           <div style={{ marginTop: 32, display: 'flex', justifyContent: 'center' }}>
@@ -122,7 +131,7 @@ export function WelcomeSetupModal({
               }}
               onClick={onComplete}
             >
-              {preferences.language === 'ru' ? 'Начать работу' : 'Get Started'}
+              {t('app.getStarted', 'Get Started')}
             </button>
           </div>
         </div>

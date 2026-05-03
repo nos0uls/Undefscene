@@ -11,13 +11,6 @@ type BaseNodeProps = {
   // Текст/метка, которую показываем под заголовком.
   label?: string
 
-  // Показывать ли имя ноды на холсте (приходит из data ноды, чтобы избежать
-  // подписки на весь PreferencesContext в каждой ноде).
-  showLabel?: boolean
-
-  // Включён ли liquid-glass эффект (приходит из data ноды).
-  liquidGlass?: boolean
-
   // Показывать ли входной порт (слева).
   hasInput?: boolean
 
@@ -43,8 +36,6 @@ type BaseNodeProps = {
 export const BaseNode = memo(function BaseNode({
   nodeType,
   label,
-  showLabel,
-  liquidGlass,
   hasInput = true,
   hasOutput = true,
   extraHandles,
@@ -62,7 +53,6 @@ export const BaseNode = memo(function BaseNode({
   // Классы собираем без filter/join — это дешевле массивной аллокации на mount 500 нод.
   let nodeClass = 'customNode'
   if (selected) nodeClass += ' isSelected'
-  if (liquidGlass) nodeClass += ' isLiquidGlass'
 
   // Для branch ноды нужен минимальный height, иначе TRUE/FALSE handle'ы слипаются.
   // Для остальных нод style либо не задан, либо приходит извне (parallel start/join).
@@ -84,7 +74,7 @@ export const BaseNode = memo(function BaseNode({
       <div className="customNodeHeader">
         <span className="customNodeDot" />
         <span className="customNodeTitle">{title}</span>
-        {showLabel ? <span className="customNodeLabel">{label}</span> : null}
+        {label ? <span className="customNodeLabel">{label}</span> : null}
       </div>
 
       {/* Тело (детали параметров). Рендерим только если параметры есть —

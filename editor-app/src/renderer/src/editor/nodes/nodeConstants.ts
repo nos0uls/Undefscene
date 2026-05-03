@@ -50,7 +50,12 @@ export const NODE_CATEGORY: Record<string, string> = {
   shake_object: 'visual',
   set_visible: 'visual',
   instant_mode: 'logic',
-  mark_node: 'logic'
+  mark_node: 'logic',
+  partial_control: 'logic',
+  wait_for_interact: 'logic',
+  set_flag: 'logic',
+  spawn_entity: 'logic',
+  destroy_entity: 'logic'
 }
 
 // Короткие метки для типов нод (отображаются в заголовке).
@@ -91,5 +96,10 @@ export const NODE_LABELS: Record<string, string> = {
   shake_object: 'Shake Object',
   set_visible: 'Set Visible',
   instant_mode: 'Instant Mode',
-  mark_node: 'Mark Node'
+  mark_node: 'Mark Node',
+  partial_control: 'Partial Control',
+  wait_for_interact: 'Wait Interact',
+  set_flag: 'Set Flag',
+  spawn_entity: 'Spawn Entity',
+  destroy_entity: 'Destroy Entity'
 }

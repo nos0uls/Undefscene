@@ -2,7 +2,7 @@
 // Открывается из File → Preferences. Закрывается по Esc или кнопке Close.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useTheme, type ThemeId } from './useTheme'
+import { THEMES, type ThemeId } from './useTheme'
 import type { EditorPreferences, HotkeyActionId } from './usePreferences'
 import { DEFAULT_KEYBINDINGS, HOTKEY_ACTION_IDS, type AccentColorId } from './usePreferences'
 import {
@@ -71,8 +71,7 @@ export function PreferencesModal({
   // null = режим capture не активен.
   const [capturingActionId, setCapturingActionId] = useState<HotkeyActionId | null>(null)
 
-  // Хук для управления темой (сохраняется в localStorage).
-  const { theme, setTheme, themes } = useTheme()
+  // Тема читается и пишется напрямую через preferences (единый источник правды).
 
   // Простой runtime translator. Переключается сразу вместе с preferences.language.
   const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
@@ -200,17 +199,17 @@ export function PreferencesModal({
               <span>{t('preferences.theme', 'Theme')}</span>
               <select
                 className="prefsInput"
-                value={theme}
-                onChange={(e) => setTheme(e.target.value as ThemeId)}
+                value={preferences.theme}
+                onChange={(e) => updatePreferences({ theme: e.target.value as ThemeId })}
               >
-                {themes.map((t) => (
+                {THEMES.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.label}
                   </option>
                 ))}
               </select>
             </label>
-            <div className="prefsHint">{themes.find((t) => t.id === theme)?.description ?? ''}</div>
+            <div className="prefsHint">{THEMES.find((t) => t.id === preferences.theme)?.description ?? ''}</div>
 
             {/* Акцентный цвет */}
             <label className="prefsField">
@@ -225,7 +224,7 @@ export function PreferencesModal({
                     {p.label}
                   </option>
                 ))}
-                <option value="custom">{preferences.language === 'ru' ? 'Свой...' : 'Custom...'}</option>
+                <option value="custom">{t('preferences.custom', 'Custom...')}</option>
               </select>
             </label>
 
@@ -254,7 +253,10 @@ export function PreferencesModal({
                 value={preferences.gridSize}
                 min={8}
                 max={64}
-                onChange={(e) => updatePreferences({ gridSize: Number(e.target.value) })}
+                onChange={(e) => {
+                  const val = Number(e.target.value)
+                  if (!isNaN(val)) updatePreferences({ gridSize: val })
+                }}
               />
             </label>
             <div className="prefsHint">
@@ -269,7 +271,10 @@ export function PreferencesModal({
                 min={0.5}
                 max={5}
                 value={preferences.zoomSpeed}
-                onChange={(e) => updatePreferences({ zoomSpeed: Number(e.target.value) })}
+                onChange={(e) => {
+                  const val = Number(e.target.value)
+                  if (!isNaN(val)) updatePreferences({ zoomSpeed: val })
+                }}
               />
             </label>
             <label className="prefsField prefsCheckbox">
@@ -431,7 +436,10 @@ export function PreferencesModal({
                 min={1}
                 max={120}
                 value={preferences.autoSaveIntervalMinutes}
-                onChange={(e) => updatePreferences({ autoSaveIntervalMinutes: Number(e.target.value) })}
+                onChange={(e) => {
+                  const val = Number(e.target.value)
+                  if (!isNaN(val)) updatePreferences({ autoSaveIntervalMinutes: val })
+                }}
                 disabled={!preferences.autoSaveEnabled}
               />
             </label>
@@ -548,7 +556,7 @@ export function PreferencesModal({
                         ? t('preferences.shortcutCapture', 'Press shortcut...')
                         : formatComboForDisplay(
                             preferences.keybindings[actionId] ?? '',
-                            preferences.language === 'ru' ? 'Не назначено' : 'Unassigned'
+                            t('preferences.unassigned', 'Unassigned')
                           )}
                     </button>
                     <button
