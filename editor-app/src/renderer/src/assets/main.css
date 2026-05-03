@@ -1799,9 +1799,6 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   transform: scale(0.97);
 }
 
-/* Base icon buttons. */
-.iconButton {}
-
 /* Верхняя toolbar-строка: room selector и action buttons. */
 .roomVisualEditorToolbar {
   display: flex;
