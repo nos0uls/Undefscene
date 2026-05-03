@@ -1420,8 +1420,8 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 
 /* Node handles (ports) */
 .customHandle {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   /* Круглые элегантные порты */
   background: var(--bg-surface);
@@ -1431,18 +1431,22 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
     background 0.15s,
     transform 0.15s,
     border-color 0.15s;
-  position: relative;
+  /* НЕ ставим position:relative — React Flow handle использует position:absolute.
+     Наше правило ломало позиционирование, handle "выпадал" из потока ноды. */
   transform-origin: center;
 }
 
-/* Invisible hit area around handle */
+/* Invisible hit area around handle — увеличена до 28px для удобства.
+   position:absolute здесь корректен, потому что ::after позиционируется
+   относительно ближайшего positioned ancestor (сам handle, у которого
+   React Flow уже выставляет position:absolute). */
 .customHandle::after {
   content: '';
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
 }
