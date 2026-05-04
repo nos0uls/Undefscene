@@ -277,13 +277,24 @@ export function PreferencesModal({
                 }}
               />
             </label>
-            <label className="prefsField prefsCheckbox">
+            <label className="prefsField">
+              <span>{t('preferences.miniMapNodeThreshold', 'MiniMap node threshold')}</span>
               <input
-                type="checkbox"
-                checked={preferences.showMiniMap}
-                onChange={(e) => updatePreferences({ showMiniMap: e.target.checked })}
+                type="number"
+                className="prefsInput"
+                style={{ width: 80 }}
+                value={preferences.miniMapNodeThreshold}
+                onChange={(e) => {
+                  const val = Number(e.target.value)
+                  if (!isNaN(val)) updatePreferences({ miniMapNodeThreshold: val })
+                }}
               />
-              <span>{t('preferences.showMiniMap', 'Show MiniMap')}</span>
+              <span className="prefsFieldHint">
+                {t(
+                  'preferences.miniMapNodeThresholdHint',
+                  '0 = off, -1 = always on, >0 = hide if nodes exceed this count'
+                )}
+              </span>
             </label>
             <label className="prefsField prefsCheckbox">
               <input

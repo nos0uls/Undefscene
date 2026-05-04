@@ -44,7 +44,7 @@ const RF_EDGE_LABEL_STYLE: React.CSSProperties = { fill: '#d4d4d4', fontSize: 11
 const RF_EDGE_PAIR_STYLE: React.CSSProperties = { strokeDasharray: '6 4', opacity: 0.35 }
 const RF_PAN_ON_DRAG: number[] = [2]
 const RF_STYLE: React.CSSProperties = { background: 'transparent', position: 'relative', zIndex: 1 }
-const RF_MINIMAP_STYLE: React.CSSProperties = { cursor: 'default', overflow: 'hidden' }
+const RF_MINIMAP_STYLE: React.CSSProperties = { overflow: 'hidden' }
 const RF_FAB_PANEL_STYLE: React.CSSProperties = { marginLeft: 74, marginBottom: 15 }
 
 // Пропсы для холста: узлы, связи, выбор и коллбеки для синхронизации с runtime.
@@ -147,6 +147,51 @@ const ZoomLODController = memo(function ZoomLODController(): null {
   return null
 })
 
+// LOD для edge labels: при сильном отдалении и большом числе рёбер
+// убираем text-labels, потому что каждый label = отдельный SVG/foreignObject
+// элемент, и 2000 таких элементов дают серьёзный paint spike при pan/zoom.
+const EdgeLODController = memo(function EdgeLODController({
+  runtimeEdges
+}: {
+  runtimeEdges: RuntimeEdge[]
+}): null {
+  const zoom = useStore((s) => s.transform[2])
+  const { setEdges } = useReactFlow()
+  const lastSuppressRef = useRef<boolean | null>(null)
+
+  // Кэшируем runtimeEdges в Map, чтобы внутри setEdges не делать O(E²) find().
+  const edgesById = useMemo(() => {
+    const m = new Map<string, RuntimeEdge>()
+    for (const e of runtimeEdges) m.set(e.id, e)
+    return m
+  }, [runtimeEdges])
+
+  useEffect(() => {
+    const shouldSuppress = zoom < 0.2 && runtimeEdges.length > 200
+    if (lastSuppressRef.current === shouldSuppress) return
+    lastSuppressRef.current = shouldSuppress
+
+    setEdges((prev) => {
+      let changed = false
+      const next = prev.map((edge) => {
+        const runtimeEdge = edgesById.get(edge.id)
+        if (!runtimeEdge) return edge
+        const desiredLabel = shouldSuppress
+          ? undefined
+          : typeof runtimeEdge.waitSeconds === 'number'
+            ? `${runtimeEdge.waitSeconds}s`
+            : undefined
+        if (edge.label === desiredLabel) return edge
+        changed = true
+        return { ...edge, label: desiredLabel }
+      })
+      return changed ? next : prev
+    })
+  }, [zoom, runtimeEdges.length, edgesById, setEdges])
+
+  return null
+})
+
 // Внутренний компонент холста (нужен useReactFlow, который работает только внутри ReactFlowProvider).
 const FlowCanvasInner = memo(function FlowCanvasInner({
   runtimeNodes,
@@ -179,7 +224,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
     parallelBranchPortMode,
     showNodeNameOnCanvas,
     canvasBackgroundPath,
-    showMiniMap,
+    miniMapNodeThreshold,
     liquidGlassEnabled,
     liquidGlassBlur,
     canvasBackgroundAttachment,
@@ -668,72 +713,48 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   // его новые координаты (X и Y) в наше основное состояние (runtime).
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      // В Uncontrolled Mode React Flow САМ применяет изменения к своим нодам.
-      // Наша задача — только поймать конец drag и сохранить финальные позиции в runtime.
+      // Early-out: в uncontrolled mode React Flow сам обрабатывает select/add/remove.
+      // Нас интересует только position change с dragging === false (конец drag).
+      const hasRelevant = changes.some((c) => c.type === 'position' && c.dragging === false)
+      if (!hasRelevant) return
 
-      // Если закончили drag хотя бы одной ноды — сохраняем позиции всех выделенных.
-      const didStopDragging = changes.some((c) => c.type === 'position' && c.dragging === false)
+      // Берём актуальные позиции прямо из стора React Flow.
+      const latestNodes = getNodes()
+      // Map вместо find() — при 2000 нодах разница между O(N×S) и O(N+S).
+      const latestNodesById = new Map(latestNodes.map((n) => [n.id, n]))
+      const currentRuntimeNodes = runtimeNodesRef.current
+      const currentRuntimeNodesById = new Map(currentRuntimeNodes.map((n) => [n.id, n]))
 
-      if (didStopDragging) {
-        // Берём актуальные позиции прямо из стора React Flow.
-        const latestNodes = getNodes()
-        const currentRuntimeNodes = runtimeNodesRef.current
+      const idsToSave = new Set<string>()
+      for (const id of selectedNodeIdsRef.current ?? []) idsToSave.add(id)
+      if (selectedNodeIdRef.current) idsToSave.add(selectedNodeIdRef.current)
 
-        // Используем refs, чтобы не зависеть от замыкания.
-        const idsToSave = new Set<string>()
-        for (const id of selectedNodeIdsRef.current ?? []) idsToSave.add(id)
-        if (selectedNodeIdRef.current) idsToSave.add(selectedNodeIdRef.current)
-
-        // Добавляем все ноды, которые React Flow отметил как "dragging=false".
-        for (const c of changes) {
-          if (c.type === 'position' && c.dragging === false) {
-            idsToSave.add(c.id)
-          }
+      // Добавляем все ноды, которые React Flow отметил как "dragging=false".
+      for (const c of changes) {
+        if (c.type === 'position' && c.dragging === false) {
+          idsToSave.add(c.id)
         }
-
-        // Собираем все реально изменённые позиции в один массив.
-        const batch: Array<{ id: string; x: number; y: number }> = []
-        for (const id of idsToSave) {
-          const flowNode = latestNodes.find((n) => n.id === id)
-          if (!flowNode) continue
-
-          const nextPos = flowNode.position
-          const runtimeNode = currentRuntimeNodes.find((n) => n.id === id)
-          const prevPos = runtimeNode?.position
-
-          if (prevPos && prevPos.x === nextPos.x && prevPos.y === nextPos.y) {
-            continue
-          }
-
-          batch.push({ id, x: nextPos.x, y: nextPos.y })
-        }
-
-        if (batch.length > 0) {
-          positionCallbackRef.current(batch)
-        }
-
-        return
       }
 
-      // Одиночный drag (fallback).
-      const singleBatch: Array<{ id: string; x: number; y: number }> = []
-      for (const change of changes) {
-        if (change.type !== 'position' || change.dragging !== false || !change.position) {
-          continue
-        }
+      // Собираем все реально изменённые позиции в один массив.
+      const batch: Array<{ id: string; x: number; y: number }> = []
+      for (const id of idsToSave) {
+        const flowNode = latestNodesById.get(id)
+        if (!flowNode) continue
 
-        const runtimeNode = runtimeNodesRef.current.find((n) => n.id === change.id)
+        const nextPos = flowNode.position
+        const runtimeNode = currentRuntimeNodesById.get(id)
         const prevPos = runtimeNode?.position
 
-        if (prevPos && prevPos.x === change.position.x && prevPos.y === change.position.y) {
+        if (prevPos && prevPos.x === nextPos.x && prevPos.y === nextPos.y) {
           continue
         }
 
-        singleBatch.push({ id: change.id, x: change.position.x, y: change.position.y })
+        batch.push({ id, x: nextPos.x, y: nextPos.y })
       }
 
-      if (singleBatch.length > 0) {
-        positionCallbackRef.current(singleBatch)
+      if (batch.length > 0) {
+        positionCallbackRef.current(batch)
       }
     },
     [getNodes]
@@ -981,6 +1002,16 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   const handleWheel = useCallback(
     (event: WheelEvent) => {
       const target = event.target as HTMLElement | null
+
+      // Если курсор над миникартой — не перехватываем wheel.
+      // Наш кастомный зум конфликтует с нативным zoom'ом MiniMap
+      // и заставляет viewport прыгать не туда, куда указывает курсор.
+      // Отдаём событие MiniMap — она сама корректно зумирует относительно
+      // позиции курсора внутри миникарты.
+      if (target?.closest('.react-flow__minimap')) {
+        return
+      }
+
       const flowCanvas = flowCanvasRef.current
       if (!flowCanvas) return
       const canvasRect = flowCanvas.getBoundingClientRect()
@@ -1005,7 +1036,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
       const currentViewport = getViewport()
       const currentZoom = currentViewport.zoom
       const zoomFactor = Math.exp(-event.deltaY * 0.001 * zoomSpeedRef.current)
-      const nextZoom = Math.max(0.1, Math.min(4, currentZoom * zoomFactor))
+      const nextZoom = Math.max(0.02, Math.min(4, currentZoom * zoomFactor))
 
       if (Math.abs(nextZoom - currentZoom) < 0.0001) return
 
@@ -1213,8 +1244,14 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         {/* LOD: переключает zoomLow/zoomVeryLow классы на корне .react-flow.
             Подписывается на zoom через useStore, не трогая ноды. */}
         <ZoomLODController />
-        {showMiniMap ? (
+        <EdgeLODController runtimeEdges={runtimeEdges} />
+        {/* MiniMap: порог отключения управляется настройкой.
+            0 = всегда скрыта, -1 = всегда показана, >0 = скрыть если нод > порога. */}
+      {miniMapNodeThreshold !== 0 &&
+        (miniMapNodeThreshold === -1 || runtimeNodes.length <= miniMapNodeThreshold) ? (
           <MiniMap
+            pannable
+            zoomable
             nodeColor="#7ea4ff"
             nodeStrokeColor="#4a6fcb"
             nodeBorderRadius={2}
