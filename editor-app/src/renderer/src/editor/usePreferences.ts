@@ -88,8 +88,9 @@ export interface EditorPreferences {
   // Размер сетки на холсте.
   gridSize: number
 
-  // Показывать ли мини-карту.
-  showMiniMap: boolean
+  // Порог отключения мини-карты по числу нод.
+  // 0 = выключена всегда, -1 = включена всегда, >0 = скрыть если нод больше порога.
+  miniMapNodeThreshold: number
 
   // Множитель скорости зума (1.0 = стандартный, 2.0 = быстрее).
   zoomSpeed: number
@@ -190,7 +191,7 @@ export const DEFAULT_PREFERENCES: EditorPreferences = {
   accentColor: 'purple',
   customAccentHex: '#5e6ad2',
   gridSize: 18,
-  showMiniMap: true,
+  miniMapNodeThreshold: 500,
   zoomSpeed: 1.5,
   showDockDropPreview: true,
   canvasBackgroundPath: null,
@@ -245,8 +246,15 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
       typeof c.gridSize === 'number' && c.gridSize >= 8 && c.gridSize <= 64
         ? c.gridSize
         : DEFAULT_PREFERENCES.gridSize,
-    showMiniMap:
-      typeof c.showMiniMap === 'boolean' ? c.showMiniMap : DEFAULT_PREFERENCES.showMiniMap,
+    miniMapNodeThreshold:
+      // Миграция со старого boolean showMiniMap: false → 0 (выкл), true → -1 (всегда вкл).
+      typeof c.miniMapNodeThreshold === 'number'
+        ? c.miniMapNodeThreshold
+        : typeof c.showMiniMap === 'boolean'
+          ? c.showMiniMap
+            ? -1
+            : 0
+          : DEFAULT_PREFERENCES.miniMapNodeThreshold,
     zoomSpeed:
       typeof c.zoomSpeed === 'number' && c.zoomSpeed >= 0.5 && c.zoomSpeed <= 5
         ? c.zoomSpeed

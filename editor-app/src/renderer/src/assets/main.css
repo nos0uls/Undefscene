@@ -1201,6 +1201,12 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   border-radius: 4px;
 }
 
+/* Подсказываем браузеру заранее выделить compositing-слой для viewport,
+   чтобы pan/zoom (transform) шли через GPU без полного repaint 2000 нод. */
+.react-flow__viewport {
+  will-change: transform;
+}
+
 /* Container for custom node */
 .customNode {
   border: 1px solid var(--border-strong);
@@ -1540,8 +1546,14 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   width: clamp(112px, 18vw, 180px) !important;
   height: clamp(78px, 14vh, 120px) !important;
   overflow: hidden !important;
+  cursor: grab !important;
   /* pointer-events: none УБРАН — иначе minimap неинтерактивен.
      React Flow сам управляет pointer-events внутри minimap для pan/zoom. */
+}
+
+/* При зажатой ЛКМ (drag) — ладошка сжата. */
+.react-flow__minimap:active {
+  cursor: grabbing !important;
 }
 
 .flowCanvas .react-flow__panel,

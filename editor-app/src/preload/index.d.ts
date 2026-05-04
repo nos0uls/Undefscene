@@ -329,7 +329,7 @@ export interface EditorPreferences {
   accentColor: AccentColorId
   customAccentHex: string
   gridSize: number
-  showMiniMap: boolean
+  miniMapNodeThreshold: number
   zoomSpeed: number
   showDockDropPreview: boolean
   canvasBackgroundPath: string | null

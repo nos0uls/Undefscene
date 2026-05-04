@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 
 import { AboutModal } from './AboutModal'
 import { FlowCanvas } from './FlowCanvas'
@@ -55,6 +55,12 @@ type EditorShellInnerProps = {
 
 function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps): React.JSX.Element {
   const { runtime, setRuntime, undo, redo, canUndo, canRedo } = useRuntimeState()
+
+  // Откладываем обновление крупных массивов для FlowCanvas — при drag-end
+  // React не будет блокировать UI, чтобы пересчитать 2000 нод.
+  // Панели (Inspector, Logs) читают актуальные данные из PanelDataContext.
+  const deferredRuntimeNodes = useDeferredValue(runtime.nodes)
+  const deferredRuntimeEdges = useDeferredValue(runtime.edges)
 
   const toasts = useToasts()
   const confirm = useConfirm()
@@ -802,8 +808,8 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
         <div className="centerCanvasHeader">{t('editor.nodeEditor', 'Node Editor')}</div>
         <div className="centerCanvasBody">
           <FlowCanvas
-            runtimeNodes={runtime.nodes}
-            runtimeEdges={runtime.edges}
+            runtimeNodes={deferredRuntimeNodes}
+            runtimeEdges={deferredRuntimeEdges}
             selectedNodeId={runtime.selectedNodeId}
             selectedNodeIds={runtime.selectedNodeIds ?? []}
             selectedEdgeId={runtime.selectedEdgeId}
@@ -825,8 +831,8 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     ),
     [
       t,
-      runtime.nodes,
-      runtime.edges,
+      deferredRuntimeNodes,
+      deferredRuntimeEdges,
       runtime.selectedNodeId,
       runtime.selectedNodeIds,
       runtime.selectedEdgeId,
