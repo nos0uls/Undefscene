@@ -1,6 +1,6 @@
 {
   "name": "undefscene-editor",
-  "version": "1.0.2",
+  "version": "1.0.33",
   "description": "Cutscene editor for Undefinedtale — visual node-based graph editor",
   "main": "./out/main/index.js",
   "author": "nos0uls",

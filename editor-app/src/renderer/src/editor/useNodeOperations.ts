@@ -133,17 +133,27 @@ export function useNodeOperations(deps: UseNodeOperationsDeps) {
 
   // Обновление позиций нод при drag на холсте.
   // Используем startTransition, чтобы не блокировать UI.
+  // Патчим ТОЛЬКО изменённые ноды: при 2000 нодах .map() создавал 2000 новых
+  // объектов даже если сдвинулись только 3. Теперь копируем массив и меняем
+  // только те индексы, чьи позиции реально изменились.
   const handleNodePositionChange = useCallback(
     (changes: Array<{ id: string; x: number; y: number }>) => {
       const posMap = new Map(changes.map((c) => [c.id, { x: c.x, y: c.y }]))
       startTransition(() => {
-        setRuntime((prev) => ({
-          ...prev,
-          nodes: prev.nodes.map((n) => {
-            const newPos = posMap.get(n.id)
-            return newPos ? { ...n, position: newPos } : n
-          })
-        }))
+        setRuntime((prev) => {
+          // Копируем массив, но не трогаем ссылки на неизменённые ноды.
+          const nextNodes = [...prev.nodes]
+          let changed = false
+          for (let i = 0; i < nextNodes.length; i++) {
+            const newPos = posMap.get(nextNodes[i].id)
+            if (newPos) {
+              nextNodes[i] = { ...nextNodes[i], position: newPos }
+              changed = true
+            }
+          }
+          if (!changed) return prev
+          return { ...prev, nodes: nextNodes }
+        })
       })
     },
     [setRuntime]
