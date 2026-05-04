@@ -37,6 +37,11 @@ const EMPTY_PARAMS: Record<string, unknown> = {}
 // что на большом графе приводит к цепочке пере-инициализаций и росту числа
 // event listener'ов. Выносим константы наверх — ссылки стабильны навсегда.
 const RF_PRO_OPTIONS = { hideAttribution: true } as const
+
+// Edge style constants — избегаем O(E) inline-allocations при каждом rebuild initialEdges.
+const RF_EDGE_LABEL_BG_STYLE: React.CSSProperties = { fill: 'rgba(0,0,0,0.55)' }
+const RF_EDGE_LABEL_STYLE: React.CSSProperties = { fill: '#d4d4d4', fontSize: 11 }
+const RF_EDGE_PAIR_STYLE: React.CSSProperties = { strokeDasharray: '6 4', opacity: 0.35 }
 const RF_PAN_ON_DRAG: number[] = [2]
 const RF_STYLE: React.CSSProperties = { background: 'transparent', position: 'relative', zIndex: 1 }
 const RF_MINIMAP_STYLE: React.CSSProperties = { cursor: 'default', overflow: 'hidden' }
@@ -392,11 +397,11 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         // Показываем wait прямо на линии.
         label: typeof e.waitSeconds === 'number' ? `${e.waitSeconds}s` : undefined,
         labelShowBg: true,
-        labelBgStyle: { fill: 'rgba(0,0,0,0.55)' },
-        labelStyle: { fill: '#d4d4d4', fontSize: 11 },
+        labelBgStyle: RF_EDGE_LABEL_BG_STYLE,
+        labelStyle: RF_EDGE_LABEL_STYLE,
 
         // Внутренняя линия для пары parallel (если мы её используем).
-        style: isInternalPair ? { strokeDasharray: '6 4', opacity: 0.35 } : undefined,
+        style: isInternalPair ? RF_EDGE_PAIR_STYLE : undefined,
         selectable: !isInternalPair
       }
     })
@@ -414,6 +419,21 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
     setNodes((prev) => {
       const prevById = new Map(prev.map((node) => [node.id, node]))
       let changed = prev.length !== initialNodes.length
+
+      // Fast-path: если длина совпадает и нет structural изменений (type/label),
+      // скорее всего это position-only update от drag. В uncontrolled mode
+      // React Flow сам управляет позициями — нам не нужно их push-ить обратно.
+      if (prev.length === initialNodes.length && prev.length > 0) {
+        let structuralChange = false
+        for (const node of initialNodes) {
+          const pn = prevById.get(node.id)
+          if (!pn || pn.type !== node.type || pn.data?.label !== node.data.label) {
+            structuralChange = true
+            break
+          }
+        }
+        if (!structuralChange) return prev
+      }
 
       const next = initialNodes.map((node) => {
         const prevNode = prevById.get(node.id)
@@ -1162,7 +1182,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         // Режим выделения: достаточно задеть кусочек ноды, не нужно полное покрытие.
         selectionMode={SelectionMode.Partial}
         // Настройки зума: увеличенный диапазон.
-        minZoom={0.1}
+        minZoom={0.02}
         maxZoom={4}
         // Держим ноды смонтированными во время pan/fitView.
         // Встроенная visible-elements виртуализация пересчитывала видимость на каждом движении viewport

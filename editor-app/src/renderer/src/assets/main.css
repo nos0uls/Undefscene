@@ -1540,7 +1540,8 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   width: clamp(112px, 18vw, 180px) !important;
   height: clamp(78px, 14vh, 120px) !important;
   overflow: hidden !important;
-  pointer-events: none !important;
+  /* pointer-events: none УБРАН — иначе minimap неинтерактивен.
+     React Flow сам управляет pointer-events внутри minimap для pan/zoom. */
 }
 
 .flowCanvas .react-flow__panel,
