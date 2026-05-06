@@ -9,7 +9,8 @@ import {
   copyFile,
   mkdir,
   appendFile,
-  stat
+  stat,
+  rm
 } from 'fs/promises'
 import { join, dirname, basename, extname, relative, resolve, sep } from 'path'
 import icon from '../../resources/icon.png?asset'
@@ -1840,6 +1841,47 @@ app.whenReady().then(() => {
     } catch (err) {
       console.warn('Failed to copy log file to clipboard:', err)
       return { copied: false }
+    }
+  })
+
+  // IPC: Полная очистка данных разработки (настройки, кэш, логи).
+  // После вызова этого метода приложение стоит перезагрузить для чистого старта.
+  ipcMain.handle('app.cleanupDevData', async () => {
+    const userDataPath = app.getPath('userData')
+    const filesToRemove = [
+      'preferences.json',
+      'preferences.json.tmp',
+      'runtime.json',
+      'runtime.json.tmp',
+      'layout.json',
+      'layout.json.tmp',
+      'last-project.json',
+      'undefscene.log',
+      'undefscene.log.1',
+      'undefscene.log.2'
+    ]
+
+    const dirsToRemove = [
+      'project-cache',
+      'canvas-backgrounds',
+      'room-screenshots'
+    ]
+
+    try {
+      // Удаляем файлы.
+      for (const fileName of filesToRemove) {
+        await unlink(join(userDataPath, fileName)).catch(() => undefined)
+      }
+
+      // Удаляем директории рекурсивно.
+      for (const dirName of dirsToRemove) {
+        await rm(join(userDataPath, dirName), { recursive: true, force: true }).catch(() => undefined)
+      }
+
+      return { success: true }
+    } catch (err) {
+      console.error('Failed to cleanup dev data:', err)
+      return { success: false, error: String(err) }
     }
   })
 

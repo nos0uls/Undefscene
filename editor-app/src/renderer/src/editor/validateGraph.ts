@@ -56,7 +56,7 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   camera_track_until_stop: ['target'],
   camera_pan: ['x', 'y'],
   camera_pan_obj: ['target'],
-  camera_center: [],
+  camera_center: ['x', 'y'],
   set_depth: ['target'],
   set_facing: ['target'],
   branch: ['condition'],
@@ -79,7 +79,7 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   set_visible: ['target'],
   instant_mode: ['enabled'],
   mark_node: ['name'],
-  partial_control: [],
+  partial_control: ['type'],
   wait_for_interact: ['target'],
   set_flag: ['key'],
   spawn_entity: ['object', 'x', 'y'],
@@ -463,7 +463,13 @@ export function validateGraph(
 
     if (node.type === 'set_facing') {
       const direction = String(node.params?.direction ?? '').trim().toLowerCase()
-      if (direction && direction !== 'left' && direction !== 'right') {
+      if (
+        direction &&
+        direction !== 'left' &&
+        direction !== 'right' &&
+        direction !== 'up' &&
+        direction !== 'down'
+      ) {
         entries.push({
           severity: 'warn',
           nodeId: node.id,

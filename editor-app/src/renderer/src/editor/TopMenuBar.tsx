@@ -71,6 +71,7 @@ export type TopMenuBarProps = {
 
   // Выход.
   onExit: () => void
+  onCleanupDevData?: () => void
 
   // Настройки.
   onPreferences: () => void
@@ -112,6 +113,7 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
     onToggleVisualEditorTechMode,
     visualEditorTechModeEnabled,
     hardwareAccelerationDisabled,
+    onCleanupDevData,
     onExit,
     onPreferences,
     language,
@@ -182,6 +184,15 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
               id: 'toggleVisualEditorTechMode',
               label: `${visualEditorTechModeEnabled ? '✓ ' : ''}${t('menu.visualEditorTechMode', 'Visual Editing Tech Mode')}`,
               onSelect: onToggleVisualEditorTechMode
+            }
+          ]
+        : []),
+      ...(onCleanupDevData
+        ? [
+            {
+              id: 'cleanupDevData',
+              label: t('menu.cleanupDevData', 'Cleanup Dev Data (Reset Editor)'),
+              onSelect: onCleanupDevData
             }
           ]
         : [])

@@ -192,6 +192,7 @@ const api = {
     openExternal: (url: string): Promise<unknown> => ipcRenderer.invoke('app.openExternal', url),
     openDevTools: (): Promise<unknown> => ipcRenderer.invoke('app.openDevTools'),
     copyLogToClipboard: (): Promise<unknown> => ipcRenderer.invoke('app.copyLogToClipboard'),
+    cleanupDevData: (): Promise<unknown> => ipcRenderer.invoke('app.cleanupDevData'),
     setZoomFactor: (factor: number): void => webFrame.setZoomFactor(factor)
   }
 }

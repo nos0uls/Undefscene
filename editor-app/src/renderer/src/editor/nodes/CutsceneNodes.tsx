@@ -757,3 +757,13 @@ export const DestroyEntityNode = memo(function DestroyEntityNode({ data, selecte
     </BaseNode>
   )
 })
+
+// Set Plot — устанавливает глобальную переменную сюжета.
+export const SetPlotNode = memo(function SetPlotNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const value = data.params?.value ?? 0
+  return (
+    <BaseNode  nodeType="set_plot" selected={selected}>
+      <div className="customNodeParam">plot = {String(value)}</div>
+    </BaseNode>
+  )
+})

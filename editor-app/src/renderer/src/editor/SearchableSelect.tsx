@@ -103,18 +103,6 @@ export function SearchableSelect({
     return options.some((opt) => opt.toLowerCase() === lowerQuery)
   }, [options, query])
 
-  // Закрываем список при клике вне компонента.
-  useEffect(() => {
-    if (!open) return
-    const onClickOutside = (e: MouseEvent): void => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
-  }, [open])
-
   // Скроллим к подсвеченному элементу.
   useEffect(() => {
     if (highlightIndex < 0 || !listRef.current) return
@@ -223,6 +211,12 @@ export function SearchableSelect({
           setFocused(true)
           setOpen(true)
           setHighlightIndex(query.length > 0 && suggestedOption ? 0 : -1)
+        }}
+        onClick={(e) => {
+          // Позволяем открывать кликом по уже сфокусированному полю (например, после Escape)
+          if (!disabled && !open) {
+            setOpen(true)
+          }
         }}
         onBlur={() => {
           // Небольшая задержка, чтобы клик по элементу списка успел сработать.
