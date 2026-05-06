@@ -370,10 +370,10 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {/* --- move / set_position --- */}
           {['move', 'set_position'].includes(selectedNode.type) && (
             <>
-              <label className="runtimeField">
+              <div className="runtimeField">
                 <span>Target</span>
                 <SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} />
-              </label>
+              </div>
               <label className="runtimeField">
                 <span>X</span>
                 <input className="runtimeInput" type="number" value={String((selectedNode.params?.x as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'x', Number(event.target.value))} />
@@ -403,10 +403,10 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {/* --- follow_path --- */}
           {selectedNode.type === 'follow_path' && (
             <>
-              <label className="runtimeField">
+              <div className="runtimeField">
                 <span>Target</span>
                 <SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} />
-              </label>
+              </div>
               <label className="runtimeField">
                 <span>Speed (px/sec)</span>
                 <input className="runtimeInput" type="number" placeholder="60" value={String((selectedNode.params?.speed_px_sec as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'speed_px_sec', Number(event.target.value))} />
@@ -446,9 +446,9 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {/* --- actor_create --- */}
           {selectedNode.type === 'actor_create' && (
             <>
-              <label className="runtimeField"><span>Key</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="npc_guide" value={String((selectedNode.params?.key as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'key', v)} /></label>
-              <label className="runtimeField"><span>Sprite / Object</span><SearchableSelect className="runtimeInput" options={spriteOrObjectOptions} value={String((selectedNode.params?.sprite_or_object as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'sprite_or_object', v)} placeholder="obj_actor / spr_..." style={selectedNode.params?.sprite_or_object && !spriteOrObjectOptions.includes(String(selectedNode.params.sprite_or_object)) ? { borderColor: '#e05050' } : undefined} /></label>
-              <label className="runtimeField"><span>Copy From</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} value={String((selectedNode.params?.copy_from as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'copy_from', v)} placeholder="player / actor key (optional)" /></label>
+              <div className="runtimeField"><span>Key</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="npc_guide" value={String((selectedNode.params?.key as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'key', v)} /></div>
+              <div className="runtimeField"><span>Sprite / Object</span><SearchableSelect className="runtimeInput" options={spriteOrObjectOptions} value={String((selectedNode.params?.sprite_or_object as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'sprite_or_object', v)} placeholder="obj_actor / spr_..." style={selectedNode.params?.sprite_or_object && !spriteOrObjectOptions.includes(String(selectedNode.params.sprite_or_object)) ? { borderColor: '#e05050' } : undefined} /></div>
+              <div className="runtimeField"><span>Copy From</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} value={String((selectedNode.params?.copy_from as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'copy_from', v)} placeholder="player / actor key (optional)" /></div>
               <label className="runtimeField"><span>X</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.x as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'x', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Y</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.y as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'y', Number(event.target.value))} /></label>
             </>
@@ -462,8 +462,8 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {/* --- animate --- */}
           {selectedNode.type === 'animate' && (
             <>
-              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
-              <label className="runtimeField"><span>Sprite</span><SearchableSelect className="runtimeInput" options={spriteOptions} value={String((selectedNode.params?.sprite as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'sprite', v)} placeholder="spr_..." style={selectedNode.params?.sprite && !spriteOptions.includes(String(selectedNode.params.sprite)) ? { borderColor: '#e05050' } : undefined} /></label>
+              <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
+              <div className="runtimeField"><span>Sprite</span><SearchableSelect className="runtimeInput" options={spriteOptions} value={String((selectedNode.params?.sprite as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'sprite', v)} placeholder="spr_..." style={selectedNode.params?.sprite && !spriteOptions.includes(String(selectedNode.params.sprite)) ? { borderColor: '#e05050' } : undefined} /></div>
               <label className="runtimeField"><span>Image Index</span><input className="runtimeInput" type="number" placeholder="0" value={String((selectedNode.params?.image_index as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'image_index', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Image Speed</span><input className="runtimeInput" type="number" step="0.1" placeholder="1" value={String((selectedNode.params?.image_speed as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'image_speed', Number(event.target.value))} /></label>
             </>
@@ -476,8 +476,8 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
             const yarnNodeOptions = yarnFiles.find((y) => y.file === currentFile)?.nodes ?? []
             return (
               <>
-                <label className="runtimeField"><span>File</span><SearchableSelect className="runtimeInput" options={yarnFileOptions} value={currentFile} onChange={(v) => updateNodeParam(selectedNode.id, 'file', v)} placeholder="dialogue" /></label>
-                <label className="runtimeField"><span>Node</span><SearchableSelect className="runtimeInput" options={yarnNodeOptions} value={String((selectedNode.params?.node as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'node', v)} placeholder="Intro" /></label>
+                <div className="runtimeField"><span>File</span><SearchableSelect className="runtimeInput" options={yarnFileOptions} value={currentFile} onChange={(v) => updateNodeParam(selectedNode.id, 'file', v)} placeholder="dialogue" /></div>
+                <div className="runtimeField"><span>Node</span><SearchableSelect className="runtimeInput" options={yarnNodeOptions} value={String((selectedNode.params?.node as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'node', v)} placeholder="Intro" /></div>
               </>
             )
           })()}
@@ -508,7 +508,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {/* --- set_depth --- */}
           {selectedNode.type === 'set_depth' && (
             <>
-              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
               <label className="runtimeField"><span>Depth</span><input className="runtimeInput" type="number" placeholder="0" value={String((selectedNode.params?.depth as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'depth', Number(event.target.value))} /></label>
             </>
           )}
@@ -516,20 +516,20 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {/* --- set_facing --- */}
           {selectedNode.type === 'set_facing' && (
             <>
-              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
               <label className="runtimeField"><span>Direction</span><select className="runtimeInput" value={String((selectedNode.params?.direction as string) ?? 'right')} onChange={(event) => updateNodeParam(selectedNode.id, 'direction', event.target.value)}><option value="left">left</option><option value="right">right</option><option value="up">up</option><option value="down">down</option></select></label>
             </>
           )}
 
           {/* --- branch --- */}
           {selectedNode.type === 'branch' && (
-            <label className="runtimeField"><span>Condition</span><SearchableSelect className="runtimeInput" options={engineSettings?.branchConditions ?? []} value={String((selectedNode.params?.condition as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'condition', v)} placeholder="e.g. has_item_key" /></label>
+            <div className="runtimeField"><span>Condition</span><SearchableSelect className="runtimeInput" options={engineSettings?.branchConditions ?? []} value={String((selectedNode.params?.condition as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'condition', v)} placeholder="e.g. has_item_key" /></div>
           )}
 
           {/* --- run_function --- */}
           {selectedNode.type === 'run_function' && (
             <>
-              <label className="runtimeField"><span>Function Name</span><SearchableSelect className="runtimeInput" options={engineSettings?.runFunctions ?? []} value={String((selectedNode.params?.function as string) ?? (selectedNode.params?.function_name as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'function', v)} placeholder="my_cutscene_func" /></label>
+              <div className="runtimeField"><span>Function Name</span><SearchableSelect className="runtimeInput" options={engineSettings?.runFunctions ?? []} value={String((selectedNode.params?.function as string) ?? (selectedNode.params?.function_name as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'function', v)} placeholder="my_cutscene_func" /></div>
               <label className="runtimeField"><span>Args (JSON)</span><input className="runtimeInput" placeholder='["arg1", 42]' value={String((selectedNode.params?.args as string) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'args', event.target.value)} /></label>
             </>
           )}
@@ -545,7 +545,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {/* --- auto_facing --- */}
           {selectedNode.type === 'auto_facing' && (
             <>
-              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
               <label className="runtimeField"><span>Enabled</span><select className="runtimeInput" value={String(selectedNode.params?.enabled ?? 'true')} onChange={(event) => updateNodeParam(selectedNode.id, 'enabled', event.target.value === 'true')}><option value="true">true</option><option value="false">false</option></select></label>
             </>
           )}
@@ -553,7 +553,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {/* --- auto_walk --- */}
           {selectedNode.type === 'auto_walk' && (
             <>
-              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
               <label className="runtimeField"><span>Enabled</span><select className="runtimeInput" value={String(selectedNode.params?.enabled ?? 'true')} onChange={(event) => updateNodeParam(selectedNode.id, 'enabled', event.target.value === 'true')}><option value="true">true</option><option value="false">false</option></select></label>
             </>
           )}
@@ -562,7 +562,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
             <>
               <label className="runtimeField"><span>Kind</span><select className="runtimeInput" value={String((selectedNode.params?.kind as string) ?? 'instance')} onChange={(event) => updateNodeParam(selectedNode.id, 'kind', event.target.value)}><option value="instance">instance</option><option value="camera">camera</option></select></label>
               {String((selectedNode.params?.kind as string) ?? 'instance') !== 'camera' ? (
-                <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+                <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
               ) : null}
               <label className="runtimeField"><span>Property</span><input className="runtimeInput" value={String((selectedNode.params?.property as string) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'property', event.target.value)} /></label>
               <label className="runtimeField"><span>To</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.to as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'to', Number(event.target.value))} /></label>
@@ -576,7 +576,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
             <>
               <label className="runtimeField"><span>Kind</span><select className="runtimeInput" value={String((selectedNode.params?.kind as string) ?? 'instance')} onChange={(event) => updateNodeParam(selectedNode.id, 'kind', event.target.value)}><option value="instance">instance</option><option value="camera">camera</option></select></label>
               {String((selectedNode.params?.kind as string) ?? 'instance') !== 'camera' ? (
-                <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+                <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
               ) : null}
               <label className="runtimeField"><span>Property</span><input className="runtimeInput" value={String((selectedNode.params?.property as string) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'property', event.target.value)} /></label>
               <label className="runtimeField"><span>Value</span><input className="runtimeInput" value={String(selectedNode.params?.value ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'value', event.target.value)} /></label>
@@ -607,8 +607,8 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
 
           {selectedNode.type === 'emote' && (
             <>
-              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
-              <label className="runtimeField"><span>Sprite</span><SearchableSelect className="runtimeInput" options={spriteOptions} value={String((selectedNode.params?.sprite as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'sprite', v)} placeholder="spr_..." /></label>
+              <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
+              <div className="runtimeField"><span>Sprite</span><SearchableSelect className="runtimeInput" options={spriteOptions} value={String((selectedNode.params?.sprite as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'sprite', v)} placeholder="spr_..." /></div>
               <label className="runtimeField"><span>Seconds</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.seconds as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Offset X</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.offset_x as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'offset_x', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Offset Y</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.offset_y as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'offset_y', Number(event.target.value))} /></label>
@@ -619,7 +619,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
 
           {selectedNode.type === 'jump' && (
             <>
-              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
               <label className="runtimeField"><span>X</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.x as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'x', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Y</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.y as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'y', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Seconds</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.seconds as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))} /></label>
@@ -629,19 +629,19 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           )}
 
           {selectedNode.type === 'halt' && (
-            <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+            <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
           )}
 
           {selectedNode.type === 'flip' && (
             <>
-              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
-              <label className="runtimeField"><span>Flipped</span><select className="runtimeInput" value={String(selectedNode.params?.flipped ?? 'true')} onChange={(event) => updateNodeParam(selectedNode.id, 'flipped', event.target.value === 'true')}><option value="true">true</option><option value="false">false</option></select></label>
+              <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
+              <label className="runtimeField"><span>Flipped</span><select className="runtimeInput" value={String(selectedNode.params?.flipped ?? 'true')} onChange={(event) => updateNodeParam(selectedNode.id, 'flipped', event.target.checked === 'true')}><option value="true">true</option><option value="false">false</option></select></label>
             </>
           )}
 
           {selectedNode.type === 'spin' && (
             <>
-              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
               <label className="runtimeField"><span>Speed</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.speed as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'speed', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Seconds</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.seconds as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))} /></label>
             </>
@@ -649,7 +649,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
 
           {selectedNode.type === 'shake_object' && (
             <>
-              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
               <label className="runtimeField"><span>Seconds</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.seconds as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Magnitude</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.magnitude as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'magnitude', Number(event.target.value))} /></label>
             </>
@@ -657,7 +657,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
 
           {selectedNode.type === 'set_visible' && (
             <>
-              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
               <label className="runtimeField"><span>Visible</span><select className="runtimeInput" value={String(selectedNode.params?.visible ?? 'true')} onChange={(event) => updateNodeParam(selectedNode.id, 'visible', event.target.value === 'true')}><option value="true">true</option><option value="false">false</option></select></label>
             </>
           )}
@@ -682,7 +682,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {/* --- camera_pan_obj --- */}
           {selectedNode.type === 'camera_pan_obj' && (
             <>
-              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
               <label className="runtimeField"><span>Seconds</span><input className="runtimeInput" type="number" step="0.1" placeholder="1" value={String((selectedNode.params?.seconds as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))} /></label>
             </>
           )}
@@ -690,7 +690,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {/* --- camera_track_until_stop --- */}
           {selectedNode.type === 'camera_track_until_stop' && (
             <>
-              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
               <label className="runtimeField"><span>Offset X</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.offset_x as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'offset_x', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Offset Y</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.offset_y as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'offset_y', Number(event.target.value))} /></label>
             </>
@@ -707,7 +707,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {/* --- wait_for_interact --- */}
           {selectedNode.type === 'wait_for_interact' && (
             <>
-              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / object" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / object" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
               <label className="runtimeField"><span>Timeout (seconds, 0=never)</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.timeout as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'timeout', Number(event.target.value))} /></label>
             </>
           )}
@@ -723,7 +723,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {/* --- spawn_entity --- */}
           {selectedNode.type === 'spawn_entity' && (
             <>
-              <label className="runtimeField"><span>Object</span><SearchableSelect className="runtimeInput" options={objectOptions} value={String((selectedNode.params?.object as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'object', v)} placeholder="obj_..." /></label>
+              <div className="runtimeField"><span>Object</span><SearchableSelect className="runtimeInput" options={objectOptions} value={String((selectedNode.params?.object as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'object', v)} placeholder="obj_..." /></div>
               <label className="runtimeField"><span>Key (optional)</span><input className="runtimeInput" placeholder="temp_actor" value={String(selectedNode.params?.key ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'key', event.target.value)} /></label>
               <label className="runtimeField"><span>X</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.x as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'x', Number(event.target.value))} /></label>
               <label className="runtimeField"><span>Y</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.y as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'y', Number(event.target.value))} /></label>
@@ -737,7 +737,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
 
           {/* --- destroy_entity --- */}
           {selectedNode.type === 'destroy_entity' && (
-            <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+            <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
           )}
 
           {/* --- set_plot --- */}
@@ -774,14 +774,14 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           </label>
           {selectedEdge.conditionEnabled ? (
             <>
-              <label className="runtimeField"><span>Variable (global key)</span><SearchableSelect className="runtimeInput" options={allConditionVars} placeholder="e.g. has_key" value={String(selectedEdge.conditionVar ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { conditionVar: v })} /></label>
-              <label className="runtimeField"><span>Equals</span><SearchableSelect className="runtimeInput" options={allConditionEquals} placeholder="e.g. true / 1 / done" value={String(selectedEdge.conditionEquals ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { conditionEquals: v })} /></label>
+              <div className="runtimeField"><span>Variable (global key)</span><SearchableSelect className="runtimeInput" options={allConditionVars} placeholder="e.g. has_key" value={String(selectedEdge.conditionVar ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { conditionVar: v })} /></div>
+              <div className="runtimeField"><span>Equals</span><SearchableSelect className="runtimeInput" options={allConditionEquals} placeholder="e.g. true / 1 / done" value={String(selectedEdge.conditionEquals ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { conditionEquals: v })} /></div>
               <label className="runtimeField"><span>If false</span><select className="runtimeInput" value={selectedEdge.conditionIfFalse ?? 'skip'} onChange={(event) => { const val = event.target.value as 'skip' | 'wait_until_true'; updateEdge(selectedEdge.id, { conditionIfFalse: val, stopWaitingWhen: val === 'skip' ? undefined : (selectedEdge.stopWaitingWhen ?? 'none') }) }}><option value="skip">{t('editor.edgeConditionSkip', 'skip (skip branch)')}</option><option value="wait_until_true">{t('editor.edgeConditionWait', 'wait until true (wait)')}</option></select></label>
               {selectedEdge.conditionIfFalse === 'wait_until_true' ? (
                 <>
                   <label className="runtimeField"><span>Stop waiting when</span><select className="runtimeInput" value={selectedEdge.stopWaitingWhen ?? 'none'} onChange={(event) => updateEdge(selectedEdge.id, { stopWaitingWhen: event.target.value as 'none' | 'global_var' | 'node_reached' | 'timeout' })}><option value="none">{t('editor.edgeConditionNone', 'none (wait forever)')}</option><option value="global_var">global variable</option><option value="node_reached">node reached</option><option value="timeout">timeout</option></select></label>
-                  {selectedEdge.stopWaitingWhen === 'global_var' ? (<><label className="runtimeField"><span>End Variable (global key)</span><SearchableSelect className="runtimeInput" options={allConditionVars} placeholder="e.g. cutscene_abort" value={String(selectedEdge.endConditionVar ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { endConditionVar: v })} /></label><label className="runtimeField"><span>End Equals</span><SearchableSelect className="runtimeInput" options={allConditionEquals} placeholder="e.g. true" value={String(selectedEdge.endConditionEquals ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { endConditionEquals: v })} /></label></>) : null}
-                  {selectedEdge.stopWaitingWhen === 'node_reached' ? (<label className="runtimeField"><span>Node name</span><SearchableSelect className="runtimeInput" options={allNodeNamesObjects} placeholder="e.g. End" value={String(selectedEdge.endNodeName ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { endNodeName: v })} style={selectedEdge.endNodeName && !allNodeNamesObjects.includes(String(selectedEdge.endNodeName)) ? { borderColor: '#e05050' } : undefined} /></label>) : null}
+                  {selectedEdge.stopWaitingWhen === 'global_var' ? (<><div className="runtimeField"><span>End Variable (global key)</span><SearchableSelect className="runtimeInput" options={allConditionVars} placeholder="e.g. cutscene_abort" value={String(selectedEdge.endConditionVar ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { endConditionVar: v })} /></div><div className="runtimeField"><span>End Equals</span><SearchableSelect className="runtimeInput" options={allConditionEquals} placeholder="e.g. true" value={String(selectedEdge.endConditionEquals ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { endConditionEquals: v })} /></div></>) : null}
+                  {selectedEdge.stopWaitingWhen === 'node_reached' ? (<div className="runtimeField"><span>Node name</span><SearchableSelect className="runtimeInput" options={allNodeNamesObjects} placeholder="e.g. End" value={String(selectedEdge.endNodeName ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { endNodeName: v })} style={selectedEdge.endNodeName && !allNodeNamesObjects.includes(String(selectedEdge.endNodeName)) ? { borderColor: '#e05050' } : undefined} /></div>) : null}
                   {selectedEdge.stopWaitingWhen === 'timeout' ? (<label className="runtimeField"><span>Timeout (seconds)</span><input className="runtimeInput" type="number" step="0.1" placeholder="5" value={String(selectedEdge.endTimeoutSeconds ?? '')} onChange={(event) => { const v = event.target.value; if (v === '') { updateEdge(selectedEdge.id, { endTimeoutSeconds: undefined }) } else { updateEdge(selectedEdge.id, { endTimeoutSeconds: Math.max(0, Number(v)) }) } }} /></label>) : null}
                 </>
               ) : null}
