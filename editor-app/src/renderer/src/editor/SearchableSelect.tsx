@@ -119,9 +119,11 @@ export function SearchableSelect({
       blurTimerRef.current = null
     }
     setQuery(opt)
-    onChange(opt)
     setOpen(false)
     setHighlightIndex(-1)
+    // Вызываем onChange в самом конце, чтобы ререндер родителя
+    // не прервал закрытие списка.
+    onChange(opt)
   }
 
   // Во время печати оставляем в input ровно тот текст, который набрал пользователь.
@@ -202,15 +204,19 @@ export function SearchableSelect({
           handleInputChange(e.target.value)
           setOpen(true)
         }}
-        onFocus={() => {
+        onFocus={(e) => {
           if (disabled) return
           if (blurTimerRef.current !== null) {
             window.clearTimeout(blurTimerRef.current)
             blurTimerRef.current = null
           }
           setFocused(true)
-          setOpen(true)
-          setHighlightIndex(query.length > 0 && suggestedOption ? 0 : -1)
+
+          // Если фокус пришел с другого элемента (не программно внутри), открываем список
+          if (!open) {
+            setOpen(true)
+            setHighlightIndex(query.length > 0 && suggestedOption ? 0 : -1)
+          }
         }}
         onClick={(e) => {
           // Позволяем открывать кликом по уже сфокусированному полю (например, после Escape)
