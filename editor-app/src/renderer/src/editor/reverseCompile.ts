@@ -381,11 +381,19 @@ function actionToRuntimeNode(
             ? 'shake_object'
             : rawType === 'visible'
               ? 'set_visible'
-              : rawType === 'waittalk'
+              : rawType === 'waittalk' || rawType === 'wait_talk'
                 ? 'wait_for_dialogue'
                 : rawType === 'set_instant'
                   ? 'instant_mode'
-                  : rawType
+                  : rawType === 'autofacing'
+                    ? 'auto_facing'
+                    : rawType === 'autowalk'
+                      ? 'auto_walk'
+                      : rawType === 'facing'
+                        ? 'set_facing'
+                        : rawType === 'depth'
+                          ? 'set_depth'
+                          : rawType
 
   const nodeId = nextNodeId(context, normalizedType)
   const params: Record<string, unknown> = {}
@@ -398,6 +406,17 @@ function actionToRuntimeNode(
     }
     if (normalizedType === 'tween' && key === 'target_kind' && action.kind === undefined) {
       params.kind = value
+      continue
+    }
+    // При import сохраняем оба имени, чтобы старый Inspector видел `to`, а export знал `to_value`.
+    if (normalizedType === 'tween' && key === 'to_value') {
+      params.to = value
+      params.to_value = value
+      continue
+    }
+    if (normalizedType === 'tween' && key === 'from_value') {
+      params.from = value
+      params.from_value = value
       continue
     }
     if (normalizedType === 'set_property' && key === 'target_kind' && action.kind === undefined) {
@@ -418,6 +437,14 @@ function actionToRuntimeNode(
     }
     if (normalizedType === 'instant_mode' && key === 'enabled') {
       params.enabled = value
+      continue
+    }
+    if (normalizedType === 'partial_control' && key === 'whitelist' && Array.isArray(value)) {
+      params.whitelist = JSON.stringify(value)
+      continue
+    }
+    if (normalizedType === 'set_flag' && key === 'value') {
+      params.value = typeof value === 'string' ? value : JSON.stringify(value)
       continue
     }
     params[key] = value

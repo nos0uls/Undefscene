@@ -45,7 +45,8 @@ import {
   WaitInteractNode,
   SetFlagNode,
   SpawnEntityNode,
-  DestroyEntityNode
+  DestroyEntityNode,
+  SetPlotNode
 } from './CutsceneNodes'
 
 // Маппинг: тип ноды → React-компонент.
@@ -96,5 +97,6 @@ export const cutsceneNodeTypes = {
   wait_for_interact: WaitInteractNode,
   set_flag: SetFlagNode,
   spawn_entity: SpawnEntityNode,
-  destroy_entity: DestroyEntityNode
+  destroy_entity: DestroyEntityNode,
+  set_plot: SetPlotNode
 } as const

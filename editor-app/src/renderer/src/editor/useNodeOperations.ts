@@ -64,7 +64,13 @@ const DEFAULT_PARAMS_BY_TYPE: Record<string, Record<string, unknown>> = {
   shake_object: { target: 'player', seconds: 0.5, magnitude: 4 },
   set_visible: { target: 'player', visible: true },
   instant_mode: { enabled: true },
-  mark_node: { name: '' }
+  mark_node: { name: '' },
+  partial_control: { control_type: 0, whitelist: '' },
+  wait_for_interact: { target: 'player', timeout: 0 },
+  set_flag: { key: '', value: 0 },
+  spawn_entity: { object: '', x: 0, y: 0, key: '', depth: 0, persistent: false },
+  destroy_entity: { target: '' },
+  set_plot: { value: 0 }
 }
 
 export function useNodeOperations(deps: UseNodeOperationsDeps) {

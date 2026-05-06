@@ -958,6 +958,37 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     })
   }, [updatePreferences, preferences])
 
+  const handleCleanupDevData = useCallback(() => {
+    if (!window.api?.appInfo?.cleanupDevData) {
+      console.warn('Cleanup API not available')
+      return
+    }
+
+    confirm({
+      title: t('menu.cleanupDevData', 'Cleanup Dev Data (Reset Editor)'),
+      message:
+        preferences.language === 'ru'
+          ? 'Вы уверены, что хотите полностью сбросить настройки и кэш редактора? Это удалит все локальные данные (темы, обучение, кэш ресурсов). Приложение будет закрыто после очистки.'
+          : 'Are you sure you want to completely reset the editor preferences and cache? This will delete all local data (themes, tutorial status, resource cache). The application will close after cleanup.',
+      okText: preferences.language === 'ru' ? 'Сбросить и закрыть' : 'Reset and Close',
+      cancelText: preferences.language === 'ru' ? 'Отмена' : 'Cancel'
+    }).then((ok) => {
+      if (!ok) return
+
+      window.api!.appInfo!.cleanupDevData()
+        .then((result: any) => {
+          if (result.success) {
+            window.close()
+          } else {
+            pushError(toasts, result.error || 'Cleanup failed')
+          }
+        })
+        .catch((err: any) => {
+          pushError(toasts, String(err))
+        })
+    })
+  }, [confirm, t, preferences.language, toasts])
+
   const handleAbout = useCallback(() => setAboutOpen(true), [setAboutOpen])
   const handleTutorial = useCallback(() => setIsTutorialActive(true), [setIsTutorialActive])
   const handleExit = useCallback(() => window.close(), [])
@@ -991,6 +1022,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
         onToggleVisualEditorTechMode={handleToggleVisualEditorTechMode}
         visualEditorTechModeEnabled={preferences.visualEditorTechMode}
         hardwareAccelerationDisabled={preferences.disableHardwareAcceleration}
+        onCleanupDevData={handleCleanupDevData}
         onOpenVisualEditing={openVisualEditorWindow}
         onAbout={handleAbout}
         onTutorial={handleTutorial}
@@ -1021,6 +1053,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
       handleToggleHardwareAcceleration,
       handleChooseScreenshotOutputDir,
       handleToggleVisualEditorTechMode,
+      handleCleanupDevData,
       preferences.visualEditorTechMode,
       preferences.disableHardwareAcceleration,
       preferences.language,

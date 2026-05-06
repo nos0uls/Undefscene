@@ -14,7 +14,9 @@ const NODE_TYPES = [
   'parallel_start', 'branch', 'run_function', 'set_position', 'set_depth',
   'set_facing', 'auto_facing', 'auto_walk', 'tween', 'set_property', 'fade_in', 'fade_out',
   'play_sfx', 'emote', 'jump', 'halt', 'flip', 'spin', 'shake_object',
-  'set_visible', 'instant_mode'
+  'set_visible', 'instant_mode', 'mark_node', 'camera_center', 'camera_pan_obj',
+  'camera_track_until_stop', 'partial_control', 'wait_for_interact', 'set_flag',
+  'spawn_entity', 'destroy_entity', 'set_plot'
 ]
 
 // Пропсы InspectorPanel — всё, что нужно для рендера inspector.
@@ -662,6 +664,85 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
 
           {selectedNode.type === 'instant_mode' && (
             <label className="runtimeField"><span>Enabled</span><select className="runtimeInput" value={String(selectedNode.params?.enabled ?? 'true')} onChange={(event) => updateNodeParam(selectedNode.id, 'enabled', event.target.value === 'true')}><option value="true">true</option><option value="false">false</option></select></label>
+          )}
+
+          {/* --- mark_node --- */}
+          {selectedNode.type === 'mark_node' && (
+            <label className="runtimeField"><span>Mark Name</span><input className="runtimeInput" placeholder="point_a" value={String(selectedNode.params?.name ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'name', event.target.value)} /></label>
+          )}
+
+          {/* --- camera_center --- */}
+          {selectedNode.type === 'camera_center' && (
+            <>
+              <label className="runtimeField"><span>X</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.x as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'x', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Y</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.y as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'y', Number(event.target.value))} /></label>
+            </>
+          )}
+
+          {/* --- camera_pan_obj --- */}
+          {selectedNode.type === 'camera_pan_obj' && (
+            <>
+              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <label className="runtimeField"><span>Seconds</span><input className="runtimeInput" type="number" step="0.1" placeholder="1" value={String((selectedNode.params?.seconds as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'seconds', Number(event.target.value))} /></label>
+            </>
+          )}
+
+          {/* --- camera_track_until_stop --- */}
+          {selectedNode.type === 'camera_track_until_stop' && (
+            <>
+              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <label className="runtimeField"><span>Offset X</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.offset_x as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'offset_x', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Offset Y</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.offset_y as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'offset_y', Number(event.target.value))} /></label>
+            </>
+          )}
+
+          {/* --- partial_control --- */}
+          {selectedNode.type === 'partial_control' && (
+            <>
+              <label className="runtimeField"><span>Control Type</span><select className="runtimeInput" value={String(selectedNode.params?.control_type ?? '0')} onChange={(event) => updateNodeParam(selectedNode.id, 'control_type', Number(event.target.value))}><option value="0">0 (None)</option><option value="1">1 (Movement + Whitelist)</option><option value="2">2 (Full)</option></select></label>
+              <label className="runtimeField"><span>Whitelist (JSON array)</span><input className="runtimeInput" placeholder='["obj_door", "obj_chest"]' value={String(selectedNode.params?.whitelist ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'whitelist', event.target.value)} /></label>
+            </>
+          )}
+
+          {/* --- wait_for_interact --- */}
+          {selectedNode.type === 'wait_for_interact' && (
+            <>
+              <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / object" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+              <label className="runtimeField"><span>Timeout (seconds, 0=never)</span><input className="runtimeInput" type="number" step="0.1" value={String((selectedNode.params?.timeout as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'timeout', Number(event.target.value))} /></label>
+            </>
+          )}
+
+          {/* --- set_flag --- */}
+          {selectedNode.type === 'set_flag' && (
+            <>
+              <label className="runtimeField"><span>Flag Key</span><input className="runtimeInput" placeholder="story_progress" value={String(selectedNode.params?.key ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'key', event.target.value)} /></label>
+              <label className="runtimeField"><span>Value</span><input className="runtimeInput" placeholder="1" value={String(selectedNode.params?.value ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'value', event.target.value)} /></label>
+            </>
+          )}
+
+          {/* --- spawn_entity --- */}
+          {selectedNode.type === 'spawn_entity' && (
+            <>
+              <label className="runtimeField"><span>Object</span><SearchableSelect className="runtimeInput" options={objectOptions} value={String((selectedNode.params?.object as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'object', v)} placeholder="obj_..." /></label>
+              <label className="runtimeField"><span>Key (optional)</span><input className="runtimeInput" placeholder="temp_actor" value={String(selectedNode.params?.key ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'key', event.target.value)} /></label>
+              <label className="runtimeField"><span>X</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.x as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'x', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Y</span><input className="runtimeInput" type="number" value={String((selectedNode.params?.y as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'y', Number(event.target.value))} /></label>
+              <label className="runtimeField"><span>Depth</span><input className="runtimeInput" type="number" placeholder="0" value={String((selectedNode.params?.depth as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'depth', Number(event.target.value))} /></label>
+              <label className="runtimeField" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <input type="checkbox" checked={!!selectedNode.params?.persistent} onChange={(event) => updateNodeParam(selectedNode.id, 'persistent', event.target.checked)} />
+                <span>Persistent</span>
+              </label>
+            </>
+          )}
+
+          {/* --- destroy_entity --- */}
+          {selectedNode.type === 'destroy_entity' && (
+            <label className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></label>
+          )}
+
+          {/* --- set_plot --- */}
+          {selectedNode.type === 'set_plot' && (
+            <label className="runtimeField"><span>Plot Value</span><input className="runtimeInput" type="number" placeholder="10" value={String((selectedNode.params?.value as number) ?? '')} onChange={(event) => updateNodeParam(selectedNode.id, 'value', Number(event.target.value))} /></label>
           )}
 
           {selectedNode.position && (

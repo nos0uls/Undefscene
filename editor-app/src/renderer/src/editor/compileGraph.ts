@@ -550,6 +550,60 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       return action
     }
 
+    if (node.type === 'partial_control') {
+      if (typeof node.params?.control_type === 'number') action.control_type = node.params.control_type
+      const rawWhitelist = node.params?.whitelist
+      if (typeof rawWhitelist === 'string') {
+        const trimmed = rawWhitelist.trim()
+        if (trimmed.length > 0) {
+          try {
+            const parsed = JSON.parse(trimmed) as unknown
+            action.whitelist = Array.isArray(parsed) ? parsed : [parsed]
+          } catch {
+            action.whitelist = trimmed.split(',').map((s) => s.trim())
+          }
+        } else {
+          action.whitelist = []
+        }
+      } else if (Array.isArray(rawWhitelist)) {
+        action.whitelist = rawWhitelist
+      }
+      return action
+    }
+
+    if (node.type === 'set_flag') {
+      if (typeof node.params?.key === 'string' && node.params.key) action.key = node.params.key
+      const rawVal = node.params?.value
+      if (typeof rawVal === 'string') {
+        const trimmed = rawVal.trim()
+        if (trimmed.length > 0) {
+          try {
+            action.value = JSON.parse(trimmed) as unknown
+          } catch {
+            action.value = rawVal
+          }
+        }
+      } else if (rawVal !== undefined) {
+        action.value = rawVal
+      }
+      return action
+    }
+
+    // В UI Tween хранит короткие поля `to`/`from`, а движок читает `to_value`/`from_value`.
+    // Поэтому при export переводим editor-форму в runtime JSON-контракт.
+    if (node.type === 'tween') {
+      if (typeof node.params?.kind === 'string' && node.params.kind) action.kind = node.params.kind
+      if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
+      if (typeof node.params?.property === 'string' && node.params.property) action.property = node.params.property
+      if (typeof node.params?.to_value === 'number') action.to_value = node.params.to_value
+      else if (typeof node.params?.to === 'number') action.to_value = node.params.to
+      if (typeof node.params?.from_value === 'number') action.from_value = node.params.from_value
+      else if (typeof node.params?.from === 'number') action.from_value = node.params.from
+      if (typeof node.params?.seconds === 'number') action.seconds = node.params.seconds
+      if (typeof node.params?.easing === 'string' && node.params.easing) action.easing = node.params.easing
+      return action
+    }
+
     // Копируем все параметры ноды (кроме editor-only полей).
     if (node.params) {
       for (const [key, value] of Object.entries(node.params)) {
