@@ -970,8 +970,8 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
         preferences.language === 'ru'
           ? 'Вы уверены, что хотите полностью сбросить настройки и кэш редактора? Это удалит все локальные данные (темы, обучение, кэш ресурсов). Приложение будет закрыто после очистки.'
           : 'Are you sure you want to completely reset the editor preferences and cache? This will delete all local data (themes, tutorial status, resource cache). The application will close after cleanup.',
-      okText: preferences.language === 'ru' ? 'Сбросить и закрыть' : 'Reset and Close',
-      cancelText: preferences.language === 'ru' ? 'Отмена' : 'Cancel'
+      confirmLabel: preferences.language === 'ru' ? 'Сбросить и закрыть' : 'Reset and Close',
+      cancelLabel: preferences.language === 'ru' ? 'Отмена' : 'Cancel'
     }).then((ok) => {
       if (!ok) return
 
