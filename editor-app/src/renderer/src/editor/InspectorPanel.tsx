@@ -635,7 +635,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {selectedNode.type === 'flip' && (
             <>
               <div className="runtimeField"><span>Target</span><SearchableSelect className="runtimeInput" options={actorTargetOptions} placeholder="actor key / player" value={String((selectedNode.params?.target as string) ?? '')} onChange={(v) => updateNodeParam(selectedNode.id, 'target', v)} /></div>
-              <label className="runtimeField"><span>Flipped</span><select className="runtimeInput" value={String(selectedNode.params?.flipped ?? 'true')} onChange={(event) => updateNodeParam(selectedNode.id, 'flipped', event.target.checked === 'true')}><option value="true">true</option><option value="false">false</option></select></label>
+              <label className="runtimeField"><span>Flipped</span><select className="runtimeInput" value={String(selectedNode.params?.flipped ?? 'true')} onChange={(event) => updateNodeParam(selectedNode.id, 'flipped', event.target.value)}><option value="true">true</option><option value="false">false</option></select></label>
             </>
           )}
 

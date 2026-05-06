@@ -204,7 +204,7 @@ export function SearchableSelect({
           handleInputChange(e.target.value)
           setOpen(true)
         }}
-        onFocus={(e) => {
+        onFocus={() => {
           if (disabled) return
           if (blurTimerRef.current !== null) {
             window.clearTimeout(blurTimerRef.current)
@@ -218,7 +218,7 @@ export function SearchableSelect({
             setHighlightIndex(query.length > 0 && suggestedOption ? 0 : -1)
           }
         }}
-        onClick={(e) => {
+        onClick={() => {
           // Позволяем открывать кликом по уже сфокусированному полю (например, после Escape)
           if (!disabled && !open) {
             setOpen(true)
