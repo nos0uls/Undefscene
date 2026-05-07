@@ -714,10 +714,12 @@ export const PartialControlNode = memo(function PartialControlNode({ data, selec
 export const WaitInteractNode = memo(function WaitInteractNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const timeout = data.params?.timeout ?? 0
+  const timeoutAction = data.params?.timeout_action ?? 'continue'
   return (
     <BaseNode  nodeType="wait_for_interact" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
       {Number(timeout) > 0 && <div className="customNodeParam">timeout: {String(timeout)}s</div>}
+      {timeoutAction !== 'continue' && <div className="customNodeParam">on timeout: {String(timeoutAction)}</div>}
     </BaseNode>
   )
 })

@@ -530,6 +530,49 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     [setRuntime]
   )
 
+  // Снимок layout перед входом в Zen Mode.
+  const zenLayoutSnapshotRef = useRef<LayoutState | null>(null)
+
+  const handleToggleZenMode = useCallback(() => {
+    const savedLayout = zenLayoutSnapshotRef.current
+
+    if (savedLayout) {
+      zenLayoutSnapshotRef.current = null
+      setLayout(savedLayout)
+      return
+    }
+
+    const nextLayout: LayoutState = {
+      ...layout,
+      panels: Object.fromEntries(
+        Object.entries(layout.panels).map(([panelId, panel]) => {
+          if (panel.mode === 'docked') {
+            return [panelId, { ...panel, collapsed: true }]
+          }
+
+          if (panel.mode === 'floating') {
+            return [
+              panelId,
+              {
+                ...panel,
+                mode: 'hidden',
+                position: null,
+                size: null,
+                lastFloatingPosition: panel.position ?? panel.lastFloatingPosition ?? null,
+                lastFloatingSize: panel.size ?? panel.lastFloatingSize ?? null
+              }
+            ]
+          }
+
+          return [panelId, panel]
+        })
+      ) as LayoutState['panels']
+    }
+
+    zenLayoutSnapshotRef.current = JSON.parse(JSON.stringify(layout)) as LayoutState
+    setLayout(nextLayout)
+  }, [layout, setLayout])
+
   // --- Hotkeys ---
   const hotkeyHandlers = useMemo(
     () => [
@@ -537,8 +580,12 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
         actionId: 'toggle_inspector' as const,
         handler: () => togglePanel('panel.inspector')
       },
+      {
+        actionId: 'zen_mode' as const,
+        handler: handleToggleZenMode
+      }
     ],
-    [togglePanel]
+    [handleToggleZenMode, togglePanel]
   )
 
   useHotkeys({

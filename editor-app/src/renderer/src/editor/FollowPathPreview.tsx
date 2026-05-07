@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 
 export type FollowPathPoint = {
   x: number
@@ -188,13 +188,23 @@ export function FollowPathPreview(props: FollowPathPreviewProps): React.JSX.Elem
       pointBounds: bounds,
       markerPoint: (distance: number) => getMarkerPoint(normalizedPoints, segments, distance)
     }
-  }, [normalizedPoints, points])
+  }, [points, normalizedPoints])
 
   // Храним текущую дистанцию marker вдоль пути.
   const [previewDistance, setPreviewDistance] = useState(0)
+  const prevPointsRef = useRef(points)
 
+  // Сбрасываем дистанцию при изменении points асинхронно
   useEffect(() => {
-    setPreviewDistance(0)
+    if (prevPointsRef.current !== points) {
+      // Используем setTimeout для асинхронного setState, чтобы избежать каскадных рендеров
+      const timeoutId = setTimeout(() => {
+        setPreviewDistance(0)
+      }, 0)
+      prevPointsRef.current = points
+      return () => clearTimeout(timeoutId)
+    }
+    return undefined
   }, [points])
 
   useEffect(() => {
@@ -204,7 +214,7 @@ export function FollowPathPreview(props: FollowPathPreviewProps): React.JSX.Elem
     let lastTime = performance.now()
     const speed = Math.max(12, toFiniteNumber(speedPxPerSecond, 60))
 
-    const tick = (time: number) => {
+    const tick = (time: number): void => {
       const deltaSeconds = Math.max(0, (time - lastTime) / 1000)
       lastTime = time
 
@@ -295,7 +305,14 @@ export function FollowPathPreview(props: FollowPathPreviewProps): React.JSX.Elem
               </g>
             ))}
 
-            <circle cx={marker.x} cy={marker.y} r="4.5" fill="#ffd166" stroke="#8a5a00" strokeWidth="1.2" />
+            <circle
+              cx={marker.x}
+              cy={marker.y}
+              r="4.5"
+              fill="#ffd166"
+              stroke="#8a5a00"
+              strokeWidth="1.2"
+            />
           </svg>
 
           <div className="runtimeHint" style={{ marginTop: 6 }}>

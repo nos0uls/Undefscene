@@ -159,10 +159,7 @@ function simplifyPathPoints(
     return points.map((point) => ({ ...point }))
   }
 
-  const simplified: Array<{ x: number; y: number }> = [
-    { ...points[0] },
-    { ...points[1] }
-  ]
+  const simplified: Array<{ x: number; y: number }> = [{ ...points[0] }, { ...points[1] }]
 
   for (let index = 2; index < points.length; index += 1) {
     const nextPoint = { ...points[index] }
@@ -395,7 +392,9 @@ export function RoomVisualEditorModal({
   // Оно не меняет graph и нужно только для визуальной проверки пути внутри окна.
   const [isPlayPreviewRunning, setIsPlayPreviewRunning] = useState(false)
   const [playPreviewPoint, setPlayPreviewPoint] = useState<{ x: number; y: number } | null>(null)
-  const [actorSpritePreviews, setActorSpritePreviews] = useState<Record<string, LoadedActorSpritePreview>>({})
+  const [actorSpritePreviews, setActorSpritePreviews] = useState<
+    Record<string, LoadedActorSpritePreview>
+  >({})
   const dragPanRef = useRef<{
     pointerId: number
     startClientX: number
@@ -511,6 +510,7 @@ export function RoomVisualEditorModal({
       }
     ): { x: number; y: number } => {
       const meta = bundle?.meta
+      // eslint-disable-next-line prefer-const
       let nextPoint = { ...point }
 
       if (options.useHvLock && options.anchorPoint) {
@@ -607,10 +607,15 @@ export function RoomVisualEditorModal({
       if (!hoverPoint) return
 
       const anchorPoint = draftPathPointsRef.current[draftPathPointsRef.current.length - 1] ?? null
-      const nextPoint = getPathPointFromClient(hoverPoint.clientX, hoverPoint.clientY, anchorPoint, {
-        useHvLock: shiftKey,
-        useGridSnap: true
-      })
+      const nextPoint = getPathPointFromClient(
+        hoverPoint.clientX,
+        hoverPoint.clientY,
+        anchorPoint,
+        {
+          useHvLock: shiftKey,
+          useGridSnap: true
+        }
+      )
 
       setPathPreviewPoint(nextPoint)
     }
@@ -621,11 +626,15 @@ export function RoomVisualEditorModal({
 
       const target = event.target as HTMLElement | null
       const tag = target?.tagName ?? ''
-      const inputType = tag === 'INPUT' ? (((target as HTMLInputElement | null)?.type ?? '').toLowerCase()) : ''
+      const inputType =
+        tag === 'INPUT' ? ((target as HTMLInputElement | null)?.type ?? '').toLowerCase() : ''
       const isTypingTarget =
         tag === 'TEXTAREA' ||
         tag === 'SELECT' ||
-        (tag === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(inputType)) ||
+        (tag === 'INPUT' &&
+          !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(
+            inputType
+          )) ||
         target?.closest('[contenteditable="true"]') !== null
 
       if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && key === 'z') {
@@ -665,7 +674,14 @@ export function RoomVisualEditorModal({
 
       // Для буквенных shortcuts используем KeyboardEvent.code.
       // Так B/G/Ctrl+E продолжают работать даже на русской раскладке.
-      if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && code === 'KeyB' && !isTypingTarget) {
+      if (
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.shiftKey &&
+        code === 'KeyB' &&
+        !isTypingTarget
+      ) {
         event.preventDefault()
         stopPlayPreview()
         clearTransientInteractionState()
@@ -676,7 +692,14 @@ export function RoomVisualEditorModal({
         return
       }
 
-      if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && code === 'KeyG' && !isTypingTarget) {
+      if (
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.shiftKey &&
+        code === 'KeyG' &&
+        !isTypingTarget
+      ) {
         event.preventDefault()
         stopPlayPreview()
         clearTransientInteractionState()
@@ -687,7 +710,13 @@ export function RoomVisualEditorModal({
         return
       }
 
-      if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && code === 'KeyE' && !isTypingTarget) {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        !event.shiftKey &&
+        code === 'KeyE' &&
+        !isTypingTarget
+      ) {
         event.preventDefault()
         event.stopPropagation()
         if (draftPathPointsRef.current.length > 0) {
@@ -717,7 +746,15 @@ export function RoomVisualEditorModal({
       window.removeEventListener('keydown', onKeyDown, true)
       window.removeEventListener('keyup', onKeyUp, true)
     }
-  }, [activeTool, clearTransientInteractionState, getPathPointFromClient, onClose, onImportPath, open, stopPlayPreview])
+  }, [
+    activeTool,
+    clearTransientInteractionState,
+    getPathPointFromClient,
+    onClose,
+    onImportPath,
+    open,
+    stopPlayPreview
+  ])
 
   // Сбрасываем визуальное состояние, когда пользователь явно меняет room.
   useEffect(() => {
@@ -796,7 +833,9 @@ export function RoomVisualEditorModal({
     lastSyncedActorsKeyRef.current = nextActorsKey
     setDraftActors(effectiveActorPreviews.map((actor) => ({ ...actor })))
     setSelectedActorId((prev) =>
-      effectiveActorPreviews.some((actor) => actor.id === prev) ? prev : effectiveActorPreviews[0]?.id ?? null
+      effectiveActorPreviews.some((actor) => actor.id === prev)
+        ? prev
+        : (effectiveActorPreviews[0]?.id ?? null)
     )
   }, [effectiveActorPreviews, open])
 
@@ -843,7 +882,7 @@ export function RoomVisualEditorModal({
             projectDir,
             resourceName
           )) as LoadedActorSpritePreview | null
-          return preview ? [resourceName, preview] as const : null
+          return preview ? ([resourceName, preview] as const) : null
         } catch {
           return null
         }
@@ -874,7 +913,9 @@ export function RoomVisualEditorModal({
   // Так Ctrl+Z / Ctrl+Y работает одинаково для pencil, eraser и clear/import действий.
   const commitDraftPathPoints = useCallback(
     (nextPoints: Array<{ x: number; y: number }>, options?: { recordHistory?: boolean }): void => {
-      const normalizedNext = simplifyPathPoints(nextPoints.map((point) => ({ x: point.x, y: point.y })))
+      const normalizedNext = simplifyPathPoints(
+        nextPoints.map((point) => ({ x: point.x, y: point.y }))
+      )
       if (arePathPointsEqual(draftPathPointsRef.current, normalizedNext)) return
 
       draftPathPointsRef.current = normalizedNext
@@ -895,28 +936,37 @@ export function RoomVisualEditorModal({
 
   // Добавляем новую точку только если она реально отличается от предыдущей.
   // Это защищает path от лишних дублей при drag и pointer jitter.
-  const appendDraftPathPoint = useCallback((point: { x: number; y: number }): void => {
-    const prev = draftPathPointsRef.current
-    const lastPoint = prev[prev.length - 1]
-    if (lastPoint && lastPoint.x === point.x && lastPoint.y === point.y) {
-      return
-    }
+  const appendDraftPathPoint = useCallback(
+    (point: { x: number; y: number }): void => {
+      const prev = draftPathPointsRef.current
+      const lastPoint = prev[prev.length - 1]
+      if (lastPoint && lastPoint.x === point.x && lastPoint.y === point.y) {
+        return
+      }
 
-    if (lastPoint && Math.hypot(lastPoint.x - point.x, lastPoint.y - point.y) < PATH_APPEND_MIN_DISTANCE) {
-      return
-    }
+      if (
+        lastPoint &&
+        Math.hypot(lastPoint.x - point.x, lastPoint.y - point.y) < PATH_APPEND_MIN_DISTANCE
+      ) {
+        return
+      }
 
-    commitDraftPathPoints([...prev, point])
-  }, [commitDraftPathPoints])
+      commitDraftPathPoints([...prev, point])
+    },
+    [commitDraftPathPoints]
+  )
 
   // Eraser удаляет точки вокруг курсора по небольшому радиусу.
   // Так инструментом можно провести по path и локально почистить waypoint'ы.
-  const eraseDraftPathPoints = useCallback((point: { x: number; y: number }): void => {
-    const nextPoints = draftPathPointsRef.current.filter(
-      (candidate) => Math.hypot(candidate.x - point.x, candidate.y - point.y) > PATH_ERASE_RADIUS
-    )
-    commitDraftPathPoints(nextPoints)
-  }, [commitDraftPathPoints])
+  const eraseDraftPathPoints = useCallback(
+    (point: { x: number; y: number }): void => {
+      const nextPoints = draftPathPointsRef.current.filter(
+        (candidate) => Math.hypot(candidate.x - point.x, candidate.y - point.y) > PATH_ERASE_RADIUS
+      )
+      commitDraftPathPoints(nextPoints)
+    },
+    [commitDraftPathPoints]
+  )
 
   // Fit рассчитывает zoom так, чтобы вся room влезла в viewport с небольшим внутренним отступом.
   const fitToViewport = useCallback((): void => {
@@ -927,7 +977,10 @@ export function RoomVisualEditorModal({
     const innerWidth = Math.max(120, viewport.clientWidth - 32)
     const innerHeight = Math.max(120, viewport.clientHeight - 32)
     const nextZoom = clamp(
-      Math.min(innerWidth / Math.max(1, meta.room_width), innerHeight / Math.max(1, meta.room_height)),
+      Math.min(
+        innerWidth / Math.max(1, meta.room_width),
+        innerHeight / Math.max(1, meta.room_height)
+      ),
       MIN_ZOOM,
       MAX_ZOOM
     )
@@ -994,7 +1047,9 @@ export function RoomVisualEditorModal({
 
       if (!result) {
         setBundle(null)
-        setErrorMessage(t('editor.visualEditingFailedToLoad', 'Failed to load room screenshot data.'))
+        setErrorMessage(
+          t('editor.visualEditingFailedToLoad', 'Failed to load room screenshot data.')
+        )
         return
       }
 
@@ -1191,7 +1246,10 @@ export function RoomVisualEditorModal({
             ? playPreviewPoint
             : { x: actor.x, y: actor.y }
 
-        if (Math.hypot(displayPoint.x - point.x, displayPoint.y - point.y) <= ACTOR_MARKER_RADIUS + 6) {
+        if (
+          Math.hypot(displayPoint.x - point.x, displayPoint.y - point.y) <=
+          ACTOR_MARKER_RADIUS + 6
+        ) {
           return actor
         }
       }
@@ -1244,7 +1302,10 @@ export function RoomVisualEditorModal({
 
     const tick = (timestamp: number): void => {
       const elapsedSeconds = Math.max(0, (timestamp - playPreviewStartTimeRef.current) / 1000)
-      const travelledDistance = Math.min(totalLength, elapsedSeconds * PLAY_PREVIEW_SPEED_PX_PER_SEC)
+      const travelledDistance = Math.min(
+        totalLength,
+        elapsedSeconds * PLAY_PREVIEW_SPEED_PX_PER_SEC
+      )
       const nextPreviewState = getPointAtDistanceOnPreparedPath(
         preparedDraftPathSegments,
         travelledDistance,
@@ -1287,171 +1348,193 @@ export function RoomVisualEditorModal({
   ])
 
   // Pointer drag нужен для ручного pan по stitched room preview.
-  const handleViewportPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (activeTool === 'pencil' || activeTool === 'eraser') {
+  const handleViewportPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>): void => {
+      if (activeTool === 'pencil' || activeTool === 'eraser') {
+        if (event.button !== 0) return
+
+        const anchorPoint =
+          draftPathPointsRef.current[draftPathPointsRef.current.length - 1] ?? null
+        const worldPoint = getPathPointFromPointerEvent(event, anchorPoint)
+        if (!worldPoint) return
+
+        pathDrawRef.current = {
+          pointerId: event.pointerId,
+          tool: activeTool,
+          anchorPoint,
+          latestPoint: worldPoint,
+          isStraightSegment: event.shiftKey
+        }
+
+        setPathPreviewPoint(worldPoint)
+        event.currentTarget.setPointerCapture(event.pointerId)
+
+        if (activeTool === 'eraser') {
+          eraseDraftPathPoints(worldPoint)
+          return
+        }
+
+        if (!pathDrawRef.current.isStraightSegment) {
+          appendDraftPathPoint(worldPoint)
+        }
+
+        return
+      }
+
+      if (isActorPlacementMode) {
+        return
+      }
+
       if (event.button !== 0) return
 
-      const anchorPoint = draftPathPointsRef.current[draftPathPointsRef.current.length - 1] ?? null
-      const worldPoint = getPathPointFromPointerEvent(event, anchorPoint)
-      if (!worldPoint) return
-
-      pathDrawRef.current = {
-        pointerId: event.pointerId,
-        tool: activeTool,
-        anchorPoint,
-        latestPoint: worldPoint,
-        isStraightSegment: event.shiftKey
-      }
-
-      setPathPreviewPoint(worldPoint)
-      event.currentTarget.setPointerCapture(event.pointerId)
-
-      if (activeTool === 'eraser') {
-        eraseDraftPathPoints(worldPoint)
-        return
-      }
-
-      if (!pathDrawRef.current.isStraightSegment) {
-        appendDraftPathPoint(worldPoint)
-      }
-
-      return
-    }
-
-    if (isActorPlacementMode) {
-      return
-    }
-
-    if (event.button !== 0) return
-
-    const worldPoint = getWorldPointFromClient(event.clientX, event.clientY)
-
-    if (activeTool === 'select' && worldPoint) {
-      const matchedActor = findActorAtPoint(worldPoint)
-      if (matchedActor) {
-        stopPlayPreview()
-        setSelectedActorId(matchedActor.id)
-        actorDragRef.current = {
-          pointerId: event.pointerId,
-          actorId: matchedActor.id,
-          startWorldPoint: worldPoint,
-          startActorX: matchedActor.x,
-          startActorY: matchedActor.y
-        }
-        event.currentTarget.setPointerCapture(event.pointerId)
-        return
-      }
-    }
-
-    dragPanRef.current = {
-      pointerId: event.pointerId,
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-      startOffsetX: offset.x,
-      startOffsetY: offset.y
-    }
-
-    event.currentTarget.setPointerCapture(event.pointerId)
-  }, [
-    activeTool,
-    appendDraftPathPoint,
-    eraseDraftPathPoints,
-    findActorAtPoint,
-    getPathPointFromPointerEvent,
-    getWorldPointFromClient,
-    isActorPlacementMode,
-    offset.x,
-    offset.y,
-    stopPlayPreview
-  ])
-
-  const handleViewportPointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
-    hoverClientPointRef.current = {
-      clientX: event.clientX,
-      clientY: event.clientY
-    }
-
-    const pathDrawState = pathDrawRef.current
-    if (pathDrawState && pathDrawState.pointerId === event.pointerId) {
-      const nextPoint = getPathPointFromPointerEvent(event, pathDrawState.anchorPoint)
-      if (!nextPoint) return
-
-      pathDrawState.latestPoint = nextPoint
-      setPathPreviewPoint(nextPoint)
-
-      if (pathDrawState.tool === 'eraser') {
-        eraseDraftPathPoints(nextPoint)
-        return
-      }
-
-      if (!pathDrawState.isStraightSegment) {
-        appendDraftPathPoint(nextPoint)
-      }
-
-      return
-    }
-
-    if ((activeTool === 'pencil' || activeTool === 'eraser') && !pathDrawState) {
-      const anchorPoint = draftPathPointsRef.current[draftPathPointsRef.current.length - 1] ?? null
-      const nextPoint = getPathPointFromPointerEvent(event, anchorPoint)
-      setPathPreviewPoint(nextPoint)
-    }
-
-    const actorDragState = actorDragRef.current
-    if (actorDragState && actorDragState.pointerId === event.pointerId) {
       const worldPoint = getWorldPointFromClient(event.clientX, event.clientY)
-      const meta = bundle?.meta
-      if (!worldPoint || !meta) return
 
-      const deltaX = worldPoint.x - actorDragState.startWorldPoint.x
-      const deltaY = worldPoint.y - actorDragState.startWorldPoint.y
-      const nextX = clamp(Math.round(actorDragState.startActorX + deltaX), 0, meta.room_width)
-      const nextY = clamp(Math.round(actorDragState.startActorY + deltaY), 0, meta.room_height)
-
-      setDraftActors((prev) =>
-        prev.map((actor) =>
-          actor.id === actorDragState.actorId ? { ...actor, x: nextX, y: nextY } : actor
-        )
-      )
-      return
-    }
-
-    const dragState = dragPanRef.current
-    if (!dragState || dragState.pointerId !== event.pointerId) return
-
-    const deltaX = event.clientX - dragState.startClientX
-    const deltaY = event.clientY - dragState.startClientY
-    setOffset({
-      x: dragState.startOffsetX + deltaX,
-      y: dragState.startOffsetY + deltaY
-    })
-  }, [activeTool, appendDraftPathPoint, bundle, eraseDraftPathPoints, getPathPointFromPointerEvent, getWorldPointFromClient])
-
-  const handleViewportPointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
-    const pathDrawState = pathDrawRef.current
-    if (pathDrawState && pathDrawState.pointerId === event.pointerId) {
-      if (pathDrawState.tool === 'pencil' && pathDrawState.isStraightSegment && pathDrawState.latestPoint) {
-        appendDraftPathPoint(pathDrawState.latestPoint)
+      if (activeTool === 'select' && worldPoint) {
+        const matchedActor = findActorAtPoint(worldPoint)
+        if (matchedActor) {
+          stopPlayPreview()
+          setSelectedActorId(matchedActor.id)
+          actorDragRef.current = {
+            pointerId: event.pointerId,
+            actorId: matchedActor.id,
+            startWorldPoint: worldPoint,
+            startActorX: matchedActor.x,
+            startActorY: matchedActor.y
+          }
+          event.currentTarget.setPointerCapture(event.pointerId)
+          return
+        }
       }
 
-      pathDrawRef.current = null
-      setPathPreviewPoint(null)
-      event.currentTarget.releasePointerCapture(event.pointerId)
-      return
-    }
+      dragPanRef.current = {
+        pointerId: event.pointerId,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        startOffsetX: offset.x,
+        startOffsetY: offset.y
+      }
 
-    const actorDragState = actorDragRef.current
-    if (actorDragState && actorDragState.pointerId === event.pointerId) {
-      actorDragRef.current = null
-      event.currentTarget.releasePointerCapture(event.pointerId)
-      return
-    }
+      event.currentTarget.setPointerCapture(event.pointerId)
+    },
+    [
+      activeTool,
+      appendDraftPathPoint,
+      eraseDraftPathPoints,
+      findActorAtPoint,
+      getPathPointFromPointerEvent,
+      getWorldPointFromClient,
+      isActorPlacementMode,
+      offset.x,
+      offset.y,
+      stopPlayPreview
+    ]
+  )
 
-    const dragState = dragPanRef.current
-    if (!dragState || dragState.pointerId !== event.pointerId) return
-    dragPanRef.current = null
-    event.currentTarget.releasePointerCapture(event.pointerId)
-  }, [appendDraftPathPoint])
+  const handleViewportPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>): void => {
+      hoverClientPointRef.current = {
+        clientX: event.clientX,
+        clientY: event.clientY
+      }
+
+      const pathDrawState = pathDrawRef.current
+      if (pathDrawState && pathDrawState.pointerId === event.pointerId) {
+        const nextPoint = getPathPointFromPointerEvent(event, pathDrawState.anchorPoint)
+        if (!nextPoint) return
+
+        pathDrawState.latestPoint = nextPoint
+        setPathPreviewPoint(nextPoint)
+
+        if (pathDrawState.tool === 'eraser') {
+          eraseDraftPathPoints(nextPoint)
+          return
+        }
+
+        if (!pathDrawState.isStraightSegment) {
+          appendDraftPathPoint(nextPoint)
+        }
+
+        return
+      }
+
+      if ((activeTool === 'pencil' || activeTool === 'eraser') && !pathDrawState) {
+        const anchorPoint =
+          draftPathPointsRef.current[draftPathPointsRef.current.length - 1] ?? null
+        const nextPoint = getPathPointFromPointerEvent(event, anchorPoint)
+        setPathPreviewPoint(nextPoint)
+      }
+
+      const actorDragState = actorDragRef.current
+      if (actorDragState && actorDragState.pointerId === event.pointerId) {
+        const worldPoint = getWorldPointFromClient(event.clientX, event.clientY)
+        const meta = bundle?.meta
+        if (!worldPoint || !meta) return
+
+        const deltaX = worldPoint.x - actorDragState.startWorldPoint.x
+        const deltaY = worldPoint.y - actorDragState.startWorldPoint.y
+        const nextX = clamp(Math.round(actorDragState.startActorX + deltaX), 0, meta.room_width)
+        const nextY = clamp(Math.round(actorDragState.startActorY + deltaY), 0, meta.room_height)
+
+        setDraftActors((prev) =>
+          prev.map((actor) =>
+            actor.id === actorDragState.actorId ? { ...actor, x: nextX, y: nextY } : actor
+          )
+        )
+        return
+      }
+
+      const dragState = dragPanRef.current
+      if (!dragState || dragState.pointerId !== event.pointerId) return
+
+      const deltaX = event.clientX - dragState.startClientX
+      const deltaY = event.clientY - dragState.startClientY
+      setOffset({
+        x: dragState.startOffsetX + deltaX,
+        y: dragState.startOffsetY + deltaY
+      })
+    },
+    [
+      activeTool,
+      appendDraftPathPoint,
+      bundle,
+      eraseDraftPathPoints,
+      getPathPointFromPointerEvent,
+      getWorldPointFromClient
+    ]
+  )
+
+  const handleViewportPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>): void => {
+      const pathDrawState = pathDrawRef.current
+      if (pathDrawState && pathDrawState.pointerId === event.pointerId) {
+        if (
+          pathDrawState.tool === 'pencil' &&
+          pathDrawState.isStraightSegment &&
+          pathDrawState.latestPoint
+        ) {
+          appendDraftPathPoint(pathDrawState.latestPoint)
+        }
+
+        pathDrawRef.current = null
+        setPathPreviewPoint(null)
+        event.currentTarget.releasePointerCapture(event.pointerId)
+        return
+      }
+
+      const actorDragState = actorDragRef.current
+      if (actorDragState && actorDragState.pointerId === event.pointerId) {
+        actorDragRef.current = null
+        event.currentTarget.releasePointerCapture(event.pointerId)
+        return
+      }
+
+      const dragState = dragPanRef.current
+      if (!dragState || dragState.pointerId !== event.pointerId) return
+      dragPanRef.current = null
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    },
+    [appendDraftPathPoint]
+  )
 
   // Когда курсор уходит из viewport без активного drag,
   // прячем hover preview, чтобы не оставалась старая точка на экране.
@@ -1485,7 +1568,14 @@ export function RoomVisualEditorModal({
         setSelectedActorId(matchedActor?.id ?? null)
       }
     },
-    [activeTool, findActorAtPoint, getWorldPointFromClient, isActorPlacementMode, selectedActorId, stopPlayPreview]
+    [
+      activeTool,
+      findActorAtPoint,
+      getWorldPointFromClient,
+      isActorPlacementMode,
+      selectedActorId,
+      stopPlayPreview
+    ]
   )
 
   const clearDraftPath = useCallback((): void => {
@@ -1596,13 +1686,25 @@ export function RoomVisualEditorModal({
 
   // Смещение сетки нужно не только для snap, но и для видимого grid overlay.
   // Иначе пользователь меняет offset, а визуально не понимает, что именно сдвинулось.
-  const gridPhaseX = useMemo(() => ((visualGridOffsetX % PATH_GRID_STEP) + PATH_GRID_STEP) % PATH_GRID_STEP, [visualGridOffsetX])
-  const gridPhaseY = useMemo(() => ((visualGridOffsetY % PATH_GRID_STEP) + PATH_GRID_STEP) % PATH_GRID_STEP, [visualGridOffsetY])
+  const gridPhaseX = useMemo(
+    () => ((visualGridOffsetX % PATH_GRID_STEP) + PATH_GRID_STEP) % PATH_GRID_STEP,
+    [visualGridOffsetX]
+  )
+  const gridPhaseY = useMemo(
+    () => ((visualGridOffsetY % PATH_GRID_STEP) + PATH_GRID_STEP) % PATH_GRID_STEP,
+    [visualGridOffsetY]
+  )
 
   // Универсальный helper для numeric полей local settings.
   // Он держит значения в безопасных границах и сразу сохраняет их в preferences.
   const updateVisualSettingFromNumber = useCallback(
-    (field: 'visualEditorGridOffsetX' | 'visualEditorGridOffsetY' | 'visualEditorPathSizeMultiplier', value: number): void => {
+    (
+      field:
+        | 'visualEditorGridOffsetX'
+        | 'visualEditorGridOffsetY'
+        | 'visualEditorPathSizeMultiplier',
+      value: number
+    ): void => {
       if (!Number.isFinite(value)) {
         return
       }
@@ -1632,7 +1734,11 @@ export function RoomVisualEditorModal({
   // Разница только в внешней оболочке и размерах контейнера.
   const content = (
     <div
-      className={['prefsModal', 'roomVisualEditorModal', variant === 'window' ? 'roomVisualEditorWindow' : '']
+      className={[
+        'prefsModal',
+        'roomVisualEditorModal',
+        variant === 'window' ? 'roomVisualEditorWindow' : ''
+      ]
         .filter(Boolean)
         .join(' ')}
       style={accentCssVariables}
@@ -1668,16 +1774,36 @@ export function RoomVisualEditorModal({
             >
               {t('editor.visualEditingRefresh', 'Refresh')}
             </button>
-            <button className="runtimeButton" type="button" onClick={zoomOut} disabled={!bundle?.meta}>
+            <button
+              className="runtimeButton"
+              type="button"
+              onClick={zoomOut}
+              disabled={!bundle?.meta}
+            >
               {t('editor.visualEditingZoomOut', 'Zoom -')}
             </button>
-            <button className="runtimeButton" type="button" onClick={zoomIn} disabled={!bundle?.meta}>
+            <button
+              className="runtimeButton"
+              type="button"
+              onClick={zoomIn}
+              disabled={!bundle?.meta}
+            >
               {t('editor.visualEditingZoomIn', 'Zoom +')}
             </button>
-            <button className="runtimeButton" type="button" onClick={fitToViewport} disabled={!bundle?.meta}>
+            <button
+              className="runtimeButton"
+              type="button"
+              onClick={fitToViewport}
+              disabled={!bundle?.meta}
+            >
               {t('editor.visualEditingFit', 'Fit')}
             </button>
-            <button className="runtimeButton" type="button" onClick={resetView} disabled={!bundle?.meta}>
+            <button
+              className="runtimeButton"
+              type="button"
+              onClick={resetView}
+              disabled={!bundle?.meta}
+            >
               {t('editor.visualEditingReset', 'Reset')}
             </button>
           </div>
@@ -1696,10 +1822,16 @@ export function RoomVisualEditorModal({
               </code>
             </div>
 
-            {!projectDir ? <div className="runtimeHint">{t('editor.visualEditingNoProject', 'Open a project.')}</div> : null}
+            {!projectDir ? (
+              <div className="runtimeHint">
+                {t('editor.visualEditingNoProject', 'Open a project.')}
+              </div>
+            ) : null}
 
             {isLoading ? (
-              <div className="runtimeHint">{t('editor.visualEditingLoading', 'Loading screenshots...')}</div>
+              <div className="runtimeHint">
+                {t('editor.visualEditingLoading', 'Loading screenshots...')}
+              </div>
             ) : null}
 
             {errorMessage ? <div className="runtimeHint">{errorMessage}</div> : null}
@@ -1742,22 +1874,34 @@ export function RoomVisualEditorModal({
               </div>
             ) : null}
 
-            <div className="runtimeSectionTitle" style={{ marginTop: 12 }}>{t('editor.visualEditingPathTools', 'Path Tools')}</div>
+            <div className="runtimeSectionTitle" style={{ marginTop: 12 }}>
+              {t('editor.visualEditingPathTools', 'Path Tools')}
+            </div>
 
-            <label className="runtimeField" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <label
+              className="runtimeField"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+            >
               <input
                 type="checkbox"
                 checked={visualEditorShowGrid}
-                onChange={(event) => updatePreferences({ visualEditorShowGrid: event.target.checked })}
+                onChange={(event) =>
+                  updatePreferences({ visualEditorShowGrid: event.target.checked })
+                }
               />
               <span>{t('editor.visualEditingShowGrid', 'Show Grid')}</span>
             </label>
 
-            <label className="runtimeField" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <label
+              className="runtimeField"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+            >
               <input
                 type="checkbox"
                 checked={visualEditorSnapToGrid}
-                onChange={(event) => updatePreferences({ visualEditorSnapToGrid: event.target.checked })}
+                onChange={(event) =>
+                  updatePreferences({ visualEditorSnapToGrid: event.target.checked })
+                }
               />
               <span>{t('editor.visualEditingSnapToGrid', 'Snap to Grid')}</span>
             </label>
@@ -1818,7 +1962,9 @@ export function RoomVisualEditorModal({
 
             <div className="roomVisualEditorActions roomVisualEditorSidebarActions">
               <button
-                className={['runtimeButton', activeTool === 'pencil' ? 'isActive' : ''].filter(Boolean).join(' ')}
+                className={['runtimeButton', activeTool === 'pencil' ? 'isActive' : '']
+                  .filter(Boolean)
+                  .join(' ')}
                 type="button"
                 onClick={() => {
                   stopPlayPreview()
@@ -1830,7 +1976,9 @@ export function RoomVisualEditorModal({
                 {t('editor.visualEditingPencil', 'Pencil')}
               </button>
               <button
-                className={['runtimeButton', activeTool === 'eraser' ? 'isActive' : ''].filter(Boolean).join(' ')}
+                className={['runtimeButton', activeTool === 'eraser' ? 'isActive' : '']
+                  .filter(Boolean)
+                  .join(' ')}
                 type="button"
                 onClick={() => {
                   stopPlayPreview()
@@ -1841,19 +1989,34 @@ export function RoomVisualEditorModal({
               >
                 {t('editor.visualEditingEraser', 'Eraser')}
               </button>
-              <button className="runtimeButton" type="button" onClick={clearDraftPath} disabled={draftPathPoints.length <= 0}>
+              <button
+                className="runtimeButton"
+                type="button"
+                onClick={clearDraftPath}
+                disabled={draftPathPoints.length <= 0}
+              >
                 {t('editor.visualEditingClearPath', 'Clear Path')}
               </button>
-              <button className="runtimeButton" type="button" onClick={importDraftPath} disabled={draftPathPoints.length <= 0}>
+              <button
+                className="runtimeButton"
+                type="button"
+                onClick={importDraftPath}
+                disabled={draftPathPoints.length <= 0}
+              >
                 {t('editor.visualEditingImportPath', 'Import Path')}
               </button>
             </div>
 
             <div className="runtimeHint">
-              {t('editor.visualEditingPathHint', 'B: Pencil · G: Eraser · Ctrl+E: Import Path · Shift: straight line')}
+              {t(
+                'editor.visualEditingPathHint',
+                'B: Pencil · G: Eraser · Ctrl+E: Import Path · Shift: straight line'
+              )}
             </div>
 
-            <div className="runtimeSectionTitle" style={{ marginTop: 12 }}>{t('editor.visualEditingActorTools', 'Actor Preview')}</div>
+            <div className="runtimeSectionTitle" style={{ marginTop: 12 }}>
+              {t('editor.visualEditingActorTools', 'Actor Preview')}
+            </div>
             <label className="runtimeField roomVisualEditorField">
               <span>{t('editor.visualEditingActorPicker', 'Actor')}</span>
               <select
@@ -1866,7 +2029,9 @@ export function RoomVisualEditorModal({
                 disabled={draftActors.length <= 0}
               >
                 {draftActors.length <= 0 ? (
-                  <option value="">{t('editor.visualEditingChooseActor', 'Choose actor...')}</option>
+                  <option value="">
+                    {t('editor.visualEditingChooseActor', 'Choose actor...')}
+                  </option>
                 ) : null}
                 {actorOptionEntries.map((entry) => (
                   <option key={entry.id} value={entry.id}>
@@ -1893,7 +2058,9 @@ export function RoomVisualEditorModal({
 
             <div className="roomVisualEditorActions roomVisualEditorSidebarActions">
               <button
-                className={['runtimeButton', activeTool === 'select' ? 'isActive' : ''].filter(Boolean).join(' ')}
+                className={['runtimeButton', activeTool === 'select' ? 'isActive' : '']
+                  .filter(Boolean)
+                  .join(' ')}
                 type="button"
                 onClick={() => {
                   clearTransientInteractionState()
@@ -1905,7 +2072,9 @@ export function RoomVisualEditorModal({
                 {t('editor.visualEditingSelect', 'Select')}
               </button>
               <button
-                className={['runtimeButton', isActorPlacementMode ? 'isActive' : ''].filter(Boolean).join(' ')}
+                className={['runtimeButton', isActorPlacementMode ? 'isActive' : '']
+                  .filter(Boolean)
+                  .join(' ')}
                 type="button"
                 onClick={() => {
                   stopPlayPreview()
@@ -1919,12 +2088,16 @@ export function RoomVisualEditorModal({
                   : t('editor.visualEditingPlaceActor', 'Place Selected Actor')}
               </button>
               <button
-                className={['runtimeButton', isPlayPreviewRunning ? 'isActive' : ''].filter(Boolean).join(' ')}
+                className={['runtimeButton', isPlayPreviewRunning ? 'isActive' : '']
+                  .filter(Boolean)
+                  .join(' ')}
                 type="button"
                 onClick={togglePlayPreview}
                 disabled={!selectedActor || draftPathPoints.length < 2}
               >
-                {isPlayPreviewRunning ? t('editor.visualEditingStopPreview', 'Stop') : t('editor.visualEditingPlay', 'Play')}
+                {isPlayPreviewRunning
+                  ? t('editor.visualEditingStopPreview', 'Stop')
+                  : t('editor.visualEditingPlay', 'Play')}
               </button>
               <button
                 className="runtimeButton"
@@ -1938,7 +2111,10 @@ export function RoomVisualEditorModal({
 
             {selectedActor ? (
               <div className="runtimeHint">
-                {t('editor.visualEditingActorHint', 'Select an actor, place it on the room, then import actors when ready.')}
+                {t(
+                  'editor.visualEditingActorHint',
+                  'Select an actor, place it on the room, then import actors when ready.'
+                )}
               </div>
             ) : null}
           </div>

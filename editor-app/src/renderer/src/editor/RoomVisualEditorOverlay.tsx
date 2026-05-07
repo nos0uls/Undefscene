@@ -83,7 +83,7 @@ export function RoomVisualEditorOverlay({
   getActorSpritePreview,
   liquidGlassEnabled,
   liquidGlassBlur
-}: RoomVisualEditorOverlayProps) {
+}: RoomVisualEditorOverlayProps): React.JSX.Element {
   return (
     <svg
       className={[

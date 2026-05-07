@@ -25,6 +25,7 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@xyflow/react": "^12.10.2",
     "electron-updater": "^6.7.3",
+    "framer-motion": "^12.38.0",
     "lucide-react": "^0.577.0",
     "ms": "^2.1.3"
   },

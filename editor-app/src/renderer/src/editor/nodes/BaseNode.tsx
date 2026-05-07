@@ -1,7 +1,7 @@
 import { Handle, Position } from '@xyflow/react'
 import { memo } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import { NODE_CATEGORY, NODE_LABELS } from './nodeConstants'
+import { NODE_REGISTRY } from './nodeRegistry'
 
 // Пропсы для базовой ноды: тип, метка, дочерние элементы, порты.
 type BaseNodeProps = {
@@ -43,8 +43,9 @@ export const BaseNode = memo(function BaseNode({
   selected,
   children
 }: BaseNodeProps): React.JSX.Element {
-  const category = NODE_CATEGORY[nodeType] ?? 'flow'
-  const title = NODE_LABELS[nodeType] ?? nodeType
+  const nodeDef = NODE_REGISTRY[nodeType]
+  const category = nodeDef?.category ?? 'flow'
+  const title = nodeDef?.label ?? nodeType
   // Цвет раньше проставлялся inline на каждой ноде (dot + title) — 2 style prop'а
   // × 500 нод = 1000 setValueForStyle вызовов на mount (~77ms по трейсу).
   // Теперь цвет категории задаётся через `data-category` и CSS-селекторы в main.css,
