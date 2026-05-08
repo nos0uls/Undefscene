@@ -1,54 +1,9 @@
 import React, { useCallback } from 'react'
+import { NODE_TYPES } from './nodes/nodeRegistry'
 
 // Собственный MIME-type для drag-and-drop из палитры нод.
+// NODE_TYPES импортируется из nodeRegistry — единый источник истины для всех панелей.
 const NODE_PALETTE_DRAG_MIME = 'application/x-undefscene-node-type'
-
-const PALETTE_NODE_TYPES = [
-  'start',
-  'end',
-  'move',
-  'follow_path',
-  'actor_create',
-  'actor_destroy',
-  'animate',
-  'dialogue',
-  'wait_for_dialogue',
-  'camera_track',
-  'camera_track_until_stop',
-  'camera_pan',
-  'camera_pan_obj',
-  'camera_center',
-  'parallel_start',
-  'branch',
-  'run_function',
-  'set_position',
-  'set_depth',
-  'set_facing',
-  'camera_shake',
-  'auto_facing',
-  'auto_walk',
-  'tween',
-  'tween_camera',
-  'set_property',
-  'fade_in',
-  'fade_out',
-  'play_sfx',
-  'emote',
-  'jump',
-  'halt',
-  'flip',
-  'spin',
-  'shake_object',
-  'set_visible',
-  'instant_mode',
-  'mark_node',
-  'partial_control',
-  'wait_for_interact',
-  'set_flag',
-  'spawn_entity',
-  'destroy_entity'
-] as const
-
 type ActionsPanelProps = {
   t: (key: string, fallback: string) => string
   onSave: () => void
@@ -101,7 +56,7 @@ export const ActionsPanel = React.memo(function ActionsPanel({
         {t('editor.nodePalette', 'Node Palette')}
       </div>
       <ul className="runtimeList runtimeListScrollable">
-        {PALETTE_NODE_TYPES.map((type) => (
+        {NODE_TYPES.map((type) => (
           <li key={type}>
             <button
               className="runtimeListItem"

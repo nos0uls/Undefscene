@@ -166,6 +166,11 @@ export type UpdaterCheckResult =
   | { status: 'none' }
   | { status: 'error'; message: string }
 
+// Результат установки обновления.
+export type UpdaterInstallResult =
+  | { status: 'ok' }
+  | { status: 'error'; message: string }
+
 // Настройки движка катсцен (из cutscene_engine_settings.json).
 export type EngineSettings = {
   found: boolean
@@ -236,11 +241,11 @@ export interface RendererApi {
   // Операции с файлом сцены (Open, Save, Save As).
   scene: {
     save: (filePath: string, jsonString: string) => Promise<{ saved: boolean; filePath: string }>
-    autosave: (
-      filePath: string | null,
-      jsonString: string,
+    autosave: (payload: {
+      filePath: string | null
+      jsonString: string
       backupCount: number
-    ) => Promise<{ saved: boolean; filePath: string }>
+    }) => Promise<{ saved: boolean; filePath: string }>
     saveAs: (jsonString: string) => Promise<{ saved: boolean; filePath?: string }>
     open: () => Promise<{ filePath: string; content: string } | null>
   }
@@ -264,7 +269,7 @@ export interface RendererApi {
   // Автообновление: проверка, установка, подписка на события.
   updater: {
     check: () => Promise<UpdaterCheckResult>
-    install: () => Promise<void>
+    install: () => Promise<UpdaterInstallResult>
     onUpdateAvailable: (cb: (info: { version: string; releaseNotes: string }) => void) => void
     onUpdateNotAvailable: (cb: () => void) => void
     onDownloadProgress: (cb: (progress: { percent: number }) => void) => void

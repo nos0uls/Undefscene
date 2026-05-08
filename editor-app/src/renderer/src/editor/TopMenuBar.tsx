@@ -81,6 +81,9 @@ export type TopMenuBarProps = {
 
   // Актуальные сочетания клавиш из preferences.
   keybindings: EditorKeybindings
+
+  // Показать индикатор успешного сохранения.
+  showSavedIndicator?: boolean
 }
 
 // Верхняя панель меню, как в классических desktop IDE.
@@ -117,7 +120,8 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
     onExit,
     onPreferences,
     language,
-    keybindings
+    keybindings,
+    showSavedIndicator
   } = props
 
   // Лёгкий translator для подписей меню.
@@ -394,6 +398,24 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
       </div>
 
       <div className="topMenuBarRight">
+        {showSavedIndicator && (
+          <div
+            className="topMenuBarSavedIndicator"
+            style={{
+              fontSize: 10,
+              color: 'var(--ev-c-green)',
+              marginRight: 12,
+              fontWeight: 600,
+              opacity: 0.8,
+              pointerEvents: 'none',
+              userSelect: 'none',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em'
+            }}
+          >
+            {t('app.saved', 'Saved')}
+          </div>
+        )}
         <button
           className="topMenuBarIconButton"
           type="button"

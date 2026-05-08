@@ -1,5 +1,19 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 
+// Цвета категорий нод — используют CSS-переменные из системы токенов.
+// Каждая категория имеет свой цвет для визуального различения на canvas.
+export const NODE_COLORS: Record<string, string> = {
+  flow: 'var(--node-start)', // start, end, wait — синий
+  movement: 'var(--node-animate)', // move, follow_path, set_position — фиолетовый
+  actor: 'var(--node-animate)', // actor_create, actor_destroy — фиолетовый
+  visual: 'var(--node-animate)', // animate, set_facing, set_depth, auto_facing, auto_walk, flip, visible
+  dialogue: 'var(--node-dialogue)', // dialogue — розовый
+  camera: 'var(--node-camera)', // camera_track, camera_pan, camera_shake, tween(camera) — зелёный
+  logic: 'var(--node-logic)', // parallel, branch, run_function, instant_mode — оранжевый
+  audio: 'var(--node-audio)', // play_sfx — бирюзовый
+  wait: 'var(--node-wait)' // wait-related — серо-синий
+}
+
 // Типы полей ввода в инспекторе.
 export type FieldType = 
   | 'text'           // Обычный текстовый input
@@ -58,12 +72,12 @@ const baseNodes: Record<string, NodeDefinition> = {
     { key: 'y', label: 'Y', type: 'number', defaultValue: 0 }
   ], defaultParams: { target: 'player', x: 0, y: 0 } },
   actor_create: { type: 'actor_create', label: 'Actor Create', category: 'actor', fields: [
-    { key: 'key', label: 'Key', type: 'searchable', placeholder: 'npc_guide', options: [] },
-    { key: 'sprite_or_object', label: 'Sprite / Object', type: 'searchable', placeholder: 'obj_actor / spr_...', options: [] },
-    { key: 'copy_from', label: 'Copy From', type: 'searchable', placeholder: 'player / actor key (optional)', options: [] },
+    { key: 'actor_name', label: 'Key', type: 'searchable', placeholder: 'npc_guide', options: [] },
+    { key: 'actor_sprite', label: 'Sprite / Object', type: 'searchable', placeholder: 'obj_actor / spr_...', options: [] },
+    { key: 'copy_target', label: 'Copy From', type: 'searchable', placeholder: 'player / actor key (optional)', options: [] },
     { key: 'x', label: 'X', type: 'number', defaultValue: 0 },
     { key: 'y', label: 'Y', type: 'number', defaultValue: 0 }
-  ], defaultParams: { key: '', sprite_or_object: '', copy_from: '', x: 0, y: 0 } },
+  ], defaultParams: { actor_name: '', actor_sprite: '', copy_target: '', x: 0, y: 0 } },
   actor_destroy: { type: 'actor_destroy', label: 'Actor Destroy', category: 'actor', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key', options: [] }
   ], defaultParams: { target: 'player' } },
@@ -119,12 +133,12 @@ const conditionalNodes: Record<string, NodeDefinition> = {
   tween: { type: 'tween', label: 'Tween', category: 'camera', fields: [
     { key: 'kind', label: 'Kind', type: 'select', options: ['instance', 'camera'], defaultValue: 'instance' },
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [], condition: whenParamNotEquals('kind', 'camera') },
-    { key: 'property', label: 'Property', type: 'text', defaultValue: '' },
-    { key: 'to', label: 'To', type: 'number', defaultValue: 0 },
-    { key: 'from', label: 'From (optional)', type: 'number', defaultValue: '' },
-    { key: 'seconds', label: 'Seconds', type: 'number', step: 0.1, defaultValue: 1 },
-    { key: 'easing', label: 'Easing', type: 'select', options: ['linear', 'ease_in', 'ease_out', 'ease_in_out'], defaultValue: 'linear' }
-  ], defaultParams: { kind: 'instance', target: 'player', property: 'x', to: 0, seconds: 1, easing: 'linear' } },
+    { key: 'prop', label: 'Property', type: 'text', defaultValue: '' },
+    { key: 'end_value', label: 'To', type: 'number', defaultValue: 0 },
+    { key: 'start_value_override', label: 'From (optional)', type: 'number', defaultValue: '' },
+    { key: 'duration_frames', label: 'Seconds', type: 'number', step: 0.1, defaultValue: 1 },
+    { key: 'ease_name', label: 'Easing', type: 'select', options: ['linear', 'ease_in', 'ease_out', 'ease_in_out'], defaultValue: 'linear' }
+  ], defaultParams: { kind: 'instance', target: 'player', prop: 'x', end_value: 0, duration_frames: 1, ease_name: 'linear' } },
   set_property: { type: 'set_property', label: 'Set Property', category: 'camera', fields: [
     { key: 'kind', label: 'Kind', type: 'select', options: ['instance', 'camera'], defaultValue: 'instance' },
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [], condition: whenParamNotEquals('kind', 'camera') },
@@ -221,8 +235,9 @@ const otherNodes: Record<string, NodeDefinition> = {
   ], defaultParams: { control_type: 0, whitelist: '' } },
   wait_for_interact: { type: 'wait_for_interact', label: 'Wait Interact', category: 'logic', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / object', options: [] },
-    { key: 'timeout', label: 'Timeout (seconds, 0=never)', type: 'number', step: 0.1, defaultValue: 0 }
-  ], defaultParams: { target: 'player', timeout: 0 } },
+    { key: 'timeout', label: 'Timeout (seconds, 0=never)', type: 'number', step: 0.1, defaultValue: 0 },
+    { key: 'timeout_action', label: 'Timeout Action', type: 'select', options: ['continue', 'skip'], defaultValue: 'continue' }
+  ], defaultParams: { target: 'player', timeout: 0, timeout_action: 'continue' } },
   set_flag: { type: 'set_flag', label: 'Set Flag', category: 'logic', fields: [
     { key: 'key', label: 'Flag Key', type: 'text', placeholder: 'story_progress', defaultValue: '' },
     { key: 'value', label: 'Value', type: 'text', placeholder: '1', defaultValue: '' }
@@ -241,7 +256,10 @@ const otherNodes: Record<string, NodeDefinition> = {
   set_plot: { type: 'set_plot', label: 'Set Plot', category: 'logic', fields: [
     { key: 'value', label: 'Plot Value', type: 'number', placeholder: '10', defaultValue: 0 }
   ], defaultParams: { value: 0 } },
-  // TODO: follow_path needs special handling for points array
+  // Специальная обработка для points array не нужна:
+  // - points хранится как массив {x, y}[] в editor params (не как JSON строка)
+  // - Общая логика в compileGraph/reverseCompile корректно копирует массивы
+  // - В отличие от run_function (args) или set_property (value), где нужна JSON конвертация
   follow_path: { type: 'follow_path', label: 'Follow Path', category: 'movement', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'speed_px_sec', label: 'Speed (px/sec)', type: 'number', placeholder: '60', defaultValue: 60 },
@@ -255,9 +273,15 @@ const otherNodes: Record<string, NodeDefinition> = {
     { key: 'seconds', label: 'Seconds', type: 'number', step: 0.1, defaultValue: 1 },
     { key: 'easing', label: 'Easing', type: 'select', options: ['linear', 'ease_in', 'ease_out', 'ease_in_out'], defaultValue: 'linear' }
   ], defaultParams: { property: 'x', to_value: 0, seconds: 1, easing: 'linear', from_value: undefined } },
-  // TODO: parallel_start, parallel_join - need special handling for branches
-  parallel_start: { type: 'parallel_start', label: 'Parallel', category: 'logic', fields: [], defaultParams: { branches: ['b0'] } },
-  parallel_join: { type: 'parallel_join', label: 'Parallel Join', category: 'logic', fields: [], defaultParams: { branches: ['b0'] } }
+  // Поля branches, joinId, pairId — editor-only и обрабатываются в compileGraph.ts и reverseCompile.ts.
+  // branches: список идентификаторов веток (['b0', 'b1', ...])
+  // joinId: ссылка на parallel_join (в parallel_start)
+  // pairId: обратная ссылка на parallel_start (в parallel_join)
+  // Эти поля фильтруются при экспорте в engine JSON (см. compileGraph.ts строка 610-611).
+  parallel_start: { type: 'parallel_start', label: 'Parallel', category: 'logic', fields: [], defaultParams: { branches: ['b0'], joinId: '' } },
+  parallel_join: { type: 'parallel_join', label: 'Parallel Join', category: 'logic', fields: [
+    { key: 'pairId', label: 'Pair Start Node ID', type: 'text', defaultValue: '' }
+  ], defaultParams: { pairId: '' } }
 }
 
 export const NODE_REGISTRY: Record<string, NodeDefinition> = {
@@ -266,3 +290,7 @@ export const NODE_REGISTRY: Record<string, NodeDefinition> = {
   ...conditionalNodes,
   ...otherNodes
 }
+
+// Единый список всех типов нод — источник истины для InspectorPanel и ActionsPanel.
+// Генерируется автоматически из NODE_REGISTRY.
+export const NODE_TYPES = Object.keys(NODE_REGISTRY) as readonly string[]

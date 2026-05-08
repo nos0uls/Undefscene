@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { DockSlotId, LayoutState } from './layoutTypes'
 import type { Vec2 } from './layoutTypes'
 import type { DragState, ResizeDragState } from './dockingConstants'
@@ -117,30 +117,30 @@ export function DockingProvider(props: DockingProviderProps): React.JSX.Element 
     height: window.innerHeight
   })
 
-  // Helper functions (stable, plain closures)
-  const getDockElement = (slot: DockSlotId): HTMLElement | null => {
+  // Helper functions - обёрнуты в useCallback для стабильности ссылок
+  const getDockElement = useCallback((slot: DockSlotId): HTMLElement | null => {
     if (slot === 'left') return leftDockRef.current
     if (slot === 'right') return rightDockRef.current
     return bottomDockRef.current
-  }
+  }, [])
 
-  const getDockHitboxElement = (slot: DockSlotId): HTMLDivElement | null => {
+  const getDockHitboxElement = useCallback((slot: DockSlotId): HTMLDivElement | null => {
     if (slot === 'left') return leftDockHitboxRef.current
     if (slot === 'right') return rightDockHitboxRef.current
     return bottomDockHitboxRef.current
-  }
+  }, [])
 
-  const getDockPreviewElement = (slot: DockSlotId): HTMLDivElement | null => {
+  const getDockPreviewElement = useCallback((slot: DockSlotId): HTMLDivElement | null => {
     if (slot === 'left') return leftDockPreviewRef.current
     if (slot === 'right') return rightDockPreviewRef.current
     return bottomDockPreviewRef.current
-  }
+  }, [])
 
-  const isDockCollapsed = (slot: DockSlotId): boolean => {
+  const isDockCollapsed = useCallback((slot: DockSlotId): boolean => {
     if (slot === 'left') return collapsedDocks.left
     if (slot === 'right') return collapsedDocks.right
     return collapsedDocks.bottom
-  }
+  }, [collapsedDocks])
 
   // Memoized context value — не создаём новый объект каждый рендер Provider'а.
   const value = useMemo<DockingContextValue>(

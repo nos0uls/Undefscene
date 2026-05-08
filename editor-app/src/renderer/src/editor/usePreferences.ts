@@ -208,7 +208,7 @@ export const DEFAULT_PREFERENCES: EditorPreferences = {
   visualEditorGridOffsetX: 0,
   visualEditorGridOffsetY: 0,
   liquidGlassEnabled: false,
-  liquidGlassBlur: 0.4,
+  liquidGlassBlur: 0.6,
   visualEditorPathSizeMultiplier: 1,
   keybindings: DEFAULT_KEYBINDINGS,
   showNodeNameOnCanvas: true,

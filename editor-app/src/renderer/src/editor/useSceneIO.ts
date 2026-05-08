@@ -38,6 +38,8 @@ type UseSceneIODeps = {
   preferencesLoaded: boolean
   autoSaveEnabled: boolean
   autoSaveIntervalMinutes: number
+  // Callback upon successful save/autosave.
+  onSaveSuccess?: () => void
 }
 
 // Хук управляет всеми файловыми операциями сцены:
@@ -56,7 +58,8 @@ export function useSceneIO(deps: UseSceneIODeps) {
     t,
     preferencesLoaded,
     autoSaveEnabled,
-    autoSaveIntervalMinutes
+    autoSaveIntervalMinutes,
+    onSaveSuccess
   } = deps
 
   // Сериализуем runtime в JSON для сохранения (без editor-only полей selectedNodeId и т.д.).
@@ -127,8 +130,9 @@ export function useSceneIO(deps: UseSceneIODeps) {
     if (result.saved && result.filePath) {
       lastPersistedSceneJsonRef.current = jsonString
       setSceneFilePath(result.filePath)
+      onSaveSuccess?.()
     }
-  }, [toasts, t, setSceneFilePath])
+  }, [setSceneFilePath, onSaveSuccess])
 
   // Save: если путь известен — сохраняем туда, иначе Save As.
   const handleSave = useCallback(async () => {
@@ -141,6 +145,7 @@ export function useSceneIO(deps: UseSceneIODeps) {
       const jsonString = serializeSceneState(runtimeRef.current)
       await window.api.scene.save(sceneFilePath, jsonString)
       lastPersistedSceneJsonRef.current = jsonString
+      onSaveSuccess?.()
     } else {
       await handleSaveAs()
     }
@@ -158,9 +163,10 @@ export function useSceneIO(deps: UseSceneIODeps) {
       if (lastPersistedSceneJsonRef.current === jsonString) return
 
       window.api.scene
-        .autosave(sceneFilePath, jsonString, 5)
+        .autosave({ filePath: sceneFilePath, jsonString, backupCount: 5 })
         .then(() => {
           lastPersistedSceneJsonRef.current = jsonString
+          onSaveSuccess?.()
         })
         .catch((err) => {
           console.warn('Failed to autosave scene:', err)

@@ -1632,7 +1632,7 @@ export function RoomVisualEditorModal({
     [draftActors]
   )
 
-  // Для preview сначала используем sprite_or_object из actor_create.
+  // Для preview сначала используем actor_sprite из actor_create.
   // Если его нет, virtual actor может попробовать свой key как имя ресурса.
   const getActorSpritePreview = useCallback(
     (actor: VisualEditorActorPreview): LoadedActorSpritePreview | null => {

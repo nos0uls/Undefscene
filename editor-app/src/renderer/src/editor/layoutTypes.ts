@@ -78,6 +78,9 @@ export interface LayoutState {
   // Состояние каждой панели по ID.
   panels: Record<string, PanelState>
 
+  // ID активной вкладки в нижнем доке (если несколько панелей).
+  activeBottomTabId: string | null
+
   // Просто метка времени, чтобы понимать когда мы сохраняли.
   lastSavedAtMs: number
 }

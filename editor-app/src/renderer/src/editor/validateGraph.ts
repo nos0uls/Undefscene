@@ -67,7 +67,7 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   camera_shake: [],
   auto_facing: ['target'],
   auto_walk: ['target'],
-  tween: ['property'],
+  tween: ['prop'],
   tween_camera: ['property'],
   set_property: ['property'],
   emote: ['target'],
@@ -153,7 +153,7 @@ export function validateGraph(
   for (const n of nodes) {
     nodeMap.set(n.id, n)
     if (n.type === 'actor_create') {
-      const key = String(n.params?.key ?? '').trim()
+      const key = String(n.params?.actor_name ?? '').trim()
       if (key) actorKeys.add(key)
     }
     if (n.type === 'mark_node') {
@@ -272,11 +272,11 @@ export function validateGraph(
       }
     }
 
-    // actor_create: если нет ни sprite_or_object, ни copy_from — предупреждаем.
+    // actor_create: если нет ни actor_sprite, ни copy_target — предупреждаем.
     // Движок подставит дефолтный obj_actor, но пользователь скорее всего забыл заполнить.
     if (node.type === 'actor_create') {
-      const spr = node.params?.sprite_or_object
-      const copyFrom = node.params?.copy_from
+      const spr = node.params?.actor_sprite
+      const copyFrom = node.params?.copy_target
       const hasSpr = typeof spr === 'string' ? spr.trim().length > 0 : !!spr
       const hasCopy = typeof copyFrom === 'string' ? copyFrom.trim().length > 0 : !!copyFrom
       if (!hasSpr && !hasCopy) {
@@ -304,7 +304,7 @@ export function validateGraph(
     if (node.type === 'tween') {
       const kind = String(node.params?.kind ?? 'instance').trim()
       const target = String(node.params?.target ?? '').trim()
-      const property = String(node.params?.property ?? node.params?.field ?? '').trim()
+      const property = String(node.params?.prop ?? node.params?.property ?? node.params?.field ?? '').trim()
       const toValue = node.params?.to ?? node.params?.end_value ?? node.params?.value
       if (kind !== 'camera' && !target) {
         entries.push({
@@ -332,7 +332,7 @@ export function validateGraph(
     if (node.type === 'set_property') {
       const kind = String(node.params?.kind ?? 'instance').trim()
       const target = String(node.params?.target ?? '').trim()
-      const property = String(node.params?.property ?? node.params?.field ?? '').trim()
+      const property = String(node.params?.prop ?? node.params?.property ?? node.params?.field ?? '').trim()
       const value = node.params?.value
       if (kind !== 'camera' && !target) {
         entries.push({
@@ -423,14 +423,15 @@ export function validateGraph(
     }
 
     if (node.type === 'follow_path') {
-      const path = Array.isArray(node.params?.path) ? node.params?.path : []
-      if (path.length === 0) {
+      // Исправлено: было node.params?.path (неверное имя поля), должно быть points
+      const points = Array.isArray(node.params?.points) ? node.params?.points : []
+      if (points.length === 0) {
         entries.push({
           severity: 'warn',
           nodeId: node.id,
           message: t('validation.followPathEmpty', { name: nodeDisplayName })
         })
-      } else if (path.length < 2) {
+      } else if (points.length < 2) {
         entries.push({
           severity: 'tip',
           nodeId: node.id,

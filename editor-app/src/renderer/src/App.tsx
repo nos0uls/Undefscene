@@ -89,7 +89,7 @@ function App(): React.JSX.Element {
   return (
     <ToastProvider>
       <ConfirmProvider>
-        <PreferencesProvider value={{ preferences, updatePreferences }}>
+        <PreferencesProvider value={{ preferences, updatePreferences, loaded: preferencesLoaded }}>
           <EditorShell />
         </PreferencesProvider>
       </ConfirmProvider>

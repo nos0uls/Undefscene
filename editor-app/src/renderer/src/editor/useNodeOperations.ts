@@ -14,10 +14,81 @@ export const suggestUniqueNodeName = (baseName: string, takenNames: Set<string>)
   return `${trimmed} (${i})`
 }
 
+// Чистая функция создания ноды — не читает никакой внешний state.
+// Используется в setRuntime(prev => createNodeStateUpdate(..., prev))
+// чтобы избежать stale-closure проблем при concurrent rendering.
+export const createNodeStateUpdate = (
+  type: string,
+  position: { x: number; y: number },
+  connectFromNodeId: string | null | undefined,
+  prev: RuntimeState,
+  overrideParams?: Record<string, any>
+): RuntimeState => {
+  const takenNames = new Set<string>(
+    prev.nodes.map((n) => String(n.name ?? '').trim()).filter((v) => v.length > 0)
+  )
+
+  if (type === 'parallel_start') {
+    const startId = `pstart-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+    const joinId = `pjoin-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+    const startName = suggestUniqueNodeName('Node', takenNames)
+    takenNames.add(startName)
+    const joinName = suggestUniqueNodeName('Node', takenNames)
+
+    const startNode: RuntimeNode = {
+      id: startId, type: 'parallel_start', name: startName,
+      position: { x: position.x, y: position.y },
+      params: {
+        joinId,
+        branches: ['b0'],
+        ...(overrideParams ?? {})
+      }
+    }
+    const joinNode: RuntimeNode = {
+      id: joinId, type: 'parallel_join', name: joinName,
+      position: { x: position.x + 300, y: position.y },
+      params: { pairId: startId, branches: ['b0'] }
+    }
+    const pairEdge: RuntimeEdge = {
+      id: `edge-pair-${startId}-${joinId}`,
+      source: startId, sourceHandle: '__pair',
+      target: joinId, targetHandle: '__pair'
+    }
+    const extraEdges = connectFromNodeId
+      ? [{ id: `edge-${connectFromNodeId}-${startId}`, source: connectFromNodeId, target: startId }]
+      : []
+    return {
+      ...prev,
+      nodes: [...prev.nodes, startNode, joinNode],
+      edges: [...prev.edges, ...extraEdges, pairEdge],
+      selectedNodeId: startId, selectedNodeIds: [startId], selectedEdgeId: null
+    }
+  }
+
+  const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+  const newNode: RuntimeNode = {
+    id: newId, type,
+    name: suggestUniqueNodeName('Node', takenNames),
+    text: '',
+    position: { x: position.x, y: position.y },
+    params: {
+      ...(NODE_REGISTRY[type]?.defaultParams ?? {}),
+      ...(overrideParams ?? {})
+    }
+  }
+  const newEdges = connectFromNodeId
+    ? [...prev.edges, { id: `edge-${connectFromNodeId}-${newId}`, source: connectFromNodeId, target: newId }]
+    : prev.edges
+  return {
+    ...prev,
+    nodes: [...prev.nodes, newNode],
+    edges: newEdges,
+    selectedNodeId: newId, selectedNodeIds: [newId], selectedEdgeId: null
+  }
+}
+
 // Параметры, которые нужны хуку для работы с нодами.
 type UseNodeOperationsDeps = {
-  // Текущее runtime-состояние (читаем для создания нод с привязкой к выбранной).
-  runtime: RuntimeState
   // Обновление runtime.
   setRuntime: React.Dispatch<React.SetStateAction<RuntimeState>>
   // Ref на флаг фокусировки wait-input после двойного клика по ребру.
@@ -30,7 +101,7 @@ type UseNodeOperationsDeps = {
 // Дефолтные параметры берутся из NODE_REGISTRY.
 
 export function useNodeOperations(deps: UseNodeOperationsDeps) {
-  const { runtime, setRuntime, shouldFocusEdgeWaitRef } = deps
+  const { setRuntime, shouldFocusEdgeWaitRef } = deps
 
   // Стабильные коллбеки для FlowCanvas — обязательно useCallback,
   // иначе каждый рендер EditorShell будет создавать новые функции,
@@ -179,104 +250,28 @@ export function useNodeOperations(deps: UseNodeOperationsDeps) {
   }, [shouldFocusEdgeWaitRef])
 
   // Универсальное создание ноды по типу и позиции.
-  // Это общий источник правды для palette click, MMB create и DnD placement на canvas.
+  // Использует чистую createNodeStateUpdate, чтобы не зависеть от stale closure.
   const createNodeAtPosition = useCallback(
     (type: string, position: { x: number; y: number }, connectFromNodeId?: string | null) => {
-      const takenNames = new Set<string>(
-        runtime.nodes.map((n) => String(n.name ?? '').trim()).filter((value) => value.length > 0)
-      )
-
-      // Для parallel_start создаём пару (start + join) + внутреннее ребро.
-      if (type === 'parallel_start') {
-        const startId = `pstart-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-        const joinId = `pjoin-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-
-        const startName = suggestUniqueNodeName('Node', takenNames)
-        takenNames.add(startName)
-        const joinName = suggestUniqueNodeName('Node', takenNames)
-
-        const startNode: RuntimeNode = {
-          id: startId,
-          type: 'parallel_start',
-          name: startName,
-          position: { x: position.x, y: position.y },
-          params: { joinId, branches: ['b0'] }
-        }
-
-        const joinNode: RuntimeNode = {
-          id: joinId,
-          type: 'parallel_join',
-          name: joinName,
-          position: { x: position.x + 300, y: position.y },
-          params: { pairId: startId, branches: ['b0'] }
-        }
-
-        // Внутреннее ребро, связывающее start и join (pair handle).
-        const pairEdge: RuntimeEdge = {
-          id: `edge-pair-${startId}-${joinId}`,
-          source: startId,
-          sourceHandle: '__pair',
-          target: joinId,
-          targetHandle: '__pair'
-        }
-
-        // Дополнительное ребро от выбранной ноды к новой parallel_start.
-        const extraEdges = connectFromNodeId
-          ? [{ id: `edge-${connectFromNodeId}-${startId}`, source: connectFromNodeId, target: startId }]
-          : []
-
-        setRuntime((prev) => ({
-          ...prev,
-          nodes: [...prev.nodes, startNode, joinNode],
-          edges: [...prev.edges, ...extraEdges, pairEdge],
-          selectedNodeId: startId,
-          selectedNodeIds: [startId],
-          selectedEdgeId: null
-        }))
-        return
-      }
-
-      const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-
-      const newNode: RuntimeNode = {
-        id: newId,
-        type,
-        name: suggestUniqueNodeName('Node', takenNames),
-        text: '',
-        position: { x: position.x, y: position.y },
-        params: NODE_REGISTRY[type]?.defaultParams ?? {}
-      }
-
-      // Если указана нода-источник — добавляем ребро от неё к новой ноде.
-      const newEdges = connectFromNodeId
-        ? [...runtime.edges, { id: `edge-${connectFromNodeId}-${newId}`, source: connectFromNodeId, target: newId }]
-        : runtime.edges
-
-      setRuntime((prev) => ({
-        ...prev,
-        nodes: [...prev.nodes, newNode],
-        edges: newEdges,
-        selectedNodeId: newId,
-        selectedNodeIds: [newId],
-        selectedEdgeId: null
-      }))
+      setRuntime((prev) => createNodeStateUpdate(type, position, connectFromNodeId, prev))
     },
-    [runtime, setRuntime]
+    [setRuntime]
   )
 
   // Palette-click добавляет ноду справа от выбранного узла,
   // сохраняя старое удобное поведение для быстрого graph-building.
   const addNode = useCallback(
     (type: string) => {
-      const anchor =
-        runtime.nodes.find((n) => n.id === runtime.selectedNodeId) ??
-        runtime.nodes[runtime.nodes.length - 1] ??
-        null
-
-      const anchorPos = anchor?.position ?? { x: 100, y: 150 }
-      createNodeAtPosition(type, { x: anchorPos.x + 250, y: anchorPos.y }, anchor?.id ?? null)
+      setRuntime((prev) => {
+        const anchor =
+          prev.nodes.find((n) => n.id === prev.selectedNodeId) ??
+          prev.nodes[prev.nodes.length - 1] ??
+          null
+        const anchorPos = anchor?.position ?? { x: 100, y: 150 }
+        return createNodeStateUpdate(type, { x: anchorPos.x + 250, y: anchorPos.y }, anchor?.id ?? null, prev)
+      })
     },
-    [createNodeAtPosition, runtime.nodes, runtime.selectedNodeId]
+    [setRuntime]
   )
 
   // MMB-create — быстрый способ поставить dialogue ноду в точку курсора.
@@ -398,43 +393,19 @@ export function useNodeOperations(deps: UseNodeOperationsDeps) {
   const createFollowPathNodeFromVisualEditing = useCallback(
     (points: Array<{ x: number; y: number }>) => {
       setRuntime((prev) => {
-        const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-        const takenNames = new Set<string>(
-          prev.nodes.map((n) => String(n.name ?? '').trim()).filter((value) => value.length > 0)
-        )
-
         const anchor =
           prev.nodes.find((node) => node.id === prev.selectedNodeId) ??
           prev.nodes[prev.nodes.length - 1] ??
           null
         const anchorPos = anchor?.position ?? { x: 100, y: 150 }
 
-        const newNode: RuntimeNode = {
-          id: newId,
-          type: 'follow_path',
-          name: suggestUniqueNodeName('Node', takenNames),
-          text: '',
-          position: { x: anchorPos.x + 250, y: anchorPos.y },
-          params: {
-            target: '',
-            speed_px_sec: 60,
-            collision: false,
-            points
-          }
-        }
-
-        const newEdges = anchor
-          ? [...prev.edges, { id: `edge-${anchor.id}-${newId}`, source: anchor.id, target: newId }]
-          : prev.edges
-
-        return {
-          ...prev,
-          nodes: [...prev.nodes, newNode],
-          edges: newEdges,
-          selectedNodeId: newId,
-          selectedNodeIds: [newId],
-          selectedEdgeId: null
-        }
+        return createNodeStateUpdate(
+          'follow_path',
+          { x: anchorPos.x + 250, y: anchorPos.y },
+          anchor?.id ?? null,
+          prev,
+          { points }
+        )
       })
     },
     [setRuntime]

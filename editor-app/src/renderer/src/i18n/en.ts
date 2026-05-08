@@ -9,7 +9,9 @@ export const en = {
     preferences: 'Preferences',
     about: 'About',
     version: 'Version',
-    close: 'Close'
+    close: 'Close',
+    dismiss: 'Dismiss',
+    saved: 'Saved'
   },
   // Strings for the top menu and context actions
   menu: {
@@ -84,7 +86,9 @@ export const en = {
     shortcutCapture: 'Press key...',
     shortcutReset: 'Reset',
     shortcutCaptureHint:
-      'Click the record button, then press a key combo. Delete or Backspace clears it.'
+      'Click the record button, then press a key combo. Delete or Backspace clears it.',
+    restartRequired: 'Restart required',
+    hardwareAccelerationApplied: 'Hardware acceleration setting will be applied on the next start.'
   },
   // Welcome / onboarding
   welcome: {
@@ -148,6 +152,26 @@ export const en = {
     projectCacheColdOpen: 'Loaded from disk.',
     projectCacheWarmOpen: 'Loaded from cache.',
     projectCacheScreenshots: 'Screenshots ready.',
+    visualEditingTitle: 'Visual Mounting',
+    liquidGlassHint: 'Dynamic transparency and blur for nodes and paths.',
+    condition: 'Condition',
+    variable: 'Variable (global key)',
+    equals: 'Equals',
+    ifFalse: 'If false',
+    stopWaitingWhen: 'Stop waiting when',
+    stopWaitingNone: 'none (wait forever)',
+    stopWaitingGlobalVar: 'global variable',
+    stopWaitingNodeReached: 'node reached',
+    stopWaitingTimeout: 'timeout',
+    endVariable: 'End Variable',
+    endEquals: 'End Equals',
+    timeoutSeconds: 'Timeout (seconds)',
+    position: 'Position',
+    connectionsInOut: 'in / out',
+    cleanupConfirm: 'Cleanup Data (Reset Editor)',
+    cleanupMessage: 'Are you sure you want to completely reset the editor preferences and cache? This will delete all local data (themes, tutorial status, resource cache). The application will close after cleanup.',
+    cleanupConfirmButton: 'Reset and Close',
+    cleanupCancelButton: 'Cancel',
     // Visual Editing sub-section
     visualEditingTitle: 'Visual Editing',
     liquidGlassHint: 'Dynamic transparency and blurring for nodes and paths.',
@@ -181,6 +205,8 @@ export const en = {
     visualEditingPathTools: 'Path Tools',
     visualEditingGridOffsetX: 'Grid Offset X',
     visualEditingGridOffsetY: 'Grid Offset Y',
+    visualEditingShowGrid: 'Show Grid',
+    visualEditingSnapToGrid: 'Snap to Grid',
     visualEditingPathSizeMultiplier: 'Size Multiplier',
     visualEditingPencil: 'Pencil',
     visualEditingEraser: 'Eraser',
@@ -267,7 +293,7 @@ export const en = {
     nodeUnreachable: '{name} is unreachable from start. Check connections.',
     nodeMultipleOutputs: '{name} has multiple outputs. Only branch and parallel_start support this.',
     fieldEmpty: '{name}: field "{field}" is empty. Open the inspector to fill it.',
-    actorCreateNoSprite: '{name}: no sprite_or_object or copy_from set. A default actor will be used.',
+    actorCreateNoSprite: '{name}: no actor_sprite or copy_target set. A default actor will be used.',
     branchFalseEmpty: '{name}: false branch is empty. If the condition fails, execution stops. Connect the false output or change the condition.',
     tweenTargetRequired: '{name}: target is required when kind is not camera.',
     tweenNoProperty: '{name}: no tween property selected.',
@@ -339,6 +365,20 @@ export const en = {
     inspector: 'Inspector',
     logs: 'Logs / Warnings',
     runtimeJson: 'JSON'
+  },
+  hotkey: {
+    undo: 'Undo',
+    redo: 'Redo',
+    save: 'Save',
+    new_scene: 'New Scene',
+    export_scene: 'Export Scene',
+    toggle_inspector: 'Toggle Inspector',
+    focus_left_dock: 'Focus Left Dock',
+    focus_right_dock: 'Focus Right Dock',
+    focus_bottom_dock: 'Focus Bottom Dock',
+    toggle_all_dock_panels: 'Toggle All Dock Panels',
+    fit_view: 'Fit View',
+    zen_mode: 'Zen Mode'
   }
 } as const
 // #endregion

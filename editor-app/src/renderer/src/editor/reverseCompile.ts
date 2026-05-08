@@ -408,15 +408,61 @@ function actionToRuntimeNode(
       params.kind = value
       continue
     }
-    // При import сохраняем оба имени, чтобы старый Inspector видел `to`, а export знал `to_value`.
-    if (normalizedType === 'tween' && key === 'to_value') {
+    // При import поддерживаем новые имена полей для соответствия GML параметрам.
+    // Сохраняем обратную совместимость со старыми именами.
+    if (normalizedType === 'tween' && key === 'prop') {
+      params.prop = value
+      params.property = value // Для обратной совместимости
+      continue
+    }
+    if (normalizedType === 'tween' && key === 'property') {
+      params.prop = value
+      params.property = value
+      continue
+    }
+    if (normalizedType === 'tween' && key === 'end_value') {
+      params.end_value = value
+      params.to = value // Для обратной совместимости
+      continue
+    }
+    if (normalizedType === 'tween' && key === 'to') {
+      params.end_value = value
       params.to = value
-      params.to_value = value
+      continue
+    }
+    if (normalizedType === 'tween' && key === 'start_value_override') {
+      params.start_value_override = value
+      params.from = value // Для обратной совместимости
+      continue
+    }
+    if (normalizedType === 'tween' && key === 'from') {
+      params.start_value_override = value
+      params.from = value
       continue
     }
     if (normalizedType === 'tween' && key === 'from_value') {
-      params.from = value
-      params.from_value = value
+      params.start_value_override = value
+      params.from = value // Для обратной совместимости
+      continue
+    }
+    if (normalizedType === 'tween' && key === 'duration_frames') {
+      params.duration_frames = value
+      params.seconds = value // Для обратной совместимости
+      continue
+    }
+    if (normalizedType === 'tween' && key === 'seconds') {
+      params.duration_frames = value
+      params.seconds = value
+      continue
+    }
+    if (normalizedType === 'tween' && key === 'ease_name') {
+      params.ease_name = value
+      params.easing = value // Для обратной совместимости
+      continue
+    }
+    if (normalizedType === 'tween' && key === 'easing') {
+      params.ease_name = value
+      params.easing = value
       continue
     }
     if (normalizedType === 'set_property' && key === 'target_kind' && action.kind === undefined) {

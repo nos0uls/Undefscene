@@ -62,7 +62,8 @@ export const MoveNode = memo(function MoveNode({ data, selected }: CutsceneNodeP
 // Перемещение по набору точек.
 export const FollowPathNode = memo(function FollowPathNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
-  const points = Array.isArray(data.params?.points) ? data.params.points.length : 0
+  const pointsData = Array.isArray(data.params?.points) ? data.params.points : (Array.isArray(data.params?.path) ? data.params.path : [])
+  const points = pointsData.length
   return (
     <BaseNode  nodeType="follow_path" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
@@ -90,8 +91,8 @@ export const SetPositionNode = memo(function SetPositionNode({ data, selected }:
 
 // Создание актёра.
 export const ActorCreateNode = memo(function ActorCreateNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
-  const key = data.params?.key ?? ''
-  const obj = data.params?.sprite_or_object ?? ''
+  const key = data.params?.actor_name ?? data.params?.key ?? ''
+  const obj = data.params?.actor_sprite ?? data.params?.sprite_or_object ?? ''
   return (
     <BaseNode  nodeType="actor_create" selected={selected}>
       <div className="customNodeParam">{String(key)}</div>
@@ -287,7 +288,7 @@ export const ParallelStartNode = memo(function ParallelStartNode(props: Cutscene
   )
 
   return (
-    <BaseNode       nodeType="parallel"
+    <BaseNode       nodeType="parallel_start"
       selected={selected}
       style={baseNodeStyle}
       hasOutput={false}
@@ -355,7 +356,7 @@ export const ParallelJoinNode = memo(function ParallelJoinNode(props: CutsceneNo
   )
 
   return (
-    <BaseNode       nodeType="parallel"
+    <BaseNode       nodeType="parallel_join"
       selected={selected}
       style={baseNodeStyle}
       hasInput={false}
@@ -505,8 +506,8 @@ export const RunFunctionNode = memo(function RunFunctionNode({ data, selected }:
 export const TweenNode = memo(function TweenNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const kind = data.params?.kind ?? 'instance'
   const target = data.params?.target ?? 'camera'
-  const property = data.params?.property ?? data.params?.field ?? ''
-  const to = data.params?.to ?? data.params?.end_value ?? '?'
+  const property = data.params?.prop ?? data.params?.property ?? ''
+  const to = data.params?.end_value ?? data.params?.to ?? '?'
   return (
     <BaseNode  nodeType="tween" selected={selected}>
       <div className="customNodeParam">{String(kind) === 'camera' ? 'camera' : String(target)}</div>
@@ -518,7 +519,7 @@ export const TweenNode = memo(function TweenNode({ data, selected }: CutsceneNod
 export const SetPropertyNode = memo(function SetPropertyNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const kind = data.params?.kind ?? 'instance'
   const target = data.params?.target ?? 'camera'
-  const property = data.params?.property ?? data.params?.field ?? ''
+  const property = data.params?.prop ?? data.params?.property ?? ''
   const value = data.params?.value ?? '?'
   return (
     <BaseNode  nodeType="set_property" selected={selected}>
@@ -547,7 +548,7 @@ export const FadeOutNode = memo(function FadeOutNode({ data, selected }: Cutscen
 })
 
 export const PlaySFXNode = memo(function PlaySFXNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
-  const sound = data.params?.sound ?? data.params?.key ?? ''
+  const sound = data.params?.sound ?? ''
   return (
     <BaseNode  nodeType="play_sfx" selected={selected}>
       {sound && <div className="customNodeParam">{String(sound)}</div>}
@@ -686,7 +687,7 @@ export const CameraPanObjNode = memo(function CameraPanObjNode({ data, selected 
 })
 
 export const TweenCameraNode = memo(function TweenCameraNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
-  const property = data.params?.property ?? ''
+  const property = data.params?.prop ?? data.params?.property ?? ''
   const to_value = data.params?.to_value ?? 0
   const seconds = data.params?.seconds ?? 1
   const easing = data.params?.easing ?? 'linear'
@@ -700,12 +701,12 @@ export const TweenCameraNode = memo(function TweenCameraNode({ data, selected }:
 
 // Partial Control — переключает уровень контроля игрока во время катсцены.
 export const PartialControlNode = memo(function PartialControlNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
-  const type = data.params?.type ?? 0
+  const control_type = data.params?.control_type ?? data.params?.type ?? 0
   const whitelist = Array.isArray(data.params?.whitelist) ? data.params.whitelist : []
   return (
     <BaseNode  nodeType="partial_control" selected={selected}>
-      <div className="customNodeParam">type: {String(type)}</div>
-      {type === 1 && <div className="customNodeParam">whitelist: {whitelist.length} items</div>}
+      <div className="customNodeParam">type: {String(control_type)}</div>
+      {control_type === 1 && <div className="customNodeParam">whitelist: {whitelist.length} items</div>}
     </BaseNode>
   )
 })

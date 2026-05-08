@@ -80,7 +80,8 @@ export function createDefaultLayout(): LayoutState {
         collapsed: false
       }
     },
-    lastSavedAtMs: 0
+    lastSavedAtMs: 0,
+    activeBottomTabId: null
   }
 }
 

@@ -341,7 +341,7 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
 
   // --- togglePanelCollapse ---
   const togglePanelCollapse = (panelId: string) => {
-    const panel = ctx.layout.panels[panelId]
+    const panel = ctx.layoutRef.current.panels[panelId]
     if (!panel) return
 
     const nextCollapsed = !panel.collapsed
@@ -373,7 +373,7 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
 
   // --- togglePanel ---
   const togglePanel = (panelId: string) => {
-    const current = ctx.layout.panels[panelId]
+    const current = ctx.layoutRef.current.panels[panelId]
     if (!current) return
 
     if (current.mode !== 'hidden') {
@@ -580,6 +580,13 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
 
     const onPointerUp = (event: PointerEvent) => {
       if (event.pointerId !== drag.pointerId) return
+      try {
+        if (event.target instanceof HTMLElement) {
+          event.target.releasePointerCapture(event.pointerId)
+        }
+      } catch {
+        // releasePointerCapture can fail in some browser contexts
+      }
 
       const currentLayout = ctx.layoutRef.current
       const currentPanel = currentLayout.panels[drag.panelId]
@@ -882,6 +889,13 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
 
     const onPointerUp = (event: PointerEvent) => {
       if (event.pointerId !== resizeDrag.pointerId) return
+      try {
+        if (event.target instanceof HTMLElement) {
+          event.target.releasePointerCapture(event.pointerId)
+        }
+      } catch {
+        // releasePointerCapture can fail in some browser contexts
+      }
 
       if (frameId !== null) cancelAnimationFrame(frameId)
 
@@ -1043,15 +1057,15 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
 
         const shouldKeepLeftAutoCollapsed =
           leftDockCount > 0 &&
-          effectiveRightWidth + nextLeftWidth + MIN_CENTER_WIDTH > newWidth &&
+          effectiveRightWidth + effectiveLeftWidth + MIN_CENTER_WIDTH > newWidth &&
           nextCollapsedLeft
         const shouldKeepRightAutoCollapsed =
           rightDockCount > 0 &&
-          effectiveLeftWidth + nextRightWidth + MIN_CENTER_WIDTH > newWidth &&
+          effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH > newWidth &&
           nextCollapsedRight
         const shouldKeepBottomAutoCollapsed =
           bottomDockCount > 0 &&
-          nextBottomHeight + topBarHeight + MIN_CENTER_HEIGHT > newHeight &&
+          effectiveBottomHeight + topBarHeight + MIN_CENTER_HEIGHT > newHeight &&
           nextCollapsedBottom
 
         if (ctx.autoCollapsedDocksRef.current.left && !shouldKeepLeftAutoCollapsed) {
@@ -1151,6 +1165,16 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
       if (resizeFrameId !== null) cancelAnimationFrame(resizeFrameId)
     }
   }, [ctx.setLayout])
+
+  // Очистка RAF при размонтировании компонента
+  useEffect(() => {
+    return () => {
+      if (ctx.dragRafRef.current !== null) {
+        window.cancelAnimationFrame(ctx.dragRafRef.current)
+        ctx.dragRafRef.current = null
+      }
+    }
+  }, [])
 
   return {
     startPanelDrag,

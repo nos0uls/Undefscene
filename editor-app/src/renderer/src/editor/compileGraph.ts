@@ -523,6 +523,7 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
         (typeof node.params?.target_kind === 'string' && node.params.target_kind) ||
         'instance'
       const property =
+        (typeof node.params?.prop === 'string' && node.params.prop) ||
         (typeof node.params?.property === 'string' && node.params.property) ||
         (typeof node.params?.field === 'string' && node.params.field) ||
         ''
@@ -589,18 +590,26 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       return action
     }
 
-    // В UI Tween хранит короткие поля `to`/`from`, а движок читает `to_value`/`from_value`.
-    // Поэтому при export переводим editor-форму в runtime JSON-контракт.
+    // В UI Tween использует новые имена полей для соответствия GML параметрам.
+    // Поддерживаем обратную совместимость со старыми именами полей.
     if (node.type === 'tween') {
       if (typeof node.params?.kind === 'string' && node.params.kind) action.kind = node.params.kind
       if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
-      if (typeof node.params?.property === 'string' && node.params.property) action.property = node.params.property
-      if (typeof node.params?.to_value === 'number') action.to_value = node.params.to_value
-      else if (typeof node.params?.to === 'number') action.to_value = node.params.to
-      if (typeof node.params?.from_value === 'number') action.from_value = node.params.from_value
-      else if (typeof node.params?.from === 'number') action.from_value = node.params.from
-      if (typeof node.params?.seconds === 'number') action.seconds = node.params.seconds
-      if (typeof node.params?.easing === 'string' && node.params.easing) action.easing = node.params.easing
+      // property → prop
+      if (typeof node.params?.prop === 'string' && node.params.prop) action.prop = node.params.prop
+      else if (typeof node.params?.property === 'string' && node.params.property) action.prop = node.params.property
+      // to → end_value
+      if (typeof node.params?.end_value === 'number') action.end_value = node.params.end_value
+      else if (typeof node.params?.to === 'number') action.end_value = node.params.to
+      // from → start_value_override
+      if (typeof node.params?.start_value_override === 'number') action.start_value_override = node.params.start_value_override
+      else if (typeof node.params?.from === 'number') action.start_value_override = node.params.from
+      // seconds → duration_frames
+      if (typeof node.params?.duration_frames === 'number') action.duration_frames = node.params.duration_frames
+      else if (typeof node.params?.seconds === 'number') action.duration_frames = node.params.seconds
+      // easing → ease_name
+      if (typeof node.params?.ease_name === 'string' && node.params.ease_name) action.ease_name = node.params.ease_name
+      else if (typeof node.params?.easing === 'string' && node.params.easing) action.ease_name = node.params.easing
       return action
     }
 
@@ -609,6 +618,8 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       for (const [key, value] of Object.entries(node.params)) {
         // Пропускаем editor-only поля (branches, joinId, pairId).
         if (['branches', 'joinId', 'pairId'].includes(key)) continue
+        // Для tween пропускаем все поля, которые уже конвертированы выше
+        if (node.type === 'tween' && ['kind', 'target', 'prop', 'property', 'end_value', 'to', 'start_value_override', 'from', 'duration_frames', 'seconds', 'ease_name', 'easing'].includes(key)) continue
         // Эти поля мы уже обработали выше.
         if (node.type === 'run_function' && ['function_name', 'function', 'args'].includes(key))
           continue

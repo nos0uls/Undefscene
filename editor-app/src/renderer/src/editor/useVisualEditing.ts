@@ -1,13 +1,12 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { RuntimeNode } from './runtimeTypes'
 import type { RuntimeState } from './runtimeTypes'
 import { pushWarning } from './ToastHub'
 import type { ToastContextValue } from './ToastHub'
 import type { ConfirmOptions } from './ConfirmDialog'
 import type { ProjectResources } from './useProjectResources'
 import type { EditorPreferences } from './usePreferences'
-import { suggestUniqueNodeName } from './useNodeOperations'
+import { createNodeStateUpdate } from './useNodeOperations'
 
 // Снимок состояния, который пересылается в native visual editor окно.
 // Полностью описывает текущий visual editing context.
@@ -96,10 +95,10 @@ export function useVisualEditing(deps: UseVisualEditingDeps) {
       .filter((node) => node.type === 'actor_create')
       .map((node) => ({
         id: node.id,
-        key: String(node.params?.key ?? node.name ?? node.id),
+        key: String(node.params?.actor_name ?? node.name ?? node.id),
         x: Number(node.params?.x ?? 0),
         y: Number(node.params?.y ?? 0),
-        spriteOrObject: String(node.params?.sprite_or_object ?? '')
+        spriteOrObject: String(node.params?.actor_sprite ?? '')
       }))
   }, [runtime.nodes])
 
@@ -242,44 +241,21 @@ export function useVisualEditing(deps: UseVisualEditingDeps) {
 
       // Создаём новую follow_path-ноду.
       setRuntime((prev) => {
-        const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-        const takenNames = new Set<string>(
-          prev.nodes.map((n) => String(n.name ?? '').trim()).filter((value) => value.length > 0)
-        )
-
         const anchor =
           prev.nodes.find((node) => node.id === prev.selectedNodeId) ??
           prev.nodes[prev.nodes.length - 1] ??
           null
         const anchorPos = anchor?.position ?? { x: 100, y: 150 }
 
-        const newNode: RuntimeNode = {
-          id: newId,
-          type: 'follow_path',
-          name: suggestUniqueNodeName('Node', takenNames),
-          text: '',
-          position: { x: anchorPos.x + 250, y: anchorPos.y },
-          params: {
-            target: '',
-            speed_px_sec: 60,
-            collision: false,
-            points: normalizedPoints
-          }
-        }
-
-        const newEdges = anchor
-          ? [...prev.edges, { id: `edge-${anchor.id}-${newId}`, source: anchor.id, target: newId }]
-          : prev.edges
-
-        return {
-          ...prev,
-          nodes: [...prev.nodes, newNode],
-          edges: newEdges,
-          selectedNodeId: newId,
-          selectedNodeIds: [newId],
-          selectedEdgeId: null
-        }
+        return createNodeStateUpdate(
+          'follow_path',
+          { x: anchorPos.x + 250, y: anchorPos.y },
+          anchor?.id ?? null,
+          prev,
+          { points: normalizedPoints }
+        )
       })
+
     },
     [selectedNodeForVisualEditing, setRuntime, confirm, toasts, t]
   )

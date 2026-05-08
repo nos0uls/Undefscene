@@ -3,25 +3,30 @@
 
 import { createContext, useContext } from 'react'
 import type { EditorPreferences } from './usePreferences'
-import { DEFAULT_PREFERENCES } from './usePreferences'
 
 type PreferencesContextValue = {
   // Текущие настройки редактора.
   preferences: EditorPreferences
   // Функция для обновления настроек (аналогично usePreferences hook).
   updatePreferences: (patch: Partial<EditorPreferences>) => void
+  // Флаг: настройки уже загружены из файла.
+  loaded: boolean
 }
 
 // Контекст с настройками редактора и функцией обновления.
-const PreferencesContext = createContext<PreferencesContextValue>({
-  preferences: DEFAULT_PREFERENCES,
-  updatePreferences: () => undefined
-})
+// undefined используется для проверки, что компонент обёрнут в Provider.
+const PreferencesContext = createContext<PreferencesContextValue | undefined>(undefined)
 
 // Провайдер для оборачивания дерева компонентов.
 export const PreferencesProvider = PreferencesContext.Provider
 
 // Хук для чтения настроек из контекста.
 export function usePreferencesContext(): PreferencesContextValue {
-  return useContext(PreferencesContext)
+  const context = useContext(PreferencesContext)
+  // Проверяем, что компонент обёрнут в PreferencesProvider.
+  // Если нет — выбрасываем ошибку, чтобы избежать скрытых багов.
+  if (context === undefined) {
+    throw new Error('usePreferencesContext должен использоваться внутри PreferencesProvider')
+  }
+  return context
 }

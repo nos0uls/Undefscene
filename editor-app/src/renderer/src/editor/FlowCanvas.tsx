@@ -274,7 +274,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
     return () => {
       cancelled = true
     }
-  }, [canvasBackgroundPath])
+  }, [canvasBackgroundPath, updatePreferencesFromContext])
 
   // Храним ref на DOM-обёртку canvas, чтобы повесить native non-passive wheel listener.
   // Это нужно для trackpad/pinch и чтобы браузер не ругался на preventDefault в passive listener.
@@ -313,7 +313,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   const onSelectEdgeRef = useRef(onSelectEdge)
   const onEdgeAddRef = useRef(onEdgeAdd)
   const onEdgeRemoveRef = useRef(onEdgeRemove)
-  const onParallelRemoveBranchRef = useRef(onParallelRemoveBranch)
+
   const onNodeDeleteRef = useRef(onNodeDelete)
   const onPaneClickCreateRef = useRef(onPaneClickCreate)
   const onPaneDropCreateRef = useRef(onPaneDropCreate)
@@ -326,7 +326,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
     onSelectEdgeRef.current = onSelectEdge
     onEdgeAddRef.current = onEdgeAdd
     onEdgeRemoveRef.current = onEdgeRemove
-    onParallelRemoveBranchRef.current = onParallelRemoveBranch
+
     onNodeDeleteRef.current = onNodeDelete
     onPaneClickCreateRef.current = onPaneClickCreate
     onPaneDropCreateRef.current = onPaneDropCreate
@@ -337,7 +337,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
     onSelectEdge,
     onEdgeAdd,
     onEdgeRemove,
-    onParallelRemoveBranch,
+
     onNodeDelete,
     onPaneClickCreate,
     onPaneDropCreate,

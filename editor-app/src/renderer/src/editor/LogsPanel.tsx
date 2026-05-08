@@ -156,12 +156,14 @@ export const LogsPanel = React.memo(function LogsPanel({
                 Math.ceil((scrollTop + LIST_HEIGHT) / ROW_HEIGHT) + OVERSCAN
               )
               const rows: React.JSX.Element[] = []
+              // Используем составной key вместо индекса для стабильности React:
+              // это предотвращает проблемы при изменении порядка или добавлении элементов.
               for (let i = start; i < end; i++) {
                 const entry = visibleEntries[i]
                 const s = severityStyle[entry.severity] ?? severityStyle.warn
                 rows.push(
                   <LogEntryRow
-                    key={i}
+                    key={`${entry.severity}-${entry.nodeId || entry.edgeId || i}-${entry.message.slice(0, 20)}`}
                     entry={entry}
                     style={s}
                     top={i * ROW_HEIGHT}

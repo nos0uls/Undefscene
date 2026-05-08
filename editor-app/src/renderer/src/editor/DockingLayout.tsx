@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import React, { memo, useState } from 'react'
+import React, { memo, useState, useEffect } from 'react'
 import type { CSSProperties } from 'react'
 
 import { DockPanel } from './DockPanel'
@@ -49,7 +49,24 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
 
   const [activeBottomTabId, setActiveBottomTabId] = useState<string | null>(null)
 
-  const { layout, collapsedDocks, setCollapsedDocks, drag } = ctx
+  const { layout, collapsedDocks, setCollapsedDocks, drag, setLayout } = ctx
+
+  // Инициализация activeBottomTabId из layout state
+  useEffect(() => {
+    if (layout.activeBottomTabId !== undefined && activeBottomTabId === null) {
+      setActiveBottomTabId(layout.activeBottomTabId)
+    }
+  }, [layout.activeBottomTabId, activeBottomTabId])
+
+  // Сохранение activeBottomTabId в layout state при изменении
+  useEffect(() => {
+    if (activeBottomTabId !== layout.activeBottomTabId) {
+      setLayout({
+        ...layout,
+        activeBottomTabId
+      })
+    }
+  }, [activeBottomTabId, layout, setLayout])
 
   const leftTopGrow = layout.dockSizes.leftSplit
   const leftBottomGrow = Math.max(0.001, 1 - layout.dockSizes.leftSplit)

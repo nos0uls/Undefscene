@@ -14,7 +14,8 @@ import { WelcomeSetupModal } from './WelcomeSetupModal'
 import { TutorialOverlay, TUTORIAL_REGISTRY } from './TutorialOverlay'
 import { useToasts, pushSuccess, pushError, pushInfo } from './ToastHub'
 import { useConfirm } from './ConfirmDialog'
-import { getAccentCssVariables, usePreferences } from './usePreferences'
+import { getAccentCssVariables } from './usePreferences'
+import { usePreferencesContext } from './PreferencesContext'
 import { useHotkeys } from './useHotkeys'
 import { InspectorPanel } from './InspectorPanel'
 import { BookmarksPanel } from './BookmarksPanel'
@@ -29,9 +30,10 @@ import { useNodeOperations, suggestUniqueNodeName } from './useNodeOperations'
 import { useVisualEditing } from './useVisualEditing'
 import { useEditorShortcuts } from './useEditorShortcuts'
 import { useSceneIO } from './useSceneIO'
-import { DockingProvider } from './DockingContext'
+import { DockingProvider, useDockingContext, type CollapsedDocksState } from './DockingContext'
 import { DockingLayout } from './DockingLayout'
 import { useDocking } from './useDocking'
+import { COLLAPSED_HEADER_HEIGHT } from './dockingConstants'
 
 // Внешний слой: создаёт DockingProvider, чтобы внутренний компонент
 // мог использовать useDocking() без ошибки "must be used within DockingProvider".
@@ -82,7 +84,8 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
   const [yarnPreviewLoading, setYarnPreviewLoading] = useState(false)
   const [selectedYarnPreviewTitle, setSelectedYarnPreviewTitle] = useState<string | null>(null)
 
-  const { preferences, updatePreferences, loaded: preferencesLoaded } = usePreferences()
+  const { preferences, updatePreferences, loaded: preferencesLoaded } = usePreferencesContext()
+  const { collapsedDocks, setCollapsedDocks } = useDockingContext()
 
   // --- Onboarding Flow ---
   const [welcomeOpen, setWelcomeOpen] = useState(false)
@@ -210,7 +213,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     if (changed) {
       setRuntime((prev) => ({ ...prev, edges: nextEdges }))
     }
-  }, [preferences.parallelBranchPortMode, preferencesLoaded, runtime.nodes, setRuntime])
+  }, [preferences.parallelBranchPortMode, preferencesLoaded, runtime.nodes, runtime.edges, setRuntime])
 
   useEffect(() => {
     if (!aboutOpen) return
@@ -258,7 +261,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
 
     for (const node of runtime.nodes) {
       if (node.type !== 'actor_create') continue
-      const actorKey = String(node.params?.key ?? '').trim()
+      const actorKey = String(node.params?.actor_name ?? '').trim()
       if (actorKey) result.add(actorKey)
     }
 
@@ -360,7 +363,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     createPaletteDropNode,
     onParallelAddBranch,
     onParallelRemoveBranch
-  } = useNodeOperations({ runtime, setRuntime, shouldFocusEdgeWaitRef })
+  } = useNodeOperations({ setRuntime, shouldFocusEdgeWaitRef })
 
   const [logsFilters, setLogsFilters] = useState({
     errors: true,
@@ -374,7 +377,6 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
   )
 
   const {
-    roomScreenshotSearchDirs,
     openVisualEditorWindow,
     visualEditingOpen
   } = useVisualEditing({
@@ -412,6 +414,18 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
   undoRef.current = undo
   const redoRef = useRef(redo)
   redoRef.current = redo
+  
+  const [showSavedIndicator, setShowSavedIndicator] = useState(false)
+  const savedTimerRef = useRef<number | null>(null)
+
+  const handleSaveSuccess = useCallback(() => {
+    setShowSavedIndicator(true)
+    if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current)
+    savedTimerRef.current = window.setTimeout(() => {
+      setShowSavedIndicator(false)
+    }, 3000)
+  }, [])
+
   const exportRef = useRef<(() => void) | null>(null)
 
   const {
@@ -433,7 +447,8 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     t,
     preferencesLoaded,
     autoSaveEnabled: preferences.autoSaveEnabled,
-    autoSaveIntervalMinutes: preferences.autoSaveIntervalMinutes
+    autoSaveIntervalMinutes: preferences.autoSaveIntervalMinutes,
+    onSaveSuccess: handleSaveSuccess
   })
   exportRef.current = handleExport
 
@@ -530,48 +545,63 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     [setRuntime]
   )
 
-  // Снимок layout перед входом в Zen Mode.
-  const zenLayoutSnapshotRef = useRef<LayoutState | null>(null)
+  // Снимок состояния перед входом в Zen Mode (layout + docks).
+  const zenLayoutSnapshotRef = useRef<{ layout: LayoutState; docks: CollapsedDocksState } | null>(null)
 
   const handleToggleZenMode = useCallback(() => {
-    const savedLayout = zenLayoutSnapshotRef.current
+    const savedSnapshot = zenLayoutSnapshotRef.current
 
-    if (savedLayout) {
+    const areAllDocksCollapsed =
+      collapsedDocks.left && collapsedDocks.right && collapsedDocks.bottom
+    const areAllFloatingPanelsCollapsed = Object.values(layout.panels).every(
+      (p) => p.mode !== 'floating' || p.collapsed
+    )
+
+    // Если всё свёрнуто и есть снимок — восстанавливаем.
+    if (savedSnapshot && areAllDocksCollapsed && areAllFloatingPanelsCollapsed) {
       zenLayoutSnapshotRef.current = null
-      setLayout(savedLayout)
+      setLayout(savedSnapshot.layout)
+      setCollapsedDocks(savedSnapshot.docks)
       return
     }
 
+    // Сохраняем снимок перед сворачиванием.
+    zenLayoutSnapshotRef.current = {
+      layout: JSON.parse(JSON.stringify(layout)) as LayoutState,
+      docks: { ...collapsedDocks }
+    }
+
+    // Сворачиваем доки
+    setCollapsedDocks({
+      left: true,
+      right: true,
+      bottom: true
+    })
+
+    // Сворачиваем только плавающие панели (docked не трогаем, так как они внутри доков)
     const nextLayout: LayoutState = {
       ...layout,
       panels: Object.fromEntries(
         Object.entries(layout.panels).map(([panelId, panel]) => {
-          if (panel.mode === 'docked') {
-            return [panelId, { ...panel, collapsed: true }]
-          }
-
-          if (panel.mode === 'floating') {
+          if (panel.mode === 'floating' && !panel.collapsed) {
+            const currentSize = panel.size ?? panel.lastFloatingSize ?? { width: 360, height: 240 }
             return [
               panelId,
               {
                 ...panel,
-                mode: 'hidden',
-                position: null,
-                size: null,
-                lastFloatingPosition: panel.position ?? panel.lastFloatingPosition ?? null,
-                lastFloatingSize: panel.size ?? panel.lastFloatingSize ?? null
+                collapsed: true,
+                size: { width: currentSize.width, height: COLLAPSED_HEADER_HEIGHT },
+                lastFloatingSize: currentSize
               }
             ]
           }
-
           return [panelId, panel]
         })
       ) as LayoutState['panels']
     }
 
-    zenLayoutSnapshotRef.current = JSON.parse(JSON.stringify(layout)) as LayoutState
     setLayout(nextLayout)
-  }, [layout, setLayout])
+  }, [layout, setLayout, collapsedDocks, setCollapsedDocks])
 
   // --- Hotkeys ---
   const hotkeyHandlers = useMemo(
@@ -582,6 +612,10 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
       },
       {
         actionId: 'zen_mode' as const,
+        handler: handleToggleZenMode
+      },
+      {
+        actionId: 'toggle_all_dock_panels' as const,
         handler: handleToggleZenMode
       }
     ],
@@ -739,10 +773,8 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
           setPendingNodeName={setPendingNodeName}
           suggestUniqueNodeName={suggestUniqueNodeName}
           setNameConflictModal={setNameConflictModal}
-          roomScreenshotSearchDirs={roomScreenshotSearchDirs}
           shouldFocusEdgeWaitRef={shouldFocusEdgeWaitRef}
           t={t}
-          preferences={preferences}
         />
       )
     }
@@ -798,8 +830,6 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     setPendingNodeName,
     suggestUniqueNodeName,
     setNameConflictModal,
-    roomScreenshotSearchDirs,
-    shouldFocusEdgeWaitRef,
     preferences,
     runtime,
     setRuntime,
@@ -975,12 +1005,10 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     })
     pushInfo(
       toasts,
-      next
-        ? 'Аппаратное ускорение отключено. Изменение применится при следующем запуске.'
-        : 'Аппаратное ускорение включено. Изменение применится при следующем запуске.',
-      { title: 'Настройки', duration: 0 }
+      t('preferences.hardwareAccelerationApplied', 'Hardware acceleration setting will be applied on the next start.'),
+      { title: t('app.preferences', 'Preferences'), duration: 0 }
     )
-  }, [preferences, updatePreferences, toasts])
+  }, [preferences, updatePreferences, toasts, t])
 
   const handleChooseScreenshotOutputDir = useCallback(() => {
     if (!window.api?.preferences?.chooseScreenshotOutputDir) {
@@ -1012,13 +1040,10 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     }
 
     confirm({
-      title: t('menu.cleanupDevData', 'Cleanup Dev Data (Reset Editor)'),
-      message:
-        preferences.language === 'ru'
-          ? 'Вы уверены, что хотите полностью сбросить настройки и кэш редактора? Это удалит все локальные данные (темы, обучение, кэш ресурсов). Приложение будет закрыто после очистки.'
-          : 'Are you sure you want to completely reset the editor preferences and cache? This will delete all local data (themes, tutorial status, resource cache). The application will close after cleanup.',
-      confirmLabel: preferences.language === 'ru' ? 'Сбросить и закрыть' : 'Reset and Close',
-      cancelLabel: preferences.language === 'ru' ? 'Отмена' : 'Cancel'
+      title: t('editor.cleanupConfirm', 'Cleanup Dev Data (Reset Editor)'),
+      message: t('editor.cleanupMessage', 'Are you sure you want to completely reset the editor preferences and cache? This will delete all local data (themes, tutorial status, resource cache). The application will close after cleanup.'),
+      confirmLabel: t('editor.cleanupConfirmButton', 'Reset and Close'),
+      cancelLabel: t('editor.cleanupCancelButton', 'Cancel')
     }).then((ok) => {
       if (!ok) return
 
@@ -1077,6 +1102,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
         onPreferences={handlePreferences}
         language={preferences.language}
         keybindings={preferences.keybindings}
+        showSavedIndicator={showSavedIndicator}
       />
     ),
     [
@@ -1109,7 +1135,8 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
       handleAbout,
       handleTutorial,
       handleExit,
-      handlePreferences
+      handlePreferences,
+      showSavedIndicator
     ]
   )
 

@@ -5,21 +5,10 @@ import type { EngineSettings, ProjectResources, YarnFileInfo } from './useProjec
 import { SearchableSelect } from './SearchableSelect'
 import { FollowPathPreview } from './FollowPathPreview'
 import type { NameConflictModalState } from './inspectorTypes'
-import { NODE_REGISTRY, type NodeField } from './nodes/nodeRegistry'
+import { NODE_REGISTRY, NODE_TYPES, type NodeField } from './nodes/nodeRegistry'
 import { AnimatedField } from './AnimatedField'
 
-// Статический список типов нод для селекта в inspector.
-// Вынесен за компонент, чтобы не создавать новый массив на каждый рендер.
-const NODE_TYPES = [
-  'start', 'end', 'move', 'follow_path', 'actor_create', 'actor_destroy',
-  'animate', 'dialogue', 'wait_for_dialogue', 'camera_track', 'camera_pan', 'camera_shake',
-  'parallel_start', 'branch', 'run_function', 'set_position', 'set_depth',
-  'set_facing', 'auto_facing', 'auto_walk', 'tween', 'set_property', 'fade_in', 'fade_out',
-  'play_sfx', 'emote', 'jump', 'halt', 'flip', 'spin', 'shake_object',
-  'set_visible', 'instant_mode', 'mark_node', 'camera_center', 'camera_pan_obj',
-  'camera_track_until_stop', 'partial_control', 'wait_for_interact', 'set_flag',
-  'spawn_entity', 'destroy_entity', 'set_plot'
-]
+// NODE_TYPES импортируется из nodeRegistry — единый источник истины для всех панелей.
 
 // Пропсы InspectorPanel — всё, что нужно для рендера inspector.
 export type InspectorPanelProps = {
@@ -34,10 +23,8 @@ export type InspectorPanelProps = {
   setPendingNodeName: (name: string) => void
   suggestUniqueNodeName: (baseName: string, takenNames: Set<string>) => string
   setNameConflictModal: (state: NameConflictModalState | null) => void
-  roomScreenshotSearchDirs: string[]
   shouldFocusEdgeWaitRef: React.MutableRefObject<boolean>
   t: (key: string, fallback: string) => string
-  preferences: { language: string }
 }
 
 // Отдельный компонент inspector-панели, вынесенный из EditorShell,
@@ -73,9 +60,14 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
   const flushTitle = (value: string) => {
     if (titleTimeoutRef.current) window.clearTimeout(titleTimeoutRef.current)
     titleTimeoutRef.current = null
-    if (value !== runtime.title) {
-      setRuntime({ ...runtime, title: value })
-    }
+    // Используем функциональную форму setRuntime для защиты от race condition:
+    // это гарантирует, что мы работаем с актуальным состоянием, а не с устаревшим замыканием.
+    setRuntime((prev) => {
+      if (value !== prev.title) {
+        return { ...prev, title: value }
+      }
+      return prev
+    })
   }
 
   const debounceTitle = (value: string) => {
@@ -468,7 +460,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
                   {NODE_TYPES.map((nt) => (
                     <option key={nt} value={nt}>{nt}</option>
                   ))}
-                  {!NODE_TYPES.includes(selectedNode.type) && (
+                  {!NODE_TYPES.includes(selectedNode.type as typeof NODE_TYPES[number]) && (
                     <option value={selectedNode.type}>{selectedNode.type} (custom)</option>
                   )}
                 </select>
@@ -499,9 +491,9 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
                 const fieldsWithResolvedOptions = nodeDef.fields.map((field) => {
                   let resolvedOptions: string[] = []
                   if (field.type === 'searchable' || field.type === 'select') {
-                    if (field.key === 'target' || field.key === 'copy_from') {
+                    if (field.key === 'target' || field.key === 'copy_target') {
                       resolvedOptions = actorTargetOptions
-                    } else if (field.key === 'sprite_or_object') {
+                    } else if (field.key === 'actor_sprite') {
                       resolvedOptions = spriteOrObjectOptions
                     } else if (field.key === 'sprite') {
                       resolvedOptions = spriteOptions
@@ -554,14 +546,11 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
             </>
           )}
 
-          {selectedNode.position && (
             <div className="runtimeHint" style={{ opacity: 0.6 }}>
-              Position: {Math.round(selectedNode.position.x)}, {Math.round(selectedNode.position.y)}
+              {t('editor.position', 'Position')}: {Math.round(selectedNode.position.x)}, {Math.round(selectedNode.position.y)}
             </div>
-          )}
-          <div className="runtimeHint" style={{ opacity: 0.6 }}>
             {/* Статистика по связям: сколько стрелок входит и выходит из ноды. */}
-            {t('editor.connections', 'Connections')}: {incomingCount} in / {outgoingCount} out
+            {t('editor.connections', 'Connections')}: {incomingCount} {t('editor.connectionsInOut', 'in / out')} {outgoingCount}
           </div>
         </>
       ) : (
@@ -572,26 +561,26 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
       {selectedEdge ? (
         <>
           <div className="runtimeSectionTitle" style={{ marginTop: 8 }}>{t('editor.selectedEdge', 'Selected Edge')}</div>
-          <div className="runtimeHint" style={{ opacity: 0.6 }}>ID: {selectedEdge.id}</div>
+          <div className="runtimeHint" style={{ opacity: 0.6 }}>{t('editor.file', 'File')}: {selectedEdge.id}</div>
           <label className="runtimeField">
             <span>{t('editor.waitOnEdge', 'Wait on edge (seconds)')}</span>
             <input ref={(el) => { edgeWaitInputRef.current = el; if (el && shouldFocusEdgeWaitRef.current) { shouldFocusEdgeWaitRef.current = false; requestAnimationFrame(() => el.focus()) } }} className="runtimeInput" type="number" step="0.1" value={String(selectedEdge.waitSeconds ?? '')} onChange={(event) => { const v = event.target.value; if (v === '') { updateEdge(selectedEdge.id, { waitSeconds: undefined }) } else { updateEdge(selectedEdge.id, { waitSeconds: Math.max(0, Number(v)) }) } }} />
           </label>
           <label className="runtimeField" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <input type="checkbox" checked={!!selectedEdge.conditionEnabled} onChange={(event) => { const enabled = event.target.checked; if (enabled) { updateEdge(selectedEdge.id, { conditionEnabled: true, conditionVar: selectedEdge.conditionVar ?? '', conditionEquals: selectedEdge.conditionEquals ?? '', conditionIfFalse: selectedEdge.conditionIfFalse ?? 'skip', stopWaitingWhen: selectedEdge.stopWaitingWhen ?? 'none' }) } else { updateEdge(selectedEdge.id, { conditionEnabled: false }) } }} />
-            <span>Condition</span>
+            <span>{t('editor.condition', 'Condition')}</span>
           </label>
           {selectedEdge.conditionEnabled ? (
             <>
-              <div className="runtimeField"><span>Variable (global key)</span><SearchableSelect className="runtimeInput" options={allConditionVars} placeholder="e.g. has_key" value={String(selectedEdge.conditionVar ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { conditionVar: v })} /></div>
-              <div className="runtimeField"><span>Equals</span><SearchableSelect className="runtimeInput" options={allConditionEquals} placeholder="e.g. true / 1 / done" value={String(selectedEdge.conditionEquals ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { conditionEquals: v })} /></div>
-              <label className="runtimeField"><span>If false</span><select className="runtimeInput" value={selectedEdge.conditionIfFalse ?? 'skip'} onChange={(event) => { const val = event.target.value as 'skip' | 'wait_until_true'; updateEdge(selectedEdge.id, { conditionIfFalse: val, stopWaitingWhen: val === 'skip' ? undefined : (selectedEdge.stopWaitingWhen ?? 'none') }) }}><option value="skip">{t('editor.edgeConditionSkip', 'skip (skip branch)')}</option><option value="wait_until_true">{t('editor.edgeConditionWait', 'wait until true (wait)')}</option></select></label>
+              <div className="runtimeField"><span>{t('editor.variable', 'Variable (global key)')}</span><SearchableSelect className="runtimeInput" options={allConditionVars} placeholder="e.g. has_key" value={String(selectedEdge.conditionVar ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { conditionVar: v })} /></div>
+              <div className="runtimeField"><span>{t('editor.equals', 'Equals')}</span><SearchableSelect className="runtimeInput" options={allConditionEquals} placeholder="e.g. true / 1 / done" value={String(selectedEdge.conditionEquals ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { conditionEquals: v })} /></div>
+              <label className="runtimeField"><span>{t('editor.ifFalse', 'If false')}</span><select className="runtimeInput" value={selectedEdge.conditionIfFalse ?? 'skip'} onChange={(event) => { const val = event.target.value as 'skip' | 'wait_until_true'; updateEdge(selectedEdge.id, { conditionIfFalse: val, stopWaitingWhen: val === 'skip' ? undefined : (selectedEdge.stopWaitingWhen ?? 'none') }) }}><option value="skip">{t('editor.edgeConditionSkip', 'skip (skip branch)')}</option><option value="wait_until_true">{t('editor.edgeConditionWait', 'wait until true (wait)')}</option></select></label>
               {selectedEdge.conditionIfFalse === 'wait_until_true' ? (
                 <>
-                  <label className="runtimeField"><span>Stop waiting when</span><select className="runtimeInput" value={selectedEdge.stopWaitingWhen ?? 'none'} onChange={(event) => updateEdge(selectedEdge.id, { stopWaitingWhen: event.target.value as 'none' | 'global_var' | 'node_reached' | 'timeout' })}><option value="none">{t('editor.edgeConditionNone', 'none (wait forever)')}</option><option value="global_var">global variable</option><option value="node_reached">node reached</option><option value="timeout">timeout</option></select></label>
-                  {selectedEdge.stopWaitingWhen === 'global_var' ? (<><div className="runtimeField"><span>End Variable (global key)</span><SearchableSelect className="runtimeInput" options={allConditionVars} placeholder="e.g. cutscene_abort" value={String(selectedEdge.endConditionVar ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { endConditionVar: v })} /></div><div className="runtimeField"><span>End Equals</span><SearchableSelect className="runtimeInput" options={allConditionEquals} placeholder="e.g. true" value={String(selectedEdge.endConditionEquals ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { endConditionEquals: v })} /></div></>) : null}
-                  {selectedEdge.stopWaitingWhen === 'node_reached' ? (<div className="runtimeField"><span>Node name</span><SearchableSelect className="runtimeInput" options={allNodeNamesObjects} placeholder="e.g. End" value={String(selectedEdge.endNodeName ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { endNodeName: v })} style={selectedEdge.endNodeName && !allNodeNamesObjects.includes(String(selectedEdge.endNodeName)) ? { borderColor: '#e05050' } : undefined} /></div>) : null}
-                  {selectedEdge.stopWaitingWhen === 'timeout' ? (<label className="runtimeField"><span>Timeout (seconds)</span><input className="runtimeInput" type="number" step="0.1" placeholder="5" value={String(selectedEdge.endTimeoutSeconds ?? '')} onChange={(event) => { const v = event.target.value; if (v === '') { updateEdge(selectedEdge.id, { endTimeoutSeconds: undefined }) } else { updateEdge(selectedEdge.id, { endTimeoutSeconds: Math.max(0, Number(v)) }) } }} /></label>) : null}
+                  <label className="runtimeField"><span>{t('editor.stopWaitingWhen', 'Stop waiting when')}</span><select className="runtimeInput" value={selectedEdge.stopWaitingWhen ?? 'none'} onChange={(event) => updateEdge(selectedEdge.id, { stopWaitingWhen: event.target.value as 'none' | 'global_var' | 'node_reached' | 'timeout' })}><option value="none">{t('editor.stopWaitingNone', 'none (wait forever)')}</option><option value="global_var">{t('editor.stopWaitingGlobalVar', 'global variable')}</option><option value="node_reached">{t('editor.stopWaitingNodeReached', 'node reached')}</option><option value="timeout">{t('editor.stopWaitingTimeout', 'timeout')}</option></select></label>
+                  {selectedEdge.stopWaitingWhen === 'global_var' ? (<><div className="runtimeField"><span>{t('editor.endVariable', 'End Variable')}</span><SearchableSelect className="runtimeInput" options={allConditionVars} placeholder="e.g. cutscene_abort" value={String(selectedEdge.endConditionVar ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { endConditionVar: v })} /></div><div className="runtimeField"><span>{t('editor.endEquals', 'End Equals')}</span><SearchableSelect className="runtimeInput" options={allConditionEquals} placeholder="e.g. true" value={String(selectedEdge.endConditionEquals ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { endConditionEquals: v })} /></div></>) : null}
+                  {selectedEdge.stopWaitingWhen === 'node_reached' ? (<div className="runtimeField"><span>{t('editor.nodeName', 'Node name')}</span><SearchableSelect className="runtimeInput" options={allNodeNamesObjects} placeholder="e.g. End" value={String(selectedEdge.endNodeName ?? '')} onChange={(v) => updateEdge(selectedEdge.id, { endNodeName: v })} style={selectedEdge.endNodeName && !allNodeNamesObjects.includes(String(selectedEdge.endNodeName)) ? { borderColor: '#e05050' } : undefined} /></div>) : null}
+                  {selectedEdge.stopWaitingWhen === 'timeout' ? (<label className="runtimeField"><span>{t('editor.timeoutSeconds', 'Timeout (seconds)')}</span><input className="runtimeInput" type="number" step="0.1" placeholder="5" value={String(selectedEdge.endTimeoutSeconds ?? '')} onChange={(event) => { const v = event.target.value; if (v === '') { updateEdge(selectedEdge.id, { endTimeoutSeconds: undefined }) } else { updateEdge(selectedEdge.id, { endTimeoutSeconds: Math.max(0, Number(v)) }) } }} /></label>) : null}
                 </>
               ) : null}
             </>

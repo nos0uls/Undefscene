@@ -13,22 +13,7 @@ import {
 } from './useHotkeys'
 import { createTranslator } from '../i18n'
 
-// Читаемые названия hotkey-действий.
-// Пока держим их рядом с modal, потому что это основной экран для ребинда.
-const HOTKEY_LABELS: Record<HotkeyActionId, { en: string; ru: string }> = {
-  undo: { en: 'Undo', ru: 'Отмена' },
-  redo: { en: 'Redo', ru: 'Повтор' },
-  save: { en: 'Save', ru: 'Сохранить' },
-  new_scene: { en: 'New Scene', ru: 'Новая сцена' },
-  export_scene: { en: 'Export Scene', ru: 'Экспорт сцены' },
-  toggle_inspector: { en: 'Toggle Inspector', ru: 'Показать / скрыть Inspector' },
-  focus_left_dock: { en: 'Focus Left Dock', ru: 'Фокус на левый dock' },
-  focus_right_dock: { en: 'Focus Right Dock', ru: 'Фокус на правый dock' },
-  focus_bottom_dock: { en: 'Focus Bottom Dock', ru: 'Фокус на нижний dock' },
-  toggle_all_dock_panels: { en: 'Toggle All Dock Panels', ru: 'Свернуть / развернуть все dock-панели' },
-  fit_view: { en: 'Fit View', ru: 'Уместить граф' },
-  zen_mode: { en: 'Zen Mode', ru: 'Zen mode' }
-}
+// ACCENT_PRESETS are IDs, they are not translated here as they are mostly color names or internal.
 
 // Пресеты акцентных цветов с HEX-значениями.
 const ACCENT_PRESETS: Array<{ id: AccentColorId; label: string; hex: string }> = [
@@ -77,7 +62,7 @@ export function PreferencesModal({
   const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
 
   // Название действия под текущий язык.
-  const getHotkeyLabel = (actionId: HotkeyActionId): string => HOTKEY_LABELS[actionId][preferences.language]
+  const getHotkeyLabel = (actionId: HotkeyActionId): string => t(`hotkey.${actionId}`, actionId)
 
   // Применяем новый combo так, чтобы одинаковое сочетание не осталось висеть
   // сразу на нескольких действиях. Иначе editor выполнит только первое совпадение,

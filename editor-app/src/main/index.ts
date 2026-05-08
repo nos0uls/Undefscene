@@ -1727,10 +1727,16 @@ app.whenReady().then(() => {
 
   // IPC: Сохранить сцену в известный путь (без диалога).
   // Базовая защита от path traversal: путь должен быть абсолютным и не содержать '..'.
+  // Важно: проверяем на .. ДО resolve(), иначе resolve() нормализует путь и защита не сработает.
   ipcMain.handle('scene.save', async (_event, filePath: string, jsonString: string) => {
-    const normalized = resolve(filePath)
-    if (!normalized || normalized.includes('..')) {
+    // Проверка на .. ДО resolve() для защиты от path traversal
+    if (!filePath || filePath.includes('..')) {
       console.warn('Blocked scene.save with suspicious path:', filePath)
+      throw new Error('Invalid file path')
+    }
+    const normalized = resolve(filePath)
+    if (!normalized) {
+      console.warn('Blocked scene.save with invalid resolved path:', filePath)
       throw new Error('Invalid file path')
     }
     await writeFile(filePath, jsonString, 'utf-8')
@@ -1753,9 +1759,14 @@ app.whenReady().then(() => {
 
       if (filePath) {
         // Базовая защита от path traversal для автосохранения.
-        const normalized = resolve(filePath)
-        if (!normalized || normalized.includes('..')) {
+        // Важно: проверяем на .. ДО resolve(), иначе resolve() нормализует путь и защита не сработает.
+        if (!filePath || filePath.includes('..')) {
           console.warn('Blocked scene.autosave with suspicious path:', filePath)
+          throw new Error('Invalid file path')
+        }
+        const normalized = resolve(filePath)
+        if (!normalized) {
+          console.warn('Blocked scene.autosave with invalid resolved path:', filePath)
           throw new Error('Invalid file path')
         }
         const dir = dirname(filePath)
