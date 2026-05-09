@@ -11,6 +11,8 @@ export const en = {
     version: 'Version',
     close: 'Close',
     dismiss: 'Dismiss',
+    loading: 'Loading...',
+    unknown: 'Unknown',
     saved: 'Saved'
   },
   // Strings for the top menu and context actions
@@ -152,8 +154,6 @@ export const en = {
     projectCacheColdOpen: 'Loaded from disk.',
     projectCacheWarmOpen: 'Loaded from cache.',
     projectCacheScreenshots: 'Screenshots ready.',
-    visualEditingTitle: 'Visual Mounting',
-    liquidGlassHint: 'Dynamic transparency and blur for nodes and paths.',
     condition: 'Condition',
     variable: 'Variable (global key)',
     equals: 'Equals',

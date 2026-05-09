@@ -407,14 +407,16 @@ code {
 }
 
 .dockPanelHeader {
-  height: 28px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 8px;
+  padding: 0 10px 0 12px;
   background: var(--color-background-soft);
   border-bottom: 1px solid var(--ev-c-gray-3);
   cursor: grab;
+  /* Акцент-бар слева — визуальный анкор панели. */
+  border-left: 2px solid var(--ev-c-accent);
 }
 
 .dockPanel.isCollapsed .dockPanelHeader {
@@ -574,10 +576,36 @@ code {
 }
 
 .dockPanelTitle {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ev-c-text-3);
+  user-select: none;
+}
+
+/* ===== Inspector: empty state (нода не выбрана) ===== */
+.inspectorEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 16px 20px;
+  opacity: 0.45;
+}
+
+.inspectorEmptyIcon {
+  width: 32px;
+  height: 32px;
+  color: var(--ev-c-text-3);
+  flex-shrink: 0;
+}
+
+.inspectorEmptyText {
   font-size: 12px;
-  font-weight: 500;
-  color: var(--ev-c-text-1);
-  letter-spacing: 0.02em;
+  color: var(--ev-c-text-3);
+  text-align: center;
+  line-height: 1.4;
 }
 
 .dockPanelHeaderActions {
@@ -968,12 +996,18 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   height: 24px;
   border-radius: 4px;
   cursor: pointer;
-  transition: background 0.1s, color 0.1s;
+  transition: background 0.1s, color 0.1s, opacity 0.1s;
 }
 
 .topMenuBarIconButton:hover {
   background: var(--ev-c-gray-3);
   color: var(--ev-c-text-1);
+}
+
+.topMenuBarIconButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .topMenuHint {
@@ -1754,6 +1788,186 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   font-size: 11px;
   color: var(--ev-c-text-3);
   font-style: italic;
+}
+
+/* ===== Prefs: inline field hint (рядом с контролом) ===== */
+.prefsFieldHint {
+  font-size: 10px;
+  color: var(--ev-c-text-3);
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+/* ===== Prefs: секция-разделитель ===== */
+/* Горизонтальная линия + заголовок с отступами — разделяет группы настроек. */
+.prefsSectionSep {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 4px;
+}
+
+.prefsSectionSep::before,
+.prefsSectionSep::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--ev-c-gray-3);
+}
+
+.prefsSectionSep .prefsSectionTitle {
+  margin-bottom: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ===== Prefs: Grid 2×4 для Accent Color ===== */
+/* Каждый элемент — кружок с цветом + лейбл под ним.
+   Последний — серый с «+», открывает custom color picker. */
+.prefsAccentGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px 12px;
+  padding: 4px 0;
+}
+
+.prefsAccentSwatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.prefsAccentSwatchCircle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    border-color 0.12s ease;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.prefsAccentSwatch:hover .prefsAccentSwatchCircle {
+  transform: scale(1.1);
+}
+
+.prefsAccentSwatchCircle.isActive {
+  border-color: var(--ev-c-text-1);
+  box-shadow: 0 0 0 3px var(--ev-c-accent-soft);
+  transform: scale(1.12);
+}
+
+.prefsAccentSwatchLabel {
+  font-size: 10px;
+  color: var(--ev-c-text-3);
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.prefsAccentSwatch.isActive .prefsAccentSwatchLabel {
+  color: var(--ev-c-text-1);
+  font-weight: 600;
+}
+
+/* Custom («+») swatch */
+.prefsAccentSwatchCustom .prefsAccentSwatchCircle {
+  background: var(--ev-c-gray-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 300;
+  color: var(--ev-c-text-2);
+  line-height: 1;
+}
+
+.prefsAccentSwatchCustom.isActive .prefsAccentSwatchCircle {
+  border-color: var(--ev-c-accent);
+  box-shadow: 0 0 0 3px var(--ev-c-accent-soft);
+}
+
+/* Custom HEX color input — скрытый нативный color picker */
+.prefsAccentHexInput {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  border: none;
+  padding: 0;
+}
+
+/* ===== Prefs: Footer (Reset / Close) ===== */
+.prefsFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-top: 1px solid var(--ev-c-gray-3);
+  flex-shrink: 0;
+}
+
+.prefsFooterReset {
+  font-size: 11px;
+  color: var(--ev-c-text-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.12s;
+}
+
+.prefsFooterReset:hover {
+  color: var(--status-error);
+}
+
+.prefsFooterActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prefsFooterClose {
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid var(--ev-c-gray-2);
+  background: var(--color-background-mute);
+  color: var(--ev-c-text-1);
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.prefsFooterClose:hover {
+  background: var(--ev-c-gray-2);
+  border-color: var(--ev-c-gray-1);
+}
+
+/* ===== Custom Edges (React Flow) ===== */
+/* Контейнер для timing-бейджа на ребре. */
+.edgeTimingBadge {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--text-secondary);
+  pointer-events: none;
+  white-space: nowrap;
+  line-height: 1.4;
 }
 
 /* ========== Room Visual Editing Window ========== */

@@ -50,6 +50,8 @@ export type TopMenuBarProps = {
   // Edit.
   onUndo: () => void
   onRedo: () => void
+  canUndo?: boolean
+  canRedo?: boolean
 
   // View.
   onResetLayout: () => void
@@ -102,6 +104,8 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
     onSaveAs,
     onUndo,
     onRedo,
+    canUndo,
+    canRedo,
     onResetLayout,
     onOpenVisualEditing,
     onAbout,
@@ -420,6 +424,7 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
           className="topMenuBarIconButton"
           type="button"
           onClick={onUndo}
+          disabled={canUndo === false}
           title={withOptionalShortcut(t('menu.undo', 'Undo'), shortcutLabels.undo)}
         >
           <Undo2 size={14} />
@@ -428,6 +433,7 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
           className="topMenuBarIconButton"
           type="button"
           onClick={onRedo}
+          disabled={canRedo === false}
           title={withOptionalShortcut(t('menu.redo', 'Redo'), shortcutLabels.redo)}
         >
           <Redo2 size={14} />

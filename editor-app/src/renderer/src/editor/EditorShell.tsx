@@ -56,6 +56,9 @@ type EditorShellInnerProps = {
 }
 
 function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps): React.JSX.Element {
+  const { preferences, updatePreferences, loaded: preferencesLoaded } = usePreferencesContext()
+  const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
+
   const { runtime, setRuntime, undo, redo, canUndo, canRedo } = useRuntimeState()
 
   // Откладываем обновление крупных массивов для FlowCanvas — при drag-end
@@ -78,13 +81,12 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
   const [visualEditingTutorialActive, setVisualEditingTutorialActive] = useState(false)
 
   const [aboutOpen, setAboutOpen] = useState(false)
-  const [appVersion, setAppVersion] = useState('Loading...')
+  const [appVersion, setAppVersion] = useState(t('app.loading', 'Loading...'))
 
   const [yarnPreviewContent, setYarnPreviewContent] = useState<string | null>(null)
   const [yarnPreviewLoading, setYarnPreviewLoading] = useState(false)
   const [selectedYarnPreviewTitle, setSelectedYarnPreviewTitle] = useState<string | null>(null)
 
-  const { preferences, updatePreferences, loaded: preferencesLoaded } = usePreferencesContext()
   const { collapsedDocks, setCollapsedDocks } = useDockingContext()
 
   // --- Onboarding Flow ---
@@ -136,7 +138,6 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     setInspectorTutorialActive(false)
   }, [updatePreferences])
 
-  const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
   const collapsePanelLabel = t('editor.collapsePanel', 'Collapse panel')
   const closePanelLabel = t('editor.closePanel', 'Close panel')
 
@@ -226,7 +227,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
       })
       .catch((err) => {
         console.warn('Failed to read app version:', err)
-        setAppVersion('Unknown')
+        setAppVersion(t('app.unknown', 'Unknown'))
       })
   }, [aboutOpen])
 

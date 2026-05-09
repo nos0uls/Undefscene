@@ -550,11 +550,20 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
               {t('editor.position', 'Position')}: {Math.round(selectedNode.position.x)}, {Math.round(selectedNode.position.y)}
             </div>
             {/* Статистика по связям: сколько стрелок входит и выходит из ноды. */}
-            {t('editor.connections', 'Connections')}: {incomingCount} {t('editor.connectionsInOut', 'in / out')} {outgoingCount}
-          </div>
-        </>
-      ) : (
-        <div className="runtimeHint">{t('editor.inspectNodeHint', 'Select a node on the canvas to inspect it.')}</div>
+            <div className="runtimeHint" style={{ opacity: 0.6 }}>
+              {t('editor.connections', 'Connections')}: {incomingCount} {t('editor.connectionsInOut', 'in / out')} {outgoingCount}
+            </div>
+          </>
+        ) : (
+        <div className="inspectorEmptyState">
+          <svg className="inspectorEmptyIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <path d="M17.5 14v6M14.5 17h6" />
+          </svg>
+          <span className="inspectorEmptyText">{t('editor.inspectNodeHint', 'Select a node to inspect it')}</span>
+        </div>
       )}
 
       {/* Инспектор ребра */}

@@ -17,6 +17,8 @@ export const ru = {
     getStarted: 'Начать работу',
     close: 'Закрыть',
     dismiss: 'Скрыть',
+    loading: 'Загрузка...',
+    unknown: 'Неизвестно',
     saved: 'Сохранено'
   },
   menu: {
@@ -156,8 +158,6 @@ export const ru = {
     projectCacheColdOpen: 'Ресурсы загружены с диска.',
     projectCacheWarmOpen: 'Ресурсы загружены из кэша.',
     projectCacheScreenshots: 'Скриншоты загружены.',
-    visualEditingTitle: 'Визуальный монтаж',
-    liquidGlassHint: 'Динамическая прозрачность и размытие для нод и путей.',
     condition: 'Условие',
     variable: 'Переменная (global key)',
     equals: 'Равно',
@@ -176,6 +176,8 @@ export const ru = {
     cleanupMessage: 'Вы уверены, что хотите полностью сбросить настройки и кэш редактора? Это удалит все локальные данные (темы, обучение, кэш ресурсов). Приложение будет закрыто после очистки.',
     cleanupConfirmButton: 'Сбросить и закрыть',
     cleanupCancelButton: 'Отмена',
+    visualEditingTitle: 'Визуальный монтаж',
+    liquidGlassHint: 'Динамическая прозрачность и размытие для нод и путей.',
     visualEditingRoom: 'Комната',
     visualEditingChooseRoom: 'Выберите комнату...',
     visualEditingRefresh: 'Обновить',

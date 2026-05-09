@@ -164,11 +164,9 @@ export function PreferencesModal({
 
         {/* Содержимое */}
         <div className="prefsBody">
-          {/* --- Секция General ---
-              Сюда выносим самые частые настройки,
-              чтобы язык и тема были видны сразу при открытии modal. */}
+          {/* --- Секция General --- */}
           <div className="prefsSection">
-            <div className="prefsSectionTitle">{t('preferences.general', 'General')}</div>
+            <div className="prefsSectionSep"><span className="prefsSectionTitle">{t('preferences.general', 'General')}</span></div>
             <label className="prefsField">
               <span>{t('preferences.language', 'Language')}</span>
               <select
@@ -196,40 +194,60 @@ export function PreferencesModal({
             </label>
             <div className="prefsHint">{THEMES.find((t) => t.id === preferences.theme)?.description ?? ''}</div>
 
-            {/* Акцентный цвет */}
-            <label className="prefsField">
-              <span>{t('preferences.accentColor', 'Accent Color')}</span>
-              <select
-                className="prefsInput"
-                value={preferences.accentColor}
-                onChange={(e) => updatePreferences({ accentColor: e.target.value as AccentColorId })}
-              >
-                {ACCENT_PRESETS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-                <option value="custom">{t('preferences.custom', 'Custom...')}</option>
-              </select>
-            </label>
-
-            {/* Custom HEX input (показываем только если выбран custom) */}
-            {preferences.accentColor === 'custom' && (
-              <label className="prefsField">
-                <span>{t('preferences.customHex', 'Custom HEX')}</span>
-                <input
-                  className="prefsInput"
-                  type="color"
-                  value={preferences.customAccentHex}
-                  onChange={(e) => updatePreferences({ customAccentHex: e.target.value })}
-                />
-              </label>
-            )}
+            {/* Акцентный цвет — Grid 2×4 со свотчами */}
+            <div className="prefsField" style={{ alignItems: 'flex-start' }}>
+              <span style={{ paddingTop: 4 }}>{t('preferences.accentColor', 'Accent Color')}</span>
+              <div className="prefsAccentGrid">
+                {ACCENT_PRESETS.map((p) => {
+                  const isActive = preferences.accentColor === p.id
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={['prefsAccentSwatch', isActive ? 'isActive' : ''].filter(Boolean).join(' ')}
+                      onClick={() => updatePreferences({ accentColor: p.id as AccentColorId })}
+                      title={p.label}
+                    >
+                      <span
+                        className={['prefsAccentSwatchCircle', isActive ? 'isActive' : ''].filter(Boolean).join(' ')}
+                        style={{ backgroundColor: p.hex }}
+                      />
+                      <span className="prefsAccentSwatchLabel">{p.label}</span>
+                    </button>
+                  )
+                })}
+                {/* Custom swatch */}
+                {(() => {
+                  const isCustom = preferences.accentColor === 'custom'
+                  return (
+                    <button
+                      type="button"
+                      className={['prefsAccentSwatch prefsAccentSwatchCustom', isCustom ? 'isActive' : ''].filter(Boolean).join(' ')}
+                      title={t('preferences.custom', 'Custom...')}
+                    >
+                      <span
+                        className={['prefsAccentSwatchCircle', isCustom ? 'isActive' : ''].filter(Boolean).join(' ')}
+                        style={isCustom && preferences.customAccentHex ? { backgroundColor: preferences.customAccentHex } : {}}
+                      >
+                        {!isCustom && <span>+</span>}
+                        <input
+                          className="prefsAccentHexInput"
+                          type="color"
+                          value={preferences.customAccentHex || '#ffffff'}
+                          onChange={(e) => updatePreferences({ accentColor: 'custom' as AccentColorId, customAccentHex: e.target.value })}
+                        />
+                      </span>
+                      <span className="prefsAccentSwatchLabel">{t('preferences.custom', 'Custom')}</span>
+                    </button>
+                  )
+                })()}
+              </div>
+            </div>
           </div>
 
           {/* --- Секция Canvas --- */}
           <div className="prefsSection">
-            <div className="prefsSectionTitle">{t('preferences.canvas', 'Canvas')}</div>
+            <div className="prefsSectionSep"><span className="prefsSectionTitle">{t('preferences.canvas', 'Canvas')}</span></div>
             <label className="prefsField">
               <span>{t('preferences.gridSize', 'Grid Size')}</span>
               <input
@@ -415,7 +433,7 @@ export function PreferencesModal({
 
           {/* --- Секция Editor --- */}
           <div className="prefsSection">
-            <div className="prefsSectionTitle">{t('preferences.editor', 'Editor')}</div>
+            <div className="prefsSectionSep"><span className="prefsSectionTitle">{t('preferences.editor', 'Editor')}</span></div>
             <label className="prefsField prefsCheckbox">
               <input
                 type="checkbox"
@@ -519,12 +537,9 @@ export function PreferencesModal({
             )}
           </div>
 
-          {/* --- Секция Keyboard Shortcuts ---
-              Держим её отдельно от Editor, чтобы rebinding было легче найти глазами. */}
+          {/* --- Секция Keyboard Shortcuts --- */}
           <div className="prefsSection">
-            <div className="prefsSectionTitle">
-              {t('preferences.keyboardShortcuts', 'Keyboard Shortcuts')}
-            </div>
+            <div className="prefsSectionSep"><span className="prefsSectionTitle">{t('preferences.keyboardShortcuts', 'Keyboard Shortcuts')}</span></div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {HOTKEY_ACTION_IDS.map((actionId) => (
                 <div
@@ -569,6 +584,28 @@ export function PreferencesModal({
             <div className="prefsHint">
               {t('preferences.shortcutCaptureHint', 'Click a shortcut, then press keys. Delete clears it.')}
             </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="prefsFooter">
+          <button
+            className="prefsFooterReset"
+            type="button"
+            onClick={() => {
+              updatePreferences({
+                keybindings: Object.fromEntries(
+                  HOTKEY_ACTION_IDS.map((id) => [id, DEFAULT_KEYBINDINGS[id]])
+                ) as typeof DEFAULT_KEYBINDINGS
+              })
+            }}
+          >
+            {t('preferences.shortcutReset', 'Reset shortcuts')}
+          </button>
+          <div className="prefsFooterActions">
+            <button className="prefsFooterClose" type="button" onClick={onClose}>
+              {t('preferences.close', 'Close')}
+            </button>
           </div>
         </div>
       </div>

@@ -13,6 +13,7 @@ import {
   useStore,
   type Connection,
   type Edge,
+  type EdgeTypes,
   type Node,
   type NodeChange,
   type NodeTypes
@@ -23,6 +24,7 @@ import type { RuntimeEdge, RuntimeNode } from './runtimeTypes'
 import { cutsceneNodeTypes } from './nodes'
 import { usePreferencesContext } from './PreferencesContext'
 import { NodeActionsProvider } from './NodeActionsContext'
+import { CustomEdge, ArrowheadDefs } from './CustomEdge'
 
 // Собственный MIME-type для drag-and-drop из палитры нод.
 // Он позволяет не путать наши payload'ы с обычным text/plain drag из браузера.
@@ -38,10 +40,9 @@ const EMPTY_PARAMS: Record<string, unknown> = {}
 // event listener'ов. Выносим константы наверх — ссылки стабильны навсегда.
 const RF_PRO_OPTIONS = { hideAttribution: true } as const
 
-// Edge style constants — избегаем O(E) inline-allocations при каждом rebuild initialEdges.
-const RF_EDGE_LABEL_BG_STYLE: React.CSSProperties = { fill: 'rgba(0,0,0,0.55)' }
-const RF_EDGE_LABEL_STYLE: React.CSSProperties = { fill: '#d4d4d4', fontSize: 11 }
-const RF_EDGE_PAIR_STYLE: React.CSSProperties = { strokeDasharray: '6 4', opacity: 0.35 }
+// Custom edge types — стрелки, glow, timing badge.
+const RF_EDGE_TYPES: EdgeTypes = { default: CustomEdge }
+
 const RF_PAN_ON_DRAG: number[] = [2]
 const RF_STYLE: React.CSSProperties = { background: 'transparent', position: 'relative', zIndex: 1 }
 const RF_MINIMAP_STYLE: React.CSSProperties = { overflow: 'hidden' }
@@ -427,6 +428,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
 
   // Строим связи React Flow из runtime-данных.
   // Аналогично нодам — без selected, чтобы не создавать петлю.
+  // timingLabel и isInternalPair передаём в data — CustomEdge читает их сам.
   const initialEdges = useMemo<Edge[]>(() => {
     if (!runtimeEdges) return []
     return runtimeEdges.map((e) => {
@@ -438,15 +440,11 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         sourceHandle: e.sourceHandle,
         target: e.target,
         targetHandle: e.targetHandle,
-
-        // Показываем wait прямо на линии.
-        label: typeof e.waitSeconds === 'number' ? `${e.waitSeconds}s` : undefined,
-        labelShowBg: true,
-        labelBgStyle: RF_EDGE_LABEL_BG_STYLE,
-        labelStyle: RF_EDGE_LABEL_STYLE,
-
-        // Внутренняя линия для пары parallel (если мы её используем).
-        style: isInternalPair ? RF_EDGE_PAIR_STYLE : undefined,
+        // CustomEdge читает timingLabel из data и рендерит badge с фоном.
+        data: {
+          timingLabel: typeof e.waitSeconds === 'number' ? `${e.waitSeconds}s` : undefined,
+          isInternalPair
+        },
         selectable: !isInternalPair
       }
     })
@@ -1196,6 +1194,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
           defaultNodes={initialNodes}
           defaultEdges={initialEdges}
           nodeTypes={cutsceneNodeTypes as NodeTypes}
+          edgeTypes={RF_EDGE_TYPES}
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
           onConnect={onConnect}
@@ -1238,6 +1237,8 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         deleteKeyCode={null}
         style={RF_STYLE}
       >
+        {/* SVG markers для стрелок на кастомных рёбрах. */}
+        <ArrowheadDefs />
         {/* Размер сетки теперь реально читается из Preferences,
             чтобы настройка grid size меняла canvas, а не висела мёртвым полем. */}
         <ScaledBackground />
