@@ -487,6 +487,14 @@ export function PreferencesModal({
                 />
               </label>
             )}
+            <label className="prefsField prefsCheckbox">
+              <input
+                type="checkbox"
+                checked={preferences.visualEditorShowPathLabels}
+                onChange={(e) => updatePreferences({ visualEditorShowPathLabels: e.target.checked })}
+              />
+              <span>{t('preferences.visualEditorShowPathLabels', 'Show path point labels')}</span>
+            </label>
             <div className="prefsHint">
               {t('editor.liquidGlassHint', 'Dynamic transparency and blurring for nodes and paths.')}
             </div>

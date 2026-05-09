@@ -12,7 +12,8 @@ import {
 import { createTranslator, type SupportedLanguage } from '../i18n'
 import { RoomVisualEditorOverlay } from './RoomVisualEditorOverlay'
 import { SearchableSelect } from './SearchableSelect'
-import { getAccentCssVariables, usePreferences } from './usePreferences'
+import { getAccentCssVariables } from './usePreferences'
+import { usePreferencesContext } from './PreferencesContext'
 
 // Описание meta.json, который рядом с PNG тайлами пишет GameMaker screenshot runner.
 type RoomScreenshotMeta = {
@@ -317,7 +318,7 @@ export function RoomVisualEditorModal({
 
   // Локально читаем persisted настройки Visual Editing.
   // Так и modal, и отдельное окно используют один общий settings storage.
-  const { preferences, updatePreferences } = usePreferences()
+  const { preferences, updatePreferences } = usePreferencesContext()
 
   // Overlay ref нужен, чтобы закрывать окно кликом по затемнённому фону.
   const overlayRef = useRef<HTMLDivElement | null>(null)
@@ -2175,6 +2176,7 @@ export function RoomVisualEditorModal({
                   getActorSpritePreview={getActorSpritePreview}
                   liquidGlassEnabled={preferences.liquidGlassEnabled}
                   liquidGlassBlur={preferences.liquidGlassBlur}
+                  showPathLabels={preferences.visualEditorShowPathLabels}
                 />
               ) : null}
             </div>

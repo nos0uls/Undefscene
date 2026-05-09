@@ -66,6 +66,7 @@ export const ru = {
     zoomSpeed: 'Скорость зума',
     showMiniMap: 'Миникарта',
     showNodeNameOnCanvas: 'Показывать имя ноды на холсте',
+    visualEditorShowPathLabels: 'Показывать номера точек пути',
     parallelBranchPorts: 'Порты веток parallel',
     sharedSinglePort: 'Один общий порт',
     separatePortsPerBranch: 'Отдельные порты на каждую ветку',

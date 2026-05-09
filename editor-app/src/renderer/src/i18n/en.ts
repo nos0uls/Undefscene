@@ -62,6 +62,7 @@ export const en = {
     zoomSpeed: 'Zoom Speed',
     showMiniMap: 'MiniMap',
     showNodeNameOnCanvas: 'Show node name on canvas',
+    visualEditorShowPathLabels: 'Show path point labels',
     parallelBranchPorts: 'Parallel branch ports',
     sharedSinglePort: 'Shared single port',
     separatePortsPerBranch: 'Separate ports per branch',

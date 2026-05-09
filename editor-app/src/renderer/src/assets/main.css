@@ -144,7 +144,9 @@ code {
   height: 152px;
 }
 
-/* Пунктирный preview показывает именно целевую позицию вставки панели. */
+/* Пунктирный preview показывает именно целевую позицию вставки панели.
+   Используем opacity и transition вместо грубого display: none,
+   чтобы перескоки между слотами при быстром drag'е выглядели плавно. */
 .dockDropPreview {
   position: absolute;
   pointer-events: none;
@@ -152,8 +154,16 @@ code {
   background: rgba(120, 170, 255, 0.08);
   border-radius: 8px;
   z-index: 9;
-  display: none;
+  opacity: 0;
   min-height: 8px;
+  transition:
+    opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+    top 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dockDropPreview.isVisible {
+  opacity: 1;
 }
 
 /* Collapse bars для сворачивания доков. */
@@ -221,9 +231,15 @@ code {
 }
 
 .isDockVisuallyCollapsed .dockCollapseContent {
-  opacity: 0;
-  visibility: hidden;
+  display: none;
+}
+
+.isDockVisuallyCollapsed {
   pointer-events: none;
+}
+
+.isDockVisuallyCollapsed .dockCollapseBar {
+  pointer-events: auto;
 }
 
 /* Левый док: collapse bar у левого края экрана. */
@@ -398,13 +414,7 @@ code {
   overflow: hidden;
 }
 
-/* У свёрнутой панели оставляем только header,
-   чтобы в слоте не торчал пустой фон под ним. */
-.dockPanel.isCollapsed {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-}
+
 
 .dockPanelHeader {
   height: 32px;
@@ -550,8 +560,19 @@ code {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
+
 .dockPanel.isFloating .dockPanelHeader {
   background: var(--ev-c-black-mute);
+}
+
+/* У свёрнутой панели оставляем только header,
+   чтобы в слоте не торчал пустой фон под ним.
+   Перенесено ниже .isFloating, чтобы при сворачивании 
+   плавающей панели её рамки и тени тоже исчезали. */
+.dockPanel.isCollapsed {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 /* Призрак панели во время перетаскивания. */
@@ -738,27 +759,30 @@ code {
   margin-top: auto;
 }
 
-/* === Node Palette (grouped) === */
+/* === Node Palette (grouped & collapsible) === */
 
 .paletteSearch {
   width: 100%;
   box-sizing: border-box;
-  background: var(--bg-surface);
+  background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   color: var(--ev-c-text-1);
   font-size: 12px;
-  padding: 5px 8px;
+  padding: 6px 10px;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, background 0.15s;
+  margin-bottom: 8px;
 }
 
 .paletteSearch:focus {
   border-color: var(--ev-c-accent);
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .paletteSearch::placeholder {
   color: var(--ev-c-text-3);
+  opacity: 0.5;
 }
 
 .paletteList {
@@ -1374,11 +1398,11 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 .customNode {
   border: 1px solid var(--border-strong);
   border-radius: 4px;
-  background: #1C1E24;
+  background: var(--bg-surface);
   font-size: 12px;
   color: var(--ev-c-text-1);
   min-width: 140px;
-  max-width: 220px;
+  max-width: 240px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   overflow: hidden;
   contain: layout;
@@ -1516,19 +1540,70 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 
 /* Node params */
 .customNodeParam {
-  display: block;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
   width: 100%;
   min-width: 0;
   max-width: 100%;
   font-size: 11px;
-  color: #E8E9EC;
-  white-space: pre-wrap !important;
-  overflow: visible;
-  text-overflow: clip;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  color: var(--ev-c-text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-family: 'JetBrains Mono', monospace;
-  line-height: 1.35;
+  line-height: 1.4;
+  gap: 8px;
+}
+
+.customNodeParamKey {
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.customNodeParamValue {
+  opacity: 0.9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+
+.edgeTimingBadge {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  color: var(--ev-c-accent);
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+}
+
+.inspectorEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--ev-c-text-3);
+  text-align: center;
+  gap: 12px;
+  opacity: 0.6;
+}
+
+.inspectorEmptyIcon {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 4px;
+}
+
+.inspectorEmptyText {
+  font-size: 12px;
+  font-weight: 500;
+  max-width: 180px;
+  line-height: 1.4;
 }
 
 /* Inside-node buttons (e.g. Add Branch) */

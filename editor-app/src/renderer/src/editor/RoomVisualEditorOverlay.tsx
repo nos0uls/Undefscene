@@ -38,6 +38,7 @@ type RoomVisualEditorOverlayProps = {
   pathEraseRadius: number
   actorMarkerRadius: number
   showGrid: boolean
+  showPathLabels: boolean
   draftPathPoints: Array<{ x: number; y: number }>
   draftPathPolyline: string
   draftPathPreviewPolyline: string
@@ -68,6 +69,7 @@ export function RoomVisualEditorOverlay({
   pathEraseRadius,
   actorMarkerRadius,
   showGrid,
+  showPathLabels,
   draftPathPoints,
   draftPathPolyline,
   draftPathPreviewPolyline,
@@ -84,6 +86,8 @@ export function RoomVisualEditorOverlay({
   liquidGlassEnabled,
   liquidGlassBlur
 }: RoomVisualEditorOverlayProps): React.JSX.Element {
+  const arrowId = `arrow-${gridPatternId}`
+
   return (
     <svg
       className={[
@@ -113,6 +117,18 @@ export function RoomVisualEditorOverlay({
             d={`M ${pathGridStep} 0 L 0 0 0 ${pathGridStep}`}
           />
         </pattern>
+
+        <marker
+          id={arrowId}
+          viewBox="0 0 10 10"
+          refX="8"
+          refY="5"
+          markerWidth="4"
+          markerHeight="4"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(255, 209, 102, 0.8)" />
+        </marker>
       </defs>
 
       {/* Видимая сетка помогает сверять snap phase с реальной комнатой. */}
@@ -134,6 +150,7 @@ export function RoomVisualEditorOverlay({
           fill="none"
           points={draftPathPolyline}
           strokeWidth={pathLineStrokeWidth}
+          markerEnd={`url(#${arrowId})`}
         />
       ) : null}
 
@@ -151,9 +168,11 @@ export function RoomVisualEditorOverlay({
       {draftPathPoints.map((point, index) => (
         <g key={`${point.x}-${point.y}-${index}`}>
           <circle className="roomVisualEditorPathPoint" cx={point.x} cy={point.y} r={pathPointRadius} />
-          <text className="roomVisualEditorPathPointLabel" x={point.x} y={point.y - 12}>
-            {index}
-          </text>
+          {showPathLabels && (
+            <text className="roomVisualEditorPathPointLabel" x={point.x} y={point.y - 12}>
+              {index}
+            </text>
+          )}
         </g>
       ))}
 

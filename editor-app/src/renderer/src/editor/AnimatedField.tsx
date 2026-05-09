@@ -20,11 +20,15 @@ export const AnimatedField = ({ children, visible, fieldKey }: AnimatedFieldProp
       {visible && (
         <motion.div
           key={fieldKey}
-          initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-          animate={{ opacity: 1, height: 'auto', marginBottom: 4 }}
-          exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+          initial={{ opacity: 0, height: 0, marginBottom: 0, overflow: 'hidden' }}
+          animate={{
+            opacity: 1,
+            height: 'auto',
+            marginBottom: 4,
+            transitionEnd: { overflow: 'visible' }
+          }}
+          exit={{ opacity: 0, height: 0, marginBottom: 0, overflow: 'hidden' }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
-          style={{ overflow: 'hidden' }}
         >
           {children}
         </motion.div>

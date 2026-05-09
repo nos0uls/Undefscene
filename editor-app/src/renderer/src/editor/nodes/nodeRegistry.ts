@@ -133,7 +133,7 @@ const conditionalNodes: Record<string, NodeDefinition> = {
   tween: { type: 'tween', label: 'Tween', category: 'camera', fields: [
     { key: 'kind', label: 'Kind', type: 'select', options: ['instance', 'camera'], defaultValue: 'instance' },
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [], condition: whenParamNotEquals('kind', 'camera') },
-    { key: 'prop', label: 'Property', type: 'text', defaultValue: '' },
+    { key: 'prop', label: 'Property', type: 'searchable', placeholder: 'x, y, image_alpha...', options: ['x', 'y', 'image_alpha', 'image_angle', 'image_xscale', 'image_yscale', 'image_blend', 'image_speed', 'depth'], defaultValue: '' },
     { key: 'end_value', label: 'To', type: 'number', defaultValue: 0 },
     { key: 'start_value_override', label: 'From (optional)', type: 'number', defaultValue: '' },
     { key: 'duration_frames', label: 'Seconds', type: 'number', step: 0.1, defaultValue: 1 },
@@ -142,7 +142,7 @@ const conditionalNodes: Record<string, NodeDefinition> = {
   set_property: { type: 'set_property', label: 'Set Property', category: 'camera', fields: [
     { key: 'kind', label: 'Kind', type: 'select', options: ['instance', 'camera'], defaultValue: 'instance' },
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [], condition: whenParamNotEquals('kind', 'camera') },
-    { key: 'property', label: 'Property', type: 'text', defaultValue: '' },
+    { key: 'property', label: 'Property', type: 'searchable', placeholder: 'image_alpha...', options: ['x', 'y', 'image_alpha', 'image_angle', 'image_xscale', 'image_yscale', 'image_blend', 'image_speed', 'depth', 'visible'], defaultValue: '' },
     { key: 'value', label: 'Value', type: 'text', defaultValue: '' }
   ], defaultParams: { kind: 'instance', target: 'player', property: 'image_alpha', value: 1 } }
 }
@@ -174,7 +174,7 @@ const otherNodes: Record<string, NodeDefinition> = {
     { key: 'color', label: 'Color', type: 'text', defaultValue: 'black' }
   ], defaultParams: { seconds: 0.5, color: 'black' } },
   play_sfx: { type: 'play_sfx', label: 'Play SFX', category: 'audio', fields: [
-    { key: 'sound', label: 'Sound / Key', type: 'text', defaultValue: '' },
+    { key: 'sound', label: 'Sound / Key', type: 'searchable', placeholder: 'snd_...', options: [], defaultValue: '' },
     { key: 'volume', label: 'Volume', type: 'number', step: 0.1, defaultValue: 1 },
     { key: 'pitch', label: 'Pitch', type: 'number', step: 0.1, defaultValue: 1 }
   ], defaultParams: { sound: '', volume: 1, pitch: 1 } },
@@ -220,7 +220,7 @@ const otherNodes: Record<string, NodeDefinition> = {
     { key: 'enabled', label: 'Enabled', type: 'select', options: ['true', 'false'], defaultValue: true }
   ], defaultParams: { enabled: true } },
   mark_node: { type: 'mark_node', label: 'Mark Node', category: 'logic', fields: [
-    { key: 'name', label: 'Mark Name', type: 'text', placeholder: 'point_a', defaultValue: '' }
+    { key: 'name', label: 'Mark Name', type: 'searchable', placeholder: 'point_a', options: [], defaultValue: '' }
   ], defaultParams: { name: '' } },
   branch: { type: 'branch', label: 'Branch', category: 'logic', fields: [
     { key: 'condition', label: 'Condition', type: 'searchable', placeholder: 'e.g. has_item_key', options: [] }
@@ -239,8 +239,8 @@ const otherNodes: Record<string, NodeDefinition> = {
     { key: 'timeout_action', label: 'Timeout Action', type: 'select', options: ['continue', 'skip'], defaultValue: 'continue' }
   ], defaultParams: { target: 'player', timeout: 0, timeout_action: 'continue' } },
   set_flag: { type: 'set_flag', label: 'Set Flag', category: 'logic', fields: [
-    { key: 'key', label: 'Flag Key', type: 'text', placeholder: 'story_progress', defaultValue: '' },
-    { key: 'value', label: 'Value', type: 'text', placeholder: '1', defaultValue: '' }
+    { key: 'key', label: 'Flag Key', type: 'searchable', placeholder: 'story_progress', options: [], defaultValue: '' },
+    { key: 'value', label: 'Value', type: 'searchable', placeholder: '1', options: [], defaultValue: '' }
   ], defaultParams: { key: '', value: '' } },
   spawn_entity: { type: 'spawn_entity', label: 'Spawn Entity', category: 'logic', fields: [
     { key: 'object', label: 'Object', type: 'searchable', placeholder: 'obj_...', options: [] },

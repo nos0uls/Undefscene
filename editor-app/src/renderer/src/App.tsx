@@ -1,17 +1,34 @@
 import { EditorShell } from './editor/EditorShell'
 import { VisualEditorWindowApp } from './editor/VisualEditorWindowApp'
 import { applyTheme } from './editor/useTheme'
-import { usePreferences } from './editor/usePreferences'
+import { usePreferences, getAccentCssVariables } from './editor/usePreferences'
 import { PreferencesProvider } from './editor/PreferencesContext'
 import { ToastProvider } from './editor/ToastHub'
 import { ConfirmProvider } from './editor/ConfirmDialog'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useMemo } from 'react'
 
 // Главный React-компонент приложения.
 // Мы держим его максимально простым: он выбирает нужную оболочку по типу окна.
 function App(): React.JSX.Element {
   // Инициализируем настройки, чтобы вытянуть глобальный true rtx flag и тему.
   const { preferences, loaded: preferencesLoaded, updatePreferences } = usePreferences()
+
+  // Применяем акцентные цвета (CSS variables) к корневому элементу.
+  // Это нужно здесь, а не в EditorShell, чтобы второе окно (Visual Editor)
+  // тоже получало актуальную палитру.
+  useEffect(() => {
+    if (!preferencesLoaded) return
+
+    const accentVariables = getAccentCssVariables(preferences)
+    for (const [variableName, variableValue] of Object.entries(accentVariables)) {
+      document.documentElement.style.setProperty(variableName, variableValue)
+    }
+
+    // Синхронизируем атрибут языка и тему на корневом элементе.
+    // Это позволяет CSS-селекторам и браузеру понимать контекст окна.
+    document.documentElement.setAttribute('lang', preferences.language)
+    document.documentElement.setAttribute('data-theme', preferences.theme)
+  }, [preferences, preferencesLoaded])
 
   // Обработка глобального масштаба интерфейса приложения.
   // Храним zoom в ref, а не в state, чтобы wheel/keyboard не триггерили
@@ -80,17 +97,23 @@ function App(): React.JSX.Element {
 
   // Второе native окно visual editor приходит с query-параметром,
   // чтобы один renderer bundle мог обслуживать оба сценария.
-  const windowKind = new URLSearchParams(window.location.search).get('window')
+  const windowKind = useMemo(
+    () => new URLSearchParams(window.location.search).get('window'),
+    []
+  )
 
-  if (windowKind === 'visual-editor') {
-    return <VisualEditorWindowApp />
-  }
+  const content = useMemo(() => {
+    if (windowKind === 'visual-editor') {
+      return <VisualEditorWindowApp />
+    }
+    return <EditorShell />
+  }, [windowKind])
 
   return (
     <ToastProvider>
       <ConfirmProvider>
         <PreferencesProvider value={{ preferences, updatePreferences, loaded: preferencesLoaded }}>
-          <EditorShell />
+          {content}
         </PreferencesProvider>
       </ConfirmProvider>
     </ToastProvider>

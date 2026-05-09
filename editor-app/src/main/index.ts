@@ -1537,14 +1537,21 @@ app.whenReady().then(() => {
     try {
       await rename(preferencesTmpPath, preferencesPath)
     } catch (err) {
+      // На Windows переименование может падать, если файл уже существует или заблокирован.
+      // Тогда удаляем старый файл и пробуем ещё раз.
       const code = (err as NodeJS.ErrnoException)?.code
       if (code === 'EEXIST' || code === 'EPERM') {
         await unlink(preferencesPath).catch(() => undefined)
         await rename(preferencesTmpPath, preferencesPath)
-        return
+      } else {
+        throw err
       }
-      throw err
     }
+
+    // Broadcast to all windows
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send('preferences.onChanged', nextPrefs)
+    })
   })
 
   // IPC: Выбрать папку, где editor будет искать PNG/meta от screenshot runner.

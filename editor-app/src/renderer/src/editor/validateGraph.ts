@@ -5,6 +5,8 @@
 import type { RuntimeState, RuntimeNode, RuntimeEdge } from './runtimeTypes'
 import { createTranslator, SupportedLanguage } from '../i18n/index'
 
+import { NODE_REGISTRY } from './nodes/nodeRegistry'
+
 // Контекст ресурсов проекта для расширенной валидации.
 export type ValidationContext = {
   // Язык интерфейса ('en' | 'ru').
@@ -49,7 +51,7 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   dialogue: [],
   move: ['target'],
   set_position: ['target'],
-  actor_create: ['key'],
+  actor_create: ['actor_name'],
   actor_destroy: ['target'],
   animate: ['target'],
   camera_track: ['target'],
@@ -156,6 +158,10 @@ export function validateGraph(
       const key = String(n.params?.actor_name ?? '').trim()
       if (key) actorKeys.add(key)
     }
+    if (n.type === 'spawn_entity') {
+      const key = String(n.params?.key ?? '').trim()
+      if (key) actorKeys.add(key)
+    }
     if (n.type === 'mark_node') {
       const name = String(n.params?.name ?? '').trim()
       if (name) {
@@ -260,13 +266,18 @@ export function validateGraph(
     // --- 4. Проверяем обязательные параметры ---
     const requiredFields = REQUIRED_PARAMS[node.type]
     if (requiredFields) {
-      for (const field of requiredFields) {
-        const value = node.params?.[field]
+      const nodeDef = NODE_REGISTRY[node.type]
+      for (const fieldKey of requiredFields) {
+        const value = node.params?.[fieldKey]
         if (value === undefined || value === null || value === '') {
+          // Ищем label для поля в registry, чтобы сообщение было понятнее пользователю.
+          const fieldDef = nodeDef?.fields.find((f) => f.key === fieldKey)
+          const fieldLabel = fieldDef?.label || fieldKey
+
           entries.push({
             severity: 'warn',
             nodeId: node.id,
-            message: t('validation.fieldEmpty', { name: nodeDisplayName, field })
+            message: t('validation.fieldEmpty', { name: nodeDisplayName, field: fieldLabel })
           })
         }
       }

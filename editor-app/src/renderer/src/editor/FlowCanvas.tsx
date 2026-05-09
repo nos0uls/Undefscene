@@ -25,6 +25,7 @@ import { cutsceneNodeTypes } from './nodes'
 import { usePreferencesContext } from './PreferencesContext'
 import { NodeActionsProvider } from './NodeActionsContext'
 import { CustomEdge, ArrowheadDefs } from './CustomEdge'
+import { isEqualParams } from './utils'
 
 // Собственный MIME-type для drag-and-drop из палитры нод.
 // Он позволяет не путать наши payload'ы с обычным text/plain drag из браузера.
@@ -47,6 +48,8 @@ const RF_PAN_ON_DRAG: number[] = [2]
 const RF_STYLE: React.CSSProperties = { background: 'transparent', position: 'relative', zIndex: 1 }
 const RF_MINIMAP_STYLE: React.CSSProperties = { overflow: 'hidden' }
 const RF_FAB_PANEL_STYLE: React.CSSProperties = { marginLeft: 74, marginBottom: 15 }
+
+// Helper для сравнения параметров нод (вынесен в utils.ts).
 
 // Пропсы для холста: узлы, связи, выбор и коллбеки для синхронизации с runtime.
 type FlowCanvasProps = {
@@ -110,7 +113,7 @@ type FlowCanvasProps = {
 const ScaledBackground = memo(function ScaledBackground() {
   const zoom = useStore((s) => s.transform[2])
   const { preferences: prefs } = usePreferencesContext()
-  return <Background color="#262b2f" gap={prefs.gridSize} size={Math.max(1, zoom * 1.5)} />
+  return <Background color="var(--canvas-grid)" bgColor="var(--canvas-bg)" gap={prefs.gridSize} size={Math.max(0.8, zoom * 1.2)} />
 })
 
 // LOD-контроллер: единственный компонент, который подписывается на zoom из store
@@ -470,7 +473,11 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         let structuralChange = false
         for (const node of initialNodes) {
           const pn = prevById.get(node.id)
-          if (!pn || pn.type !== node.type || pn.data?.label !== node.data.label) {
+          const prevParams = pn?.data?.params as Record<string, unknown> | undefined
+          const nextParams = node.data?.params as Record<string, unknown> | undefined
+          const paramsChanged = !isEqualParams(prevParams, nextParams)
+
+          if (!pn || pn.type !== node.type || pn.data?.label !== node.data.label || paramsChanged) {
             structuralChange = true
             break
           }
@@ -497,11 +504,15 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
           const prevParams = prevNode.data?.params as Record<string, unknown> | undefined
           const nextParams = node.data?.params as Record<string, unknown> | undefined
           if (
-            (!prevParams && !nextParams) ||
-            (prevParams === nextParams) ||
-            (prevParams && nextParams &&
-              Object.keys(prevParams).length === Object.keys(nextParams).length &&
-              Object.keys(prevParams).every((k) => prevParams[k] === nextParams[k]))
+            prevNode &&
+            prevNode.type === node.type &&
+            prevNode.position.x === node.position.x &&
+            prevNode.position.y === node.position.y &&
+            prevNode.targetPosition === node.targetPosition &&
+            prevNode.sourcePosition === node.sourcePosition &&
+            prevNode.data?.label === node.data.label &&
+            prevNode.selected === selected &&
+            isEqualParams(prevParams, nextParams)
           ) {
             return prevNode
           }

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createTranslator } from '../i18n'
 import { RoomVisualEditorModal } from './RoomVisualEditorModal'
+import { usePreferencesContext } from './PreferencesContext'
+import { applyTheme } from './useTheme'
+import { getAccentCssVariables } from './usePreferences'
 
 // Локально дублируем bridge-type в renderer,
 // чтобы web tsconfig не тянул preload entry как обычный исходник.
@@ -32,6 +35,8 @@ type VisualEditorBridgeState = {
 // Она получает snapshot из main процесса и рендерит тот же visual editor UI,
 // но уже как самостоятельное окно в Alt+Tab.
 export function VisualEditorWindowApp(): React.JSX.Element {
+  const { preferences } = usePreferencesContext()
+
   // Храним последний bridge-state, который main процесс прислал для visual editor.
   // Это состояние считается источником правды для отдельного окна.
   const [bridgeState, setBridgeState] = useState<VisualEditorBridgeState | null>(null)
@@ -42,8 +47,8 @@ export function VisualEditorWindowApp(): React.JSX.Element {
 
   // Переводчик нужен для fallback-сообщений этого wrapper-компонента.
   const t = useMemo(
-    () => createTranslator(bridgeState?.language ?? 'en'),
-    [bridgeState?.language]
+    () => createTranslator(preferences.language),
+    [preferences.language]
   )
 
   // Импорт path идёт обратно в главное окно редактора через main bridge.
@@ -103,6 +108,19 @@ export function VisualEditorWindowApp(): React.JSX.Element {
     })
   }, [])
 
+  // Принудительно применяем тему, акцентные цвета и другие глобальные стили.
+  useEffect(() => {
+    applyTheme(preferences.theme)
+
+    const accentVariables = getAccentCssVariables(preferences)
+    for (const [variableName, variableValue] of Object.entries(accentVariables)) {
+      document.documentElement.style.setProperty(variableName, variableValue)
+    }
+
+    // Устанавливаем язык для документа, чтобы i18n плагины (если есть) понимали контекст.
+    document.documentElement.lang = preferences.language
+  }, [preferences])
+
   // Если bridge ещё не готов, показываем простой понятный fallback.
   if (isLoading && !bridgeState) {
     return (
@@ -136,7 +154,7 @@ export function VisualEditorWindowApp(): React.JSX.Element {
       selectedActorTarget={bridgeState.selectedActorTarget}
       selectedPathPoints={bridgeState.selectedPathPoints}
       actorPreviews={bridgeState.actorPreviews}
-      language={bridgeState.language}
+      language={preferences.language}
       onImportPath={handleImportPath}
       onImportActors={handleImportActors}
       onClose={handleClose}

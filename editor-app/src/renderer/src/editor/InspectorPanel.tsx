@@ -487,10 +487,12 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
                 const nodeDef = NODE_REGISTRY[selectedNode.type]
                 if (!nodeDef) return null
 
-                // Для searchable полей нужно подставить правильные опции
+                // Для searchable и select полей нужно подставить актуальные опции из ресурсов проекта.
                 const fieldsWithResolvedOptions = nodeDef.fields.map((field) => {
                   let resolvedOptions: string[] = []
+                  
                   if (field.type === 'searchable' || field.type === 'select') {
+                    // 1. Проверяем системные ключи, которые требуют внешних данных (актеры, ресурсы).
                     if (field.key === 'target' || field.key === 'copy_target') {
                       resolvedOptions = actorTargetOptions
                     } else if (field.key === 'actor_sprite') {
@@ -499,6 +501,8 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
                       resolvedOptions = spriteOptions
                     } else if (field.key === 'object') {
                       resolvedOptions = objectOptions
+                    } else if (field.key === 'sound') {
+                      resolvedOptions = resources?.sounds ?? []
                     } else if (field.key === 'condition') {
                       resolvedOptions = engineSettings?.branchConditions ?? []
                     } else if (field.key === 'function') {
@@ -508,15 +512,30 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
                     } else if (field.key === 'node') {
                       const currentFile = String(selectedNode.params?.file ?? '')
                       resolvedOptions = yarnFiles.find((y) => y.file === currentFile)?.nodes ?? []
-                    } else if (Array.isArray(field.options)) {
-                      resolvedOptions = field.options
+                    } else if (field.key === 'key' && selectedNode.type === 'set_flag') {
+                      resolvedOptions = allConditionVars
+                    } else if (field.key === 'value' && selectedNode.type === 'set_flag') {
+                      resolvedOptions = allConditionEquals
+                    } else if (field.key === 'name' && selectedNode.type === 'mark_node') {
+                      resolvedOptions = allNodeNamesObjects
+                    }
+
+                    // 2. Если системные ключи не подошли, используем статические опции из Registry.
+                    if (resolvedOptions.length === 0) {
+                      if (Array.isArray(field.options)) {
+                        resolvedOptions = field.options
+                      } else if (typeof field.options === 'function') {
+                        resolvedOptions = field.options(selectedNode.params ?? {})
+                      }
                     }
                   }
-                  return { ...field, options: resolvedOptions.length > 0 ? resolvedOptions : field.options }
+                  
+                  return { ...field, options: resolvedOptions }
                 })
 
                 return fieldsWithResolvedOptions.map((field) => renderField(field, selectedNode.id))
-              })()}
+              })()
+            }
 
           {/* Специальная логика для follow_path (points array) */}
           {selectedNode.type === 'follow_path' && (

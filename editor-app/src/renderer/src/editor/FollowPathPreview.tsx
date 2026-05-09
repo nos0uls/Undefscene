@@ -190,19 +190,15 @@ export function FollowPathPreview(props: FollowPathPreviewProps): React.JSX.Elem
     }
   }, [points, normalizedPoints])
 
-  // Храним текущую дистанцию marker вдоль пути.
-  const [previewDistance, setPreviewDistance] = useState(0)
+  // Храним текущую дистанцию marker вдоль пути через ref, чтобы не вызывать ререндер на каждом кадре.
+  const previewDistanceRef = useRef(0)
   const prevPointsRef = useRef(points)
 
   // Сбрасываем дистанцию при изменении points асинхронно
   useEffect(() => {
     if (prevPointsRef.current !== points) {
-      // Используем setTimeout для асинхронного setState, чтобы избежать каскадных рендеров
-      const timeoutId = setTimeout(() => {
-        setPreviewDistance(0)
-      }, 0)
+      previewDistanceRef.current = 0
       prevPointsRef.current = points
-      return () => clearTimeout(timeoutId)
     }
     return undefined
   }, [points])
@@ -218,10 +214,14 @@ export function FollowPathPreview(props: FollowPathPreviewProps): React.JSX.Elem
       const deltaSeconds = Math.max(0, (time - lastTime) / 1000)
       lastTime = time
 
-      setPreviewDistance((prev) => {
-        const next = prev + speed * deltaSeconds
-        return totalLength <= 0 ? 0 : next % totalLength
-      })
+      const nextDistance = (totalLength <= 0) ? 0 : (previewDistanceRef.current + speed * deltaSeconds) % totalLength
+      previewDistanceRef.current = nextDistance
+
+      const marker = markerPoint(nextDistance)
+      if (markerRef.current) {
+        markerRef.current.setAttribute('cx', String(marker.x))
+        markerRef.current.setAttribute('cy', String(marker.y))
+      }
 
       frameId = window.requestAnimationFrame(tick)
     }
@@ -231,9 +231,10 @@ export function FollowPathPreview(props: FollowPathPreviewProps): React.JSX.Elem
     return () => {
       window.cancelAnimationFrame(frameId)
     }
-  }, [speedPxPerSecond, totalLength])
+  }, [speedPxPerSecond, totalLength, markerPoint])
 
-  const marker = markerPoint(previewDistance)
+  const markerRef = useRef<SVGCircleElement | null>(null)
+  const initialMarker = useMemo(() => markerPoint(0), [markerPoint])
 
   return (
     <div
@@ -306,8 +307,9 @@ export function FollowPathPreview(props: FollowPathPreviewProps): React.JSX.Elem
             ))}
 
             <circle
-              cx={marker.x}
-              cy={marker.y}
+              ref={markerRef}
+              cx={initialMarker.x}
+              cy={initialMarker.y}
               r="4.5"
               fill="#ffd166"
               stroke="#8a5a00"

@@ -37,7 +37,10 @@ export const WaitNode = memo(function WaitNode({ data, selected }: CutsceneNodeP
   const seconds = data.params?.seconds ?? '?'
   return (
     <BaseNode  nodeType="wait" selected={selected}>
-      <div className="customNodeParam">{String(seconds)}s</div>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Time</span>
+        <span className="customNodeParamValue">{String(seconds)}s</span>
+      </div>
     </BaseNode>
   )
 })
@@ -51,9 +54,13 @@ export const MoveNode = memo(function MoveNode({ data, selected }: CutsceneNodeP
   const y = data.params?.y ?? '?'
   return (
     <BaseNode  nodeType="move" selected={selected}>
-      <div className="customNodeParam">{String(target)}</div>
       <div className="customNodeParam">
-        → {String(x)}, {String(y)}
+        <span className="customNodeParamKey">Actor</span>
+        <span className="customNodeParamValue">{String(target)}</span>
+      </div>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Target</span>
+        <span className="customNodeParamValue">{String(x)}, {String(y)}</span>
       </div>
     </BaseNode>
   )
@@ -119,8 +126,16 @@ export const AnimateNode = memo(function AnimateNode({ data, selected }: Cutscen
   const sprite = data.params?.sprite ?? ''
   return (
     <BaseNode  nodeType="animate" selected={selected}>
-      <div className="customNodeParam">{String(target)}</div>
-      {sprite && <div className="customNodeParam">{String(sprite)}</div>}
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Actor</span>
+        <span className="customNodeParamValue">{String(target)}</span>
+      </div>
+      {sprite && (
+        <div className="customNodeParam">
+          <span className="customNodeParamKey">Sprite</span>
+          <span className="customNodeParamValue">{String(sprite)}</span>
+        </div>
+      )}
     </BaseNode>
   )
 })
@@ -182,8 +197,14 @@ export const CameraTrackNode = memo(function CameraTrackNode({ data, selected }:
   const seconds = data.params?.seconds ?? '?'
   return (
     <BaseNode  nodeType="camera_track" selected={selected}>
-      <div className="customNodeParam">{String(target)}</div>
-      <div className="customNodeParam">{String(seconds)}s</div>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Target</span>
+        <span className="customNodeParamValue">{String(target)}</span>
+      </div>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Duration</span>
+        <span className="customNodeParamValue">{String(seconds)}s</span>
+      </div>
     </BaseNode>
   )
 })

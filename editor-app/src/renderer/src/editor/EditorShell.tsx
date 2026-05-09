@@ -154,14 +154,6 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     [layout.panels, t]
   )
 
-  useEffect(() => {
-    if (!preferencesLoaded) return
-
-    const accentVariables = getAccentCssVariables(preferences)
-    for (const [variableName, variableValue] of Object.entries(accentVariables)) {
-      document.documentElement.style.setProperty(variableName, variableValue)
-    }
-  }, [preferences, preferencesLoaded])
 
   // При смене parallelBranchPortMode переписываем handles рёбер,
   // чтобы они соответствовали видимым портам нод (shared vs separate).

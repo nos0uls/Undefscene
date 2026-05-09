@@ -133,7 +133,9 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
       )
     }
 
-    const targetEl = ctx.isDockCollapsed(slot) ? ctx.getDockHitboxElement(slot) : ctx.getDockElement(slot)
+    if (ctx.isDockCollapsed(slot)) return null
+
+    const targetEl = ctx.getDockElement(slot)
     return targetEl?.getBoundingClientRect() ?? null
   }
 
@@ -157,7 +159,7 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
     if (!showDockDropPreview) {
       for (const slot of ['left', 'right', 'bottom'] as DockSlotId[]) {
         const previewEl = ctx.getDockPreviewElement(slot)
-        if (previewEl) previewEl.style.display = 'none'
+        if (previewEl) previewEl.classList.remove('isVisible')
       }
       ctx.hoverSlotRef.current = hoverSlot
       ctx.hoverInsertIndexRef.current = hoverInsertIndex
@@ -166,7 +168,11 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
 
     for (const slot of ['left', 'right', 'bottom'] as DockSlotId[]) {
       const previewEl = ctx.getDockPreviewElement(slot)
-      if (previewEl) previewEl.style.display = 'none'
+      if (previewEl) {
+        if (slot !== hoverSlot) {
+          previewEl.classList.remove('isVisible')
+        }
+      }
     }
 
     if (hoverSlot && hoverInsertIndex !== null) {
@@ -177,7 +183,7 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
       )
 
       if (previewEl) {
-        previewEl.style.display = 'block'
+        previewEl.classList.add('isVisible')
         previewEl.style.left = '4px'
         previewEl.style.right = '4px'
 

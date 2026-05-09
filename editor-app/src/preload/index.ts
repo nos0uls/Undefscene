@@ -138,7 +138,14 @@ const api = {
     chooseCanvasBackground: (): Promise<unknown> =>
       ipcRenderer.invoke('preferences.chooseCanvasBackground'),
     readCanvasBackgroundDataUrl: (filePath: string): Promise<unknown> =>
-      ipcRenderer.invoke('preferences.readCanvasBackgroundDataUrl', filePath)
+      ipcRenderer.invoke('preferences.readCanvasBackgroundDataUrl', filePath),
+    onChanged: (cb: (next: any) => void): (() => void) => {
+      const listener = (_e: any, next: any): void => cb(next)
+      ipcRenderer.on('preferences.onChanged', listener)
+      return (): void => {
+        ipcRenderer.removeListener('preferences.onChanged', listener)
+      }
+    }
   },
   // Базовая информация о приложении для About modal и внешних ссылок.
   visualEditor: {

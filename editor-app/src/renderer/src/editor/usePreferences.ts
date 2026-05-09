@@ -98,6 +98,9 @@ export interface EditorPreferences {
   // Показывать ли предпросмотр целевого места при перетаскивании панелей в доки.
   showDockDropPreview: boolean
 
+  // Показывать ли номера точек пути в визуальном редакторе.
+  visualEditorShowPathLabels: boolean
+
   // Путь к кастомному фону холста (null = без фона).
   canvasBackgroundPath: string | null
 
@@ -217,7 +220,8 @@ export const DEFAULT_PREFERENCES: EditorPreferences = {
   hasCompletedInitialSetup: false,
   hasCompletedTutorial: false,
   hasCompletedInspectorTutorial: false,
-  hasCompletedVisualEditingTutorial: false
+  hasCompletedVisualEditingTutorial: false,
+  visualEditorShowPathLabels: true
 }
 
 // Проверяет, что объект похож на EditorPreferences.
@@ -299,6 +303,10 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
       typeof c.visualEditorTechMode === 'boolean'
         ? c.visualEditorTechMode
         : DEFAULT_PREFERENCES.visualEditorTechMode,
+    visualEditorShowPathLabels:
+      typeof c.visualEditorShowPathLabels === 'boolean'
+        ? c.visualEditorShowPathLabels
+        : DEFAULT_PREFERENCES.visualEditorShowPathLabels,
     visualEditorShowGrid:
       typeof c.visualEditorShowGrid === 'boolean'
         ? c.visualEditorShowGrid
@@ -518,6 +526,25 @@ export function usePreferences(): UsePreferencesReturn {
     return () => {
       cancelled = true
     }
+  }, [])
+
+  // Подписка на внешние изменения (из других окон).
+  useEffect(() => {
+    if (!window.api?.preferences?.onChanged) return
+
+    const cleanup = window.api.preferences.onChanged((next: any) => {
+      const parsed = parsePreferences(next)
+      if (parsed) {
+        setPreferences((prev) => {
+          // Если новые настройки идентичны текущим (пришли эхом нашего же сохранения),
+          // игнорируем их, чтобы не вызвать лишний ререндер и повторную запись.
+          if (JSON.stringify(prev) === JSON.stringify(parsed)) return prev
+          return parsed
+        })
+      }
+    })
+
+    return cleanup
   }, [])
 
   // Автосохранение при изменении настроек (с debounce 300ms).

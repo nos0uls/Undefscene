@@ -190,7 +190,7 @@ export function SearchableSelect({
       ref={containerRef}
       // Растягиваем wrapper на всю ширину runtimeField,
       // чтобы SearchableSelect визуально совпадал с обычными input/select полями в инспекторе.
-      style={{ position: 'relative', width: '100%' }}
+      style={{ position: 'relative', width: '100%', zIndex: open ? 1000 : 1 }}
     >
       <input
         ref={inputRef}

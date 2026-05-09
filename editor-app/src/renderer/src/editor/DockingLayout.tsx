@@ -199,7 +199,9 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
           .filter(Boolean)
           .join(' ')}
       >
-        <div ref={ctx.leftDockHitboxRef} className="dockDropHitbox dockDropHitboxLeft" aria-hidden="true" />
+        {!collapsedDocks.left && (
+          <div ref={ctx.leftDockHitboxRef} className="dockDropHitbox dockDropHitboxLeft" aria-hidden="true" />
+        )}
         <div
           className="dockCollapseBar dockCollapseBarLeft"
           onClick={() => setCollapsedDocks((prev) => ({ ...prev, left: !prev.left }))}
@@ -252,7 +254,9 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
           .join(' ')}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div ref={ctx.rightDockHitboxRef} className="dockDropHitbox dockDropHitboxRight" aria-hidden="true" />
+        {!collapsedDocks.right && (
+          <div ref={ctx.rightDockHitboxRef} className="dockDropHitbox dockDropHitboxRight" aria-hidden="true" />
+        )}
         <div
           className="dockCollapseBar dockCollapseBarRight"
           onClick={() => setCollapsedDocks((prev) => ({ ...prev, right: !prev.right }))}
@@ -304,7 +308,9 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
           .join(' ')}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div ref={ctx.bottomDockHitboxRef} className="dockDropHitbox dockDropHitboxBottom" aria-hidden="true" />
+        {!collapsedDocks.bottom && (
+          <div ref={ctx.bottomDockHitboxRef} className="dockDropHitbox dockDropHitboxBottom" aria-hidden="true" />
+        )}
         {bottomDockedIds.length > 0 ? (
           <div
             className="dockCollapseBar dockCollapseBarBottom"
@@ -449,38 +455,42 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
               >
                 {renderPanelContents(panelId)}
               </DockPanel>
-              <div
-                className="floatingResizeZone resize-n"
-                onPointerDown={startResizeDrag('float-n', panelId)}
-              />
-              <div
-                className="floatingResizeZone resize-s"
-                onPointerDown={startResizeDrag('float-s', panelId)}
-              />
-              <div
-                className="floatingResizeZone resize-e"
-                onPointerDown={startResizeDrag('float-e', panelId)}
-              />
-              <div
-                className="floatingResizeZone resize-w"
-                onPointerDown={startResizeDrag('float-w', panelId)}
-              />
-              <div
-                className="floatingResizeZone resize-ne"
-                onPointerDown={startResizeDrag('float-ne', panelId)}
-              />
-              <div
-                className="floatingResizeZone resize-nw"
-                onPointerDown={startResizeDrag('float-nw', panelId)}
-              />
-              <div
-                className="floatingResizeZone resize-se"
-                onPointerDown={startResizeDrag('float-se', panelId)}
-              />
-              <div
-                className="floatingResizeZone resize-sw"
-                onPointerDown={startResizeDrag('float-sw', panelId)}
-              />
+                {!p.collapsed && (
+                  <>
+                    <div
+                      className="floatingResizeZone resize-n"
+                      onPointerDown={startResizeDrag('float-n', panelId)}
+                    />
+                    <div
+                      className="floatingResizeZone resize-s"
+                      onPointerDown={startResizeDrag('float-s', panelId)}
+                    />
+                    <div
+                      className="floatingResizeZone resize-e"
+                      onPointerDown={startResizeDrag('float-e', panelId)}
+                    />
+                    <div
+                      className="floatingResizeZone resize-w"
+                      onPointerDown={startResizeDrag('float-w', panelId)}
+                    />
+                    <div
+                      className="floatingResizeZone resize-ne"
+                      onPointerDown={startResizeDrag('float-ne', panelId)}
+                    />
+                    <div
+                      className="floatingResizeZone resize-nw"
+                      onPointerDown={startResizeDrag('float-nw', panelId)}
+                    />
+                    <div
+                      className="floatingResizeZone resize-se"
+                      onPointerDown={startResizeDrag('float-se', panelId)}
+                    />
+                    <div
+                      className="floatingResizeZone resize-sw"
+                      onPointerDown={startResizeDrag('float-sw', panelId)}
+                    />
+                  </>
+                )}
             </div>
           )
         })}
@@ -500,18 +510,24 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
         </div>
       </div>
 
-      <div
-        className="dockSplitter dockSplitterVertical dockSplitterLeft"
-        onPointerDown={startResizeDrag('dock-left')}
-      />
-      <div
-        className="dockSplitter dockSplitterVertical dockSplitterRight"
-        onPointerDown={startResizeDrag('dock-right')}
-      />
-      <div
-        className="dockSplitter dockSplitterHorizontal dockSplitterBottom"
-        onPointerDown={startResizeDrag('dock-bottom')}
-      />
+      {!collapsedDocks.left && (
+        <div
+          className="dockSplitter dockSplitterVertical dockSplitterLeft"
+          onPointerDown={startResizeDrag('dock-left')}
+        />
+      )}
+      {!collapsedDocks.right && (
+        <div
+          className="dockSplitter dockSplitterVertical dockSplitterRight"
+          onPointerDown={startResizeDrag('dock-right')}
+        />
+      )}
+      {!collapsedDocks.bottom && (
+        <div
+          className="dockSplitter dockSplitterHorizontal dockSplitterBottom"
+          onPointerDown={startResizeDrag('dock-bottom')}
+        />
+      )}
 
       {children}
     </div>
