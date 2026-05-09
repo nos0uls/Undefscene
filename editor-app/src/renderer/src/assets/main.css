@@ -734,15 +734,144 @@ code {
   height: 100%;
 }
 
-.runtimeSectionActions .runtimeListScrollable {
-  flex: 1;
-  min-height: 0;
-  max-height: none;
-}
-
 .runtimeSectionActions .runtimeHint {
   margin-top: auto;
 }
+
+/* === Node Palette (grouped) === */
+
+.paletteSearch {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--ev-c-text-1);
+  font-size: 12px;
+  padding: 5px 8px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.paletteSearch:focus {
+  border-color: var(--ev-c-accent);
+}
+
+.paletteSearch::placeholder {
+  color: var(--ev-c-text-3);
+}
+
+.paletteList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 2px;
+}
+
+.paletteCategoryGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 4px;
+}
+
+/* Category header row */
+.paletteCategoryHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 2px;
+  cursor: default;
+  user-select: none;
+}
+
+.paletteCategoryLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--node-color, var(--ev-c-text-3));
+  opacity: 0.75;
+}
+
+.paletteCategoryDot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background-color: var(--node-color, #888);
+}
+
+/* Individual node item in palette */
+.paletteNodeItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    color 0.12s;
+}
+
+.paletteNodeItem:hover {
+  background: color-mix(in srgb, var(--node-color, var(--ev-c-accent)) 8%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--node-color, var(--ev-c-accent)) 30%, transparent);
+  color: var(--ev-c-text-1);
+}
+
+.paletteNodeDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background-color: var(--node-color, #888);
+  opacity: 0.7;
+}
+
+.paletteNodeItem:hover .paletteNodeDot {
+  opacity: 1;
+}
+
+.paletteNodeLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.paletteEmpty {
+  font-size: 12px;
+  color: var(--ev-c-text-3);
+  opacity: 0.6;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+/* Palette items inherit the same --node-color system as canvas nodes */
+.palette-cat-flow      { --node-color: var(--node-start); }
+.palette-cat-movement,
+.palette-cat-actor,
+.palette-cat-visual    { --node-color: var(--node-animate); }
+.palette-cat-dialogue  { --node-color: var(--node-dialogue); }
+.palette-cat-camera    { --node-color: var(--node-camera); }
+.palette-cat-logic     { --node-color: var(--node-logic); }
+.palette-cat-audio     { --node-color: var(--node-audio); }
+.palette-cat-wait      { --node-color: var(--node-wait); }
 
 .runtimeSectionTitle {
   font-size: 12px;
@@ -1245,23 +1374,13 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 .customNode {
   border: 1px solid var(--border-strong);
   border-radius: 4px;
-  /* Плоский background для default-случая: color-mix с calc — дорогая операция
-     (~145ms Recalculate style на 500 нод при смене zoom/selection класса).
-     Вариант с прозрачностью/liquid-glass применяется только через .isLiquidGlass. */
-  background: var(--bg-surface);
+  background: #1C1E24;
   font-size: 12px;
   color: var(--ev-c-text-1);
   min-width: 140px;
   max-width: 220px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   overflow: hidden;
-
-  /* CSS containment: говорим браузеру, что изменения внутри ноды
-     не могут повлиять на layout соседей. Только `layout` — специально НЕ
-     используем `paint`/`style`, потому что на 500+ нодах `contain: paint`
-     создаёт 500 stacking contexts (каждая нода становится отдельным GPU
-     слоем), что УХУДШАЕТ композитинг вместо ускорения. `layout` без paint
-     даёт изоляцию reflow без этой платы. */
   contain: layout;
 }
 
@@ -1402,7 +1521,7 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   min-width: 0;
   max-width: 100%;
   font-size: 11px;
-  color: var(--ev-c-text-3);
+  color: #E8E9EC;
   white-space: pre-wrap !important;
   overflow: visible;
   text-overflow: clip;
@@ -1456,6 +1575,23 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 
 .customNodeButtonDanger {
   color: var(--status-error);
+}
+
+/* Цветной индикатор категории — тонкая полоска внизу ноды.
+   Использует --node-color, которая уже задана на .customNode через data-category.
+   Не содержит текст — только визуальный акцент. */
+.customNodeAccent {
+  height: 2px;
+  background: var(--node-color, transparent);
+  opacity: 0.5;
+  border-radius: 0 0 3px 3px;
+  margin-top: 2px;
+  transition: opacity 0.15s;
+}
+
+.customNode:hover .customNodeAccent,
+.customNode.isSelected .customNodeAccent {
+  opacity: 0.85;
 }
 
 /* Node handles (ports) */

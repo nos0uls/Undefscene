@@ -90,6 +90,9 @@ export const BaseNode = memo(function BaseNode({
 
       {/* Дополнительные порты (для branch и т.д.) */}
       {extraHandles}
+
+      {/* Цветной акцент-индикатор категории внизу ноды */}
+      <div className="customNodeAccent" />
     </div>
   )
 })
