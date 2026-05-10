@@ -111,11 +111,11 @@ function App(): React.JSX.Element {
 
   return (
     <ToastProvider>
-      <ConfirmProvider>
-        <PreferencesProvider value={{ preferences, updatePreferences, loaded: preferencesLoaded }}>
+      <PreferencesProvider value={{ preferences, updatePreferences, loaded: preferencesLoaded }}>
+        <ConfirmProvider>
           {content}
-        </PreferencesProvider>
-      </ConfirmProvider>
+        </ConfirmProvider>
+      </PreferencesProvider>
     </ToastProvider>
   )
 }

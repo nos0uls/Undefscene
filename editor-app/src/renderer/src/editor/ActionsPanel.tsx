@@ -35,13 +35,15 @@ export const ActionsPanel = React.memo(function ActionsPanel({
     setCollapsedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }))
   }, [])
 
-  // Группируем все ноды по категориям — мемоизируем, т.к. NODE_REGISTRY статичен.
+  // Группируем все ноды по категориям — мемоизируем.
   const grouped = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
 
     const map: Record<string, { type: string; label: string }[]> = {}
     for (const [type, def] of Object.entries(NODE_REGISTRY)) {
-      const label = def.label ?? type
+      // Пытаемся получить перевод, иначе используем label из реестра или сам type.
+      const label = t('nodes.types.' + type, def.label ?? type)
+      
       // Фильтрация по поисковому запросу.
       if (query && !type.includes(query) && !label.toLowerCase().includes(query)) continue
 
@@ -60,7 +62,7 @@ export const ActionsPanel = React.memo(function ActionsPanel({
       cat,
       nodes: map[cat]
     }))
-  }, [searchQuery])
+  }, [searchQuery, t])
 
   const handleDragStart = useCallback((event: React.DragEvent<HTMLButtonElement>, type: string) => {
     event.dataTransfer.setData(NODE_PALETTE_DRAG_MIME, type)

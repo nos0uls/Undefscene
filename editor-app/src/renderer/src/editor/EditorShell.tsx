@@ -11,9 +11,10 @@ import { useRuntimeState } from './useRuntimeState'
 import { validateGraph, type ValidationResult, type ValidationContext } from './validateGraph'
 import { PreferencesModal } from './PreferencesModal'
 import { WelcomeSetupModal } from './WelcomeSetupModal'
-import { TutorialOverlay, TUTORIAL_REGISTRY } from './TutorialOverlay'
+import { TutorialOverlay } from './TutorialOverlay'
+import { TUTORIAL_REGISTRY } from './tutorialConstants'
 import { useToasts, pushSuccess, pushError, pushInfo } from './ToastHub'
-import { useConfirm } from './ConfirmDialog'
+import { useConfirm } from './confirmContext'
 import { getAccentCssVariables } from './usePreferences'
 import { usePreferencesContext } from './PreferencesContext'
 import { useHotkeys } from './useHotkeys'
@@ -160,71 +161,74 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
   useEffect(() => {
     if (!preferencesLoaded) return
 
-    const portMode = preferences.parallelBranchPortMode
-    const nodeTypes = new Map(runtime.nodes.map((n) => [n.id, n.type]))
+    setRuntime((prev) => {
+      const portMode = preferences.parallelBranchPortMode
+      const nodeTypes = new Map(prev.nodes.map((n) => [n.id, n.type]))
 
-    const edgesBySource = new Map<string, RuntimeEdge[]>()
-    const edgesByTarget = new Map<string, RuntimeEdge[]>()
+      const edgesBySource = new Map<string, RuntimeEdge[]>()
+      const edgesByTarget = new Map<string, RuntimeEdge[]>()
 
-    for (const edge of runtime.edges) {
-      const sourceType = nodeTypes.get(edge.source)
-      const targetType = nodeTypes.get(edge.target)
+      for (const edge of prev.edges) {
+        const sourceType = nodeTypes.get(edge.source)
+        const targetType = nodeTypes.get(edge.target)
 
-      if (sourceType === 'parallel_start' && edge.sourceHandle !== '__pair') {
-        const list = edgesBySource.get(edge.source) ?? []
-        list.push(edge)
-        edgesBySource.set(edge.source, list)
-      }
-      if (targetType === 'parallel_join' && edge.targetHandle !== '__pair') {
-        const list = edgesByTarget.get(edge.target) ?? []
-        list.push(edge)
-        edgesByTarget.set(edge.target, list)
-      }
-    }
-
-    let changed = false
-    const nextEdges = runtime.edges.map((edge) => {
-      const nextEdge = { ...edge }
-      const sourceType = nodeTypes.get(edge.source)
-      const targetType = nodeTypes.get(edge.target)
-
-      if (sourceType === 'parallel_start' && edge.sourceHandle !== '__pair') {
-        const list = edgesBySource.get(edge.source)!
-        const idx = list.indexOf(edge)
-        let nextHandle = portMode === 'shared' ? 'out_shared' : `out_b${idx}`
-
-        if (portMode === 'separate' && edge.sourceHandle?.startsWith('out_b')) {
-          nextHandle = edge.sourceHandle
+        if (sourceType === 'parallel_start' && edge.sourceHandle !== '__pair') {
+          const list = edgesBySource.get(edge.source) ?? []
+          list.push(edge)
+          edgesBySource.set(edge.source, list)
         }
-
-        if (edge.sourceHandle !== nextHandle) {
-          nextEdge.sourceHandle = nextHandle
-          changed = true
+        if (targetType === 'parallel_join' && edge.targetHandle !== '__pair') {
+          const list = edgesByTarget.get(edge.target) ?? []
+          list.push(edge)
+          edgesByTarget.set(edge.target, list)
         }
       }
 
-      if (targetType === 'parallel_join' && edge.targetHandle !== '__pair') {
-        const list = edgesByTarget.get(edge.target)!
-        const idx = list.indexOf(edge)
-        let nextHandle = portMode === 'shared' ? 'in_shared' : `in_b${idx}`
+      let changed = false
+      const nextEdges = prev.edges.map((edge) => {
+        const nextEdge = { ...edge }
+        const sourceType = nodeTypes.get(edge.source)
+        const targetType = nodeTypes.get(edge.target)
 
-        if (portMode === 'separate' && edge.targetHandle?.startsWith('in_b')) {
-          nextHandle = edge.targetHandle
+        if (sourceType === 'parallel_start' && edge.sourceHandle !== '__pair') {
+          const list = edgesBySource.get(edge.source)!
+          const idx = list.indexOf(edge)
+          let nextHandle = portMode === 'shared' ? 'out_shared' : `out_b${idx}`
+
+          // Если мы уже в separate режиме и имеем валидный b-порт — не меняем его
+          if (portMode === 'separate' && edge.sourceHandle?.startsWith('out_b')) {
+            nextHandle = edge.sourceHandle
+          }
+
+          if (edge.sourceHandle !== nextHandle) {
+            nextEdge.sourceHandle = nextHandle
+            changed = true
+          }
         }
 
-        if (edge.targetHandle !== nextHandle) {
-          nextEdge.targetHandle = nextHandle
-          changed = true
+        if (targetType === 'parallel_join' && edge.targetHandle !== '__pair') {
+          const list = edgesByTarget.get(edge.target)!
+          const idx = list.indexOf(edge)
+          let nextHandle = portMode === 'shared' ? 'in_shared' : `in_b${idx}`
+
+          // Аналогично для join нод
+          if (portMode === 'separate' && edge.targetHandle?.startsWith('in_b')) {
+            nextHandle = edge.targetHandle
+          }
+
+          if (edge.targetHandle !== nextHandle) {
+            nextEdge.targetHandle = nextHandle
+            changed = true
+          }
         }
-      }
 
-      return nextEdge
-    })
+        return nextEdge
+      })
 
-    if (changed) {
-      setRuntime((prev) => ({ ...prev, edges: nextEdges }), { skipHistory: true })
-    }
-  }, [preferences.parallelBranchPortMode, preferencesLoaded, runtime.nodes, runtime.edges, setRuntime])
+      if (!changed) return prev
+      return { ...prev, edges: nextEdges }
+    }, { skipHistory: true })
+  }, [preferences.parallelBranchPortMode, preferencesLoaded, setRuntime])
 
   useEffect(() => {
     if (!aboutOpen) return
@@ -813,7 +817,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
 
     return (
       <div className="placeholderText">
-        {preferences.language === 'ru' ? '\u041D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u0430\u044F \u043F\u0430\u043D\u0435\u043B\u042C' : 'Unknown panel'}: {panelId}
+        {t('editor.unknownPanel', 'Unknown panel')}: {panelId}
       </div>
     )
   }, [
@@ -1226,7 +1230,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
           <div className="prefsModal" onClick={(e) => e.stopPropagation()}>
             <div className="prefsHeader">
               <span className="prefsTitle">
-                {preferences.language === 'ru' ? '\u0414\u0443\u0431\u043B\u0438\u0440\u0443\u044E\u0449\u0435\u0435\u0441\u044F \u0438\u043C\u044F \u043D\u043E\u0434\u044B' : 'Duplicate node name'}
+                {t('dialog.duplicateNodeNameTitle', 'Duplicate node name')}
               </span>
               <button
                 className="prefsCloseBtn"
@@ -1241,19 +1245,15 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
 
             <div className="prefsBody">
               <div className="prefsHint">
-                {preferences.language === 'ru'
-                  ? '\u042D\u0442\u043E \u0438\u043C\u044F \u0443\u0436\u0435 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u0442\u0441\u044F \u0434\u0440\u0443\u0433\u043E\u0439 \u043D\u043E\u0434\u043E\u0439'
-                  : 'This name is already used by another node'}
+                {t('dialog.duplicateNodeNameMessage', 'This name is already used by another node')}
                 {nameConflictModal.conflictingWithNodeId
                   ? ` (${nameConflictModal.conflictingWithNodeId})`
                   : ''}
-                {preferences.language === 'ru'
-                  ? '. \u0414\u0443\u0431\u043B\u0438\u043A\u0430\u0442\u044B \u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u044B, \u043D\u043E \u043C\u043E\u0433\u0443\u0442 \u043F\u0443\u0442\u0430\u0442\u044C.'
-                  : '. Duplicates are allowed, but it can be confusing.'}
+                {t('dialog.duplicateNodeNameHint', '. Duplicates are allowed, but it can be confusing.')}
               </div>
 
               <label className="prefsField">
-                <span>{preferences.language === 'ru' ? '\u0418\u043C\u044F' : 'Name'}</span>
+                <span>{t('editor.nodeName', 'Name')}</span>
                 <input
                   className="prefsInput"
                   value={nameConflictModal.value}
@@ -1275,7 +1275,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
                     setNameConflictModal(null)
                   }}
                 >
-                  {preferences.language === 'ru' ? '\u041E\u0442\u043C\u0435\u043D\u0430' : 'Cancel'}
+                  {t('dialog.cancelLabel', 'Cancel')}
                 </button>
                 <button
                   ref={nameConflictOkRef}
@@ -1293,7 +1293,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
                     setNameConflictModal(null)
                   }}
                 >
-                  {preferences.language === 'ru' ? '\u041E\u041A' : 'OK'}
+                  {t('dialog.okLabel', 'OK')}
                 </button>
               </div>
             </div>

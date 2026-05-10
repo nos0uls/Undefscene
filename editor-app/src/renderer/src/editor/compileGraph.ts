@@ -482,6 +482,31 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
   function nodeToAction(node: RuntimeNode): CompiledAction {
     const action: CompiledAction = { type: node.type }
 
+    // wait_until — синтаксический сахар для guard_global с if_false: 'wait_until_true'.
+    if (node.type === 'wait_until') {
+      const rawVar = String(node.params?.condition_var ?? '').trim()
+      const varName = rawVar.startsWith('global.') ? rawVar.slice('global.'.length) : rawVar
+      const equals = String(node.params?.condition_equals ?? '')
+      const timeoutSeconds = Number(node.params?.timeout_seconds ?? 0)
+
+      const guard: CompiledAction = {
+        type: 'guard_global',
+        var: varName,
+        equals,
+        if_false: 'wait_until_true',
+        actions: []
+      }
+
+      if (timeoutSeconds > 0) {
+        guard.stop_when = 'timeout'
+        guard.end_timeout = timeoutSeconds
+      } else {
+        guard.stop_when = 'none'
+      }
+
+      return guard
+    }
+
     // Спец-логика для run_function.
     // В движке ключ называется `function`, а в редакторе раньше использовался `function_name`.
     // Также `args` в UI хранится как строка JSON, а движок ждёт JSON-массив.
@@ -613,6 +638,70 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       return action
     }
 
+    if (node.type === 'play_music') {
+      if (typeof node.params?.sound === 'string' && node.params.sound) action.sound = node.params.sound
+      if (typeof node.params?.volume === 'number') action.volume = node.params.volume
+      if (typeof node.params?.fade === 'number') action.fade = node.params.fade
+      return action
+    }
+
+    if (node.type === 'stop_music') {
+      if (typeof node.params?.fade === 'number') action.fade = node.params.fade
+      return action
+    }
+
+    if (node.type === 'music_volume') {
+      if (typeof node.params?.volume === 'number') action.volume = node.params.volume
+      if (typeof node.params?.fade === 'number') action.fade = node.params.fade
+      return action
+    }
+
+    if (node.type === 'music_duck') {
+      if (typeof node.params?.multiplier === 'number') action.multiplier = node.params.multiplier
+      if (typeof node.params?.fade === 'number') action.fade = node.params.fade
+      return action
+    }
+
+    if (node.type === 'music_unduck') {
+      if (typeof node.params?.fade === 'number') action.fade = node.params.fade
+      return action
+    }
+
+    if (node.type === 'move_relative') {
+      if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
+      if (typeof node.params?.dx === 'number') action.dx = node.params.dx
+      if (typeof node.params?.dy === 'number') action.dy = node.params.dy
+      if (typeof node.params?.speed_px_sec === 'number') action.speed_px_sec = node.params.speed_px_sec
+      if (typeof node.params?.collision === 'boolean') action.collision = node.params.collision
+      return action
+    }
+
+    if (node.type === 'set_position_relative') {
+      if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
+      if (typeof node.params?.dx === 'number') action.dx = node.params.dx
+      if (typeof node.params?.dy === 'number') action.dy = node.params.dy
+      return action
+    }
+
+    // camera_shake / shake_object: backward compatibility for magnitude vs magnitude_x/y.
+    if (node.type === 'camera_shake' || node.type === 'shake_object') {
+      const p = node.params
+      if (p) {
+        if (typeof p.seconds === 'number') action.seconds = p.seconds
+        const hasMx = typeof p.magnitude_x === 'number'
+        const hasMy = typeof p.magnitude_y === 'number'
+        if (hasMx || hasMy) {
+          if (hasMx) action.magnitude_x = p.magnitude_x
+          if (hasMy) action.magnitude_y = p.magnitude_y
+        } else if (typeof p.magnitude === 'number') {
+          action.magnitude = p.magnitude
+        }
+        if (typeof p.decay === 'boolean') action.decay = p.decay
+        if (typeof p.frequency === 'number') action.frequency = p.frequency
+      }
+      return action
+    }
+
     // Копируем все параметры ноды (кроме editor-only полей).
     if (node.params) {
       for (const [key, value] of Object.entries(node.params)) {
@@ -622,6 +711,8 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
         if (node.type === 'tween' && ['kind', 'target', 'prop', 'property', 'end_value', 'to', 'start_value_override', 'from', 'duration_frames', 'seconds', 'ease_name', 'easing'].includes(key)) continue
         // Эти поля мы уже обработали выше.
         if (node.type === 'run_function' && ['function_name', 'function', 'args'].includes(key))
+          continue
+        if ((node.type === 'camera_shake' || node.type === 'shake_object') && ['seconds', 'magnitude', 'magnitude_x', 'magnitude_y', 'decay', 'frequency'].includes(key))
           continue
         if (value !== undefined && value !== null && value !== '') {
           action[key] = value

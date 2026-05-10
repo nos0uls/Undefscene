@@ -180,6 +180,35 @@ function importSequence(
       continue
     }
 
+    // wait_until — синтаксический сахар для guard_global с if_false: 'wait_until_true' и пустыми actions.
+    if (action.type === 'guard_global' && action.if_false === 'wait_until_true') {
+      const nested = Array.isArray(action.actions) ? (action.actions as ImportedAction[]) : null
+      if (!nested || nested.length === 0) {
+        const mergedSources = applyEdgePatchToSources(sources, pendingEdgePatch)
+        pendingEdgePatch = {}
+
+        const varName = typeof action.var === 'string' ? stripGlobalPrefix(action.var) : ''
+        const equals = action.equals !== undefined ? stringifyValue(action.equals) : ''
+        const endTimeout =
+          typeof action.end_timeout === 'number' && action.end_timeout > 0 ? action.end_timeout : 0
+
+        const node = createNode(
+          context,
+          'wait_until',
+          { condition_var: varName, condition_equals: equals, timeout_seconds: endTimeout },
+          pendingNodeName,
+          { x: nextX, y: baseY }
+        )
+        pendingNodeName = null
+        context.nodes.push(node)
+        connectSourcesToNode(context, mergedSources, node.id)
+
+        sources = [{ nodeId: node.id }]
+        nextX += 280
+        continue
+      }
+    }
+
     // guard_global превращаем в edge condition на первое ребро вложенной цепочки.
     if (action.type === 'guard_global') {
       const nested = Array.isArray(action.actions) ? (action.actions as ImportedAction[]) : null
@@ -402,6 +431,33 @@ function actionToRuntimeNode(
     if (key === 'type') continue
     if (normalizedType === 'play_sfx' && key === 'key' && action.sound === undefined) {
       params.sound = value
+      continue
+    }
+    // Music nodes require no special normalization — pass params through as-is.
+    if (
+      normalizedType === 'play_music' ||
+      normalizedType === 'stop_music' ||
+      normalizedType === 'music_volume' ||
+      normalizedType === 'music_duck' ||
+      normalizedType === 'music_unduck'
+    ) {
+      params[key] = value
+      continue
+    }
+    // Relative movement nodes require no special normalization — pass params through as-is.
+    if (
+      normalizedType === 'move_relative' ||
+      normalizedType === 'set_position_relative'
+    ) {
+      params[key] = value
+      continue
+    }
+    // Shake nodes: pass new fields through as-is (backward compatible with old `magnitude`).
+    if (
+      normalizedType === 'camera_shake' ||
+      normalizedType === 'shake_object'
+    ) {
+      params[key] = value
       continue
     }
     if (normalizedType === 'tween' && key === 'target_kind' && action.kind === undefined) {

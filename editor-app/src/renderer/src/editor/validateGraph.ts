@@ -15,6 +15,8 @@ export type ValidationContext = {
   objects?: string[]
   // Список спрайтов из .yyp.
   sprites?: string[]
+  // Список звуков из .yyp.
+  sounds?: string[]
   // Yarn-файлы: имя файла → список нод внутри.
   yarnFiles?: Map<string, string[]>
   // Whitelist функций из cutscene_engine_settings.json.
@@ -51,9 +53,12 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   dialogue: [],
   move: ['target'],
   set_position: ['target'],
+  move_relative: ['target'],
+  set_position_relative: ['target'],
   actor_create: ['actor_name'],
   actor_destroy: ['target'],
   animate: ['target'],
+  set_animation_frame: ['target'],
   camera_track: ['target'],
   camera_track_until_stop: ['target'],
   camera_pan: ['x', 'y'],
@@ -83,9 +88,15 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   mark_node: ['name'],
   partial_control: ['type'],
   wait_for_interact: ['target'],
+  wait_until: ['condition_var'],
   set_flag: ['key'],
   spawn_entity: ['object', 'x', 'y'],
-  destroy_entity: ['target']
+  destroy_entity: ['target'],
+  play_music: ['sound'],
+  stop_music: [],
+  music_volume: [],
+  music_duck: [],
+  music_unduck: []
 }
 
 // Главная функция валидации. Принимает текущее состояние графа и опциональный контекст ресурсов.
@@ -312,6 +323,26 @@ export function validateGraph(
       }
     }
 
+    // wait_until: condition_var обязательна, timeout не может быть отрицательным.
+    if (node.type === 'wait_until') {
+      const conditionVar = String(node.params?.condition_var ?? '').trim()
+      if (!conditionVar) {
+        entries.push({
+          severity: 'error',
+          nodeId: node.id,
+          message: t('validation.waitUntilConditionEmpty', { name: nodeDisplayName })
+        })
+      }
+      const timeout = Number(node.params?.timeout_seconds ?? 0)
+      if (timeout < 0) {
+        entries.push({
+          severity: 'warn',
+          nodeId: node.id,
+          message: t('validation.waitUntilTimeoutNegative', { name: nodeDisplayName })
+        })
+      }
+    }
+
     if (node.type === 'tween') {
       const kind = String(node.params?.kind ?? 'instance').trim()
       const target = String(node.params?.target ?? '').trim()
@@ -379,6 +410,17 @@ export function validateGraph(
       }
     }
 
+    if (node.type === 'play_music') {
+      const sound = String(node.params?.sound ?? '').trim()
+      if (!sound) {
+        entries.push({
+          severity: 'warn',
+          nodeId: node.id,
+          message: t('validation.playMusicNoSound', { name: nodeDisplayName })
+        })
+      }
+    }
+
     // run_function: отдельно проверяем имя функции.
     if (node.type === 'run_function') {
       const fn =
@@ -421,14 +463,38 @@ export function validateGraph(
       }
     }
 
-    // camera_shake: проверяем seconds (не duration — параметр называется seconds).
-    if (node.type === 'camera_shake') {
+    // camera_shake / shake_object: проверяем seconds, frequency и magnitudes.
+    if (node.type === 'camera_shake' || node.type === 'shake_object') {
       const seconds = Number(node.params?.seconds ?? 0)
       if (seconds <= 0) {
         entries.push({
           severity: 'warn',
           nodeId: node.id,
           message: t('validation.cameraShakeSecondsInvalid', { name: nodeDisplayName })
+        })
+      }
+      const frequency = Number(node.params?.frequency ?? 1)
+      if (Number.isFinite(frequency) && frequency < 1) {
+        entries.push({
+          severity: 'warn',
+          nodeId: node.id,
+          message: t('validation.shakeFrequencyTooLow', { name: nodeDisplayName })
+        })
+      }
+      const magnitudeX = Number(node.params?.magnitude_x ?? -1)
+      if (Number.isFinite(magnitudeX) && magnitudeX < 0) {
+        entries.push({
+          severity: 'warn',
+          nodeId: node.id,
+          message: t('validation.shakeMagnitudeXNegative', { name: nodeDisplayName })
+        })
+      }
+      const magnitudeY = Number(node.params?.magnitude_y ?? -1)
+      if (Number.isFinite(magnitudeY) && magnitudeY < 0) {
+        entries.push({
+          severity: 'warn',
+          nodeId: node.id,
+          message: t('validation.shakeMagnitudeYNegative', { name: nodeDisplayName })
         })
       }
     }
@@ -1030,6 +1096,17 @@ export function validateGraph(
             severity: 'warn',
             nodeId: node.id,
             message: t('validation.emoteSpriteNotFound', { sprite })
+          })
+        }
+      }
+
+      if (node.type === 'play_music' && context.sounds) {
+        const sound = String(params.sound ?? '').trim()
+        if (sound && context.sounds.length > 0 && !context.sounds.includes(sound)) {
+          entries.push({
+            severity: 'warn',
+            nodeId: node.id,
+            message: t('validation.playMusicSoundNotFound', { sound })
           })
         }
       }

@@ -1,159 +1,21 @@
-// TutorialOverlay.tsx — Интерактивный пошаговый тур по UI редактора.
-// Подсвечивает DOM-элементы через clip-path и показывает карточку с подсказкой.
-// Поддерживает навигацию вперед/назад, клавиатуру и сброс при повторном запуске.
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { createTranslator, SupportedLanguage } from '../i18n'
+import {
+  type TutorialStep,
+  type TooltipPosition,
+  TUTORIAL_REGISTRY
+} from './tutorialConstants'
 
-import { useState, useEffect, useCallback } from 'react'
-
-// Позиция тултипа относительно подсвеченного элемента.
-export type TooltipPosition = 'top' | 'bottom' | 'left' | 'right' | 'center'
-
-// Один шаг тура. Может ссылаться на DOM-элемент через selector.
-export type TutorialStep = {
-  selector?: string
-  title: { en: string; ru: string }
-  content: { en: string; ru: string }
-  position?: TooltipPosition
-}
-
-const ONBOARDING_STEPS: TutorialStep[] = [
-  {
-    title: { en: 'Welcome to Undefscene!', ru: 'Добро пожаловать в Undefscene!' },
-    content: { 
-      en: 'This tutorial will quickly show you the main interface elements. Press Enter to continue or Esc to skip.', 
-      ru: 'Этот тур быстро покажет вам основные элементы интерфейса. Нажмите Enter для продолжения или Esc, чтобы пропустить.' 
-    },
-    position: 'center'
-  },
-  {
-    selector: '.topMenuBar',
-    title: { en: 'Top Menu Bar', ru: 'Верхнее меню' },
-    content: { 
-      en: 'Here you can open projects, save scenes, export to GameMaker, and access settings.', 
-      ru: 'Здесь вы можете открывать проекты, сохранять сцены, экспортировать в GameMaker и менять настройки.' 
-    },
-    position: 'bottom'
-  },
-  {
-    selector: '.editorLeftDock',
-    title: { en: 'Node Palette', ru: 'Палитра нод' },
-    content: { 
-      en: 'Drag and drop nodes from the palette to the canvas to build your cutscene logic.', 
-      ru: 'Перетаскивайте ноды из палитры на холст, чтобы строить логику вашей катсцены.' 
-    },
-    position: 'right'
-  },
-  {
-    selector: '.editorCenter',
-    title: { en: 'The Canvas', ru: 'Холст' },
-    content: { 
-      en: 'This is where you visualize and connect your cutscene nodes. Use mouse wheel to zoom and drag to pan.', 
-      ru: 'Здесь вы визуализируете и соединяете ноды. Используйте колесо мыши для зума и перетаскивание для панорамирования.' 
-    },
-    position: 'center'
-  },
-  {
-    selector: '.editorRightDock',
-    title: { en: 'Inspector', ru: 'Инспектор' },
-    content: { 
-      en: 'Select a node to edit its parameters (like coordinates, text, or animations) here.', 
-      ru: 'Выберите ноду, чтобы редактировать её параметры (координаты, текст, анимации) здесь.' 
-    },
-    position: 'left'
-  },
-  {
-    selector: '.editorBottomDock',
-    title: { en: 'Logs & Warnings', ru: 'Логи и ошибки' },
-    content: { 
-      en: 'Keep an eye on this panel for validation errors or tips while building your scene.', 
-      ru: 'Следите за этой панелью: здесь появляются ошибки валидации или подсказки при сборке сцены.' 
-    },
-    position: 'top'
-  },
-  {
-    title: { en: 'Ready to go!', ru: 'Всё готово!' },
-    content: {
-      en: 'You are now ready to create amazing cutscenes. Check the docs for advanced topics.',
-      ru: 'Теперь вы готовы создавать потрясающие катсцены. Документация расскажет о продвинутых возможностях.'
-    },
-    position: 'center'
-  }
-]
-
-// Шаги тура по инспектору (контекстный).
-const INSPECTOR_STEPS: TutorialStep[] = [
-  {
-    selector: '.editorRightDock',
-    title: { en: 'Inspector Panel', ru: 'Панель инспектора' },
-    content: {
-      en: 'Here you edit the selected node\'s parameters: coordinates, dialogue file, actor target, and more.',
-      ru: 'Здесь редактируются параметры выбранной ноды: координаты, файл диалога, цель актёра и другое.'
-    },
-    position: 'left'
-  },
-  {
-    selector: '.editorRightDock .paramField',
-    title: { en: 'Node Parameters', ru: 'Параметры ноды' },
-    content: {
-      en: 'Each field maps to a GameMaker cutscene action. Hover over labels to see hints.',
-      ru: 'Каждое поле соответствует action в GameMaker. Наведите на название поля — появится подсказка.'
-    },
-    position: 'left'
-  },
-  {
-    title: { en: 'Editing Complete', ru: 'Редактирование завершено' },
-    content: {
-      en: 'You can return to the canvas anytime. Docs: https://nos0uls.github.io/Undefined-documentation/systems/cutscenes/undefscene/overview/',
-      ru: 'Вы можете вернуться на холст в любой момент. Документация: https://nos0uls.github.io/Undefined-documentation/systems/cutscenes/undefscene/overview/'
-    },
-    position: 'center'
-  }
-]
-
-// Шаги тура по visual editing (контекстный).
-const VISUAL_EDITING_STEPS: TutorialStep[] = [
-  {
-    selector: '.roomScreenshotCanvas',
-    title: { en: 'Room Preview', ru: 'Превью комнаты' },
-    content: {
-      en: 'This is the stitched room screenshot. Use it to draw actor paths or place markers precisely.',
-      ru: 'Это склеенный скриншот комнаты. Рисуйте пути актёров или расставляйте маркеры точно по обстановке.'
-    },
-    position: 'center'
-  },
-  {
-    selector: '.visualEditorToolbar',
-    title: { en: 'Toolbar', ru: 'Панель инструментов' },
-    content: {
-      en: 'Select a tool: draw path points, place actor markers, or preview the animation.',
-      ru: 'Выберите инструмент: точки пути, маркеры актёров или предпросмотр анимации.'
-    },
-    position: 'bottom'
-  },
-  {
-    title: { en: 'Visual Editing Ready', ru: 'Визуальное редактирование готово' },
-    content: {
-      en: 'Click Import to write changes back to the graph. Docs: https://nos0uls.github.io/Undefined-documentation/systems/cutscenes/undefscene/overview/',
-      ru: 'Нажмите Import, чтобы записать изменения обратно в граф. Документация: https://nos0uls.github.io/Undefined-documentation/systems/cutscenes/undefscene/overview/'
-    },
-    position: 'center'
-  }
-]
-
-// Реестр доступных туров по идентификатору.
-export const TUTORIAL_REGISTRY: Record<string, TutorialStep[]> = {
-  onboarding: ONBOARDING_STEPS,
-  inspector: INSPECTOR_STEPS,
-  visualEditing: VISUAL_EDITING_STEPS
-}
 
 type TutorialOverlayProps = {
   active: boolean
-  language: 'en' | 'ru'
+  language: SupportedLanguage
   // Если не передан — используем онбординг по умолчанию.
   steps?: TutorialStep[]
   onComplete: () => void
   onSkip: () => void
 }
+
 
 // Рендерит текст, оборачивая http(s) URL в кликабельные ссылки.
 // Клик открывает ссылку через main процесс (shell.openExternal) безопасно.
@@ -193,13 +55,15 @@ export function TutorialOverlay({
   onSkip
 }: TutorialOverlayProps): React.JSX.Element | null {
   // Выбранный набор шагов.
-  const steps = stepsProp ?? ONBOARDING_STEPS
+  const steps = stepsProp ?? TUTORIAL_REGISTRY.onboarding
 
   // Текущий индекс шага. Сбрасываем в 0 при каждой активации.
   const [stepIndex, setStepIndex] = useState(0)
 
   // Bounding box подсвеченного DOM-элемента.
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null)
+
+  const t = useMemo(() => createTranslator(language), [language])
 
   // При активации всегда начинаем с первого шага.
   useEffect(() => {
@@ -377,16 +241,16 @@ export function TutorialOverlay({
       <div style={overlayStyle} />
       <div style={tooltipBoxStyle}>
         <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent-default)' }}>
-          {currentStep.title[language]}
+          {t(currentStep.title)}
         </div>
         <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ev-c-text-2)' }}>
-          {renderContentWithLinks(currentStep.content[language])}
+          {renderContentWithLinks(t(currentStep.content))}
         </div>
         
         {/* Навигация: счётчик, стрелки назад/вперёд, пропуск. */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
           <div style={{ fontSize: 11, color: 'var(--ev-c-text-3)' }}>
-            {language === 'ru' ? 'Esc — пропустить' : 'Esc to skip'}
+            {t('tutorial.escToSkip', language === 'ru' ? 'Esc — пропустить' : 'Esc to skip')}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {/* Кнопка «Назад» (неактивна на первом шаге). */}
@@ -403,7 +267,7 @@ export function TutorialOverlay({
                 opacity: stepIndex <= 0 ? 0.4 : 1,
                 cursor: stepIndex <= 0 ? 'not-allowed' : 'pointer'
               }}
-              title={language === 'ru' ? 'Назад (←)' : 'Previous (←)'}
+              title={t('tutorial.prev', language === 'ru' ? 'Назад (←)' : 'Previous (←)')}
             >
               ←
             </button>
@@ -426,8 +290,8 @@ export function TutorialOverlay({
               style={{ backgroundColor: 'var(--accent-default)', color: 'white', border: 'none' }}
             >
               {stepIndex < steps.length - 1
-                ? (language === 'ru' ? 'Далее (→)' : 'Next (→)')
-                : (language === 'ru' ? 'Завершить' : 'Finish')}
+                ? t('tutorial.next', language === 'ru' ? 'Далее (→)' : 'Next (→)')
+                : t('tutorial.finish', language === 'ru' ? 'Завершить' : 'Finish')}
             </button>
           </div>
         </div>

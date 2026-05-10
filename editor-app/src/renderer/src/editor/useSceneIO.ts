@@ -12,7 +12,7 @@ import type { Translator } from './compileGraph'
 import type { ValidationResult } from './validateGraph'
 import { pushSuccess, pushError, pushWarning } from './ToastHub'
 import type { ToastContextValue } from './ToastHub'
-import type { ConfirmOptions } from './ConfirmDialog'
+import type { ConfirmOptions } from './confirmContext'
 
 // Параметры, которые нужны хуку для работы с файлами сцены.
 type UseSceneIODeps = {

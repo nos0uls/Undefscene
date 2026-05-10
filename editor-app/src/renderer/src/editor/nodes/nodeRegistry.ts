@@ -87,6 +87,12 @@ const baseNodes: Record<string, NodeDefinition> = {
     { key: 'image_index', label: 'Image Index', type: 'number', placeholder: '0', defaultValue: 0 },
     { key: 'image_speed', label: 'Image Speed', type: 'number', step: 0.1, placeholder: '1', defaultValue: 1 }
   ], defaultParams: { target: 'player', sprite: '', image_index: 0, image_speed: 1 } },
+  set_animation_frame: { type: 'set_animation_frame', label: 'Set Animation Frame', category: 'visual', fields: [
+    { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
+    { key: 'image_index', label: 'Image Index', type: 'number', placeholder: 'frame number', defaultValue: 0 },
+    { key: 'image_speed', label: 'Image Speed', type: 'number', step: 0.1, placeholder: '1 = normal', defaultValue: 1 },
+    { key: 'pause', label: 'Pause', type: 'select', options: ['true', 'false'], defaultValue: false }
+  ], defaultParams: { target: 'player', image_index: 0, image_speed: 1, pause: false } },
   dialogue: { type: 'dialogue', label: 'Dialogue', category: 'dialogue', fields: [
     { key: 'file', label: 'File', type: 'searchable', placeholder: 'dialogue', options: [] },
     { key: 'node', label: 'Node', type: 'searchable', placeholder: 'Intro', options: [] }
@@ -124,8 +130,12 @@ const cameraNodes: Record<string, NodeDefinition> = {
   ], defaultParams: { x: 0, y: 0 } },
   camera_shake: { type: 'camera_shake', label: 'Camera Shake', category: 'camera', fields: [
     { key: 'seconds', label: 'Duration (seconds)', type: 'number', step: 0.1, placeholder: '1', defaultValue: 1 },
-    { key: 'magnitude', label: 'Magnitude (px)', type: 'number', placeholder: '4', defaultValue: 4 }
-  ], defaultParams: { seconds: 1, magnitude: 4 } }
+    { key: 'magnitude', label: 'Magnitude (px)', type: 'number', placeholder: '4', defaultValue: 4 },
+    { key: 'magnitude_x', label: 'Magnitude X (px)', type: 'number', placeholder: '4', defaultValue: 4 },
+    { key: 'magnitude_y', label: 'Magnitude Y (px)', type: 'number', placeholder: '4', defaultValue: 4 },
+    { key: 'decay', label: 'Decay', type: 'select', options: ['true', 'false'], defaultValue: false },
+    { key: 'frequency', label: 'Frequency', type: 'number', step: 1, placeholder: '1', defaultValue: 1 }
+  ], defaultParams: { seconds: 1, magnitude: 4, magnitude_x: 4, magnitude_y: 4, decay: false, frequency: 1 } }
 }
 
 // Conditional ноды (tween, set_property).
@@ -178,6 +188,25 @@ const otherNodes: Record<string, NodeDefinition> = {
     { key: 'volume', label: 'Volume', type: 'number', step: 0.1, defaultValue: 1 },
     { key: 'pitch', label: 'Pitch', type: 'number', step: 0.1, defaultValue: 1 }
   ], defaultParams: { sound: '', volume: 1, pitch: 1 } },
+  play_music: { type: 'play_music', label: 'Play Music', category: 'audio', fields: [
+    { key: 'sound', label: 'Track', type: 'searchable', placeholder: 'music_...', options: [], defaultValue: '' },
+    { key: 'volume', label: 'Volume', type: 'number', step: 0.1, defaultValue: 1 },
+    { key: 'fade', label: 'Fade In (sec)', type: 'number', step: 0.1, defaultValue: 0.5 }
+  ], defaultParams: { sound: '', volume: 1, fade: 0.5 } },
+  stop_music: { type: 'stop_music', label: 'Stop Music', category: 'audio', fields: [
+    { key: 'fade', label: 'Fade Out (sec)', type: 'number', step: 0.1, defaultValue: 1 }
+  ], defaultParams: { fade: 1 } },
+  music_volume: { type: 'music_volume', label: 'Music Volume', category: 'audio', fields: [
+    { key: 'volume', label: 'Volume', type: 'number', step: 0.1, defaultValue: 1 },
+    { key: 'fade', label: 'Fade (sec)', type: 'number', step: 0.1, defaultValue: 0.5 }
+  ], defaultParams: { volume: 1, fade: 0.5 } },
+  music_duck: { type: 'music_duck', label: 'Music Duck', category: 'audio', fields: [
+    { key: 'multiplier', label: 'Multiplier (0..1)', type: 'number', step: 0.1, defaultValue: 0.3 },
+    { key: 'fade', label: 'Fade (sec)', type: 'number', step: 0.1, defaultValue: 0.3 }
+  ], defaultParams: { multiplier: 0.3, fade: 0.3 } },
+  music_unduck: { type: 'music_unduck', label: 'Music Unduck', category: 'audio', fields: [
+    { key: 'fade', label: 'Fade (sec)', type: 'number', step: 0.1, defaultValue: 0.3 }
+  ], defaultParams: { fade: 0.3 } },
   emote: { type: 'emote', label: 'Emote', category: 'visual', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'sprite', label: 'Sprite', type: 'searchable', placeholder: 'spr_...', options: [] },
@@ -210,8 +239,12 @@ const otherNodes: Record<string, NodeDefinition> = {
   shake_object: { type: 'shake_object', label: 'Shake Object', category: 'visual', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'seconds', label: 'Seconds', type: 'number', step: 0.1, defaultValue: 0.5 },
-    { key: 'magnitude', label: 'Magnitude', type: 'number', defaultValue: 4 }
-  ], defaultParams: { target: 'player', seconds: 0.5, magnitude: 4 } },
+    { key: 'magnitude', label: 'Magnitude', type: 'number', defaultValue: 4 },
+    { key: 'magnitude_x', label: 'Magnitude X', type: 'number', placeholder: '4', defaultValue: 4 },
+    { key: 'magnitude_y', label: 'Magnitude Y', type: 'number', placeholder: '4', defaultValue: 4 },
+    { key: 'decay', label: 'Decay', type: 'select', options: ['true', 'false'], defaultValue: false },
+    { key: 'frequency', label: 'Frequency', type: 'number', step: 1, placeholder: '1', defaultValue: 1 }
+  ], defaultParams: { target: 'player', seconds: 0.5, magnitude: 4, magnitude_x: 4, magnitude_y: 4, decay: false, frequency: 1 } },
   set_visible: { type: 'set_visible', label: 'Set Visible', category: 'visual', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'visible', label: 'Visible', type: 'select', options: ['true', 'false'], defaultValue: true }
@@ -238,6 +271,11 @@ const otherNodes: Record<string, NodeDefinition> = {
     { key: 'timeout', label: 'Timeout (seconds, 0=never)', type: 'number', step: 0.1, defaultValue: 0 },
     { key: 'timeout_action', label: 'Timeout Action', type: 'select', options: ['continue', 'skip'], defaultValue: 'continue' }
   ], defaultParams: { target: 'player', timeout: 0, timeout_action: 'continue' } },
+  wait_until: { type: 'wait_until', label: 'Wait Until', category: 'logic', fields: [
+    { key: 'condition_var', label: 'Condition Var', type: 'text', defaultValue: '', placeholder: 'e.g. door_opened' },
+    { key: 'condition_equals', label: 'Equals', type: 'text', defaultValue: '', placeholder: 'e.g. true' },
+    { key: 'timeout_seconds', label: 'Timeout (seconds, 0=no timeout)', type: 'number', step: 0.1, defaultValue: 0 }
+  ], defaultParams: { condition_var: '', condition_equals: '', timeout_seconds: 0 } },
   set_flag: { type: 'set_flag', label: 'Set Flag', category: 'logic', fields: [
     { key: 'key', label: 'Flag Key', type: 'searchable', placeholder: 'story_progress', options: [], defaultValue: '' },
     { key: 'value', label: 'Value', type: 'searchable', placeholder: '1', options: [], defaultValue: '' }
@@ -260,11 +298,24 @@ const otherNodes: Record<string, NodeDefinition> = {
   // - points хранится как массив {x, y}[] в editor params (не как JSON строка)
   // - Общая логика в compileGraph/reverseCompile корректно копирует массивы
   // - В отличие от run_function (args) или set_property (value), где нужна JSON конвертация
+  move_relative: { type: 'move_relative', label: 'Move Relative', category: 'movement', fields: [
+    { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
+    { key: 'dx', label: 'dX', type: 'number', defaultValue: 0 },
+    { key: 'dy', label: 'dY', type: 'number', defaultValue: 0 },
+    { key: 'speed_px_sec', label: 'Speed (px/sec)', type: 'number', placeholder: '60', defaultValue: 60 },
+    { key: 'collision', label: 'Collision', type: 'select', options: ['false', 'true'], defaultValue: false }
+  ], defaultParams: { target: 'player', dx: 0, dy: 0, speed_px_sec: 60, collision: false } },
+  set_position_relative: { type: 'set_position_relative', label: 'Set Position Relative', category: 'movement', fields: [
+    { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
+    { key: 'dx', label: 'dX', type: 'number', defaultValue: 0 },
+    { key: 'dy', label: 'dY', type: 'number', defaultValue: 0 }
+  ], defaultParams: { target: 'player', dx: 0, dy: 0 } },
   follow_path: { type: 'follow_path', label: 'Follow Path', category: 'movement', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'speed_px_sec', label: 'Speed (px/sec)', type: 'number', placeholder: '60', defaultValue: 60 },
-    { key: 'collision', label: 'Collision', type: 'select', options: ['false', 'true'], defaultValue: false }
-  ], defaultParams: { target: 'player', points: [], speed_px_sec: 60, collision: false } },
+    { key: 'collision', label: 'Collision', type: 'select', options: ['false', 'true'], defaultValue: false },
+    { key: 'autofacing', label: 'Auto Facing', type: 'select', options: ['true', 'false'], defaultValue: true }
+  ], defaultParams: { target: 'player', points: [], speed_px_sec: 60, collision: false, autofacing: true } },
   // TODO: tween_camera - legacy node, may need special handling
   tween_camera: { type: 'tween_camera', label: 'Tween Camera', category: 'camera', fields: [
     { key: 'property', label: 'Property', type: 'text', defaultValue: '' },

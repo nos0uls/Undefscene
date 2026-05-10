@@ -3,6 +3,7 @@ import { memo, useMemo } from 'react'
 import { BaseNode } from './BaseNode'
 import { usePreferencesContext } from '../PreferencesContext'
 import { useNodeActionsRef } from '../NodeActionsContext'
+import { createTranslator } from '../../i18n'
 
 // Тип данных, которые React Flow передаёт в каждую ноду.
 type CutsceneNodeData = {
@@ -34,11 +35,13 @@ export const EndNode = memo(function EndNode({ data, selected }: CutsceneNodePro
 
 // Пауза: ждём N секунд.
 export const WaitNode = memo(function WaitNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const { preferences } = usePreferencesContext()
+  const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
   const seconds = data.params?.seconds ?? '?'
   return (
     <BaseNode  nodeType="wait" selected={selected}>
       <div className="customNodeParam">
-        <span className="customNodeParamKey">Time</span>
+        <span className="customNodeParamKey">{t('nodes.fields.seconds', 'Time')}</span>
         <span className="customNodeParamValue">{String(seconds)}s</span>
       </div>
     </BaseNode>
@@ -94,6 +97,40 @@ export const SetPositionNode = memo(function SetPositionNode({ data, selected }:
   )
 })
 
+// Относительное перемещение актёра.
+export const MoveRelativeNode = memo(function MoveRelativeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const dx = data.params?.dx ?? '?'
+  const dy = data.params?.dy ?? '?'
+  return (
+    <BaseNode  nodeType="move_relative" selected={selected}>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Actor</span>
+        <span className="customNodeParamValue">{String(target)}</span>
+      </div>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Offset</span>
+        <span className="customNodeParamValue">{String(dx)}, {String(dy)}</span>
+      </div>
+    </BaseNode>
+  )
+})
+
+// Мгновенная установка относительной позиции.
+export const SetPositionRelativeNode = memo(function SetPositionRelativeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const dx = data.params?.dx ?? '?'
+  const dy = data.params?.dy ?? '?'
+  return (
+    <BaseNode  nodeType="set_position_relative" selected={selected}>
+      <div className="customNodeParam">{String(target)}</div>
+      <div className="customNodeParam">
+        + {String(dx)}, {String(dy)}
+      </div>
+    </BaseNode>
+  )
+})
+
 // --- Actor-ноды ---
 
 // Создание актёра.
@@ -136,6 +173,31 @@ export const AnimateNode = memo(function AnimateNode({ data, selected }: Cutscen
           <span className="customNodeParamValue">{String(sprite)}</span>
         </div>
       )}
+    </BaseNode>
+  )
+})
+
+// Установка конкретного кадра анимации (без смены спрайта).
+export const SetAnimationFrameNode = memo(function SetAnimationFrameNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const imageIndex = data.params?.image_index ?? 0
+  const imageSpeed = data.params?.image_speed ?? 1
+  const pause = data.params?.pause ?? false
+  return (
+    <BaseNode  nodeType="set_animation_frame" selected={selected}>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Actor</span>
+        <span className="customNodeParamValue">{String(target)}</span>
+      </div>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Frame</span>
+        <span className="customNodeParamValue">{String(imageIndex)}</span>
+      </div>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Speed</span>
+        <span className="customNodeParamValue">{String(imageSpeed)}</span>
+        {pause && <span className="customNodeParamValue"> (paused)</span>}
+      </div>
     </BaseNode>
   )
 })
@@ -308,6 +370,8 @@ export const ParallelStartNode = memo(function ParallelStartNode(props: Cutscene
     [portMode, branches]
   )
 
+  const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
+
   return (
     <BaseNode       nodeType="parallel_start"
       selected={selected}
@@ -321,7 +385,7 @@ export const ParallelStartNode = memo(function ParallelStartNode(props: Cutscene
           type="button"
           onClick={() => addBranchRef.current?.(id)}
         >
-          + Branch
+          {t('editor.addBranch', '+ Branch')}
         </button>
         <button
           className="customNodeButton customNodeButtonDanger"
@@ -329,7 +393,7 @@ export const ParallelStartNode = memo(function ParallelStartNode(props: Cutscene
           onClick={() => removeBranchRef.current?.(id)}
           disabled={branches.length <= 1}
         >
-          - Branch
+          {t('editor.removeBranch', '- Branch')}
         </button>
       </div>
     </BaseNode>
@@ -376,6 +440,8 @@ export const ParallelJoinNode = memo(function ParallelJoinNode(props: CutsceneNo
     [portMode, branches]
   )
 
+  const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
+
   return (
     <BaseNode       nodeType="parallel_join"
       selected={selected}
@@ -390,7 +456,7 @@ export const ParallelJoinNode = memo(function ParallelJoinNode(props: CutsceneNo
           // Для join мы добавляем ветку через start-id (pairId).
           onClick={() => addBranchRef.current?.(pairId || id)}
         >
-          + Branch
+          {t('editor.addBranch', '+ Branch')}
         </button>
         <button
           className="customNodeButton customNodeButtonDanger"
@@ -398,7 +464,7 @@ export const ParallelJoinNode = memo(function ParallelJoinNode(props: CutsceneNo
           onClick={() => removeBranchRef.current?.(pairId || id)}
           disabled={branches.length <= 1}
         >
-          - Branch
+          {t('editor.removeBranch', '- Branch')}
         </button>
       </div>
     </BaseNode>
@@ -408,6 +474,8 @@ export const ParallelJoinNode = memo(function ParallelJoinNode(props: CutsceneNo
 // Ветвление по условию: вход, выход true (вверху справа), выход false (внизу справа).
 // Увеличена высота и разнесены handles для удобства.
 export const BranchNode = memo(function BranchNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const { preferences } = usePreferencesContext()
+  const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
   const condition = data.params?.condition ?? ''
   return (
     <BaseNode       nodeType="branch"
@@ -438,7 +506,7 @@ export const BranchNode = memo(function BranchNode({ data, selected }: CutsceneN
               userSelect: 'none'
             }}
           >
-            TRUE
+            {t('editor.true', 'TRUE')}
           </span>
 
           {/* Выход "false" — нижняя правая точка */}
@@ -464,7 +532,7 @@ export const BranchNode = memo(function BranchNode({ data, selected }: CutsceneN
               userSelect: 'none'
             }}
           >
-            FALSE
+            {t('editor.false', 'FALSE')}
           </span>
         </>
       }
@@ -480,10 +548,19 @@ export const BranchNode = memo(function BranchNode({ data, selected }: CutsceneN
 export const CameraShakeNode = memo(function CameraShakeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const seconds = data.params?.seconds ?? '?'
   const magnitude = data.params?.magnitude ?? 4
+  const magnitudeX = data.params?.magnitude_x
+  const magnitudeY = data.params?.magnitude_y
+  const hasSeparateMagnitudes = typeof magnitudeX === 'number' || typeof magnitudeY === 'number'
   return (
     <BaseNode  nodeType="camera_shake" selected={selected}>
       <div className="customNodeParam">{String(seconds)}s</div>
-      <div className="customNodeParam">mag: {String(magnitude)}</div>
+      {hasSeparateMagnitudes ? (
+        <div className="customNodeParam">
+          mag: {String(magnitudeX ?? magnitude)},{String(magnitudeY ?? magnitude)}
+        </div>
+      ) : (
+        <div className="customNodeParam">mag: {String(magnitude)}</div>
+      )}
     </BaseNode>
   )
 })
@@ -577,6 +654,57 @@ export const PlaySFXNode = memo(function PlaySFXNode({ data, selected }: Cutscen
   )
 })
 
+export const PlayMusicNode = memo(function PlayMusicNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const sound = data.params?.sound ?? ''
+  const volume = data.params?.volume ?? 1
+  return (
+    <BaseNode nodeType="play_music" selected={selected}>
+      {sound && <div className="customNodeParam">{String(sound)}</div>}
+      <div className="customNodeParam">vol: {String(volume)}</div>
+    </BaseNode>
+  )
+})
+
+export const StopMusicNode = memo(function StopMusicNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const fade = data.params?.fade ?? 1
+  return (
+    <BaseNode nodeType="stop_music" selected={selected}>
+      <div className="customNodeParam">fade: {String(fade)}s</div>
+    </BaseNode>
+  )
+})
+
+export const MusicVolumeNode = memo(function MusicVolumeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const volume = data.params?.volume ?? 1
+  const fade = data.params?.fade ?? 0.5
+  return (
+    <BaseNode nodeType="music_volume" selected={selected}>
+      <div className="customNodeParam">vol: {String(volume)}</div>
+      <div className="customNodeParam">fade: {String(fade)}s</div>
+    </BaseNode>
+  )
+})
+
+export const MusicDuckNode = memo(function MusicDuckNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const multiplier = data.params?.multiplier ?? 0.3
+  const fade = data.params?.fade ?? 0.3
+  return (
+    <BaseNode nodeType="music_duck" selected={selected}>
+      <div className="customNodeParam">x{String(multiplier)}</div>
+      <div className="customNodeParam">fade: {String(fade)}s</div>
+    </BaseNode>
+  )
+})
+
+export const MusicUnduckNode = memo(function MusicUnduckNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const fade = data.params?.fade ?? 0.3
+  return (
+    <BaseNode nodeType="music_unduck" selected={selected}>
+      <div className="customNodeParam">fade: {String(fade)}s</div>
+    </BaseNode>
+  )
+})
+
 export const EmoteNode = memo(function EmoteNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const sprite = data.params?.sprite ?? ''
@@ -637,10 +765,19 @@ export const SpinNode = memo(function SpinNode({ data, selected }: CutsceneNodeP
 export const ShakeObjectNode = memo(function ShakeObjectNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const magnitude = data.params?.magnitude ?? 4
+  const magnitudeX = data.params?.magnitude_x
+  const magnitudeY = data.params?.magnitude_y
+  const hasSeparateMagnitudes = typeof magnitudeX === 'number' || typeof magnitudeY === 'number'
   return (
     <BaseNode  nodeType="shake_object" selected={selected}>
       <div className="customNodeParam">{String(target)}</div>
-      <div className="customNodeParam">mag: {String(magnitude)}</div>
+      {hasSeparateMagnitudes ? (
+        <div className="customNodeParam">
+          mag: {String(magnitudeX ?? magnitude)},{String(magnitudeY ?? magnitude)}
+        </div>
+      ) : (
+        <div className="customNodeParam">mag: {String(magnitude)}</div>
+      )}
     </BaseNode>
   )
 })
@@ -742,6 +879,27 @@ export const WaitInteractNode = memo(function WaitInteractNode({ data, selected 
       <div className="customNodeParam">{String(target)}</div>
       {Number(timeout) > 0 && <div className="customNodeParam">timeout: {String(timeout)}s</div>}
       {timeoutAction !== 'continue' && <div className="customNodeParam">on timeout: {String(timeoutAction)}</div>}
+    </BaseNode>
+  )
+})
+
+// Wait Until — ждёт, пока global-переменная не станет равна указанному значению.
+export const WaitUntilNode = memo(function WaitUntilNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const conditionVar = data.params?.condition_var ?? ''
+  const conditionEquals = data.params?.condition_equals ?? ''
+  const timeout = data.params?.timeout_seconds ?? 0
+  return (
+    <BaseNode nodeType="wait_until" selected={selected}>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Wait</span>
+        <span className="customNodeParamValue">{String(conditionVar)} = {String(conditionEquals)}</span>
+      </div>
+      {Number(timeout) > 0 && (
+        <div className="customNodeParam">
+          <span className="customNodeParamKey">Timeout</span>
+          <span className="customNodeParamValue">{String(timeout)}s</span>
+        </div>
+      )}
     </BaseNode>
   )
 })

@@ -1,33 +1,20 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, useMemo } from 'react'
+import { createTranslator } from '../i18n'
+import { usePreferencesContext } from './PreferencesContext'
+import { ConfirmContext, type ConfirmOptions } from './confirmContext'
 
 // ConfirmDialog — замена window.confirm на кастомную модалку.
 // Поддерживает title, message, danger-стиль и promise-based API через useConfirm().
-
-export type ConfirmOptions = {
-  title?: string
-  message: string
-  confirmLabel?: string
-  cancelLabel?: string
-  danger?: boolean
-}
 
 type ConfirmState = ConfirmOptions & {
   resolve: (value: boolean) => void
 }
 
-export type ConfirmContextValue = {
-  confirm: (opts: ConfirmOptions) => Promise<boolean>
-}
-
-const ConfirmContext = createContext<ConfirmContextValue | null>(null)
-
-export function useConfirm(): (opts: ConfirmOptions) => Promise<boolean> {
-  const ctx = useContext(ConfirmContext)
-  if (!ctx) throw new Error('useConfirm must be used inside ConfirmProvider')
-  return ctx.confirm
-}
 
 export function ConfirmProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
+  const { preferences } = usePreferencesContext()
+  const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
+
   const [state, setState] = useState<ConfirmState | null>(null)
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const confirmBtnRef = useRef<HTMLButtonElement | null>(null)
@@ -81,7 +68,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }): Re
         >
           <div className="prefsModal" onClick={(e) => e.stopPropagation()} style={{ minWidth: 320, maxWidth: 480 }}>
             <div className="prefsHeader">
-              <span className="prefsTitle">{state.title ?? 'Confirm'}</span>
+              <span className="prefsTitle">{state.title ?? t('dialog.confirmTitle', 'Confirm')}</span>
               <button className="prefsCloseBtn" onClick={() => handleResolve(false)}>
                 ✕
               </button>
@@ -103,7 +90,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }): Re
                     color: 'var(--ev-c-text-2)'
                   }}
                 >
-                  {state.cancelLabel ?? 'Cancel'}
+                  {state.cancelLabel ?? t('dialog.cancelLabel', 'Cancel')}
                 </button>
                 <button
                   ref={confirmBtnRef}
@@ -116,7 +103,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }): Re
                       : undefined
                   }
                 >
-                  {state.confirmLabel ?? 'Confirm'}
+                  {state.confirmLabel ?? t('dialog.confirmLabel', 'Confirm')}
                 </button>
               </div>
             </div>
@@ -126,3 +113,4 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }): Re
     </ConfirmContext.Provider>
   )
 }
+

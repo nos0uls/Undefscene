@@ -411,11 +411,11 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           {field.type === 'checkbox' ? (
             <label className="runtimeField" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               {fieldContent}
-              <span>{field.label}</span>
+              <span>{t('nodes.fields.' + field.key, field.label)}</span>
             </label>
           ) : (
             <label className="runtimeField">
-              <span>{field.label}</span>
+              <span>{t('nodes.fields.' + field.key, field.label)}</span>
               {fieldContent}
             </label>
           )}
@@ -458,7 +458,9 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
                   onChange={(event) => changeNodeType(selectedNode.id, event.target.value)}
                 >
                   {NODE_TYPES.map((nt) => (
-                    <option key={nt} value={nt}>{nt}</option>
+                    <option key={nt} value={nt}>
+                      {t('nodes.types.' + nt, nt)}
+                    </option>
                   ))}
                   {!NODE_TYPES.includes(selectedNode.type as typeof NODE_TYPES[number]) && (
                     <option value={selectedNode.type}>{selectedNode.type} (custom)</option>
@@ -589,7 +591,6 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
       {selectedEdge ? (
         <>
           <div className="runtimeSectionTitle" style={{ marginTop: 8 }}>{t('editor.selectedEdge', 'Selected Edge')}</div>
-          <div className="runtimeHint" style={{ opacity: 0.6 }}>{t('editor.file', 'File')}: {selectedEdge.id}</div>
           <label className="runtimeField">
             <span>{t('editor.waitOnEdge', 'Wait on edge (seconds)')}</span>
             <input ref={(el) => { edgeWaitInputRef.current = el; if (el && shouldFocusEdgeWaitRef.current) { shouldFocusEdgeWaitRef.current = false; requestAnimationFrame(() => el.focus()) } }} className="runtimeInput" type="number" step="0.1" value={String(selectedEdge.waitSeconds ?? '')} onChange={(event) => { const v = event.target.value; if (v === '') { updateEdge(selectedEdge.id, { waitSeconds: undefined }) } else { updateEdge(selectedEdge.id, { waitSeconds: Math.max(0, Number(v)) }) } }} />
