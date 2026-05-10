@@ -302,6 +302,10 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   // свежие значения, а не устаревшие замыкания (stale closures).
   const selectedNodeIdRef = useRef(selectedNodeId)
   const selectedNodeIdsRef = useRef(selectedNodeIds)
+  // Флаг перетаскивания для оптимизации (отключаем pointer-events на остальных нодах)
+  const [isDragging, setIsDragging] = useState(false)
+  const onNodeDragStart = useCallback(() => setIsDragging(true), [])
+  const onNodeDragStop = useCallback(() => setIsDragging(false), [])
   const selectedEdgeIdRef = useRef(selectedEdgeId)
 
   // Обновляем selection refs в useEffect.
@@ -781,9 +785,9 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
       const newEdge: RuntimeEdge = {
         id: `edge-${resolvedConnection.source}-${resolvedConnection.sourceHandle ?? 'out'}-${resolvedConnection.target}-${resolvedConnection.targetHandle ?? 'in'}`,
         source: resolvedConnection.source,
-        sourceHandle: resolvedConnection.sourceHandle ?? undefined,
+        sourceHandle: (resolvedConnection.sourceHandle as string) || 'out',
         target: resolvedConnection.target,
-        targetHandle: resolvedConnection.targetHandle ?? undefined
+        targetHandle: (resolvedConnection.targetHandle as string) || 'in'
       }
       setEdges((prev) => addEdge(resolvedConnection, prev))
       onEdgeAddRef.current(newEdge)
@@ -1154,7 +1158,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   return (
     <div
       ref={flowCanvasRef}
-      className={`flowCanvas${showNodeNameOnCanvas ? ' show-node-labels' : ''}${liquidGlassEnabled ? ' liquid-glass-enabled' : ''}`}
+      className={`flowCanvas${showNodeNameOnCanvas ? ' show-node-labels' : ''}${liquidGlassEnabled ? ' liquid-glass-enabled' : ''}${isDragging ? ' is-dragging' : ''}`}
       // Запрещаем стандартное контекстное меню браузера на холсте.
       onContextMenu={(e) => e.preventDefault()}
       // MMB по пустому месту — создаём ноду.
@@ -1209,6 +1213,8 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
           onConnect={onConnect}
+          onNodeDragStart={onNodeDragStart}
+          onNodeDragStop={onNodeDragStop}
         // Initial fitView делаем через rAF после монтирования, чтобы xyflow успел
         // замерить ноды и посчитать bounds. Убираем водяной знак React Flow.
         proOptions={RF_PRO_OPTIONS}
@@ -1304,3 +1310,4 @@ export const FlowCanvas = memo((props: FlowCanvasProps): React.JSX.Element => {
     </ReactFlowProvider>
   )
 })
+

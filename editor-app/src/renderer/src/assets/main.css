@@ -1408,6 +1408,21 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   contain: layout;
 }
 
+/* Оптимизация производительности при перетаскивании:
+   отключаем pointer-events на всех нодах, КРОМЕ той, которую тянем.
+   Это предотвращает лишние hover-расчёты и collision-check'и в браузере
+   при перекрытии 500+ нод на холсте. */
+.flowCanvas.is-dragging .customNode:not(.dragging) {
+  pointer-events: none;
+}
+
+/* Исправление z-index для выпадающих списков в инспекторе.
+   Используем :has(), чтобы поднять приоритет родительского поля, 
+   когда вложенный SearchableSelect открыт. */
+label.runtimeField:has(.searchable-select-open) {
+  z-index: 1000;
+}
+
 /* === LOD (Level of Detail) для большого зум-аута ===
    На далёком zoom'е детали нечитаемы и только жрут paint. Класс zoomLow
    ставится контроллером ZoomLODController на корень .react-flow,

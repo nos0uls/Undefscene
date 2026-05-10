@@ -83,10 +83,10 @@ export const BaseNode = memo(function BaseNode({
       {children ? <div className="customNodeBody">{children}</div> : null}
 
       {/* Входной порт (слева) */}
-      {hasInput && <Handle type="target" position={Position.Left} className="customHandle" />}
+      {hasInput && <Handle type="target" position={Position.Left} id="in" className="customHandle" />}
 
       {/* Выходной порт (справа) */}
-      {hasOutput && <Handle type="source" position={Position.Right} className="customHandle" />}
+      {hasOutput && <Handle type="source" position={Position.Right} id="out" className="customHandle" />}
 
       {/* Дополнительные порты (для branch и т.д.) */}
       {extraHandles}

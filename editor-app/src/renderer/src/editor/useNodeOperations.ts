@@ -54,14 +54,30 @@ export const createNodeStateUpdate = (
       source: startId, sourceHandle: '__pair',
       target: joinId, targetHandle: '__pair'
     }
+    const sourceNode = connectFromNodeId ? prev.nodes.find((n) => n.id === connectFromNodeId) : null
+    let sourceHandle: string | undefined = undefined
+    if (sourceNode?.type === 'branch') {
+      sourceHandle = 'out_true'
+    }
+
     const extraEdges = connectFromNodeId
-      ? [{ id: `edge-${connectFromNodeId}-${startId}`, source: connectFromNodeId, target: startId }]
+      ? [
+          {
+            id: `edge-${connectFromNodeId}-${startId}`,
+            source: connectFromNodeId,
+            target: startId,
+            sourceHandle: sourceHandle ?? 'out',
+            targetHandle: 'in'
+          }
+        ]
       : []
     return {
       ...prev,
       nodes: [...prev.nodes, startNode, joinNode],
       edges: [...prev.edges, ...extraEdges, pairEdge],
-      selectedNodeId: startId, selectedNodeIds: [startId], selectedEdgeId: null
+      selectedNodeId: startId,
+      selectedNodeIds: [startId],
+      selectedEdgeId: null
     }
   }
 
@@ -76,14 +92,32 @@ export const createNodeStateUpdate = (
       ...(overrideParams ?? {})
     }
   }
+
+  const sourceNode = connectFromNodeId ? prev.nodes.find((n) => n.id === connectFromNodeId) : null
+  let sourceHandle: string | undefined = undefined
+  if (sourceNode?.type === 'branch') {
+    sourceHandle = 'out_true'
+  }
+
   const newEdges = connectFromNodeId
-    ? [...prev.edges, { id: `edge-${connectFromNodeId}-${newId}`, source: connectFromNodeId, target: newId }]
+    ? [
+        ...prev.edges,
+        {
+          id: `edge-${connectFromNodeId}-${newId}`,
+          source: connectFromNodeId,
+          target: newId,
+          sourceHandle: sourceHandle ?? 'out',
+          targetHandle: 'in'
+        }
+      ]
     : prev.edges
   return {
     ...prev,
     nodes: [...prev.nodes, newNode],
     edges: newEdges,
-    selectedNodeId: newId, selectedNodeIds: [newId], selectedEdgeId: null
+    selectedNodeId: newId,
+    selectedNodeIds: [newId],
+    selectedEdgeId: null
   }
 }
 

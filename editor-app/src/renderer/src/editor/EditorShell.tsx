@@ -163,16 +163,19 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     const portMode = preferences.parallelBranchPortMode
     const nodeTypes = new Map(runtime.nodes.map((n) => [n.id, n.type]))
 
-    const edgesBySource = new Map<string, typeof runtime.edges>()
-    const edgesByTarget = new Map<string, typeof runtime.edges>()
+    const edgesBySource = new Map<string, RuntimeEdge[]>()
+    const edgesByTarget = new Map<string, RuntimeEdge[]>()
 
     for (const edge of runtime.edges) {
-      if (nodeTypes.get(edge.source) === 'parallel_start') {
+      const sourceType = nodeTypes.get(edge.source)
+      const targetType = nodeTypes.get(edge.target)
+
+      if (sourceType === 'parallel_start' && edge.sourceHandle !== '__pair') {
         const list = edgesBySource.get(edge.source) ?? []
         list.push(edge)
         edgesBySource.set(edge.source, list)
       }
-      if (nodeTypes.get(edge.target) === 'parallel_join') {
+      if (targetType === 'parallel_join' && edge.targetHandle !== '__pair') {
         const list = edgesByTarget.get(edge.target) ?? []
         list.push(edge)
         edgesByTarget.set(edge.target, list)
@@ -182,29 +185,44 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     let changed = false
     const nextEdges = runtime.edges.map((edge) => {
       const nextEdge = { ...edge }
-      if (nodeTypes.get(edge.source) === 'parallel_start') {
+      const sourceType = nodeTypes.get(edge.source)
+      const targetType = nodeTypes.get(edge.target)
+
+      if (sourceType === 'parallel_start' && edge.sourceHandle !== '__pair') {
         const list = edgesBySource.get(edge.source)!
         const idx = list.indexOf(edge)
-        const nextHandle = portMode === 'shared' ? 'out_shared' : `out_b${idx}`
+        let nextHandle = portMode === 'shared' ? 'out_shared' : `out_b${idx}`
+
+        if (portMode === 'separate' && edge.sourceHandle?.startsWith('out_b')) {
+          nextHandle = edge.sourceHandle
+        }
+
         if (edge.sourceHandle !== nextHandle) {
           nextEdge.sourceHandle = nextHandle
           changed = true
         }
       }
-      if (nodeTypes.get(edge.target) === 'parallel_join') {
+
+      if (targetType === 'parallel_join' && edge.targetHandle !== '__pair') {
         const list = edgesByTarget.get(edge.target)!
         const idx = list.indexOf(edge)
-        const nextHandle = portMode === 'shared' ? 'in_shared' : `in_b${idx}`
+        let nextHandle = portMode === 'shared' ? 'in_shared' : `in_b${idx}`
+
+        if (portMode === 'separate' && edge.targetHandle?.startsWith('in_b')) {
+          nextHandle = edge.targetHandle
+        }
+
         if (edge.targetHandle !== nextHandle) {
           nextEdge.targetHandle = nextHandle
           changed = true
         }
       }
+
       return nextEdge
     })
 
     if (changed) {
-      setRuntime((prev) => ({ ...prev, edges: nextEdges }))
+      setRuntime((prev) => ({ ...prev, edges: nextEdges }), { skipHistory: true })
     }
   }, [preferences.parallelBranchPortMode, preferencesLoaded, runtime.nodes, runtime.edges, setRuntime])
 

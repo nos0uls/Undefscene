@@ -109,14 +109,17 @@ export const useRuntimeState = (): {
   // пересоздаёт onParallelAddBranch → пересоздаёт зависимости useEffect в FlowCanvas
   // → лишние вызовы setNodes → потенциальный бесконечный цикл.
   const setRuntime = useCallback(
-    (nextOrUpdater: RuntimeState | ((prev: RuntimeState) => RuntimeState)) => {
+    (
+      nextOrUpdater: RuntimeState | ((prev: RuntimeState) => RuntimeState),
+      options?: { skipHistory?: boolean }
+    ) => {
       setHistory((prev) => {
         const nextState =
           typeof nextOrUpdater === 'function' ? nextOrUpdater(prev.present) : nextOrUpdater
 
         if (nextState === prev.present) return prev
 
-        if (!hasMeaningfulSceneChange(prev.present, nextState)) {
+        if (options?.skipHistory || !hasMeaningfulSceneChange(prev.present, nextState)) {
           return {
             ...prev,
             present: nextState

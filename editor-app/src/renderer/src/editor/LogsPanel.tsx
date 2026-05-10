@@ -163,7 +163,7 @@ export const LogsPanel = React.memo(function LogsPanel({
                 const s = severityStyle[entry.severity] ?? severityStyle.warn
                 rows.push(
                   <LogEntryRow
-                    key={`${entry.severity}-${entry.nodeId || entry.edgeId || i}-${entry.message.slice(0, 20)}`}
+                    key={`${entry.severity}-${entry.nodeId || entry.edgeId || ''}-${entry.message.slice(0, 20)}-${i}`}
                     entry={entry}
                     style={s}
                     top={i * ROW_HEIGHT}
