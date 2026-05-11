@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React from 'react'
 import { usePanelData } from './PanelDataContext'
 import type { RuntimeNode } from './runtimeTypes'
 
@@ -7,28 +7,18 @@ export type BookmarksPanelProps = {
   t: (key: string, fallback: string) => string
 }
 
-// Высота одной строки списка и размер видимого окна.
-// Используем windowed-рендер: монтируем только видимые + overscan ряды.
-const ROW_HEIGHT = 36
-const LIST_HEIGHT = 260
-const OVERSCAN = 6
-
-// Одна строка списка. Вынесена в memo-компонент, чтобы при скролле
-// перерендеривались только новые ряды, а не весь список целиком.
 const BookmarkRow = React.memo(function BookmarkRow({
   node,
   selected,
-  top,
   selectNode
 }: {
   node: RuntimeNode
   selected: boolean
-  top: number
   selectNode: (nodeId: string) => void
 }) {
   const label = String(node.name ?? '').trim() ? String(node.name) : node.type
   return (
-    <li className="runtimeVirtualListRow" style={{ transform: `translateY(${top}px)`, height: ROW_HEIGHT }}>
+    <li>
       <button
         className={['runtimeListItem', selected ? 'isActive' : ''].filter(Boolean).join(' ')}
         type="button"
@@ -50,10 +40,6 @@ export const BookmarksPanel = React.memo(function BookmarksPanel({
   const { runtime, selectedNode } = usePanelData()
   const nodes = runtime.nodes
   const selectedNodeId = selectedNode?.id ?? null
-  const [scrollTop, setScrollTop] = useState(0)
-  const onScroll = useCallback((e: React.UIEvent<HTMLUListElement>) => {
-    setScrollTop(e.currentTarget.scrollTop)
-  }, [])
 
   return (
     <div className="runtimeSection" style={{ height: '100%' }}>
@@ -62,33 +48,17 @@ export const BookmarksPanel = React.memo(function BookmarksPanel({
         <div className="runtimeHint">{t('editor.noNodesYet', 'No nodes yet. Click “Add Node”.')}</div>
       ) : (
         <ul
-          className="runtimeVirtualList"
-          style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}
-          onScroll={onScroll}
+          className="runtimeList"
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 0, margin: 0, listStyle: 'none' }}
         >
-          <div style={{ height: nodes.length * ROW_HEIGHT, position: 'relative' }}>
-            {(() => {
-              const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN)
-              const end = Math.min(
-                nodes.length,
-                Math.ceil((scrollTop + LIST_HEIGHT) / ROW_HEIGHT) + OVERSCAN
-              )
-              const visible: React.JSX.Element[] = []
-              for (let i = start; i < end; i++) {
-                const node = nodes[i]
-                visible.push(
-                  <BookmarkRow
-                    key={node.id}
-                    node={node}
-                    selected={node.id === selectedNodeId}
-                    top={i * ROW_HEIGHT}
-                    selectNode={selectNode}
-                  />
-                )
-              }
-              return visible
-            })()}
-          </div>
+          {nodes.map((node) => (
+            <BookmarkRow
+              key={node.id}
+              node={node}
+              selected={node.id === selectedNodeId}
+              selectNode={selectNode}
+            />
+          ))}
         </ul>
       )}
     </div>

@@ -821,8 +821,8 @@ export function validateGraph(
         const hasEdge = outgoingEdges.some((edge) => edge.sourceHandle === `out_${branchId}`)
         if (!hasEdge) {
           entries.push({
-            severity: 'warn',
-            defaultSeverity: 'warn',
+            severity: 'tip',
+            defaultSeverity: 'tip',
             ruleId: 'parallelStartBranchNotConnected',
             nodeId: node.id,
             message: t('validation.parallelStartBranchNoOutgoing', { id: node.id, branchId })
@@ -957,8 +957,8 @@ export function validateGraph(
         const hasEdge = incomingEdges.some((edge) => edge.targetHandle === `in_${branchId}`)
         if (!hasEdge) {
           entries.push({
-            severity: 'warn',
-            defaultSeverity: 'warn',
+            severity: 'tip',
+            defaultSeverity: 'tip',
             ruleId: 'parallelJoinBranchNoIncoming',
             nodeId: node.id,
             message: t('validation.parallelJoinBranchNoIncoming', { id: node.id, branchId })

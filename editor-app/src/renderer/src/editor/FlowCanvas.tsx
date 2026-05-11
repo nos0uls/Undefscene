@@ -443,14 +443,16 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   const initialEdges = useMemo<Edge[]>(() => {
     if (!runtimeEdges) return []
     return runtimeEdges.map((e) => {
-      const isInternalPair = e.sourceHandle === '__pair' && e.targetHandle === '__pair'
+      const sourceHandle = e.sourceHandle ?? undefined
+      const targetHandle = e.targetHandle ?? undefined
+      const isInternalPair = sourceHandle === '__pair' && targetHandle === '__pair'
 
       return {
         id: e.id,
         source: e.source,
-        sourceHandle: e.sourceHandle,
+        sourceHandle,
         target: e.target,
-        targetHandle: e.targetHandle,
+        targetHandle,
         // CustomEdge читает timingLabel из data и рендерит badge с фоном.
         data: {
           timingLabel: typeof e.waitSeconds === 'number' ? `${e.waitSeconds}s` : undefined,
