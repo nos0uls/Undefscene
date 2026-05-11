@@ -409,6 +409,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     warnings: true,
     tips: false
   })
+  const [focusNodeRequest, setFocusNodeRequest] = useState<{ nodeId: string; nonce: number } | null>(null)
 
   const selectedNodeForName = useMemo(
     () => runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null,
@@ -548,6 +549,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
         selectedNodeIds: [nodeId],
         selectedEdgeId: null
       }))
+      setFocusNodeRequest({ nodeId, nonce: Date.now() })
     },
     [setRuntime]
   )
@@ -568,6 +570,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
         selectedNodeIds: [nodeId],
         selectedEdgeId: null
       }))
+      setFocusNodeRequest({ nodeId, nonce: Date.now() })
     },
     [setRuntime]
   )
@@ -1044,6 +1047,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
             selectedNodeId={runtime.selectedNodeId}
             selectedNodeIds={runtime.selectedNodeIds ?? []}
             selectedEdgeId={runtime.selectedEdgeId}
+            focusNodeRequest={focusNodeRequest}
             onSelectNodes={handleSelectNodes}
             onSelectEdge={handleSelectEdge}
             onNodePositionChange={handleNodePositionChange}
@@ -1067,6 +1071,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
       runtime.selectedNodeId,
       runtime.selectedNodeIds,
       runtime.selectedEdgeId,
+      focusNodeRequest,
       handleSelectNodes,
       handleSelectEdge,
       handleNodePositionChange,

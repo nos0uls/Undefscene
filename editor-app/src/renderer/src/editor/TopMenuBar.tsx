@@ -380,7 +380,8 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
                             key={child.id}
                             className="topMenuDropdownItem"
                             role="menuitem"
-                            onClick={() => {
+                            onClick={(event) => {
+                              event.stopPropagation()
                               child.onSelect?.()
                               setActiveMenuId(null)
                             }}

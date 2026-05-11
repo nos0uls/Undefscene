@@ -68,6 +68,9 @@ type FlowCanvasProps = {
   // ID выбранной связи.
   selectedEdgeId: string | null
 
+  // Одноразовый запрос на центрирование камеры на ноде из внешних панелей.
+  focusNodeRequest?: { nodeId: string; nonce: number } | null
+
   // Коллбек, когда пользователь выбирает одну или несколько нод.
   // Пустой массив = снять выделение.
   onSelectNodes: (nodeIds: string[]) => void
@@ -203,6 +206,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   selectedNodeId,
   selectedNodeIds,
   selectedEdgeId,
+  focusNodeRequest,
   onSelectNodes,
   onSelectEdge,
   onNodePositionChange,
@@ -217,7 +221,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   onEdgeDoubleClick
 }: FlowCanvasProps): React.JSX.Element {
   // Нужен для конвертации экранных координат в координаты холста.
-  const { screenToFlowPosition, getNodes, getViewport, setViewport, fitView } = useReactFlow()
+  const { screenToFlowPosition, getNodes, getViewport, setViewport, fitView, setCenter } = useReactFlow()
 
   // Читаем только те настройки, которые реально нужны холсту.
   // Деструктуризация не предотвращает ререндер при смене других полей,
@@ -486,7 +490,11 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
             break
           }
         }
-        if (!structuralChange) return prev
+        const positionChanged = initialNodes.some((node) => {
+          const pn = prevById.get(node.id)
+          return !pn || pn.position.x !== node.position.x || pn.position.y !== node.position.y
+        })
+        if (!structuralChange && !positionChanged) return prev
       }
 
       const next = initialNodes.map((node) => {
@@ -612,6 +620,18 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
       })
     }
   }, [selectedEdgeId, setEdges])
+
+  useEffect(() => {
+    if (!focusNodeRequest) return
+    const node = runtimeNodesRef.current.find((n) => n.id === focusNodeRequest.nodeId)
+    const position = node?.position
+    if (!position) return
+
+    void setCenter(position.x + 90, position.y + 45, {
+      zoom: Math.max(getViewport().zoom, 0.9),
+      duration: 260
+    })
+  }, [focusNodeRequest, getViewport, setCenter])
 
   // Ref чтобы не пересоздавать коллбек при каждом рендере.
   const positionCallbackRef = useRef(onNodePositionChange)
@@ -921,6 +941,18 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
     }
 
     setDragPreview(null)
+  }, [])
+
+  useEffect(() => {
+    const clearPreview = () => setDragPreview(null)
+    window.addEventListener('dragend', clearPreview)
+    window.addEventListener('drop', clearPreview)
+    window.addEventListener('blur', clearPreview)
+    return () => {
+      window.removeEventListener('dragend', clearPreview)
+      window.removeEventListener('drop', clearPreview)
+      window.removeEventListener('blur', clearPreview)
+    }
   }, [])
 
   // Drop создаёт ноду выбранного типа прямо на canvas-позиции preview.
@@ -1310,4 +1342,3 @@ export const FlowCanvas = memo((props: FlowCanvasProps): React.JSX.Element => {
     </ReactFlowProvider>
   )
 })
-

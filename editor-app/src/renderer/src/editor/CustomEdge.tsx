@@ -7,6 +7,7 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
+  Position,
   type EdgeProps
 } from '@xyflow/react'
 
@@ -62,12 +63,24 @@ const CustomEdgeInner = memo(function CustomEdgeInner({
   style = {},
   markerEnd: _markerEnd  // игнорируем дефолтный, ставим свой
 }: EdgeProps): React.JSX.Element {
+  const targetInset = 10
+  const adjustedTargetX = targetPosition === Position.Left
+    ? targetX - targetInset
+    : targetPosition === Position.Right
+      ? targetX + targetInset
+      : targetX
+  const adjustedTargetY = targetPosition === Position.Top
+    ? targetY - targetInset
+    : targetPosition === Position.Bottom
+      ? targetY + targetInset
+      : targetY
+
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,
-    targetX,
-    targetY,
+    targetX: adjustedTargetX,
+    targetY: adjustedTargetY,
     targetPosition
   })
 

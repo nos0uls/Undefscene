@@ -513,6 +513,9 @@ export const ru = {
     runFunctionArgsInvalid: '{name}: некорректный JSON в аргументах. Проверьте синтаксис в инспекторе.',
     dialogueFileNotSet: '{name}: файл диалога не выбран. Выберите .yarn файл в инспекторе.',
     cameraShakeSecondsInvalid: '{name}: длительность меньше или равна нулю. Укажите положительное число.',
+    shakeFrequencyTooLow: '{name}: частота тряски должна быть не меньше 1.',
+    shakeMagnitudeXNegative: '{name}: сила тряски по X не может быть отрицательной.',
+    shakeMagnitudeYNegative: '{name}: сила тряски по Y не может быть отрицательной.',
     followPathEmpty: '{name}: путь пуст. Нарисуйте или импортируйте его в инспекторе.',
     followPathOnePoint: '{name}: в пути всего 1 точка. Возможно, стоит использовать set_position.',
     haltHasOutgoing: '{name}: нода halt блокирует выполнение, но имеет исходящие связи. Удалите их.',
@@ -575,7 +578,8 @@ export const ru = {
     text: 'Текст',
     inspector: 'Инспектор',
     logs: 'Логи / Ошибки',
-    runtimeJson: 'JSON'
+    runtimeJson: 'JSON',
+    templates: 'Шаблоны'
   },
   hotkey: {
     undo: 'Отменить',

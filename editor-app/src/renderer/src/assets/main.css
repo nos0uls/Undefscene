@@ -1220,9 +1220,18 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 
 .topMenuDropdownSubmenu {
   top: -4px;
-  left: calc(100% + 6px);
+  left: 100%;
   margin-top: 0;
   display: none;
+}
+
+.topMenuDropdownSubmenu::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -8px;
+  width: 8px;
 }
 
 .topMenuDropdownItem.hasSubmenu:hover .topMenuDropdownSubmenu {
@@ -1711,10 +1720,20 @@ label.runtimeField:has(.searchable-select-open) {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
+}
+
+.customHandle.react-flow__handle-right::after {
+  width: 46px;
+  transform: translate(-35%, -50%);
+}
+
+.customHandle.react-flow__handle-left::after {
+  width: 38px;
+  transform: translate(-65%, -50%);
 }
 
 .customHandle:hover {

@@ -56,14 +56,14 @@ export const BookmarksPanel = React.memo(function BookmarksPanel({
   }, [])
 
   return (
-    <div className="runtimeSection">
+    <div className="runtimeSection" style={{ height: '100%' }}>
       <div className="runtimeSectionTitle">{t('editor.nodes', 'Nodes')}</div>
       {nodes.length === 0 ? (
         <div className="runtimeHint">{t('editor.noNodesYet', 'No nodes yet. Click “Add Node”.')}</div>
       ) : (
         <ul
           className="runtimeVirtualList"
-          style={{ height: Math.min(nodes.length * ROW_HEIGHT, LIST_HEIGHT), overflowY: 'auto' }}
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}
           onScroll={onScroll}
         >
           <div style={{ height: nodes.length * ROW_HEIGHT, position: 'relative' }}>

@@ -513,6 +513,9 @@ export const en = {
     runFunctionArgsInvalid: '{name}: args JSON is invalid. Check syntax in the inspector.',
     dialogueFileNotSet: '{name}: dialogue file is not set. Select a .yarn file in the inspector.',
     cameraShakeSecondsInvalid: '{name}: seconds is zero or negative. Set a positive duration.',
+    shakeFrequencyTooLow: '{name}: shake frequency must be at least 1.',
+    shakeMagnitudeXNegative: '{name}: shake magnitude X cannot be negative.',
+    shakeMagnitudeYNegative: '{name}: shake magnitude Y cannot be negative.',
     followPathEmpty: '{name}: path is empty. Draw or import a path in the inspector.',
     followPathOnePoint: '{name}: path has only 1 point. Consider using set_position instead.',
     haltHasOutgoing: '{name}: halt blocks execution, yet it has outgoing connections. Remove them or use a different node.',
@@ -575,7 +578,8 @@ export const en = {
     text: 'Text',
     inspector: 'Inspector',
     logs: 'Logs / Warnings',
-    runtimeJson: 'JSON'
+    runtimeJson: 'JSON',
+    templates: 'Templates'
   },
   hotkey: {
     undo: 'Undo',

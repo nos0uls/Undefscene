@@ -49,6 +49,10 @@ type LogsPanelProps = {
 const ROW_HEIGHT = 24
 const LIST_HEIGHT = 260
 const OVERSCAN = 8
+const CONTEXT_MENU_WIDTH = 180
+const CONTEXT_MENU_HEIGHT = 116
+const SEVERITY_SUBMENU_WIDTH = 140
+const SEVERITY_SUBMENU_HEIGHT = 154
 
 // Одна строка лога. Вынесена в memo-компонент, чтобы при скролле
 // перерендеривались только новые ряды, а не весь список.
@@ -150,10 +154,15 @@ export const LogsPanel = React.memo(function LogsPanel({
     (e: React.MouseEvent, entry: LogsData['visibleEntries'][number]) => {
       e.preventDefault()
       e.stopPropagation()
-      // Позиционируем меню рядом с курсором внутри панели.
-      const rect = (e.currentTarget as HTMLElement).closest('.runtimeSection')?.getBoundingClientRect()
-      const x = rect ? e.clientX - rect.left : e.clientX
-      const y = rect ? e.clientY - rect.top : e.clientY
+      const margin = 8
+      const x = Math.max(
+        margin,
+        Math.min(e.clientX, window.innerWidth - CONTEXT_MENU_WIDTH - margin)
+      )
+      const y = Math.max(
+        margin,
+        Math.min(e.clientY, window.innerHeight - CONTEXT_MENU_HEIGHT - margin)
+      )
       setContextMenu({ x, y, entry })
     },
     []
@@ -263,12 +272,12 @@ export const LogsPanel = React.memo(function LogsPanel({
         </div>
       )}
 
-      {/* Контекстное меню — абсолютно позиционированное div для управления серьёзностью правил. */}
+      {/* Контекстное меню рендерится fixed, чтобы не вылезать за край панели/экрана. */}
       {contextMenu && (
         <div
           ref={menuRef}
           style={{
-            position: 'absolute',
+            position: 'fixed',
             left: contextMenu.x,
             top: contextMenu.y,
             zIndex: 1000,
@@ -277,7 +286,7 @@ export const LogsPanel = React.memo(function LogsPanel({
             borderRadius: 4,
             boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
             padding: '4px 0',
-            minWidth: 180,
+            minWidth: CONTEXT_MENU_WIDTH,
             fontSize: 12
           }}
         >
@@ -319,14 +328,18 @@ export const LogsPanel = React.memo(function LogsPanel({
                 <div
                   style={{
                     position: 'absolute',
-                    left: '100%',
-                    top: 0,
+                    left: contextMenu.x + CONTEXT_MENU_WIDTH + SEVERITY_SUBMENU_WIDTH > window.innerWidth
+                      ? -SEVERITY_SUBMENU_WIDTH
+                      : CONTEXT_MENU_WIDTH,
+                    top: contextMenu.y + SEVERITY_SUBMENU_HEIGHT > window.innerHeight
+                      ? -SEVERITY_SUBMENU_HEIGHT + 28
+                      : 0,
                     background: 'var(--ev-c-bg-1, #1e1e1e)',
                     border: '1px solid var(--ev-c-border, #333)',
                     borderRadius: 4,
                     boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
                     padding: '4px 0',
-                    minWidth: 140
+                    minWidth: SEVERITY_SUBMENU_WIDTH
                   }}
                 >
                   <div

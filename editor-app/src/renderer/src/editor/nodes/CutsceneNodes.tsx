@@ -296,7 +296,8 @@ export const CameraPanNode = memo(function CameraPanNode({ data, selected }: Cut
 // Вспомогательная функция: рисуем список handles по веткам.
 function renderParallelHandles(
   kind: 'source' | 'target',
-  branchIds: string[]
+  branchIds: string[],
+  hidden = false
 ): React.JSX.Element[] {
   const count = Math.max(1, branchIds.length)
   return branchIds.map((branchId, i) => {
@@ -309,7 +310,7 @@ function renderParallelHandles(
         id={handleId}
         position={kind === 'source' ? Position.Right : Position.Left}
         className="customHandle"
-        style={{ top: `${topPct}%` }}
+        style={{ top: `${topPct}%`, opacity: hidden ? 0 : undefined, pointerEvents: hidden ? 'none' : undefined }}
       />
     )
   })
@@ -362,9 +363,14 @@ export const ParallelStartNode = memo(function ParallelStartNode(props: Cutscene
           className="customHandle"
           style={{ top: '50%', opacity: 0, pointerEvents: 'none' }}
         />
-        {portMode === 'separate'
-          ? renderParallelHandles('source', branches)
-          : renderSharedParallelHandle('source')}
+        {portMode === 'separate' ? (
+          renderParallelHandles('source', branches)
+        ) : (
+          <>
+            {renderParallelHandles('source', branches, true)}
+            {renderSharedParallelHandle('source')}
+          </>
+        )}
       </>
     ),
     [portMode, branches]
@@ -432,9 +438,14 @@ export const ParallelJoinNode = memo(function ParallelJoinNode(props: CutsceneNo
           className="customHandle"
           style={{ top: '50%', opacity: 0, pointerEvents: 'none' }}
         />
-        {portMode === 'separate'
-          ? renderParallelHandles('target', branches)
-          : renderSharedParallelHandle('target')}
+        {portMode === 'separate' ? (
+          renderParallelHandles('target', branches)
+        ) : (
+          <>
+            {renderParallelHandles('target', branches, true)}
+            {renderSharedParallelHandle('target')}
+          </>
+        )}
       </>
     ),
     [portMode, branches]
