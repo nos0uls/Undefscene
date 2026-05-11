@@ -155,7 +155,8 @@ export function useVisualEditing(deps: UseVisualEditingDeps) {
         ? {
           id: selectedNodeForVisualEditing.id,
           type: selectedNodeForVisualEditing.type,
-          name: selectedNodeForVisualEditing.name
+          name: selectedNodeForVisualEditing.name,
+          params: selectedNodeForVisualEditing.params
         }
         : null,
       selectedActorTarget: selectedVisualActorTarget,

@@ -224,6 +224,10 @@ export const en = {
     closePanel: 'Close panel',
     logsEmptyFilters: 'Enable filters to see logs.',
     logsNoMatches: 'No matching entries.',
+    configureSeverity: "Configure UF_'{ruleId}' Severity",
+    resetToDefault: 'Reset to Default',
+    ignore: 'Ignore',
+    suggestion: 'Suggestion',
     runtimeJsonHint: 'Technical state (JSON).',
     runtimeJsonContent: 'Content',
     projectCacheReady: 'Project is ready.',
@@ -558,6 +562,10 @@ export const en = {
     runFunctionNotWhitelisted: 'run_function: "{funcName}" is not in the whitelist. Add it to cutscene_engine_settings.json or check the spelling.',
     branchConditionNotWhitelisted: 'branch: condition "{cond}" is not in the whitelist. Add it to cutscene_engine_settings.json or check the spelling.',
     animateSpriteNotFound: 'animate: sprite "{sprite}" not found in project resources. Check the sprite name or reload the project.',
+    actorUsedBeforeCreated: 'Actor "{target}" is used before being created.',
+    branchWithoutFalseConnection: 'Branch node has no false connection.',
+    musicActionWithoutMusic: 'Music action without prior play_music.',
+    cameraTrackMissingTarget: 'Camera track has no target.',
     emoteSpriteNotFound: 'emote: sprite "{sprite}" not found in project resources. Check the sprite name or reload the project.'
   },
   // Dock panel headers

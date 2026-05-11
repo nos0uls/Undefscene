@@ -497,7 +497,8 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
       { id: 'panel.bookmarks', label: getPanelTitle('panel.bookmarks') },
       { id: 'panel.text', label: getPanelTitle('panel.text') },
       { id: 'panel.inspector', label: getPanelTitle('panel.inspector') },
-      { id: 'panel.logs', label: getPanelTitle('panel.logs') }
+      { id: 'panel.logs', label: getPanelTitle('panel.logs') },
+      { id: 'panel.templates', label: getPanelTitle('panel.templates') }
     ]
   }, [getPanelTitle])
 

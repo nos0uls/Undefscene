@@ -14,69 +14,12 @@ import { RoomVisualEditorOverlay } from './RoomVisualEditorOverlay'
 import { SearchableSelect } from './SearchableSelect'
 import { getAccentCssVariables } from './usePreferences'
 import { usePreferencesContext } from './PreferencesContext'
-
-// Описание meta.json, который рядом с PNG тайлами пишет GameMaker screenshot runner.
-type RoomScreenshotMeta = {
-  room_name: string
-  file_prefix: string
-  room_width: number
-  room_height: number
-  capture_width: number
-  capture_height: number
-  rows: number
-  cols: number
-  naming: string
-}
-
-// Один загруженный tile, уже пришедший из main процесса как data URL.
-type RoomScreenshotTile = {
-  row: number
-  col: number
-  fileName: string
-  dataUrl: string
-}
-
-// Полный пакет данных для visual editor окна.
-type RoomScreenshotBundle = {
-  roomName: string
-  sourceDir: string | null
-  searchedDirs: string[]
-  cacheKey: string | null
-  meta: RoomScreenshotMeta | null
-  tiles: RoomScreenshotTile[]
-  missingTiles: Array<{ row: number; col: number; fileName: string }>
-  warning: string | null
-}
-
-// Минимальная информация о выбранной ноде,
-// чтобы visual editor понимал, что именно он сейчас будет заменять при import.
-type VisualEditorSelectedNode = {
-  id: string
-  type: string
-  name?: string
-} | null
-
-// Preview actor marker для overlay на room screenshot.
-type VisualEditorActorPreview = {
-  id: string
-  key: string
-  x: number
-  y: number
-  spriteOrObject: string
-  isVirtual?: boolean
-}
-
-// Загруженный sprite preview для actor overlay.
-// Здесь уже лежит data URL и реальные размеры/origin из GameMaker sprite.
-type LoadedActorSpritePreview = {
-  dataUrl: string
-  width: number
-  height: number
-  xorigin: number
-  yorigin: number
-  resourceName: string
-  resourceKind: 'sprite' | 'object'
-}
+import {
+  type RoomScreenshotBundle,
+  type VisualEditorSelectedNode,
+  type VisualEditorActorPreview,
+  type LoadedActorSpritePreview
+} from './RoomVisualEditorTypes'
 
 // Пропсы окна visual editing.
 type RoomVisualEditorModalProps = {
@@ -1807,6 +1750,27 @@ export function RoomVisualEditorModal({
             >
               {t('editor.visualEditingReset', 'Reset')}
             </button>
+            {/* Индикатор скорости follow_path — показываем только когда выбрана нода с points. */}
+            {selectedNode?.type === 'follow_path' &&
+            Array.isArray(selectedNode.params?.points) ? (
+              <div
+                className="roomVisualEditorSpeedIndicator"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  background: 'var(--ev-c-gray-3)',
+                  color: 'var(--ev-c-text-2)',
+                  fontSize: '12px',
+                  marginLeft: '4px',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Скорость движения по пути (px/sec)"
+              >
+                {`Скорость: ${Number(selectedNode.params?.speed_px_sec ?? 60)} px/sec`}
+              </div>
+            ) : null}
           </div>
         </div>
 

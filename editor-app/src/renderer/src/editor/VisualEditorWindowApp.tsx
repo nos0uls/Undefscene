@@ -17,6 +17,7 @@ type VisualEditorBridgeState = {
     id: string
     type: string
     name?: string
+    params?: Record<string, unknown>
   } | null
   selectedActorTarget: string | null
   selectedPathPoints: Array<{ x: number; y: number }>

@@ -1,4 +1,6 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+
+export type ValidationSeverityOverride = 'error' | 'warn' | 'tip' | 'hidden'
 
 type LogsFilters = {
   errors: boolean
@@ -9,6 +11,8 @@ type LogsFilters = {
 type LogsData = {
   visibleEntries: Array<{
     severity: 'error' | 'warn' | 'tip'
+    defaultSeverity?: 'error' | 'warn' | 'tip'
+    ruleId?: string
     message: string
     nodeId?: string
     edgeId?: string
@@ -27,12 +31,17 @@ type LogsData = {
 }
 
 type LogsPanelProps = {
-  t: (key: string, fallback: string) => string
+  t: (
+    path: string,
+    fallbackOrParams?: string | Record<string, string | number | undefined>,
+    maybeFallback?: string
+  ) => string
   logsData: LogsData
   logsFilters: LogsFilters
   onToggleFilter: (key: keyof LogsFilters) => void
   onSelectNode: (nodeId: string) => void
   onSelectEdge: (edgeId: string) => void
+  onSetRuleOverride?: (ruleId: string, severity: ValidationSeverityOverride | 'reset') => void
 }
 
 // Высота одной строки log entry и размер видимого окна.
@@ -47,12 +56,14 @@ const LogEntryRow = React.memo(function LogEntryRow({
   entry,
   style,
   top,
-  onClick
+  onClick,
+  onContextMenu
 }: {
   entry: LogsData['visibleEntries'][number]
   style: { color: string; bg: string; icon: string }
   top: number
   onClick: () => void
+  onContextMenu?: (e: React.MouseEvent) => void
 }) {
   return (
     <div
@@ -67,6 +78,7 @@ const LogEntryRow = React.memo(function LogEntryRow({
         lineHeight: '18px'
       }}
       onClick={onClick}
+      onContextMenu={onContextMenu}
     >
       <span style={{ fontWeight: 600, color: style.color }}>{style.icon}</span>{' '}
       {entry.message}
@@ -80,7 +92,8 @@ export const LogsPanel = React.memo(function LogsPanel({
   logsFilters,
   onToggleFilter,
   onSelectNode,
-  onSelectEdge
+  onSelectEdge,
+  onSetRuleOverride
 }: LogsPanelProps) {
   const { visibleEntries, severityStyle, toggleButtons } = logsData
 
@@ -102,8 +115,80 @@ export const LogsPanel = React.memo(function LogsPanel({
     [onSelectNode, onSelectEdge]
   )
 
+  // --- Контекстное меню для строки лога ---
+  // Храним текущую запись, для которой открыто меню, и её экранные координаты.
+  const [contextMenu, setContextMenu] = useState<{
+    x: number
+    y: number
+    entry: LogsData['visibleEntries'][number]
+  } | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Закрываем меню при клике вне его или при нажатии Escape.
+  useEffect(() => {
+    if (!contextMenu) return
+    const handleMouseDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setContextMenu(null)
+      }
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setContextMenu(null)
+      }
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [contextMenu])
+
+  // Открываем контекстное меню по правому клику на строке лога.
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent, entry: LogsData['visibleEntries'][number]) => {
+      e.preventDefault()
+      e.stopPropagation()
+      // Позиционируем меню рядом с курсором внутри панели.
+      const rect = (e.currentTarget as HTMLElement).closest('.runtimeSection')?.getBoundingClientRect()
+      const x = rect ? e.clientX - rect.left : e.clientX
+      const y = rect ? e.clientY - rect.top : e.clientY
+      setContextMenu({ x, y, entry })
+    },
+    []
+  )
+
+  // Копирование текста сообщения в буфер обмена.
+  const handleCopy = useCallback((message: string) => {
+    navigator.clipboard?.writeText(message).catch(() => {})
+    setContextMenu(null)
+  }, [])
+
+  // Переход к ноде или ребру из меню.
+  const handleGoTo = useCallback((entry: LogsData['visibleEntries'][number]) => {
+    if (entry.nodeId) {
+      onSelectNode(entry.nodeId)
+    } else if (entry.edgeId) {
+      onSelectEdge(entry.edgeId)
+    }
+    setContextMenu(null)
+  }, [onSelectNode, onSelectEdge])
+
+  // Выбор переопределения серьёзности правила.
+  const handleSeverityOverride = useCallback(
+    (ruleId: string, severity: ValidationSeverityOverride | 'reset') => {
+      onSetRuleOverride?.(ruleId, severity)
+      setContextMenu(null)
+    },
+    [onSetRuleOverride]
+  )
+
+  // Состояние раскрытия подменю серьёзности (hover-логика).
+  const [submenuOpen, setSubmenuOpen] = useState(false)
+
   return (
-    <div className="runtimeSection">
+    <div className="runtimeSection" style={{ position: 'relative' }}>
       <div
         style={{
           display: 'flex',
@@ -168,12 +253,116 @@ export const LogsPanel = React.memo(function LogsPanel({
                     style={s}
                     top={i * ROW_HEIGHT}
                     onClick={() => handleEntryClick(entry)}
+                    onContextMenu={(e) => handleContextMenu(e, entry)}
                   />
                 )
               }
               return rows
             })()}
           </div>
+        </div>
+      )}
+
+      {/* Контекстное меню — абсолютно позиционированное div для управления серьёзностью правил. */}
+      {contextMenu && (
+        <div
+          ref={menuRef}
+          style={{
+            position: 'absolute',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            zIndex: 1000,
+            background: 'var(--ev-c-bg-1, #1e1e1e)',
+            border: '1px solid var(--ev-c-border, #333)',
+            borderRadius: 4,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+            padding: '4px 0',
+            minWidth: 180,
+            fontSize: 12
+          }}
+        >
+          {/* Копировать сообщение — доступно всегда. */}
+          <div
+            style={{ padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            onClick={() => handleCopy(contextMenu.entry.message)}
+            onMouseEnter={() => setSubmenuOpen(false)}
+          >
+            {t('editor.logs.copy', 'Copy')}
+          </div>
+
+          {/* Перейти к ноде или ребру, если применимо. */}
+          {(contextMenu.entry.nodeId || contextMenu.entry.edgeId) && (
+            <div
+              style={{ padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              onClick={() => handleGoTo(contextMenu.entry)}
+              onMouseEnter={() => setSubmenuOpen(false)}
+            >
+              {contextMenu.entry.nodeId
+                ? t('editor.logs.goToNode', 'Go to Node')
+                : t('editor.logs.goToEdge', 'Go to Edge')}
+            </div>
+          )}
+
+          {/* Подменю конфигурации серьёзности — только для записей с ruleId. */}
+          {contextMenu.entry.ruleId && onSetRuleOverride && (
+            <div
+              style={{ position: 'relative' }}
+              onMouseEnter={() => setSubmenuOpen(true)}
+              onMouseLeave={() => setSubmenuOpen(false)}
+            >
+              <div style={{ padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {t('editor.logs.configureSeverity', { ruleId: contextMenu.entry.ruleId }, "Configure Severity")}
+                {' '}
+                <span style={{ opacity: 0.6 }}>&rsaquo;</span>
+              </div>
+              {submenuOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '100%',
+                    top: 0,
+                    background: 'var(--ev-c-bg-1, #1e1e1e)',
+                    border: '1px solid var(--ev-c-border, #333)',
+                    borderRadius: 4,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                    padding: '4px 0',
+                    minWidth: 140
+                  }}
+                >
+                  <div
+                    style={{ padding: '6px 12px', cursor: 'pointer' }}
+                    onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'error')}
+                  >
+                    {t('editor.logs.error', 'Error')}
+                  </div>
+                  <div
+                    style={{ padding: '6px 12px', cursor: 'pointer' }}
+                    onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'warn')}
+                  >
+                    {t('editor.logs.warn', 'Warn')}
+                  </div>
+                  <div
+                    style={{ padding: '6px 12px', cursor: 'pointer' }}
+                    onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'tip')}
+                  >
+                    {t('editor.logs.suggestion', 'Suggestion')}
+                  </div>
+                  <div
+                    style={{ padding: '6px 12px', cursor: 'pointer' }}
+                    onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'hidden')}
+                  >
+                    {t('editor.logs.ignore', 'Ignore')}
+                  </div>
+                  <div
+                    style={{ padding: '6px 12px', cursor: 'pointer', borderTop: '1px solid var(--ev-c-border, #333)' }}
+                    onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'reset')}
+                  >
+                    {t('editor.logs.resetToDefault', 'Reset to Default')}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

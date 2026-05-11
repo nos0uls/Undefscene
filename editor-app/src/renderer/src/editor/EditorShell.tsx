@@ -35,6 +35,20 @@ import { DockingProvider, useDockingContext, type CollapsedDocksState } from './
 import { DockingLayout } from './DockingLayout'
 import { useDocking } from './useDocking'
 import { COLLAPSED_HEADER_HEIGHT } from './dockingConstants'
+import { TemplateLibraryPanel } from './TemplateLibraryPanel'
+import {
+  loadTemplates,
+  saveTemplates,
+  createTemplate,
+  prepareTemplateForInsertion
+} from './templateStorage'
+import type { CutsceneTemplateSnippet } from './templateStorage'
+import {
+  loadValidationOverrides,
+  saveValidationOverrides,
+  applyOverrides
+} from './validationRuleOverrides'
+import type { ValidationSeverityOverride } from './validationRuleOverrides'
 
 // Внешний слой: создаёт DockingProvider, чтобы внутренний компонент
 // мог использовать useDocking() без ошибки "must be used within DockingProvider".
@@ -87,6 +101,15 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
   const [yarnPreviewContent, setYarnPreviewContent] = useState<string | null>(null)
   const [yarnPreviewLoading, setYarnPreviewLoading] = useState(false)
   const [selectedYarnPreviewTitle, setSelectedYarnPreviewTitle] = useState<string | null>(null)
+
+  // --- Templates state ---
+  const [templates, setTemplates] = useState<CutsceneTemplateSnippet[]>(() => {
+    const stored = loadTemplates()
+    return stored?.templates ?? []
+  })
+
+  // --- Validation severity overrides state ---
+  const [ruleOverrides, setRuleOverrides] = useState(() => loadValidationOverrides())
 
   const { collapsedDocks, setCollapsedDocks } = useDockingContext()
 
@@ -150,6 +173,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
       if (panelId === 'panel.inspector') return t('panels.inspector', 'Inspector')
       if (panelId === 'panel.logs') return t('panels.logs', 'Logs / Warnings')
       if (panelId === 'panel.runtime_json') return t('panels.runtimeJson', 'Runtime JSON')
+      if (panelId === 'panel.templates') return t('panels.templates', 'Templates')
       return layout.panels[panelId]?.title ?? panelId
     },
     [layout.panels, t]
@@ -560,6 +584,79 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     [setRuntime]
   )
 
+  // --- Template callbacks ---
+  const handleSaveTemplate = useCallback(
+    (name: string) => {
+      const selectedNodes = runtime.nodes.filter((n) => runtime.selectedNodeIds.includes(n.id))
+      const selectedEdges = runtime.edges.filter(
+        (e) => selectedNodes.some((n) => n.id === e.source) && selectedNodes.some((n) => n.id === e.target)
+      )
+      const newTemplate = createTemplate(name, selectedNodes, selectedEdges)
+      const nextTemplates = [...templates, newTemplate]
+      setTemplates(nextTemplates)
+      saveTemplates({ version: 1, templates: nextTemplates })
+    },
+    [runtime.nodes, runtime.selectedNodeIds, runtime.edges, templates]
+  )
+
+  const handleInsertTemplate = useCallback(
+    (templateId: string) => {
+      const template = templates.find((t) => t.id === templateId)
+      if (!template) return
+      // Определяем центр viewport или позицию последней выбранной ноды для offset.
+      const selectedNodes = runtime.nodes.filter((n) => runtime.selectedNodeIds.includes(n.id))
+      const refNode = selectedNodes[selectedNodes.length - 1] ?? runtime.nodes[0]
+      const offsetX = refNode?.position ? refNode.position.x + 80 : 100
+      const offsetY = refNode?.position ? refNode.position.y + 40 : 100
+      const { nodes: newNodes, edges: newEdges } = prepareTemplateForInsertion(template, offsetX, offsetY)
+      setRuntime((prev) => ({
+        ...prev,
+        nodes: [...prev.nodes, ...newNodes],
+        edges: [...prev.edges, ...newEdges],
+        selectedNodeId: null,
+        selectedNodeIds: newNodes.map((n) => n.id)
+      }))
+    },
+    [templates, runtime.nodes, runtime.selectedNodeIds]
+  )
+
+  const handleRenameTemplate = useCallback(
+    (templateId: string, newName: string) => {
+      const nextTemplates = templates.map((t) =>
+        t.id === templateId ? { ...t, name: newName, updatedAt: Date.now() } : t
+      )
+      setTemplates(nextTemplates)
+      saveTemplates({ version: 1, templates: nextTemplates })
+    },
+    [templates]
+  )
+
+  const handleDeleteTemplate = useCallback(
+    (templateId: string) => {
+      const nextTemplates = templates.filter((t) => t.id !== templateId)
+      setTemplates(nextTemplates)
+      saveTemplates({ version: 1, templates: nextTemplates })
+    },
+    [templates]
+  )
+
+  // --- Validation severity override callbacks ---
+  const handleSetRuleOverride = useCallback(
+    (ruleId: string, severity: ValidationSeverityOverride | 'reset') => {
+      setRuleOverrides((prev) => {
+        const next = { ...prev }
+        if (severity === 'reset') {
+          delete next[ruleId]
+        } else {
+          next[ruleId] = severity
+        }
+        saveValidationOverrides(next)
+        return next
+      })
+    },
+    []
+  )
+
   // Снимок состояния перед входом в Zen Mode (layout + docks).
   const zenLayoutSnapshotRef = useRef<{ layout: LayoutState; docks: CollapsedDocksState } | null>(null)
 
@@ -674,19 +771,25 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     [yarnPreviewContent]
   )
 
+  // Применяем пользовательские переопределения серьёзности к записям валидации.
+  const overriddenEntries = useMemo(
+    () => applyOverrides(validation.entries, ruleOverrides),
+    [validation.entries, ruleOverrides]
+  )
+
   // Логи: один проход по validation.entries вместо 4-6 отдельных .filter().
   // Считаем counts, собираем visible entries и категории за O(N).
   const logsData = useMemo(() => {
     let errorCount = 0
     let warnCount = 0
     let tipCount = 0
-    const errorEntries: typeof validation.entries = []
-    const warnEntries: typeof validation.entries = []
-    const tipEntries: typeof validation.entries = []
-    const visibleEntries: typeof validation.entries = []
+    const errorEntries: typeof overriddenEntries = []
+    const warnEntries: typeof overriddenEntries = []
+    const tipEntries: typeof overriddenEntries = []
+    const visibleEntries: typeof overriddenEntries = []
 
-    for (let i = 0; i < validation.entries.length; i++) {
-      const e = validation.entries[i]
+    for (let i = 0; i < overriddenEntries.length; i++) {
+      const e = overriddenEntries[i]
       if (e.severity === 'error') {
         errorCount++
         errorEntries.push(e)
@@ -730,7 +833,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     ]
 
     return { errorEntries, warnEntries, tipEntries, visibleEntries, severityStyle, toggleButtons, errorCount, warnCount, tipCount }
-  }, [validation.entries, logsFilters.errors, logsFilters.warnings, logsFilters.tips, preferences.language])
+  }, [overriddenEntries, logsFilters.errors, logsFilters.warnings, logsFilters.tips, preferences.language])
 
   // --- renderPanelContents ---
   // Каждая панель вынесена в отдельный memoized компонент.
@@ -803,6 +906,26 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
           onToggleFilter={handleToggleLogFilter}
           onSelectNode={handleLogsSelectNode}
           onSelectEdge={handleLogsSelectEdge}
+          onSetRuleOverride={handleSetRuleOverride}
+        />
+      )
+    }
+
+    if (panelId === 'panel.templates') {
+      return (
+        <TemplateLibraryPanel
+          t={t}
+          templates={templates}
+          selectedNodes={runtime.nodes.filter((n) => runtime.selectedNodeIds.includes(n.id))}
+          selectedEdges={runtime.edges.filter(
+            (e) =>
+              runtime.selectedNodeIds.includes(e.source) &&
+              runtime.selectedNodeIds.includes(e.target)
+          )}
+          onSaveTemplate={handleSaveTemplate}
+          onInsertTemplate={handleInsertTemplate}
+          onRenameTemplate={handleRenameTemplate}
+          onDeleteTemplate={handleDeleteTemplate}
         />
       )
     }
@@ -853,22 +976,38 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     handleToggleLogFilter,
     handleLogsSelectNode,
     handleLogsSelectEdge,
+    handleSetRuleOverride,
+    templates,
+    handleSaveTemplate,
+    handleInsertTemplate,
+    handleRenameTemplate,
+    handleDeleteTemplate,
     preferences.language
   ])
 
-  // Badge для вкладки Logs: используем counts из logsData,
-  // чтобы не фильтровать validation.entries повторно.
+  // Badge для вкладок: используем counts из logsData для Logs
+  // и длину массива templates для Templates — без повторных проходов.
   const getPanelBadge = useCallback((panelId: string): React.ReactNode | null => {
-    if (panelId !== 'panel.logs') return null
-    const total = logsData.errorCount + logsData.warnCount
-    if (total === 0) return null
-    const color = logsData.errorCount > 0 ? '#e05050' : '#d4a017'
-    return (
-      <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700, color, background: 'rgba(255,255,255,0.08)', borderRadius: 3, padding: '0 3px', lineHeight: 1 }}>
-        {total}
-      </span>
-    )
-  }, [logsData.errorCount, logsData.warnCount])
+    if (panelId === 'panel.logs') {
+      const total = logsData.errorCount + logsData.warnCount
+      if (total === 0) return null
+      const color = logsData.errorCount > 0 ? '#e05050' : '#d4a017'
+      return (
+        <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700, color, background: 'rgba(255,255,255,0.08)', borderRadius: 3, padding: '0 3px', lineHeight: 1 }}>
+          {total}
+        </span>
+      )
+    }
+    if (panelId === 'panel.templates') {
+      if (templates.length === 0) return null
+      return (
+        <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700, color: '#4a9eff', background: 'rgba(255,255,255,0.08)', borderRadius: 3, padding: '0 3px', lineHeight: 1 }}>
+          {templates.length}
+        </span>
+      )
+    }
+    return null
+  }, [logsData.errorCount, logsData.warnCount, templates.length])
 
   // Данные панелей: передаём через PanelDataContext, чтобы панели могли
   // читать актуальное состояние без необходимости обновлять renderPanelContents.

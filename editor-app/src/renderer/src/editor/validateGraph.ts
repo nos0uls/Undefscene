@@ -33,7 +33,9 @@ export type ValidationSeverity = 'error' | 'warn' | 'tip'
 
 // Одна запись валидации.
 export type ValidationEntry = {
+  ruleId?: string
   severity: ValidationSeverity
+  defaultSeverity?: ValidationSeverity
   // ID ноды или ребра, к которому относится проблема (может быть null для глобальных).
   nodeId?: string
   edgeId?: string
@@ -120,6 +122,8 @@ export function validateGraph(
       // Пустое имя — это совет, не ошибка.
       entries.push({
         severity: 'tip',
+        defaultSeverity: 'tip',
+        ruleId: 'nodeNoName',
         nodeId: n.id,
         message: t('validation.nodeNoName', { id: n.id, type: n.type })
       })
@@ -136,6 +140,8 @@ export function validateGraph(
       // Имена-дубликаты — это лишь подсказка для порядка, а не критическая ошибка.
       entries.push({
         severity: 'tip',
+        defaultSeverity: 'tip',
+        ruleId: 'duplicateName',
         nodeId: id,
         message: t('validation.duplicateName', { name, count: ids.length })
       })
@@ -147,16 +153,18 @@ export function validateGraph(
   const endNodes = nodes.filter((n) => n.type === 'end')
 
   if (startNodes.length === 0) {
-    entries.push({ severity: 'error', message: t('validation.missingStartNode') })
+    entries.push({ severity: 'error', defaultSeverity: 'error', ruleId: 'missingStartNode', message: t('validation.missingStartNode') })
   }
   if (startNodes.length > 1) {
     entries.push({
       severity: 'error',
-        message: t('validation.tooManyStartNodes', { count: startNodes.length - 1 })
+      defaultSeverity: 'error',
+      ruleId: 'tooManyStartNodes',
+      message: t('validation.tooManyStartNodes', { count: startNodes.length - 1 })
     })
   }
   if (endNodes.length === 0) {
-    entries.push({ severity: 'error', message: t('validation.missingEndNode') })
+    entries.push({ severity: 'error', defaultSeverity: 'error', ruleId: 'missingEndNode', message: t('validation.missingEndNode') })
   }
 
   // --- 2. Карты для быстрого доступа ---
@@ -189,6 +197,8 @@ export function validateGraph(
     for (const id of ids) {
       entries.push({
         severity: 'warn',
+        defaultSeverity: 'warn',
+        ruleId: 'duplicateMarkerName',
         nodeId: id,
         message: t('validation.duplicateMarkerName', { name, count: ids.length })
       })
@@ -216,6 +226,8 @@ export function validateGraph(
     if (node.type === 'start' && incoming.length > 0) {
       entries.push({
         severity: 'warn',
+        defaultSeverity: 'warn',
+        ruleId: 'startHasIncomingEdges',
         nodeId: node.id,
         message: t('validation.startIncomingConnections')
       })
@@ -225,6 +237,8 @@ export function validateGraph(
     if (node.type === 'start' && outgoing.length === 0) {
       entries.push({
         severity: 'error',
+        defaultSeverity: 'error',
+        ruleId: 'startHasNoOutgoingEdges',
         nodeId: node.id,
         message: t('validation.startNoOutgoing')
       })
@@ -234,6 +248,8 @@ export function validateGraph(
     if (node.type === 'end' && outgoing.length > 0) {
       entries.push({
         severity: 'warn',
+        defaultSeverity: 'warn',
+        ruleId: 'endHasOutgoingEdges',
         nodeId: node.id,
         message: t('validation.endOutgoingConnections')
       })
@@ -245,6 +261,8 @@ export function validateGraph(
       if (incoming.length === 0 && outgoing.length === 0) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'orphanNode',
           nodeId: node.id,
           message: t('validation.nodeIsolated', { name: nodeDisplayName })
         })
@@ -252,6 +270,8 @@ export function validateGraph(
         // Нода без входящих — до неё нельзя добраться от start.
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'unreachableNode',
           nodeId: node.id,
           message: t('validation.nodeUnreachable', { name: nodeDisplayName })
         })
@@ -269,6 +289,8 @@ export function validateGraph(
     ) {
       entries.push({
         severity: 'warn',
+        defaultSeverity: 'warn',
+        ruleId: 'multipleOutgoingEdges',
         nodeId: node.id,
         message: t('validation.nodeMultipleOutputs', { name: nodeDisplayName })
       })
@@ -287,6 +309,8 @@ export function validateGraph(
 
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'missingRequiredParam',
             nodeId: node.id,
             message: t('validation.fieldEmpty', { name: nodeDisplayName, field: fieldLabel })
           })
@@ -304,6 +328,8 @@ export function validateGraph(
       if (!hasSpr && !hasCopy) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'missingSpriteOrCopyFrom',
           nodeId: node.id,
           message: t('validation.actorCreateNoSprite', { name: nodeDisplayName })
         })
@@ -317,6 +343,8 @@ export function validateGraph(
       if (!hasFalse) {
         entries.push({
           severity: 'tip',
+          defaultSeverity: 'tip',
+          ruleId: 'branchMissingFalse',
           nodeId: node.id,
           message: t('validation.branchFalseEmpty', { name: nodeDisplayName })
         })
@@ -329,6 +357,8 @@ export function validateGraph(
       if (!conditionVar) {
         entries.push({
           severity: 'error',
+          defaultSeverity: 'error',
+          ruleId: 'waitUntilMissingCondition',
           nodeId: node.id,
           message: t('validation.waitUntilConditionEmpty', { name: nodeDisplayName })
         })
@@ -337,6 +367,8 @@ export function validateGraph(
       if (timeout < 0) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'waitUntilNegativeTimeout',
           nodeId: node.id,
           message: t('validation.waitUntilTimeoutNegative', { name: nodeDisplayName })
         })
@@ -351,6 +383,8 @@ export function validateGraph(
       if (kind !== 'camera' && !target) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'tweenMissingTarget',
           nodeId: node.id,
           message: t('validation.tweenTargetRequired', { name: nodeDisplayName })
         })
@@ -358,6 +392,8 @@ export function validateGraph(
       if (!property) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'tweenMissingProperty',
           nodeId: node.id,
           message: t('validation.tweenNoProperty', { name: nodeDisplayName })
         })
@@ -365,6 +401,8 @@ export function validateGraph(
       if (toValue === undefined || toValue === null || toValue === '') {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'tweenMissingToValue',
           nodeId: node.id,
           message: t('validation.tweenEndValueMissing', { name: nodeDisplayName })
         })
@@ -379,6 +417,8 @@ export function validateGraph(
       if (kind !== 'camera' && !target) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'setPropertyMissingTarget',
           nodeId: node.id,
           message: t('validation.tweenTargetRequired', { name: nodeDisplayName })
         })
@@ -386,6 +426,8 @@ export function validateGraph(
       if (!property) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'setPropertyMissingProperty',
           nodeId: node.id,
           message: t('validation.setPropertyNoProperty', { name: nodeDisplayName })
         })
@@ -393,6 +435,8 @@ export function validateGraph(
       if (value === undefined || value === null || value === '') {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'setPropertyMissingValue',
           nodeId: node.id,
           message: t('validation.setPropertyValueEmpty', { name: nodeDisplayName })
         })
@@ -404,6 +448,8 @@ export function validateGraph(
       if (!sound) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'playMusicMissingSound',
           nodeId: node.id,
           message: t('validation.playSfxNoSound', { name: nodeDisplayName })
         })
@@ -415,6 +461,8 @@ export function validateGraph(
       if (!sound) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'playMusicMissingSound',
           nodeId: node.id,
           message: t('validation.playMusicNoSound', { name: nodeDisplayName })
         })
@@ -431,6 +479,8 @@ export function validateGraph(
       if (!fn) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'runFunctionMissingName',
           nodeId: node.id,
           message: t('validation.runFunctionNameEmpty', { name: nodeDisplayName })
         })
@@ -444,6 +494,8 @@ export function validateGraph(
         } catch {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'runFunctionInvalidArgs',
             nodeId: node.id,
             message: t('validation.runFunctionArgsInvalid', { name: nodeDisplayName })
           })
@@ -457,6 +509,8 @@ export function validateGraph(
       if (!file) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'dialogueMissingFile',
           nodeId: node.id,
           message: t('validation.dialogueFileNotSet', { name: nodeDisplayName })
         })
@@ -469,6 +523,8 @@ export function validateGraph(
       if (seconds <= 0) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'waitInvalidSeconds',
           nodeId: node.id,
           message: t('validation.cameraShakeSecondsInvalid', { name: nodeDisplayName })
         })
@@ -477,6 +533,8 @@ export function validateGraph(
       if (Number.isFinite(frequency) && frequency < 1) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'shakeInvalidFrequency',
           nodeId: node.id,
           message: t('validation.shakeFrequencyTooLow', { name: nodeDisplayName })
         })
@@ -485,6 +543,8 @@ export function validateGraph(
       if (Number.isFinite(magnitudeX) && magnitudeX < 0) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'shakeInvalidMagnitudeX',
           nodeId: node.id,
           message: t('validation.shakeMagnitudeXNegative', { name: nodeDisplayName })
         })
@@ -493,6 +553,8 @@ export function validateGraph(
       if (Number.isFinite(magnitudeY) && magnitudeY < 0) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'shakeInvalidMagnitudeY',
           nodeId: node.id,
           message: t('validation.shakeMagnitudeYNegative', { name: nodeDisplayName })
         })
@@ -505,12 +567,16 @@ export function validateGraph(
       if (points.length === 0) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'followPathEmptyPoints',
           nodeId: node.id,
           message: t('validation.followPathEmpty', { name: nodeDisplayName })
         })
       } else if (points.length < 2) {
         entries.push({
           severity: 'tip',
+          defaultSeverity: 'tip',
+          ruleId: 'followPathTooFewPoints',
           nodeId: node.id,
           message: t('validation.followPathOnePoint', { name: nodeDisplayName })
         })
@@ -522,6 +588,8 @@ export function validateGraph(
       if (hasOutgoing) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'haltHasOutgoingEdges',
           nodeId: node.id,
           message: t('validation.haltHasOutgoing', { name: nodeDisplayName })
         })
@@ -533,6 +601,8 @@ export function validateGraph(
       if (!markName) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'markNodeMissingName',
           nodeId: node.id,
           message: t('validation.markNodeNameEmpty', { name: nodeDisplayName })
         })
@@ -550,6 +620,8 @@ export function validateGraph(
       ) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'setFacingInvalidDirection',
           nodeId: node.id,
           message: t('validation.setFacingInvalidDirection', { name: nodeDisplayName, direction })
         })
@@ -561,12 +633,16 @@ export function validateGraph(
       if (!jumpTarget) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'jumpMissingTarget',
           nodeId: node.id,
           message: t('validation.jumpTargetEmpty', { name: nodeDisplayName })
         })
       } else if (!markNodeNames.has(jumpTarget)) {
         entries.push({
           severity: 'error',
+          defaultSeverity: 'error',
+          ruleId: 'jumpTargetNotFound',
           nodeId: node.id,
           message: t('validation.jumpTargetNotFound', { name: nodeDisplayName, target: jumpTarget })
         })
@@ -599,6 +675,8 @@ export function validateGraph(
       if (target && target !== 'player' && !actorKeys.has(target)) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'actorTargetNotFound',
           nodeId: node.id,
           message: t('validation.actorTargetNotCreated', { name: nodeDisplayName, target })
         })
@@ -614,12 +692,16 @@ export function validateGraph(
       if (!joinId) {
         entries.push({
           severity: 'error',
+          defaultSeverity: 'error',
+          ruleId: 'parallelStartMissingJoin',
           nodeId: node.id,
           message: t('validation.parallelStartMissingJoin', { id: node.id })
         })
       } else if (!nodeMap.has(joinId)) {
         entries.push({
           severity: 'error',
+          defaultSeverity: 'error',
+          ruleId: 'parallelStartJoinMissing',
           nodeId: node.id,
           message: t('validation.parallelStartJoinMissing', { id: node.id })
         })
@@ -628,6 +710,8 @@ export function validateGraph(
         if (joinNode?.type !== 'parallel_join') {
           entries.push({
             severity: 'error',
+            defaultSeverity: 'error',
+            ruleId: 'parallelStartJoinNotJoin',
             nodeId: node.id,
             message: t('validation.parallelStartJoinNotJoin', { id: node.id })
           })
@@ -637,6 +721,8 @@ export function validateGraph(
         if (joinPairId && joinPairId !== node.id) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'parallelJoinMismatchedPairId',
             nodeId: node.id,
             message: t('validation.parallelStartJoinMismatch', { id: node.id, joinId })
           })
@@ -654,6 +740,8 @@ export function validateGraph(
         if (!sameBranchSet) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'parallelStartJoinBranchMismatch',
             nodeId: node.id,
             message: t('validation.parallelStartJoinBranchMismatch', { id: node.id, joinId })
           })
@@ -666,6 +754,8 @@ export function validateGraph(
       if (uniqueBranches.size !== branches.length) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'parallelBranchDuplicate',
           nodeId: node.id,
           message: t('validation.parallelStartDuplicateBranchIds', { id: node.id })
         })
@@ -679,6 +769,8 @@ export function validateGraph(
         if (!handle) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'parallelStartMissingHandle',
             nodeId: node.id,
             edgeId: edge.id,
             message: t('validation.parallelStartEdgeNoSourceHandle', { id: node.id, edgeId: edge.id })
@@ -689,6 +781,8 @@ export function validateGraph(
         if (!handle.startsWith('out_')) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'parallelStartInvalidHandle',
             nodeId: node.id,
             edgeId: edge.id,
             message: t('validation.parallelStartEdgeUnexpectedHandle', { id: node.id, edgeId: edge.id, handle })
@@ -702,6 +796,8 @@ export function validateGraph(
         if (!uniqueBranches.has(branchId)) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'parallelStartDisconnectedBranch',
             nodeId: node.id,
             edgeId: edge.id,
             message: t('validation.parallelStartEdgeBranchNotListed', { id: node.id, branchId })
@@ -713,6 +809,8 @@ export function validateGraph(
         if (count > 1) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'parallelStartBranchMultipleEdges',
             nodeId: node.id,
             message: t('validation.parallelStartBranchMultipleEdges', { id: node.id, handle, count })
           })
@@ -724,6 +822,8 @@ export function validateGraph(
         if (!hasEdge) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'parallelStartBranchNotConnected',
             nodeId: node.id,
             message: t('validation.parallelStartBranchNoOutgoing', { id: node.id, branchId })
           })
@@ -739,12 +839,16 @@ export function validateGraph(
       if (!pairId) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'parallelJoinMissingStart',
           nodeId: node.id,
           message: t('validation.parallelJoinNoPair', { id: node.id })
         })
       } else if (!nodeMap.has(pairId)) {
         entries.push({
           severity: 'error',
+          defaultSeverity: 'error',
+          ruleId: 'parallelJoinPairMissing',
           nodeId: node.id,
           message: t('validation.parallelJoinPairMissing', { id: node.id })
         })
@@ -753,6 +857,8 @@ export function validateGraph(
         if (startNode?.type !== 'parallel_start') {
           entries.push({
             severity: 'error',
+            defaultSeverity: 'error',
+            ruleId: 'parallelJoinPairNotStart',
             nodeId: node.id,
             message: t('validation.parallelJoinPairNotStart', { id: node.id })
           })
@@ -762,6 +868,8 @@ export function validateGraph(
         if (startJoinId && startJoinId !== node.id) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'parallelJoinMismatchedPairId',
             nodeId: node.id,
             message: t('validation.parallelJoinPairMismatch', { id: node.id, pairId })
           })
@@ -779,6 +887,8 @@ export function validateGraph(
         if (!sameBranchSet) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'parallelJoinPairBranchMismatch',
             nodeId: node.id,
             message: t('validation.parallelJoinPairBranchMismatch', { id: node.id, pairId })
           })
@@ -795,6 +905,8 @@ export function validateGraph(
         if (!handle) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'parallelJoinEdgeNoTargetHandle',
             nodeId: node.id,
             edgeId: edge.id,
             message: t('validation.parallelJoinEdgeNoTargetHandle', { id: node.id, edgeId: edge.id })
@@ -805,6 +917,8 @@ export function validateGraph(
         if (!handle.startsWith('in_')) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'parallelJoinEdgeUnexpectedHandle',
             nodeId: node.id,
             edgeId: edge.id,
             message: t('validation.parallelJoinEdgeUnexpectedHandle', { id: node.id, edgeId: edge.id, handle })
@@ -818,6 +932,8 @@ export function validateGraph(
         if (!uniqueBranches.has(branchId)) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'parallelJoinEdgeBranchNotListed',
             nodeId: node.id,
             edgeId: edge.id,
             message: t('validation.parallelJoinEdgeBranchNotListed', { id: node.id, edgeId: edge.id, branchId })
@@ -829,6 +945,8 @@ export function validateGraph(
         if (count > 1) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'parallelJoinBranchMultipleEdges',
             nodeId: node.id,
             message: t('validation.parallelJoinBranchMultipleEdges', { id: node.id, handle, count })
           })
@@ -840,6 +958,8 @@ export function validateGraph(
         if (!hasEdge) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'parallelJoinBranchNoIncoming',
             nodeId: node.id,
             message: t('validation.parallelJoinBranchNoIncoming', { id: node.id, branchId })
           })
@@ -853,6 +973,8 @@ export function validateGraph(
     if (!nodeMap.has(edge.source)) {
       entries.push({
         severity: 'error',
+        defaultSeverity: 'error',
+        ruleId: 'edgeMissingSource',
         edgeId: edge.id,
         message: t('validation.edgeMissingSource', { edgeId: edge.id, source: edge.source })
       })
@@ -860,6 +982,8 @@ export function validateGraph(
     if (!nodeMap.has(edge.target)) {
       entries.push({
         severity: 'error',
+        defaultSeverity: 'error',
+        ruleId: 'edgeMissingTarget',
         edgeId: edge.id,
         message: t('validation.edgeMissingTarget', { edgeId: edge.id, target: edge.target })
       })
@@ -869,6 +993,8 @@ export function validateGraph(
     if (typeof edge.waitSeconds === 'number' && edge.waitSeconds < 0) {
       entries.push({
         severity: 'warn',
+        defaultSeverity: 'warn',
+        ruleId: 'edgeNegativeWait',
         edgeId: edge.id,
         message: t('validation.edgeNegativeWait', { edgeId: edge.id, count: edge.waitSeconds })
       })
@@ -882,12 +1008,16 @@ export function validateGraph(
       if (!varName) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'edgeConditionVarEmpty',
           edgeId: edge.id,
           message: t('validation.edgeConditionVarEmpty', { edgeId: edge.id })
         })
       } else if (varName.startsWith('global.')) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'edgeConditionGlobalPrefix',
           edgeId: edge.id,
           message: t('validation.edgeConditionGlobalPrefix', { edgeId: edge.id })
         })
@@ -896,6 +1026,8 @@ export function validateGraph(
       if (eq.trim().length === 0) {
         entries.push({
           severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'edgeConditionEqualsEmpty',
           edgeId: edge.id,
           message: t('validation.edgeConditionEqualsEmpty', { edgeId: edge.id })
         })
@@ -911,12 +1043,16 @@ export function validateGraph(
           if (!endVar) {
             entries.push({
               severity: 'warn',
+              defaultSeverity: 'warn',
+              ruleId: 'edgeStopWaitingEndVarEmpty',
               edgeId: edge.id,
               message: t('validation.edgeStopWaitingEndVarEmpty', { edgeId: edge.id })
             })
           } else if (endVar.startsWith('global.')) {
             entries.push({
               severity: 'warn',
+              defaultSeverity: 'warn',
+              ruleId: 'edgeStopWaitingEndVarGlobalPrefix',
               edgeId: edge.id,
               message: t('validation.edgeStopWaitingEndVarGlobalPrefix', { edgeId: edge.id })
             })
@@ -924,6 +1060,8 @@ export function validateGraph(
           if (String(edge.endConditionEquals ?? '').trim().length === 0) {
             entries.push({
               severity: 'warn',
+              defaultSeverity: 'warn',
+              ruleId: 'edgeStopWaitingEndEqualsEmpty',
               edgeId: edge.id,
               message: t('validation.edgeStopWaitingEndEqualsEmpty', { edgeId: edge.id })
             })
@@ -936,6 +1074,8 @@ export function validateGraph(
           if (!nodeName) {
             entries.push({
               severity: 'warn',
+              defaultSeverity: 'warn',
+              ruleId: 'edgeStopWaitingNodeNameEmpty',
               edgeId: edge.id,
               message: t('validation.edgeStopWaitingNodeNameEmpty', { edgeId: edge.id })
             })
@@ -945,6 +1085,8 @@ export function validateGraph(
             if (!found) {
               entries.push({
                 severity: 'warn',
+                defaultSeverity: 'warn',
+                ruleId: 'edgeStopWaitingNodeNotFound',
                 edgeId: edge.id,
                 message: t('validation.edgeStopWaitingNodeNotFound', { edgeId: edge.id, nodeName })
               })
@@ -958,6 +1100,8 @@ export function validateGraph(
           if (typeof timeoutVal !== 'number' || timeoutVal <= 0) {
             entries.push({
               severity: 'warn',
+              defaultSeverity: 'warn',
+              ruleId: 'edgeStopWaitingTimeoutEmpty',
               edgeId: edge.id,
               message: t('validation.edgeStopWaitingTimeoutEmpty', { edgeId: edge.id })
             })
@@ -988,6 +1132,8 @@ export function validateGraph(
     if (unreachableNodes.length > 0) {
       entries.push({
         severity: 'warn',
+        defaultSeverity: 'warn',
+        ruleId: 'unreachableNodes',
         message: t('validation.unreachableNodes', { count: unreachableNodes.length })
       })
     }
@@ -997,6 +1143,8 @@ export function validateGraph(
     if (!reachableEnd && endNodes.length > 0) {
       entries.push({
         severity: 'error',
+        defaultSeverity: 'error',
+        ruleId: 'noEndNodeReachable',
         message: t('validation.noEndNodeReachable')
       })
     }
@@ -1015,6 +1163,8 @@ export function validateGraph(
         if (key && allResources.length > 0 && !allResources.includes(key)) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'actorCreateKeyNotFound',
             nodeId: node.id,
             message: t('validation.actorCreateKeyNotFound', { key })
           })
@@ -1033,6 +1183,8 @@ export function validateGraph(
           if (!yarnFileNames.includes(fileName)) {
             entries.push({
               severity: 'warn',
+              defaultSeverity: 'warn',
+              ruleId: 'dialogueFileNotFound',
               nodeId: node.id,
               message: t('validation.dialogueFileNotFound', { file })
             })
@@ -1044,6 +1196,8 @@ export function validateGraph(
               if (yarnNodes.length > 0 && !yarnNodes.includes(nodeName)) {
                 entries.push({
                   severity: 'warn',
+                  defaultSeverity: 'warn',
+                  ruleId: 'dialogueNodeNotFound',
                   nodeId: node.id,
                   message: t('validation.dialogueNodeNotFound', { nodeName, file })
                 })
@@ -1059,6 +1213,8 @@ export function validateGraph(
         if (funcName && context.runFunctions.length > 0 && !context.runFunctions.includes(funcName)) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'runFunctionNotWhitelisted',
             nodeId: node.id,
             message: t('validation.runFunctionNotWhitelisted', { funcName })
           })
@@ -1071,6 +1227,8 @@ export function validateGraph(
         if (cond && context.branchConditions.length > 0 && !context.branchConditions.includes(cond)) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'branchConditionNotWhitelisted',
             nodeId: node.id,
             message: t('validation.branchConditionNotWhitelisted', { cond })
           })
@@ -1083,6 +1241,8 @@ export function validateGraph(
         if (sprite && context.sprites.length > 0 && !context.sprites.includes(sprite)) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'animateSpriteNotFound',
             nodeId: node.id,
             message: t('validation.animateSpriteNotFound', { sprite })
           })
@@ -1094,6 +1254,8 @@ export function validateGraph(
         if (sprite && context.sprites.length > 0 && !context.sprites.includes(sprite)) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'emoteSpriteNotFound',
             nodeId: node.id,
             message: t('validation.emoteSpriteNotFound', { sprite })
           })
@@ -1105,10 +1267,120 @@ export function validateGraph(
         if (sound && context.sounds.length > 0 && !context.sounds.includes(sound)) {
           entries.push({
             severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'playMusicSoundNotFound',
             nodeId: node.id,
             message: t('validation.playMusicSoundNotFound', { sound })
           })
         }
+      }
+    }
+  }
+
+  // --- 10. Continuity Checker MVP ---
+  const createdActorsBefore = new Set<string>()
+  const hasPlayMusicBefore = new Set<number>()
+
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i]
+
+    // actorUsedBeforeCreated: проверяем, что актёр создан до использования.
+    if (node.type === 'actor_create') {
+      const key = String(node.params?.actor_name ?? '').trim()
+      if (key) createdActorsBefore.add(key)
+    }
+    if (node.type === 'spawn_entity') {
+      const key = String(node.params?.key ?? '').trim()
+      if (key) createdActorsBefore.add(key)
+    }
+
+    // musicActionWithoutMusic: отмечаем, что play_music был.
+    if (node.type === 'play_music') {
+      hasPlayMusicBefore.add(i)
+    }
+
+    const actorTargetTypesContinuity = new Set([
+      'move',
+      'actor_destroy',
+      'set_position',
+      'animate',
+      'camera_track',
+      'camera_track_until_stop',
+      'camera_pan_obj',
+      'set_depth',
+      'set_facing',
+      'follow_path',
+      'auto_facing',
+      'auto_walk',
+      'emote',
+      'halt',
+      'flip',
+      'spin',
+      'shake_object',
+      'set_visible'
+    ])
+    if (actorTargetTypesContinuity.has(node.type)) {
+      const target = String(node.params?.target ?? '').trim()
+      if (target && target !== 'player' && !createdActorsBefore.has(target)) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'actorUsedBeforeCreated',
+          nodeId: node.id,
+          message: t('validation.actorUsedBeforeCreated', { target })
+        })
+      }
+    }
+  }
+
+  // branchWithoutFalseConnection: проверяем, что у branch есть false-ветка.
+  for (const node of nodes) {
+    if (node.type === 'branch') {
+      const outgoing = outEdges.get(node.id) ?? []
+      const hasFalse = outgoing.some((e) => e.sourceHandle === 'out_false')
+      if (!hasFalse) {
+        entries.push({
+          severity: 'tip',
+          defaultSeverity: 'tip',
+          ruleId: 'branchWithoutFalseConnection',
+          nodeId: node.id,
+          message: t('validation.branchWithoutFalseConnection')
+        })
+      }
+    }
+  }
+
+  // musicActionWithoutMusic: проверяем, что перед music_volume/music_duck/music_unduck был play_music.
+  let playMusicSeen = false
+  for (const node of nodes) {
+    if (node.type === 'play_music') {
+      playMusicSeen = true
+    }
+    if (node.type === 'music_volume' || node.type === 'music_duck' || node.type === 'music_unduck') {
+      if (!playMusicSeen) {
+        entries.push({
+          severity: 'tip',
+          defaultSeverity: 'tip',
+          ruleId: 'musicActionWithoutMusic',
+          nodeId: node.id,
+          message: t('validation.musicActionWithoutMusic')
+        })
+      }
+    }
+  }
+
+  // cameraTrackMissingTarget: проверяем, что у camera_track/camera_track_until_stop задан target.
+  for (const node of nodes) {
+    if (node.type === 'camera_track' || node.type === 'camera_track_until_stop') {
+      const target = String(node.params?.target ?? '').trim()
+      if (!target) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'cameraTrackMissingTarget',
+          nodeId: node.id,
+          message: t('validation.cameraTrackMissingTarget')
+        })
       }
     }
   }

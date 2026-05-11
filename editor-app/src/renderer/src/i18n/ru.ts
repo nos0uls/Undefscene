@@ -224,6 +224,10 @@ export const ru = {
     closePanel: 'Закрыть панель',
     logsEmptyFilters: 'Включите фильтры, чтобы увидеть логи.',
     logsNoMatches: 'Ничего не найдено.',
+    configureSeverity: "Настроить серьёзность UF_'{ruleId}'",
+    resetToDefault: 'Сбросить по умолчанию',
+    ignore: 'Игнорировать',
+    suggestion: 'Подсказка',
     runtimeJsonHint: 'Техническое состояние (JSON).',
     runtimeJsonContent: 'Содержимое',
     projectCacheReady: 'Проект готов.',
@@ -558,7 +562,11 @@ export const ru = {
     runFunctionNotWhitelisted: 'run_function: «{funcName}» нет в белом списке.',
     branchConditionNotWhitelisted: 'branch: условие «{cond}» нет в белом списке.',
     animateSpriteNotFound: 'animate: спрайт «{sprite}» не найден.',
-    emoteSpriteNotFound: 'emote: спрайт «{sprite}» не найден.'
+    emoteSpriteNotFound: 'emote: спрайт «{sprite}» не найден.',
+    actorUsedBeforeCreated: 'Актёр «{target}» используется до создания.',
+    branchWithoutFalseConnection: 'У ноды branch нет false-соединения.',
+    musicActionWithoutMusic: 'Действие с музыкой без предварительного play_music.',
+    cameraTrackMissingTarget: 'У camera_track не задана цель (target).'
   },
   // Заголовки панелей докинга
   panels: {
