@@ -205,8 +205,11 @@ export function parseRuntimeState(raw: unknown): RuntimeState | null {
   }
 
   // Парсим связи (edges) из JSON.
+  // Старые версии редактора могли сохранить "null" как текстовый handle или endpoint.
+  // Такие значения не являются настоящими портами React Flow, поэтому чистим их при загрузке.
   const edges: RuntimeEdge[] = []
   const rawEdges = (candidate as Record<string, unknown>).edges
+  const nodeIds = new Set(nodes.map((node) => node.id))
   if (Array.isArray(rawEdges)) {
     for (const rawEdge of rawEdges) {
       if (!rawEdge || typeof rawEdge !== 'object') continue
@@ -217,6 +220,8 @@ export function parseRuntimeState(raw: unknown): RuntimeState | null {
         typeof ce.target !== 'string'
       )
         continue
+      if (!ce.id || ce.id === 'null' || ce.source === 'null' || ce.target === 'null') continue
+      if (!nodeIds.has(ce.source) || !nodeIds.has(ce.target)) continue
 
       const edge: RuntimeEdge = {
         id: ce.id,
@@ -224,9 +229,13 @@ export function parseRuntimeState(raw: unknown): RuntimeState | null {
         target: ce.target
       }
 
-      // Handles — опционально.
-      if (typeof ce.sourceHandle === 'string') edge.sourceHandle = ce.sourceHandle
-      if (typeof ce.targetHandle === 'string') edge.targetHandle = ce.targetHandle
+      // Handles — опционально. Пустые/"null" значения считаем отсутствующими.
+      if (typeof ce.sourceHandle === 'string' && ce.sourceHandle && ce.sourceHandle !== 'null') {
+        edge.sourceHandle = ce.sourceHandle
+      }
+      if (typeof ce.targetHandle === 'string' && ce.targetHandle && ce.targetHandle !== 'null') {
+        edge.targetHandle = ce.targetHandle
+      }
 
       // Wait — только если число >= 0.
       if (typeof ce.waitSeconds === 'number' && ce.waitSeconds >= 0) {

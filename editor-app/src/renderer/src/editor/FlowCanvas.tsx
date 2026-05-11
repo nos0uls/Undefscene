@@ -443,23 +443,25 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   const initialEdges = useMemo<Edge[]>(() => {
     if (!runtimeEdges) return []
     return runtimeEdges.map((e) => {
-      const sourceHandle = e.sourceHandle ?? undefined
-      const targetHandle = e.targetHandle ?? undefined
-      const isInternalPair = sourceHandle === '__pair' && targetHandle === '__pair'
+      // Защита от "null"-строки и null: React Flow при null ищет несуществующий handle.
+      // Если handle испорчен или не сохранён в старой сцене, возвращаем обычные порты out/in.
+      const safeSource = e.sourceHandle && e.sourceHandle !== 'null' ? e.sourceHandle : 'out'
+      const safeTarget = e.targetHandle && e.targetHandle !== 'null' ? e.targetHandle : 'in'
+      const isInternalPair = safeSource === '__pair' && safeTarget === '__pair'
 
-      return {
+      const edge: Edge = {
         id: e.id,
         source: e.source,
-        sourceHandle,
+        sourceHandle: safeSource,
         target: e.target,
-        targetHandle,
-        // CustomEdge читает timingLabel из data и рендерит badge с фоном.
+        targetHandle: safeTarget,
         data: {
           timingLabel: typeof e.waitSeconds === 'number' ? `${e.waitSeconds}s` : undefined,
           isInternalPair
         },
         selectable: !isInternalPair
       }
+      return edge
     })
   }, [runtimeEdges])
 
@@ -805,23 +807,29 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
       if (!resolvedConnection?.source || !resolvedConnection?.target) return
 
       // Нормализуем handles: React Flow не любит null — превращает его в строку "null".
-      // Создаём копию и убираем null-поля, чтобы React Flow использовал дефолтные handle'ы.
-      const cleanConnection = { ...resolvedConnection }
-      if (cleanConnection.sourceHandle === null) {
-        (cleanConnection as any).sourceHandle = undefined
-      }
-      if (cleanConnection.targetHandle === null) {
-        (cleanConnection as any).targetHandle = undefined
-      }
+      const sourceHandle = resolvedConnection.sourceHandle || 'out'
+      const targetHandle = resolvedConnection.targetHandle || 'in'
+      const edgeId = `edge-${resolvedConnection.source}-${sourceHandle}-${resolvedConnection.target}-${targetHandle}`
 
       const newEdge: RuntimeEdge = {
-        id: `edge-${resolvedConnection.source}-${resolvedConnection.sourceHandle ?? 'out'}-${resolvedConnection.target}-${resolvedConnection.targetHandle ?? 'in'}`,
+        id: edgeId,
         source: resolvedConnection.source,
-        sourceHandle: (resolvedConnection.sourceHandle as string) || 'out',
+        sourceHandle,
         target: resolvedConnection.target,
-        targetHandle: (resolvedConnection.targetHandle as string) || 'in'
+        targetHandle
       }
-      setEdges((prev) => addEdge(cleanConnection, prev))
+
+      // addEdge создаёт edge в React Flow store. Передаём явные handles,
+      // потому что наши базовые порты имеют id="out" и id="in".
+      const addEdgeConnection: Edge = {
+        id: edgeId,
+        source: resolvedConnection.source,
+        sourceHandle,
+        target: resolvedConnection.target,
+        targetHandle
+      }
+
+      setEdges((prev) => addEdge(addEdgeConnection, prev))
       onEdgeAddRef.current(newEdge)
       // Устанавливаем флаг, чтобы следующий клик по холсту не создавал ноду.
       justConnectedRef.current = true
