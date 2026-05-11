@@ -98,7 +98,10 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   stop_music: [],
   music_volume: [],
   music_duck: [],
-  music_unduck: []
+  music_unduck: [],
+  music_pitch: [],
+  music_pause: [],
+  music_resume: []
 }
 
 // Главная функция валидации. Принимает текущее состояние графа и опциональный контекст ресурсов.
@@ -465,6 +468,27 @@ export function validateGraph(
           ruleId: 'playMusicMissingSound',
           nodeId: node.id,
           message: t('validation.playMusicNoSound', { name: nodeDisplayName })
+        })
+      }
+    }
+
+    if (node.type === 'music_pitch') {
+      const pitch = Number(node.params?.pitch ?? NaN)
+      if (!Number.isFinite(pitch) || pitch <= 0) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'musicPitchInvalid',
+          nodeId: node.id,
+          message: t('validation.musicPitchInvalid', { name: nodeDisplayName })
+        })
+      } else if (pitch < 0.5 || pitch > 2.0) {
+        entries.push({
+          severity: 'tip',
+          defaultSeverity: 'tip',
+          ruleId: 'musicPitchExtreme',
+          nodeId: node.id,
+          message: t('validation.musicPitchExtreme', { name: nodeDisplayName, pitch })
         })
       }
     }
@@ -1356,7 +1380,7 @@ export function validateGraph(
     if (node.type === 'play_music') {
       playMusicSeen = true
     }
-    if (node.type === 'music_volume' || node.type === 'music_duck' || node.type === 'music_unduck') {
+    if (node.type === 'music_volume' || node.type === 'music_duck' || node.type === 'music_unduck' || node.type === 'music_pitch' || node.type === 'music_pause' || node.type === 'music_resume') {
       if (!playMusicSeen) {
         entries.push({
           severity: 'tip',

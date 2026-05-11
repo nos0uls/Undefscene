@@ -298,6 +298,14 @@ export const ru = {
       fade_in: 'Fade In',
       fade_out: 'Fade Out',
       play_sfx: 'Play SFX',
+      play_music: 'Play Music',
+      stop_music: 'Stop Music',
+      music_volume: 'Music Volume',
+      music_duck: 'Music Duck',
+      music_unduck: 'Music Unduck',
+      music_pitch: 'Music Pitch',
+      music_pause: 'Music Pause',
+      music_resume: 'Music Resume',
       emote: 'Emote',
       jump: 'Jump (Teleport)',
       halt: 'Halt',
@@ -569,6 +577,8 @@ export const ru = {
     actorUsedBeforeCreated: 'Актёр «{target}» используется до создания.',
     branchWithoutFalseConnection: 'У ноды branch нет false-соединения.',
     musicActionWithoutMusic: 'Действие с музыкой без предварительного play_music.',
+    musicPitchInvalid: '{name}: pitch должен быть больше 0.',
+    musicPitchExtreme: '{name}: pitch = {pitch}. Значения вне диапазона 0.5–2.0 могут звучать необычно.',
     cameraTrackMissingTarget: 'У camera_track не задана цель (target).'
   },
   // Заголовки панелей докинга

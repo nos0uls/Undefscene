@@ -667,6 +667,19 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       return action
     }
 
+    if (node.type === 'music_pitch') {
+      if (typeof node.params?.pitch === 'number') action.pitch = node.params.pitch
+      return action
+    }
+
+    if (node.type === 'music_pause') {
+      return action
+    }
+
+    if (node.type === 'music_resume') {
+      return action
+    }
+
     if (node.type === 'move_relative') {
       if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
       if (typeof node.params?.dx === 'number') action.dx = node.params.dx

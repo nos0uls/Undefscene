@@ -716,6 +716,27 @@ export const MusicUnduckNode = memo(function MusicUnduckNode({ data, selected }:
   )
 })
 
+export const MusicPitchNode = memo(function MusicPitchNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const pitch = data.params?.pitch ?? 1
+  return (
+    <BaseNode nodeType="music_pitch" selected={selected}>
+      <div className="customNodeParam">pitch: {String(pitch)}</div>
+    </BaseNode>
+  )
+})
+
+export const MusicPauseNode = memo(function MusicPauseNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  return (
+    <BaseNode nodeType="music_pause" selected={selected} />
+  )
+})
+
+export const MusicResumeNode = memo(function MusicResumeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  return (
+    <BaseNode nodeType="music_resume" selected={selected} />
+  )
+})
+
 export const EmoteNode = memo(function EmoteNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const sprite = data.params?.sprite ?? ''

@@ -207,6 +207,11 @@ const otherNodes: Record<string, NodeDefinition> = {
   music_unduck: { type: 'music_unduck', label: 'Music Unduck', category: 'audio', fields: [
     { key: 'fade', label: 'Fade (sec)', type: 'number', step: 0.1, defaultValue: 0.3 }
   ], defaultParams: { fade: 0.3 } },
+  music_pitch: { type: 'music_pitch', label: 'Music Pitch', category: 'audio', fields: [
+    { key: 'pitch', label: 'Pitch', type: 'number', step: 0.1, defaultValue: 1 }
+  ], defaultParams: { pitch: 1 } },
+  music_pause: { type: 'music_pause', label: 'Music Pause', category: 'audio', fields: [], defaultParams: {} },
+  music_resume: { type: 'music_resume', label: 'Music Resume', category: 'audio', fields: [], defaultParams: {} },
   emote: { type: 'emote', label: 'Emote', category: 'visual', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'sprite', label: 'Sprite', type: 'searchable', placeholder: 'spr_...', options: [] },

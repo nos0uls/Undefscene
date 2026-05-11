@@ -439,7 +439,10 @@ function actionToRuntimeNode(
       normalizedType === 'stop_music' ||
       normalizedType === 'music_volume' ||
       normalizedType === 'music_duck' ||
-      normalizedType === 'music_unduck'
+      normalizedType === 'music_unduck' ||
+      normalizedType === 'music_pitch' ||
+      normalizedType === 'music_pause' ||
+      normalizedType === 'music_resume'
     ) {
       params[key] = value
       continue
