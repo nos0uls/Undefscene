@@ -72,8 +72,10 @@ jobs:
           pnpm version $version --no-git-tag-version
       #endregion
 
+      # Устанавливаем зависимости без --frozen-lockfile, потому что предыдущий шаг
+      # pnpm version меняет package.json, и frozen-lockfile на этом ломается.
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: pnpm install --prefer-offline
         working-directory: editor-app
 
       - name: Build & Package
@@ -136,8 +138,9 @@ jobs:
           pnpm version "$version" --no-git-tag-version
       #endregion
 
+      # Аналогично Windows: убираем --frozen-lockfile из-за предшествующего pnpm version.
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: pnpm install --prefer-offline
         working-directory: editor-app
 
       - name: Create unsigned macOS builder config

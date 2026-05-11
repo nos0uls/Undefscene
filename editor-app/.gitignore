@@ -4,6 +4,7 @@ out
 .DS_Store
 .eslintcache
 *.log*
+package-lock.json
 
 # Настройки и кэш редактора (хранятся в userData, но могут появиться при разработке)
 preferences.json
