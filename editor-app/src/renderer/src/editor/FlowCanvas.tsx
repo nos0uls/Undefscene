@@ -804,6 +804,16 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
       const resolvedConnection = resolveParallelConnection(connection)
       if (!resolvedConnection?.source || !resolvedConnection?.target) return
 
+      // Нормализуем handles: React Flow не любит null — превращает его в строку "null".
+      // Создаём копию и убираем null-поля, чтобы React Flow использовал дефолтные handle'ы.
+      const cleanConnection = { ...resolvedConnection }
+      if (cleanConnection.sourceHandle === null) {
+        (cleanConnection as any).sourceHandle = undefined
+      }
+      if (cleanConnection.targetHandle === null) {
+        (cleanConnection as any).targetHandle = undefined
+      }
+
       const newEdge: RuntimeEdge = {
         id: `edge-${resolvedConnection.source}-${resolvedConnection.sourceHandle ?? 'out'}-${resolvedConnection.target}-${resolvedConnection.targetHandle ?? 'in'}`,
         source: resolvedConnection.source,
@@ -811,7 +821,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         target: resolvedConnection.target,
         targetHandle: (resolvedConnection.targetHandle as string) || 'in'
       }
-      setEdges((prev) => addEdge(resolvedConnection, prev))
+      setEdges((prev) => addEdge(cleanConnection, prev))
       onEdgeAddRef.current(newEdge)
       // Устанавливаем флаг, чтобы следующий клик по холсту не создавал ноду.
       justConnectedRef.current = true

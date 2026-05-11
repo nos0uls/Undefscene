@@ -661,11 +661,11 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
             mode: 'floating',
             slot: null,
             position: floatingPosition,
-            size: drag.size,
+            size: currentPanel.lastFloatingSize ?? drag.size,
             zIndex: maxZ + 1,
             lastDockedSlot: currentPanel.slot ?? currentPanel.lastDockedSlot ?? null,
             lastFloatingPosition: floatingPosition,
-            lastFloatingSize: drag.size
+            lastFloatingSize: currentPanel.lastFloatingSize ?? drag.size
           }
         }
       })
