@@ -25,7 +25,10 @@ function hasMeaningfulSceneChange(prev: RuntimeState, next: RuntimeState): boole
 // Хук для хранения runtime-json состояния и его автосохранения.
 export const useRuntimeState = (): {
   runtime: RuntimeState
-  setRuntime: (nextOrUpdater: RuntimeState | ((prev: RuntimeState) => RuntimeState)) => void
+  setRuntime: (
+    nextOrUpdater: RuntimeState | ((prev: RuntimeState) => RuntimeState),
+    options?: { skipHistory?: boolean }
+  ) => void
   undo: () => void
   redo: () => void
   canUndo: boolean

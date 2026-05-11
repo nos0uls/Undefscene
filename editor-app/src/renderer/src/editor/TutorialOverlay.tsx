@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createTranslator, SupportedLanguage } from '../i18n'
 import {
   type TutorialStep,
-  type TooltipPosition,
   TUTORIAL_REGISTRY
 } from './tutorialConstants'
 

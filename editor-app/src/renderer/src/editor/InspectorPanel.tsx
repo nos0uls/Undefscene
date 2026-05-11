@@ -568,7 +568,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
           )}
 
             <div className="runtimeHint" style={{ opacity: 0.6 }}>
-              {t('editor.position', 'Position')}: {Math.round(selectedNode.position.x)}, {Math.round(selectedNode.position.y)}
+              {t('editor.position', 'Position')}: {selectedNode.position ? `${Math.round(selectedNode.position.x)}, ${Math.round(selectedNode.position.y)}` : '0, 0'}
             </div>
             {/* Статистика по связям: сколько стрелок входит и выходит из ноды. */}
             <div className="runtimeHint" style={{ opacity: 0.6 }}>

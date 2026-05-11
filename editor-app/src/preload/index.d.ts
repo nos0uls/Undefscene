@@ -270,11 +270,11 @@ export interface RendererApi {
   updater: {
     check: () => Promise<UpdaterCheckResult>
     install: () => Promise<UpdaterInstallResult>
-    onUpdateAvailable: (cb: (info: { version: string; releaseNotes: string }) => void) => void
-    onUpdateNotAvailable: (cb: () => void) => void
-    onDownloadProgress: (cb: (progress: { percent: number }) => void) => void
-    onUpdateDownloaded: (cb: () => void) => void
-    onError: (cb: (msg: string) => void) => void
+    onUpdateAvailable: (cb: (info: { version: string; releaseNotes: string }) => void) => () => void
+    onUpdateNotAvailable: (cb: () => void) => () => void
+    onDownloadProgress: (cb: (progress: { percent: number }) => void) => () => void
+    onUpdateDownloaded: (cb: () => void) => () => void
+    onError: (cb: (msg: string) => void) => () => void
   }
 
   // Preview v2 (сейчас отключён). Оставляем API-заглушку, чтобы сборка не падала.
@@ -291,6 +291,7 @@ export interface RendererApi {
     chooseScreenshotOutputDir: () => Promise<string | null>
     chooseCanvasBackground: () => Promise<string | null>
     readCanvasBackgroundDataUrl: (filePath: string) => Promise<string | null>
+    onChanged: (cb: (next: EditorPreferences) => void) => () => void
   }
 
   // Bridge для отдельного native окна visual editor.

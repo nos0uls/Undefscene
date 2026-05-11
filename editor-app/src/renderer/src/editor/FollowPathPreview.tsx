@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 export type FollowPathPoint = {
   x: number
