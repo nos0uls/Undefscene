@@ -558,6 +558,18 @@ function actionToRuntimeNode(
       params.value = typeof value === 'string' ? value : JSON.stringify(value)
       continue
     }
+    // Dialogue integration nodes — pass-through as-is.
+    if (
+      normalizedType === 'set_dialogue_speed' ||
+      normalizedType === 'wait_typing' ||
+      normalizedType === 'dialogue_control' ||
+      normalizedType === 'set_portrait_next' ||
+      normalizedType === 'set_portrait_now' ||
+      normalizedType === 'clear_dialogue'
+    ) {
+      params[key] = value
+      continue
+    }
     params[key] = value
   }
 

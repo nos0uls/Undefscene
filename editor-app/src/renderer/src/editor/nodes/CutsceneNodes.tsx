@@ -251,6 +251,91 @@ export const WaitForDialogueNode = memo(function WaitForDialogueNode({ data, sel
   )
 })
 
+// Установка скорости печати диалога.
+export const SetDialogueSpeedNode = memo(function SetDialogueSpeedNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const speed = data.params?.speed ?? '?'
+  return (
+    <BaseNode nodeType="set_dialogue_speed" selected={selected}>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Speed</span>
+        <span className="customNodeParamValue">{String(speed)} ch/s</span>
+      </div>
+    </BaseNode>
+  )
+})
+
+// Ожидание завершения печати текста.
+export const WaitTypingNode = memo(function WaitTypingNode({ selected }: CutsceneNodeProps): React.JSX.Element {
+  return (
+    <BaseNode nodeType="wait_typing" selected={selected}>
+      <div className="customNodeParam">wait for typing</div>
+    </BaseNode>
+  )
+})
+
+// Управление поведением диалогового окна.
+export const DialogueControlNode = memo(function DialogueControlNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const preventSkip = data.params?.prevent_skip ?? false
+  const stayOpen = data.params?.stay_open ?? false
+  const autoAdvance = data.params?.auto_advance ?? false
+  const flags: string[] = []
+  if (preventSkip) flags.push('no skip')
+  if (stayOpen) flags.push('stay open')
+  if (autoAdvance) flags.push('auto advance')
+  return (
+    <BaseNode nodeType="dialogue_control" selected={selected}>
+      <div className="customNodeParam">
+        {flags.length > 0 ? flags.join(', ') : 'default'}
+      </div>
+    </BaseNode>
+  )
+})
+
+// Установка портрета для следующей реплики.
+export const SetPortraitNextNode = memo(function SetPortraitNextNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const emotion = data.params?.emotion ?? ''
+  return (
+    <BaseNode nodeType="set_portrait_next" selected={selected}>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Target</span>
+        <span className="customNodeParamValue">{String(target)}</span>
+      </div>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Emotion</span>
+        <span className="customNodeParamValue">{String(emotion)}</span>
+      </div>
+    </BaseNode>
+  )
+})
+
+// Установка портрета немедленно.
+export const SetPortraitNowNode = memo(function SetPortraitNowNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const emotion = data.params?.emotion ?? ''
+  return (
+    <BaseNode nodeType="set_portrait_now" selected={selected}>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Target</span>
+        <span className="customNodeParamValue">{String(target)}</span>
+      </div>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Emotion</span>
+        <span className="customNodeParamValue">{String(emotion)}</span>
+      </div>
+    </BaseNode>
+  )
+})
+
+// Очистка диалогового окна.
+export const ClearDialogueNode = memo(function ClearDialogueNode({ selected }: CutsceneNodeProps): React.JSX.Element {
+  return (
+    <BaseNode nodeType="clear_dialogue" selected={selected}>
+      <div className="customNodeParam">clear textbox</div>
+    </BaseNode>
+  )
+})
+
 // --- Camera ---
 
 // Камера следит за целью.
@@ -747,6 +832,32 @@ export const EmoteNode = memo(function EmoteNode({ data, selected }: CutsceneNod
         {String(target)} {wait && <span style={{ opacity: 0.5, fontSize: '0.9em' }}>(wait)</span>}
       </div>
       {sprite && <div className="customNodeParam">{String(sprite)}</div>}
+    </BaseNode>
+  )
+})
+
+export const SetEmotionNode = memo(function SetEmotionNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target ?? ''
+  const emotion = data.params?.emotion ?? ''
+  const applySprite = data.params?.apply_to_sprite === true
+  const applyPortrait = data.params?.apply_to_portrait === true
+  return (
+    <BaseNode nodeType="set_emotion" selected={selected}>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Actor</span>
+        <span className="customNodeParamValue">{String(target)}</span>
+      </div>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Emotion</span>
+        <span className="customNodeParamValue">{String(emotion)}</span>
+      </div>
+      {(applySprite || applyPortrait) && (
+        <div className="customNodeParam">
+          {applySprite && <span style={{ opacity: 0.5, fontSize: '0.9em' }}>sprite</span>}
+          {applySprite && applyPortrait && <span style={{ opacity: 0.5, fontSize: '0.9em' }}> · </span>}
+          {applyPortrait && <span style={{ opacity: 0.5, fontSize: '0.9em' }}>portrait</span>}
+        </div>
+      )}
     </BaseNode>
   )
 })

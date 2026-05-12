@@ -72,6 +72,25 @@ export type RuntimeEdge = {
   endTimeoutSeconds?: number
 }
 
+// Заметка режиссёра — редактор-only метаданные, не экспортируются в игру.
+export type RuntimeNote = {
+  // Уникальный ID заметки.
+  id: string
+
+  // Текст заметки.
+  text: string
+
+  // Категория заметки (цветовой индикатор).
+  category: 'acting' | 'camera' | 'sound' | 'todo' | 'warning'
+
+  // Позиция на холсте.
+  x: number
+  y: number
+
+  // Закреплена ли заметка поверх холста.
+  pinned: boolean
+}
+
 // Основное состояние runtime-json, которое мы будем сохранять в файл.
 export type RuntimeState = {
   // Версия схемы, чтобы потом делать миграции.
@@ -85,6 +104,9 @@ export type RuntimeState = {
 
   // Массив связей между узлами.
   edges: RuntimeEdge[]
+
+  // Заметки режиссёра — редактор-only, не экспортируются.
+  notes: RuntimeNote[]
 
   // ID выбранного узла (для инспектора).
   selectedNodeId: string | null
@@ -154,7 +176,8 @@ export const createDefaultRuntimeState = (): RuntimeState => {
     selectedNodeId: null,
     selectedNodeIds: [],
     selectedEdgeId: null,
-    lastSavedAtMs: 0
+    lastSavedAtMs: 0,
+    notes: []
   }
 }
 
@@ -170,7 +193,8 @@ export const createEmptyRuntimeState = (): RuntimeState => {
     selectedNodeId: null,
     selectedNodeIds: [],
     selectedEdgeId: null,
-    lastSavedAtMs: 0
+    lastSavedAtMs: 0,
+    notes: []
   }
 }
 
@@ -305,11 +329,42 @@ export function parseRuntimeState(raw: unknown): RuntimeState | null {
     }
   }
 
+  // Парсим заметки режиссёра.
+  const notes: RuntimeNote[] = []
+  const rawNotes = (candidate as Record<string, unknown>).notes
+  if (Array.isArray(rawNotes)) {
+    for (const rawNote of rawNotes) {
+      if (!rawNote || typeof rawNote !== 'object') continue
+      const cn = rawNote as Partial<RuntimeNote>
+      if (typeof cn.id !== 'string') continue
+      const category = cn.category
+      if (
+        category !== 'acting' &&
+        category !== 'camera' &&
+        category !== 'sound' &&
+        category !== 'todo' &&
+        category !== 'warning'
+      )
+        continue
+      if (typeof cn.x !== 'number' || typeof cn.y !== 'number') continue
+      const note: RuntimeNote = {
+        id: cn.id,
+        text: typeof cn.text === 'string' ? cn.text : '',
+        category,
+        x: cn.x,
+        y: cn.y,
+        pinned: typeof cn.pinned === 'boolean' ? cn.pinned : false
+      }
+      notes.push(note)
+    }
+  }
+
   return {
     schemaVersion: 1,
     title: typeof candidate.title === 'string' ? candidate.title : 'Untitled Cutscene',
     nodes,
     edges,
+    notes,
     selectedNodeId: typeof candidate.selectedNodeId === 'string' ? candidate.selectedNodeId : null,
     // selectedNodeIds — новое поле. Если его нет, но есть selectedNodeId — делаем массив из одного элемента.
     selectedNodeIds: Array.isArray(candidate.selectedNodeIds)

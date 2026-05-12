@@ -53,6 +53,12 @@ export type ValidationResult = {
 // Ключ — тип ноды, значение — массив имён обязательных параметров.
 const REQUIRED_PARAMS: Record<string, string[]> = {
   dialogue: [],
+  set_dialogue_speed: ['speed'],
+  wait_typing: [],
+  dialogue_control: [],
+  set_portrait_next: ['target', 'emotion'],
+  set_portrait_now: ['target', 'emotion'],
+  clear_dialogue: [],
   move: ['target'],
   set_position: ['target'],
   move_relative: ['target'],
@@ -80,6 +86,7 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   tween_camera: ['property'],
   set_property: ['property'],
   emote: ['target'],
+  set_emotion: ['target', 'emotion'],
   jump: ['target'],
   halt: ['target'],
   flip: ['target'],

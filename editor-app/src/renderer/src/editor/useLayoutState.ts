@@ -39,6 +39,16 @@ export function createDefaultLayout(): LayoutState {
         zIndex: 1,
         collapsed: false
       },
+      'panel.notes': {
+        id: 'panel.notes',
+        title: 'Notes',
+        mode: 'hidden',
+        slot: null,
+        position: null,
+        size: null,
+        zIndex: 1,
+        collapsed: false
+      },
       'panel.text': {
         id: 'panel.text',
         title: 'Text Editor',
@@ -86,7 +96,7 @@ export function createDefaultLayout(): LayoutState {
 }
 
 // Хук для хранения и сохранения LayoutState.
-// Пока что это “первый шаг”: мы просто читаем/пишем layout.json через IPC.
+// Пока что это "первый шаг": мы просто читаем/пишем layout.json через IPC.
 export function useLayoutState(): {
   layout: LayoutState
   setLayout: (next: LayoutState) => void

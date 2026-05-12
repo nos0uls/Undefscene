@@ -688,6 +688,39 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       return action
     }
 
+    // Dialogue integration nodes.
+    if (node.type === 'set_dialogue_speed') {
+      if (typeof node.params?.speed === 'number') action.speed = node.params.speed
+      return action
+    }
+
+    if (node.type === 'wait_typing') {
+      return action
+    }
+
+    if (node.type === 'dialogue_control') {
+      if (typeof node.params?.prevent_skip === 'boolean') action.prevent_skip = node.params.prevent_skip
+      if (typeof node.params?.stay_open === 'boolean') action.stay_open = node.params.stay_open
+      if (typeof node.params?.auto_advance === 'boolean') action.auto_advance = node.params.auto_advance
+      return action
+    }
+
+    if (node.type === 'set_portrait_next') {
+      if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
+      if (typeof node.params?.emotion === 'string' && node.params.emotion) action.emotion = node.params.emotion
+      return action
+    }
+
+    if (node.type === 'set_portrait_now') {
+      if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
+      if (typeof node.params?.emotion === 'string' && node.params.emotion) action.emotion = node.params.emotion
+      return action
+    }
+
+    if (node.type === 'clear_dialogue') {
+      return action
+    }
+
     if (node.type === 'move_relative') {
       if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
       if (typeof node.params?.dx === 'number') action.dx = node.params.dx

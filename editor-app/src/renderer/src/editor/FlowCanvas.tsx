@@ -1304,6 +1304,15 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         // Дополнительно защищаемся от бесконечного цикла: не вызываем onSelectNodes,
         // если фактическое выделение не изменилось относительно пропсов.
         onSelectionChange={handleSelectionChange}
+        onMoveEnd={() => {
+          if (!onViewportCenterChange) return
+          const v = getViewport()
+          const wrapper = flowCanvasRef.current
+          if (!wrapper) return
+          const rect = wrapper.getBoundingClientRect()
+          const center = screenToFlowPosition({ x: rect.width / 2, y: rect.height / 2 })
+          onViewportCenterChange(center)
+        }}
         // Отключаем встроенное удаление, потому что мы обрабатываем Backspace/Delete глобально
         // в useEditorShortcuts и удаляем элементы из runtime state (Single Source of Truth).
         deleteKeyCode={null}

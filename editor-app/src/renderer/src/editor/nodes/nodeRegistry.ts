@@ -221,6 +221,12 @@ const otherNodes: Record<string, NodeDefinition> = {
     { key: 'scale', label: 'Scale', type: 'number', step: 0.1, defaultValue: 1 },
     { key: 'wait', label: 'Wait', type: 'select', options: ['false (fire and forget)', 'true (wait for finish)'], defaultValue: false }
   ], defaultParams: { target: 'player', sprite: '', seconds: 1, offset_x: 0, offset_y: -24, scale: 1, wait: false } },
+  set_emotion: { type: 'set_emotion', label: 'Set Emotion', category: 'visual', fields: [
+    { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
+    { key: 'emotion', label: 'Emotion', type: 'select', options: ['default', 'neutral', 'angry', 'sad', 'scared', 'happy', 'confused'], defaultValue: 'neutral' },
+    { key: 'apply_to_sprite', label: 'Apply to Sprite', type: 'checkbox', defaultValue: true },
+    { key: 'apply_to_portrait', label: 'Apply to Portrait', type: 'checkbox', defaultValue: true }
+  ], defaultParams: { target: 'player', emotion: 'neutral', apply_to_sprite: true, apply_to_portrait: true } },
   jump: { type: 'jump', label: 'Jump', category: 'movement', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'x', label: 'X', type: 'number', defaultValue: 0 },
@@ -342,7 +348,26 @@ const otherNodes: Record<string, NodeDefinition> = {
   parallel_start: { type: 'parallel_start', label: 'Parallel', category: 'logic', fields: [], defaultParams: { branches: ['b0'], joinId: '' } },
   parallel_join: { type: 'parallel_join', label: 'Parallel Join', category: 'logic', fields: [
     { key: 'pairId', label: 'Pair Start Node ID', type: 'text', defaultValue: '' }
-  ], defaultParams: { pairId: '' } }
+  ], defaultParams: { pairId: '' } },
+  // Dialogue integration nodes.
+  set_dialogue_speed: { type: 'set_dialogue_speed', label: 'Set Dialogue Speed', category: 'dialogue', fields: [
+    { key: 'speed', label: 'Chars/sec', type: 'number', step: 0.1, defaultValue: 1.0 }
+  ], defaultParams: { speed: 1.0 } },
+  wait_typing: { type: 'wait_typing', label: 'Wait Typing', category: 'dialogue', fields: [], defaultParams: {} },
+  dialogue_control: { type: 'dialogue_control', label: 'Dialogue Control', category: 'dialogue', fields: [
+    { key: 'prevent_skip', label: 'Prevent Skip', type: 'checkbox', defaultValue: false },
+    { key: 'stay_open', label: 'Stay Open', type: 'checkbox', defaultValue: false },
+    { key: 'auto_advance', label: 'Auto Advance', type: 'checkbox', defaultValue: false }
+  ], defaultParams: { prevent_skip: false, stay_open: false, auto_advance: false } },
+  set_portrait_next: { type: 'set_portrait_next', label: 'Set Portrait Next', category: 'dialogue', fields: [
+    { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
+    { key: 'emotion', label: 'Emotion', type: 'select', options: ['neutral', 'angry', 'sad', 'scared', 'happy', 'confused', 'surprised'], defaultValue: 'neutral' }
+  ], defaultParams: { target: 'player', emotion: 'neutral' } },
+  set_portrait_now: { type: 'set_portrait_now', label: 'Set Portrait Now', category: 'dialogue', fields: [
+    { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
+    { key: 'emotion', label: 'Emotion', type: 'select', options: ['neutral', 'angry', 'sad', 'scared', 'happy', 'confused', 'surprised'], defaultValue: 'neutral' }
+  ], defaultParams: { target: 'player', emotion: 'neutral' } },
+  clear_dialogue: { type: 'clear_dialogue', label: 'Clear Dialogue', category: 'dialogue', fields: [], defaultParams: {} }
 }
 
 export const NODE_REGISTRY: Record<string, NodeDefinition> = {
