@@ -598,6 +598,45 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       return action
     }
 
+    // schedule_action: формируем вложенный action-объект из action_type + action_params (JSON).
+    // action_params пустой или битый JSON не ломает экспорт, но валидация покажет tip.
+    if (node.type === 'schedule_action') {
+      const delaySeconds = Number(node.params?.delay_seconds ?? 0)
+      const actionType = typeof node.params?.action_type === 'string' ? node.params.action_type : ''
+      const blocking = node.params?.blocking === true
+      const tag = typeof node.params?.tag === 'string' ? node.params.tag : ''
+
+      const innerAction: CompiledAction = { type: actionType }
+      const rawParams = node.params?.action_params
+      if (typeof rawParams === 'string') {
+        const trimmed = rawParams.trim()
+        if (trimmed.length > 0) {
+          try {
+            const parsed = JSON.parse(trimmed) as unknown
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+                if (k === 'type') continue
+                innerAction[k] = v
+              }
+            }
+          } catch {
+            // Битый JSON игнорируем: validateGraph покажет подсказку пользователю.
+          }
+        }
+      } else if (rawParams && typeof rawParams === 'object' && !Array.isArray(rawParams)) {
+        for (const [k, v] of Object.entries(rawParams as Record<string, unknown>)) {
+          if (k === 'type') continue
+          innerAction[k] = v
+        }
+      }
+
+      action.delay_seconds = delaySeconds
+      action.action = innerAction
+      action.blocking = blocking
+      if (tag) action.tag = tag
+      return action
+    }
+
     if (node.type === 'set_flag') {
       if (typeof node.params?.key === 'string' && node.params.key) action.key = node.params.key
       const rawVal = node.params?.value

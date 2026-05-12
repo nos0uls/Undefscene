@@ -355,7 +355,8 @@ export const ru = {
       follow_path: 'Follow Path',
       tween_camera: 'Tween Camera',
       parallel_start: 'Parallel Start',
-      parallel_join: 'Parallel Join'
+      parallel_join: 'Parallel Join',
+      schedule_action: 'Schedule Action'
     },
     fields: {
       target: 'Target',
@@ -418,7 +419,12 @@ export const ru = {
       pairId: 'Pair ID',
       note_text: 'Заметка',
       category: 'Категория',
-      pinned: 'Закреплено'
+      pinned: 'Закреплено',
+      delay_seconds: 'Delay (seconds)',
+      action_type: 'Action Type',
+      action_params: 'Action Params (JSON)',
+      blocking: 'Blocking',
+      tag: 'Tag',
     }
   },
   // Обучение / Интерактивный тур
@@ -554,6 +560,9 @@ export const ru = {
     playMusicSoundNotFound: 'play_music: звук «{sound}» не найден в ресурсах проекта.',
     runFunctionNameEmpty: '{name}: имя функции не заполнено.',
     runFunctionArgsInvalid: '{name}: некорректный JSON в аргументах. Проверьте синтаксис в инспекторе.',
+    scheduleActionInvalidParams: '{name}: некорректный JSON в action_params. Проверьте синтаксис в инспекторе.',
+    scheduleActionParamsNotObject: '{name}: action_params должен быть JSON-объектом (например, {"target":"player"}).',
+    scheduleActionInvalidDelay: '{name}: delay_seconds должен быть неотрицательным числом.',
     dialogueFileNotSet: '{name}: файл диалога не выбран. Выберите .yarn файл в инспекторе.',
     cameraShakeSecondsInvalid: '{name}: длительность меньше или равна нулю. Укажите положительное число.',
     shakeFrequencyTooLow: '{name}: частота тряски должна быть не меньше 1.',

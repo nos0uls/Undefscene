@@ -299,6 +299,16 @@ const otherNodes: Record<string, NodeDefinition> = {
   set_plot: { type: 'set_plot', label: 'Set Plot', category: 'logic', fields: [
     { key: 'value', label: 'Plot Value', type: 'number', placeholder: '10', defaultValue: 0 }
   ], defaultParams: { value: 0 } },
+  // schedule_action — отложенный запуск одного внутреннего действия.
+  // action_type ограничен fire-and-forget типами.
+  // action_params хранится в UI как JSON-строка и парсится в compileGraph.
+  schedule_action: { type: 'schedule_action', label: 'Schedule Action', category: 'logic', fields: [
+    { key: 'delay_seconds', label: 'Delay (seconds)', type: 'number', step: 0.1, defaultValue: 0.5 },
+    { key: 'action_type', label: 'Action Type', type: 'select', options: ['play_sfx', 'emote', 'flip', 'set_visible', 'set_facing', 'camera_shake', 'halt', 'run_function'], defaultValue: 'play_sfx' },
+    { key: 'action_params', label: 'Action Params (JSON)', type: 'json', placeholder: '{"target":"player","sprite":"spr_heart"}', defaultValue: '' },
+    { key: 'blocking', label: 'Blocking (wait for inner)', type: 'checkbox', defaultValue: false },
+    { key: 'tag', label: 'Tag (optional)', type: 'text', placeholder: 'debug label', defaultValue: '' }
+  ], defaultParams: { delay_seconds: 0.5, action_type: 'play_sfx', action_params: '', blocking: false, tag: '' } },
   // Специальная обработка для points array не нужна:
   // - points хранится как массив {x, y}[] в editor params (не как JSON строка)
   // - Общая логика в compileGraph/reverseCompile корректно копирует массивы

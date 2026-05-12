@@ -553,6 +553,22 @@ function actionToRuntimeNode(
       params.value = typeof value === 'string' ? value : JSON.stringify(value)
       continue
     }
+    // schedule_action: разворачиваем вложенный action в action_type + action_params (JSON-строка).
+    // blocking и tag кладём как есть.
+    if (normalizedType === 'schedule_action' && key === 'action') {
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        const inner = value as Record<string, unknown>
+        const innerType = typeof inner.type === 'string' ? inner.type : ''
+        params.action_type = innerType
+        const rest: Record<string, unknown> = {}
+        for (const [k, v] of Object.entries(inner)) {
+          if (k === 'type') continue
+          rest[k] = v
+        }
+        params.action_params = Object.keys(rest).length > 0 ? JSON.stringify(rest) : ''
+      }
+      continue
+    }
     // Dialogue integration nodes — pass-through as-is.
     if (
       normalizedType === 'set_dialogue_speed' ||

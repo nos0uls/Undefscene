@@ -355,7 +355,8 @@ export const en = {
       follow_path: 'Follow Path',
       tween_camera: 'Tween Camera',
       parallel_start: 'Parallel Start',
-      parallel_join: 'Parallel Join'
+      parallel_join: 'Parallel Join',
+      schedule_action: 'Schedule Action'
     },
     fields: {
       target: 'Target',
@@ -418,7 +419,12 @@ export const en = {
       pairId: 'Pair ID',
       note_text: 'Note',
       category: 'Category',
-      pinned: 'Pinned'
+      pinned: 'Pinned',
+      delay_seconds: 'Delay (seconds)',
+      action_type: 'Action Type',
+      action_params: 'Action Params (JSON)',
+      blocking: 'Blocking',
+      tag: 'Tag',
     }
   },
   // Tutorial / Interactive Tour
@@ -554,6 +560,9 @@ export const en = {
     playMusicSoundNotFound: 'play_music: sound "{sound}" not found in project resources. Check the sound name or reload the project.',
     runFunctionNameEmpty: '{name}: function name is empty.',
     runFunctionArgsInvalid: '{name}: args JSON is invalid. Check syntax in the inspector.',
+    scheduleActionInvalidParams: '{name}: action_params JSON is invalid. Check syntax in the inspector.',
+    scheduleActionParamsNotObject: '{name}: action_params should be a JSON object (e.g. {"target":"player"}).',
+    scheduleActionInvalidDelay: '{name}: delay_seconds must be a non-negative number.',
     dialogueFileNotSet: '{name}: dialogue file is not set. Select a .yarn file in the inspector.',
     cameraShakeSecondsInvalid: '{name}: seconds is zero or negative. Set a positive duration.',
     shakeFrequencyTooLow: '{name}: shake frequency must be at least 1.',

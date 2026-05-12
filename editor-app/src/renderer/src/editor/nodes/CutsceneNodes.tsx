@@ -1068,3 +1068,25 @@ export const SetPlotNode = memo(function SetPlotNode({ data, selected }: Cutscen
   )
 })
 
+
+// Schedule Action — отложенный запуск одного fire-and-forget действия.
+export const ScheduleActionNode = memo(function ScheduleActionNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const delay = data.params?.delay_seconds ?? "?"
+  const actionType = data.params?.action_type ?? ""
+  const blocking = data.params?.blocking ?? false
+  const tag = data.params?.tag ?? ""
+  return (
+    <BaseNode  nodeType="schedule_action" selected={selected}>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Delay</span>
+        <span className="customNodeParamValue">{String(delay)}s</span>
+      </div>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Action</span>
+        <span className="customNodeParamValue">{String(actionType)}</span>
+      </div>
+      {blocking && <div className="customNodeParam">blocking</div>}
+      {tag && <div className="customNodeParam">#{String(tag)}</div>}
+    </BaseNode>
+  )
+})

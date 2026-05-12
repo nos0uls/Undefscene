@@ -107,7 +107,8 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   music_unduck: [],
   music_pitch: [],
   music_pause: [],
-  music_resume: []
+  music_resume: [],
+  schedule_action: ['delay_seconds', 'action_type']
 }
 
 // Главная функция валидации. Принимает текущее состояние графа и опциональный контекст ресурсов.
@@ -530,6 +531,43 @@ export function validateGraph(
             message: t('validation.runFunctionArgsInvalid', { name: nodeDisplayName })
           })
         }
+      }
+    }
+
+    // schedule_action: подсказка, если action_params — битый JSON.
+    if (node.type === 'schedule_action') {
+      const rawParams = node.params?.action_params
+      if (typeof rawParams === 'string' && rawParams.trim().length > 0) {
+        try {
+          const parsed = JSON.parse(rawParams)
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            entries.push({
+              severity: 'tip',
+              defaultSeverity: 'tip',
+              ruleId: 'scheduleActionParamsNotObject',
+              nodeId: node.id,
+              message: t('validation.scheduleActionParamsNotObject', { name: nodeDisplayName })
+            })
+          }
+        } catch {
+          entries.push({
+            severity: 'tip',
+            defaultSeverity: 'tip',
+            ruleId: 'scheduleActionInvalidParams',
+            nodeId: node.id,
+            message: t('validation.scheduleActionInvalidParams', { name: nodeDisplayName })
+          })
+        }
+      }
+      const delay = Number(node.params?.delay_seconds ?? 0)
+      if (!Number.isFinite(delay) || delay < 0) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'scheduleActionInvalidDelay',
+          nodeId: node.id,
+          message: t('validation.scheduleActionInvalidDelay', { name: nodeDisplayName })
+        })
       }
     }
 
