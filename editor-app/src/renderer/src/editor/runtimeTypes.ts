@@ -110,29 +110,46 @@ export const createDefaultRuntimeState = (): RuntimeState => {
     nodes: [
       { id: 'n-start', type: 'start', name: 'Start', position: { x: 50, y: 180 } },
       {
+        id: 'n-parallel-start',
+        type: 'parallel_start',
+        name: 'Parallel Start',
+        position: { x: 300, y: 180 },
+        params: { joinId: 'n-parallel-join', branches: ['b0', 'b1'] }
+      },
+      {
         id: 'n-dialogue',
         type: 'dialogue',
         name: 'Node',
         text: 'Hello!',
-        position: { x: 360, y: 120 },
+        position: { x: 550, y: 80 },
         params: { file: 'intro.yarn', node: 'Greeting' }
       },
       {
         id: 'n-move',
         type: 'move',
         name: 'Node (0)',
-        position: { x: 360, y: 260 },
+        position: { x: 550, y: 280 },
         params: { target: 'actor:npc', x: 320, y: 240, speed_px_sec: 60 }
       },
-      { id: 'n-end', type: 'end', name: 'End', position: { x: 650, y: 180 } }
+      {
+        id: 'n-parallel-join',
+        type: 'parallel_join',
+        name: 'Parallel Join',
+        position: { x: 850, y: 180 },
+        params: { pairId: 'n-parallel-start', branches: ['b0', 'b1'] }
+      },
+      { id: 'n-end', type: 'end', name: 'End', position: { x: 1100, y: 180 } }
     ],
     // Стартовые связи между узлами.
     edges: [
       // Пауза хранится на ребре, а не отдельной нодой.
-      { id: 'e-start-dialogue', source: 'n-start', target: 'n-dialogue', waitSeconds: 1.5 },
-      { id: 'e-start-move', source: 'n-start', target: 'n-move', waitSeconds: 1.5 },
-      { id: 'e-dialogue-end', source: 'n-dialogue', target: 'n-end' },
-      { id: 'e-move-end', source: 'n-move', target: 'n-end' }
+      { id: 'e-start-parallel', source: 'n-start', target: 'n-parallel-start', waitSeconds: 1.5 },
+      { id: 'e-parallel-dialogue', source: 'n-parallel-start', sourceHandle: 'b0', target: 'n-dialogue' },
+      { id: 'e-parallel-move', source: 'n-parallel-start', sourceHandle: 'b1', target: 'n-move' },
+      { id: 'e-dialogue-join', source: 'n-dialogue', target: 'n-parallel-join', targetHandle: 'b0' },
+      { id: 'e-move-join', source: 'n-move', target: 'n-parallel-join', targetHandle: 'b1' },
+      { id: 'e-pair-parallel', source: 'n-parallel-start', sourceHandle: '__pair', target: 'n-parallel-join', targetHandle: '__pair' },
+      { id: 'e-join-end', source: 'n-parallel-join', target: 'n-end' }
     ],
     selectedNodeId: null,
     selectedNodeIds: [],

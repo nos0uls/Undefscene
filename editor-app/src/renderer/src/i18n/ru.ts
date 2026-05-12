@@ -49,6 +49,7 @@ export const ru = {
     chooseScreenshotOutputDir: 'Выбрать папку скриншотов...',
     checkForUpdates: 'Проверить обновления...',
     cleanupDevData: 'Сбросить кэш и настройки',
+    resetSeverityOverrides: 'Сбросить переопределения серьёзности',
     aboutAction: 'О программе',
     tutorial: 'Обучение'
   },

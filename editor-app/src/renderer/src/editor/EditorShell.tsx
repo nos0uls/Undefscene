@@ -660,6 +660,11 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     []
   )
 
+  const handleResetAllOverrides = useCallback(() => {
+    setRuleOverrides({})
+    saveValidationOverrides({})
+  }, [])
+
   // Снимок состояния перед входом в Zen Mode (layout + docks).
   const zenLayoutSnapshotRef = useRef<{ layout: LayoutState; docks: CollapsedDocksState } | null>(null)
 
@@ -1254,6 +1259,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
         visualEditorTechModeEnabled={preferences.visualEditorTechMode}
         hardwareAccelerationDisabled={preferences.disableHardwareAcceleration}
         onCleanupDevData={handleCleanupDevData}
+        onResetSeverityOverrides={handleResetAllOverrides}
         onOpenVisualEditing={openVisualEditorWindow}
         onAbout={handleAbout}
         onTutorial={handleTutorial}

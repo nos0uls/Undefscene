@@ -49,6 +49,7 @@ export const en = {
     chooseScreenshotOutputDir: 'Choose Screenshot Output Folder...',
     checkForUpdates: 'Check for Updates...',
     cleanupDevData: 'Cleanup Dev Data (Reset Editor)',
+    resetSeverityOverrides: 'Reset Severity Overrides',
     aboutAction: 'About',
     tutorial: 'Tutorial'
   },

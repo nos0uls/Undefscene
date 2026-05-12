@@ -74,6 +74,7 @@ export type TopMenuBarProps = {
   // Выход.
   onExit: () => void
   onCleanupDevData?: () => void
+  onResetSeverityOverrides?: () => void
 
   // Настройки.
   onPreferences: () => void
@@ -121,6 +122,7 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
     visualEditorTechModeEnabled,
     hardwareAccelerationDisabled,
     onCleanupDevData,
+    onResetSeverityOverrides,
     onExit,
     onPreferences,
     language,
@@ -201,6 +203,15 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
               id: 'cleanupDevData',
               label: t('menu.cleanupDevData', 'Cleanup Dev Data (Reset Editor)'),
               onSelect: onCleanupDevData
+            }
+          ]
+        : []),
+      ...(onResetSeverityOverrides
+        ? [
+            {
+              id: 'resetSeverityOverrides',
+              label: t('menu.resetSeverityOverrides', 'Reset Severity Overrides'),
+              onSelect: onResetSeverityOverrides
             }
           ]
         : [])
