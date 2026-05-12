@@ -180,6 +180,12 @@ function importSequence(
       continue
     }
 
+    // director_note — редактор-only, не должна попадать в engine JSON.
+    // Если встретилась (вручную добавленная), пропускаем.
+    if (action.type === 'director_note') {
+      continue
+    }
+
     // wait_until — синтаксический сахар для guard_global с if_false: 'wait_until_true' и пустыми actions.
     if (action.type === 'guard_global' && action.if_false === 'wait_until_true') {
       const nested = Array.isArray(action.actions) ? (action.actions as ImportedAction[]) : null

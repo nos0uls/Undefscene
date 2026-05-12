@@ -7,7 +7,7 @@ import { NODE_REGISTRY } from './nodes/nodeRegistry'
 const NODE_PALETTE_DRAG_MIME = 'application/x-undefscene-node-type'
 
 // Порядок отображения категорий в палитре.
-const CATEGORY_ORDER = ['flow', 'movement', 'actor', 'visual', 'camera', 'dialogue', 'logic', 'audio', 'wait']
+const CATEGORY_ORDER = ['flow', 'movement', 'actor', 'visual', 'camera', 'dialogue', 'logic', 'audio', 'wait', 'meta']
 
 type ActionsPanelProps = {
   t: (key: string, fallback: string) => string

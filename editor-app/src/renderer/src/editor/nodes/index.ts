@@ -58,7 +58,8 @@ import {
   SetFlagNode,
   SpawnEntityNode,
   DestroyEntityNode,
-  SetPlotNode
+  SetPlotNode,
+  DirectorNoteNode
 } from './CutsceneNodes'
 
 // Маппинг: тип ноды → React-компонент.
@@ -122,5 +123,6 @@ export const cutsceneNodeTypes = {
   set_flag: SetFlagNode,
   spawn_entity: SpawnEntityNode,
   destroy_entity: DestroyEntityNode,
-  set_plot: SetPlotNode
+  set_plot: SetPlotNode,
+  director_note: DirectorNoteNode
 } as const

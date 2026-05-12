@@ -178,7 +178,8 @@ export const en = {
       dialogue: 'Dialogue',
       logic: 'Logic',
       audio: 'Audio',
-      wait: 'Wait'
+      wait: 'Wait',
+      meta: 'Meta'
     },
     bookmarks: 'Bookmarks',
     inspector: 'Inspector',
@@ -323,6 +324,7 @@ export const en = {
       spawn_entity: 'Spawn Entity',
       destroy_entity: 'Destroy Entity',
       set_plot: 'Set Plot',
+      director_note: 'Director Note',
       follow_path: 'Follow Path',
       tween_camera: 'Tween Camera',
       parallel_start: 'Parallel Start',
@@ -383,7 +385,10 @@ export const en = {
       from_value: 'From Value',
       branches: 'Branches',
       joinId: 'Join ID',
-      pairId: 'Pair ID'
+      pairId: 'Pair ID',
+      note_text: 'Note',
+      category: 'Category',
+      pinned: 'Pinned'
     }
   },
   // Tutorial / Interactive Tour
@@ -579,7 +584,8 @@ export const en = {
     musicPitchInvalid: '{name}: pitch must be greater than 0.',
     musicPitchExtreme: '{name}: pitch is {pitch}. Values outside 0.5–2.0 may sound unusual.',
     cameraTrackMissingTarget: 'Camera track has no target.',
-    emoteSpriteNotFound: 'emote: sprite "{sprite}" not found in project resources. Check the sprite name or reload the project.'
+    emoteSpriteNotFound: 'emote: sprite "{sprite}" not found in project resources. Check the sprite name or reload the project.',
+    emptyDirectorNote: 'Empty director note.'
   },
   // Dock panel headers
   panels: {

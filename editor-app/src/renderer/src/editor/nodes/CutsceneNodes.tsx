@@ -981,3 +981,19 @@ export const SetPlotNode = memo(function SetPlotNode({ data, selected }: Cutscen
     </BaseNode>
   )
 })
+
+// Director Note — редактор-only заметка режиссёра. Не экспортируется в JSON.
+export const DirectorNoteNode = memo(function DirectorNoteNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const noteText = String(data.params?.note_text ?? '')
+  const category = String(data.params?.category ?? 'todo')
+  const pinned = Boolean(data.params?.pinned)
+  const displayText = noteText.length > 40 ? noteText.slice(0, 40) + '…' : noteText
+  return (
+    <BaseNode nodeType="director_note" label={displayText || undefined} hasInput={false} hasOutput={false} selected={selected}>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">{category}</span>
+        {pinned && <span className="customNodeParamValue"> (pinned)</span>}
+      </div>
+    </BaseNode>
+  )
+})

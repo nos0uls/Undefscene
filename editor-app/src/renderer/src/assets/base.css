@@ -79,6 +79,7 @@
   --node-camera: hsl(145, 50%, 45%);     /* #3d9960 — зелёный */
   --node-audio: hsl(190, 60%, 50%);      /* #33a3b3 — бирюзовый */
   --node-wait: hsl(220, 25%, 50%);       /* #6b7a99 — серо-синий */
+  --node-meta: hsl(45, 90%, 55%);        /* #f2c744 — жёлтый/амбар */
 
   /* --- Canvas --- */
   --canvas-bg: hsl(220, 20%, 6%);        /* #0a0e14 */
@@ -323,6 +324,7 @@
   --node-camera: hsl(145, 60%, 38%);
   --node-audio: hsl(185, 70%, 42%);
   --node-wait: hsl(220, 15%, 55%);
+  --node-meta: hsl(45, 85%, 48%);
 
   /* --- Canvas --- */
   --canvas-bg: hsl(220, 15%, 94%);

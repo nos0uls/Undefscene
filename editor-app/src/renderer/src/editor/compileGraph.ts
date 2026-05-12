@@ -185,6 +185,14 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       return { ok: true, actions }
     }
 
+    // director_note — редактор-only заметка, не экспортируется в JSON.
+    if (node.type === 'director_note') {
+      const next = getNextActions(nodeId)
+      if (!next.ok) return next
+      actions.push(...next.actions)
+      return { ok: true, actions }
+    }
+
     // Обычная нода — генерируем действие из её параметров.
     const action = nodeToAction(node)
     actions.push(action)
@@ -340,7 +348,7 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       }
     }
 
-    if (node.type !== 'start' && node.type !== 'end' && node.type !== 'parallel_join') {
+    if (node.type !== 'start' && node.type !== 'end' && node.type !== 'parallel_join' && node.type !== 'director_note') {
       actions.push(nodeToAction(node))
     }
 

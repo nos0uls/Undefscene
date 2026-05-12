@@ -896,6 +896,7 @@ code {
 .palette-cat-logic     { --node-color: var(--node-logic); }
 .palette-cat-audio     { --node-color: var(--node-audio); }
 .palette-cat-wait      { --node-color: var(--node-wait); }
+.palette-cat-meta      { --node-color: var(--node-meta); }
 
 .runtimeSectionTitle {
   font-size: 12px;
@@ -1505,6 +1506,7 @@ label.runtimeField:has(.searchable-select-open) {
 .customNode[data-category='logic'] { --node-color: var(--node-logic); }
 .customNode[data-category='audio'] { --node-color: var(--node-audio); }
 .customNode[data-category='wait'] { --node-color: var(--node-wait); }
+.customNode[data-category='meta'] { --node-color: var(--node-meta); }
 
 .customNodeDot {
   display: inline-block;

@@ -299,6 +299,11 @@ const otherNodes: Record<string, NodeDefinition> = {
   set_plot: { type: 'set_plot', label: 'Set Plot', category: 'logic', fields: [
     { key: 'value', label: 'Plot Value', type: 'number', placeholder: '10', defaultValue: 0 }
   ], defaultParams: { value: 0 } },
+  director_note: { type: 'director_note', label: 'Director Note', category: 'meta', fields: [
+    { key: 'note_text', label: 'Note', type: 'text', defaultValue: '' },
+    { key: 'category', label: 'Category', type: 'select', options: ['acting', 'camera', 'sound', 'todo', 'warning'], defaultValue: 'todo' },
+    { key: 'pinned', label: 'Pinned', type: 'checkbox', defaultValue: false }
+  ], defaultParams: { note_text: '', category: 'todo', pinned: false } },
   // Специальная обработка для points array не нужна:
   // - points хранится как массив {x, y}[] в editor params (не как JSON строка)
   // - Общая логика в compileGraph/reverseCompile корректно копирует массивы

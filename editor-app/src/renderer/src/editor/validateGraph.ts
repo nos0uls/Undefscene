@@ -1231,6 +1231,20 @@ export function validateGraph(
         }
       }
 
+      // Проверка director_note — пустая заметка не имеет смысла.
+      if (node.type === 'director_note') {
+        const noteText = String(params.note_text ?? '').trim()
+        if (!noteText) {
+          entries.push({
+            severity: 'tip',
+            defaultSeverity: 'tip',
+            ruleId: 'emptyDirectorNote',
+            nodeId: node.id,
+            message: t('validation.emptyDirectorNote')
+          })
+        }
+      }
+
       // Проверка run_function.function — должна быть в whitelist.
       if (node.type === 'run_function' && context.runFunctions) {
         const funcName = String(params.function ?? params.function_name ?? '').trim()

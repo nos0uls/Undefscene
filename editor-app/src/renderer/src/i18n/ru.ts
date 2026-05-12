@@ -178,7 +178,8 @@ export const ru = {
       dialogue: 'Диалог',
       logic: 'Логика',
       audio: 'Звук',
-      wait: 'Ожидание'
+      wait: 'Ожидание',
+      meta: 'Мета'
     },
     bookmarks: 'Закладки',
     inspector: 'Инспектор',
@@ -323,6 +324,7 @@ export const ru = {
       spawn_entity: 'Spawn Entity',
       destroy_entity: 'Destroy Entity',
       set_plot: 'Set Plot',
+      director_note: 'Заметка режиссёра',
       follow_path: 'Follow Path',
       tween_camera: 'Tween Camera',
       parallel_start: 'Parallel Start',
@@ -383,7 +385,10 @@ export const ru = {
       from_value: 'From Value',
       branches: 'Branches',
       joinId: 'Join ID',
-      pairId: 'Pair ID'
+      pairId: 'Pair ID',
+      note_text: 'Заметка',
+      category: 'Категория',
+      pinned: 'Закреплено'
     }
   },
   // Обучение / Интерактивный тур
@@ -579,7 +584,8 @@ export const ru = {
     musicActionWithoutMusic: 'Действие с музыкой без предварительного play_music.',
     musicPitchInvalid: '{name}: pitch должен быть больше 0.',
     musicPitchExtreme: '{name}: pitch = {pitch}. Значения вне диапазона 0.5–2.0 могут звучать необычно.',
-    cameraTrackMissingTarget: 'У camera_track не задана цель (target).'
+    cameraTrackMissingTarget: 'У camera_track не задана цель (target).',
+    emptyDirectorNote: 'Пустая заметка режиссёра.'
   },
   // Заголовки панелей докинга
   panels: {
