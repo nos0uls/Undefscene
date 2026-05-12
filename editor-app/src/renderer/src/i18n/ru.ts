@@ -183,6 +183,23 @@ export const ru = {
       meta: 'Мета'
     },
     bookmarks: 'Закладки',
+    notesTitle: 'Заметки режиссёра',
+    noNotesYet: 'Нет заметок. Нажмите + чтобы добавить.',
+    noteCategories: {
+      acting: 'Актёрская игра',
+      camera: 'Камера',
+      sound: 'Звук',
+      todo: 'Доделать',
+      warning: 'Важно'
+    },
+    all: 'Все',
+    newNoteText: 'Новая заметка',
+    emptyNoteText: 'Пустая заметка',
+    addNote: 'Добавить заметку',
+    deleteNote: 'Удалить заметку',
+    pinNote: 'Закрепить',
+    unpinNote: 'Открепить',
+    goToPosition: 'Перейти к позиции',
     inspector: 'Инспектор',
     textPanelReserved: 'Текст',
     selectDialogueNode: 'Выберите ноду диалога для предпросмотра.',

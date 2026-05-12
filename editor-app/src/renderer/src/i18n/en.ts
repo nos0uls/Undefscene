@@ -183,6 +183,23 @@ export const en = {
       meta: 'Meta'
     },
     bookmarks: 'Bookmarks',
+    notesTitle: 'Director Notes',
+    noNotesYet: 'No notes yet. Click + to add.',
+    noteCategories: {
+      acting: 'Acting',
+      camera: 'Camera',
+      sound: 'Sound',
+      todo: 'Todo',
+      warning: 'Warning'
+    },
+    all: 'All',
+    newNoteText: 'New note',
+    emptyNoteText: 'Empty note',
+    addNote: 'Add note',
+    deleteNote: 'Delete note',
+    pinNote: 'Pin',
+    unpinNote: 'Unpin',
+    goToPosition: 'Go to position',
     inspector: 'Inspector',
     textPanelReserved: 'Text',
     selectDialogueNode: 'Select a dialogue node to preview content.',

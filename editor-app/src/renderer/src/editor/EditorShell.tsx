@@ -8,7 +8,7 @@ import { parseYarnPreview } from './yarnPreview'
 import { useLayoutState, type LayoutState } from './useLayoutState'
 import { useProjectResources } from './useProjectResources'
 import { useRuntimeState } from './useRuntimeState'
-import { RuntimeEdge } from './runtimeTypes'
+import { RuntimeEdge, type RuntimeNote } from './runtimeTypes'
 import { validateGraph, type ValidationResult, type ValidationContext } from './validateGraph'
 import { PreferencesModal } from './PreferencesModal'
 import { WelcomeSetupModal } from './WelcomeSetupModal'
@@ -20,6 +20,7 @@ import { usePreferencesContext } from './PreferencesContext'
 import { useHotkeys } from './useHotkeys'
 import { InspectorPanel } from './InspectorPanel'
 import { BookmarksPanel } from './BookmarksPanel'
+import { NotesPanel } from './NotesPanel'
 import { PanelDataProvider } from './PanelDataContext'
 import { ActionsPanel } from './ActionsPanel'
 import { TextPanel } from './TextPanel'
@@ -169,6 +170,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     (panelId: string): string => {
       if (panelId === 'panel.actions') return t('panels.actions', 'Actions')
       if (panelId === 'panel.bookmarks') return t('panels.bookmarks', 'Bookmarks')
+      if (panelId === 'panel.notes') return t('panels.notes', 'Notes')
       if (panelId === 'panel.text') return t('panels.text', 'Text')
       if (panelId === 'panel.inspector') return t('panels.inspector', 'Inspector')
       if (panelId === 'panel.logs') return t('panels.logs', 'Logs / Warnings')
@@ -410,6 +412,49 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     tips: false
   })
   const [focusNodeRequest, setFocusNodeRequest] = useState<{ nodeId: string; nonce: number } | null>(null)
+  const [focusPositionRequest, setFocusPositionRequest] = useState<{ x: number; y: number; nonce: number } | null>(null)
+  const canvasCenterRef = useRef({ x: 0, y: 0 })
+
+  // --- Notes callbacks ---
+  const handleAddNote = useCallback(
+    (note: { text: string; category: RuntimeNote['category']; x?: number; y?: number }) => {
+      const id = 'note-' + Math.random().toString(36).slice(2, 9)
+      const x = note.x ?? canvasCenterRef.current.x
+      const y = note.y ?? canvasCenterRef.current.y
+      setRuntime((prev) => ({
+        ...prev,
+        notes: [...prev.notes, { id, text: note.text, category: note.category, x, y, pinned: false }]
+      }))
+    },
+    [setRuntime]
+  )
+
+  const handleUpdateNote = useCallback(
+    (id: string, patch: Partial<Omit<RuntimeNote, 'id'>>) => {
+      setRuntime((prev) => ({
+        ...prev,
+        notes: prev.notes.map((n) => (n.id === id ? { ...n, ...patch } : n))
+      }))
+    },
+    [setRuntime]
+  )
+
+  const handleDeleteNote = useCallback(
+    (id: string) => {
+      setRuntime((prev) => ({
+        ...prev,
+        notes: prev.notes.filter((n) => n.id !== id)
+      }))
+    },
+    [setRuntime]
+  )
+
+  const handleSelectNote = useCallback(
+    (x: number, y: number) => {
+      setFocusPositionRequest({ x, y, nonce: Date.now() })
+    },
+    [setFocusPositionRequest]
+  )
 
   const selectedNodeForName = useMemo(
     () => runtime.nodes.find((node) => node.id === runtime.selectedNodeId) ?? null,
@@ -919,6 +964,19 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
       )
     }
 
+    if (panelId === 'panel.notes') {
+      return (
+        <NotesPanel
+          t={t}
+          notes={runtime.notes}
+          onAddNote={handleAddNote}
+          onUpdateNote={handleUpdateNote}
+          onDeleteNote={handleDeleteNote}
+          onSelectNote={handleSelectNote}
+        />
+      )
+    }
+
     if (panelId === 'panel.templates') {
       return (
         <TemplateLibraryPanel
@@ -985,6 +1043,11 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     handleLogsSelectNode,
     handleLogsSelectEdge,
     handleSetRuleOverride,
+    runtime.notes,
+    handleAddNote,
+    handleUpdateNote,
+    handleDeleteNote,
+    handleSelectNote,
     templates,
     handleSaveTemplate,
     handleInsertTemplate,
@@ -1053,6 +1116,8 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
             selectedNodeIds={runtime.selectedNodeIds ?? []}
             selectedEdgeId={runtime.selectedEdgeId}
             focusNodeRequest={focusNodeRequest}
+            focusPositionRequest={focusPositionRequest}
+            onViewportCenterChange={(center) => { canvasCenterRef.current = center }}
             onSelectNodes={handleSelectNodes}
             onSelectEdge={handleSelectEdge}
             onNodePositionChange={handleNodePositionChange}
@@ -1077,6 +1142,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
       runtime.selectedNodeIds,
       runtime.selectedEdgeId,
       focusNodeRequest,
+      focusPositionRequest,
       handleSelectNodes,
       handleSelectEdge,
       handleNodePositionChange,
