@@ -108,7 +108,9 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   music_pitch: [],
   music_pause: [],
   music_resume: [],
-  schedule_action: ['delay_seconds', 'action_type']
+  schedule_action: ['delay_seconds', 'action_type'],
+  attach_to_target: ['target_ref', 'parent_ref'],
+  detach: ['target_ref']
 }
 
 // Главная функция валидации. Принимает текущее состояние графа и опциональный контекст ресурсов.
@@ -740,6 +742,20 @@ export function validateGraph(
     ])
     if (actorTargetTypes.has(node.type)) {
       const target = String(node.params?.target ?? '').trim()
+      if (target && target !== 'player' && !actorKeys.has(target)) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'actorTargetNotFound',
+          nodeId: node.id,
+          message: t('validation.actorTargetNotCreated', { name: nodeDisplayName, target })
+        })
+      }
+    }
+
+    // Actor target resolution for attach_to_target / detach (field name is target_ref).
+    if (node.type === 'attach_to_target' || node.type === 'detach') {
+      const target = String(node.params?.target_ref ?? '').trim()
       if (target && target !== 'player' && !actorKeys.has(target)) {
         entries.push({
           severity: 'warn',

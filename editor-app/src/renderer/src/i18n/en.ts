@@ -356,7 +356,9 @@ export const en = {
       tween_camera: 'Tween Camera',
       parallel_start: 'Parallel Start',
       parallel_join: 'Parallel Join',
-      schedule_action: 'Schedule Action'
+      schedule_action: 'Schedule Action',
+      attach_to_target: 'Attach To Target',
+      detach: 'Detach'
     },
     fields: {
       target: 'Target',

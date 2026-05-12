@@ -65,7 +65,9 @@ import {
   SpawnEntityNode,
   DestroyEntityNode,
   SetPlotNode,
-  ScheduleActionNode
+  ScheduleActionNode,
+  AttachToTargetNode,
+  DetachNode
 } from './CutsceneNodes'
 
 // Маппинг: тип ноды → React-компонент.
@@ -136,5 +138,7 @@ export const cutsceneNodeTypes = {
   spawn_entity: SpawnEntityNode,
   destroy_entity: DestroyEntityNode,
   set_plot: SetPlotNode,
-  schedule_action: ScheduleActionNode
+  schedule_action: ScheduleActionNode,
+  attach_to_target: AttachToTargetNode,
+  detach: DetachNode
 } as const

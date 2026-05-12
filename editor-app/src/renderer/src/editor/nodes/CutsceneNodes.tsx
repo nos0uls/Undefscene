@@ -1090,3 +1090,49 @@ export const ScheduleActionNode = memo(function ScheduleActionNode({ data, selec
     </BaseNode>
   )
 })
+
+// Attach To Target — привязка актёра к родителю с оффсетами.
+export const AttachToTargetNode = memo(function AttachToTargetNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target_ref ?? ''
+  const parent = data.params?.parent_ref ?? ''
+  const offsetX = data.params?.offset_x ?? 0
+  const offsetY = data.params?.offset_y ?? 0
+  const duration = data.params?.duration_seconds ?? 0
+  return (
+    <BaseNode  nodeType="attach_to_target" selected={selected}>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Target</span>
+        <span className="customNodeParamValue">{String(target)}</span>
+      </div>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Parent</span>
+        <span className="customNodeParamValue">{String(parent)}</span>
+      </div>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Offset</span>
+        <span className="customNodeParamValue">{String(offsetX)}, {String(offsetY)}</span>
+      </div>
+      {Number(duration) > 0 && (
+        <div className="customNodeParam">
+          <span className="customNodeParamKey">Duration</span>
+          <span className="customNodeParamValue">{String(duration)}s</span>
+        </div>
+      )}
+    </BaseNode>
+  )
+})
+
+// Detach — отвязка актёра от родителя.
+export const DetachNode = memo(function DetachNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const target = data.params?.target_ref ?? ''
+  const destroy = data.params?.destroy_after_detach ?? false
+  return (
+    <BaseNode  nodeType="detach" selected={selected}>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Target</span>
+        <span className="customNodeParamValue">{String(target)}</span>
+      </div>
+      {destroy && <div className="customNodeParam">destroy</div>}
+    </BaseNode>
+  )
+})

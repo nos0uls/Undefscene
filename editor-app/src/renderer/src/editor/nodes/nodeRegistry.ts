@@ -81,6 +81,22 @@ const baseNodes: Record<string, NodeDefinition> = {
   actor_destroy: { type: 'actor_destroy', label: 'Actor Destroy', category: 'actor', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key', options: [] }
   ], defaultParams: { target: 'player' } },
+  attach_to_target: { type: 'attach_to_target', label: 'Attach To Target', category: 'actor', fields: [
+    { key: 'target_ref', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
+    { key: 'parent_ref', label: 'Parent', type: 'searchable', placeholder: 'actor key / player', options: [] },
+    { key: 'offset_x', label: 'Offset X', type: 'number', defaultValue: 0 },
+    { key: 'offset_y', label: 'Offset Y', type: 'number', defaultValue: 0 },
+    { key: 'follow_facing', label: 'Follow Facing', type: 'select', options: ['true', 'false'], defaultValue: true },
+    { key: 'follow_scale', label: 'Follow Scale', type: 'select', options: ['true', 'false'], defaultValue: true },
+    { key: 'follow_depth', label: 'Follow Depth', type: 'select', options: ['true', 'false'], defaultValue: true },
+    { key: 'duration_seconds', label: 'Duration (seconds, 0=instant)', type: 'number', step: 0.1, defaultValue: 0 },
+    { key: 'detach_on_cutscene_end', label: 'Detach On Cutscene End', type: 'select', options: ['true', 'false'], defaultValue: true }
+  ], defaultParams: { target_ref: 'player', parent_ref: '', offset_x: 0, offset_y: 0, follow_facing: true, follow_scale: true, follow_depth: true, duration_seconds: 0, detach_on_cutscene_end: true } },
+  detach: { type: 'detach', label: 'Detach', category: 'actor', fields: [
+    { key: 'target_ref', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
+    { key: 'keep_world_position', label: 'Keep World Position', type: 'select', options: ['true', 'false'], defaultValue: true },
+    { key: 'destroy_after_detach', label: 'Destroy After Detach', type: 'select', options: ['true', 'false'], defaultValue: false }
+  ], defaultParams: { target_ref: 'player', keep_world_position: true, destroy_after_detach: false } },
   animate: { type: 'animate', label: 'Animate', category: 'visual', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'sprite', label: 'Sprite', type: 'searchable', placeholder: 'spr_...', options: [] },
