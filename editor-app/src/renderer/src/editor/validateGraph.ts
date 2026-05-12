@@ -1386,7 +1386,9 @@ export function validateGraph(
     'set_visible',
     'tween',
     'actor_destroy',
-    'destroy_entity'
+    'destroy_entity',
+    'attach_to_target',
+    'detach'
   ])
 
   const CAMERA_OVERRIDE_TYPES = new Set([
@@ -1437,6 +1439,9 @@ export function validateGraph(
     // Record actor reference issues inside the branch
     if (ACTOR_REF_TYPES.has(node.type)) {
       let target = String(node.params?.target ?? '').trim()
+      if (node.type === 'attach_to_target' || node.type === 'detach') {
+        target = String(node.params?.target_ref ?? '').trim()
+      }
       if (node.type === 'tween') {
         const kind = String(node.params?.kind ?? 'instance').trim()
         if (kind === 'camera') target = ''
@@ -1536,6 +1541,9 @@ export function validateGraph(
     // Record actor reference issues
     if (ACTOR_REF_TYPES.has(node.type)) {
       let target = String(node.params?.target ?? '').trim()
+      if (node.type === 'attach_to_target' || node.type === 'detach') {
+        target = String(node.params?.target_ref ?? '').trim()
+      }
       if (node.type === 'tween') {
         const kind = String(node.params?.kind ?? 'instance').trim()
         if (kind === 'camera') target = ''
@@ -1788,6 +1796,60 @@ export function validateGraph(
         })
       }
     }
+  }
+
+  // actor_created_twice: multiple actor_create with same actor_name.
+  const actorCreateNames = new Map<string, string[]>()
+  for (const node of nodes) {
+    if (node.type === 'actor_create') {
+      const key = String(node.params?.actor_name ?? '').trim()
+      if (key) {
+        const list = actorCreateNames.get(key) ?? []
+        list.push(node.id)
+        actorCreateNames.set(key, list)
+      }
+    }
+  }
+  for (const [key, ids] of actorCreateNames.entries()) {
+    if (ids.length > 1) {
+      for (const id of ids) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'actorCreatedTwice',
+          nodeId: id,
+          message: t('validation.actorCreatedTwice', { key, count: ids.length })
+        })
+      }
+    }
+  }
+
+  // actor_destroyed_not_created: actor_destroy on an actor never created in graph.
+  for (const node of nodes) {
+    if (node.type === 'actor_destroy') {
+      const target = String(node.params?.target ?? '').trim()
+      if (target && target !== 'player' && !actorCreateNames.has(target) && !actorKeys.has(target)) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'actorDestroyedNotCreated',
+          nodeId: node.id,
+          message: t('validation.actorDestroyedNotCreated', { target })
+        })
+      }
+    }
+  }
+
+  // music_not_stopped: play_music without corresponding stop_music anywhere in graph.
+  const hasPlayMusic = nodes.some((n) => n.type === 'play_music')
+  const hasStopMusic = nodes.some((n) => n.type === 'stop_music')
+  if (hasPlayMusic && !hasStopMusic) {
+    entries.push({
+      severity: 'tip',
+      defaultSeverity: 'tip',
+      ruleId: 'musicNotStopped',
+      message: t('validation.musicNotStopped')
+    })
   }
 
   return {

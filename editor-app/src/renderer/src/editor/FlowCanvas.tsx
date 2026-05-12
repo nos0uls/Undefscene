@@ -26,6 +26,8 @@ import { usePreferencesContext } from './PreferencesContext'
 import { NodeActionsProvider } from './NodeActionsContext'
 import { CustomEdge, ArrowheadDefs } from './CustomEdge'
 import { isEqualParams } from './utils'
+import type { RuntimeNote } from './runtimeTypes'
+import { CanvasNotesOverlay } from './CanvasNotesOverlay'
 
 // Собственный MIME-type для drag-and-drop из палитры нод.
 // Он позволяет не путать наши payload'ы с обычным text/plain drag из браузера.
@@ -218,7 +220,10 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   onPaneClickCreate,
   onPaneDropCreate,
   onEdgeDelete,
-  onEdgeDoubleClick
+  onEdgeDoubleClick,
+  notes,
+  onUpdateNote,
+  onDeleteNote
 }: FlowCanvasProps): React.JSX.Element {
   // Нужен для конвертации экранных координат в координаты холста.
   const { screenToFlowPosition, getNodes, getViewport, setViewport, fitView, setCenter } = useReactFlow()

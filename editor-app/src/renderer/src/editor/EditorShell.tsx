@@ -1140,6 +1140,9 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
             onPaneDropCreate={createPaletteDropNode}
             onParallelAddBranch={onParallelAddBranch}
             onParallelRemoveBranch={onParallelRemoveBranch}
+            notes={runtime.notes}
+            onUpdateNote={handleUpdateNote}
+            onDeleteNote={handleDeleteNote}
           />
         </div>
       </>
@@ -1164,7 +1167,10 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
       createDefaultPaneNode,
       createPaletteDropNode,
       onParallelAddBranch,
-      onParallelRemoveBranch
+      onParallelRemoveBranch,
+      runtime.notes,
+      handleUpdateNote,
+      handleDeleteNote
     ]
   )
 

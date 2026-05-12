@@ -136,17 +136,17 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
     // Служебный action: говорим движку, что мы "дошли" до этой ноды.
     // Это нужно для stop_when = "node_reached".
     // Важно: используем именно node.name, потому что в UI end-node выбирается по имени.
-    if (node.type !== 'parallel_join') {
+    if (node.type !== 'parallel_join' && node.type !== 'director_note') {
       const nodeName = String(node.name ?? '').trim()
       if (nodeName) {
         actions.push({ type: 'mark_node', name: nodeName })
       }
     }
 
-    // start и end не генерируют действий — это маркеры графа.
-    if (node.type === 'start' || node.type === 'end') {
-      // Для start — идём дальше по единственному выходу.
-      if (node.type === 'start') {
+    // start, end и director_note не генерируют действий — это маркеры/заметки графа.
+    if (node.type === 'start' || node.type === 'end' || node.type === 'director_note') {
+      // Для start и director_note — идём дальше по единственному выходу.
+      if (node.type === 'start' || node.type === 'director_note') {
         const next = getNextActions(nodeId)
         if (!next.ok) return next
         actions.push(...next.actions)
@@ -334,14 +334,14 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
 
     // Служебный action: отмечаем достижение ноды.
     // В parallel ветках walkFrom не вызывается, поэтому дублируем логику здесь.
-    if (node.type !== 'parallel_join') {
+    if (node.type !== 'parallel_join' && node.type !== 'director_note') {
       const nodeName = String(node.name ?? '').trim()
       if (nodeName) {
         actions.push({ type: 'mark_node', name: nodeName })
       }
     }
 
-    if (node.type !== 'start' && node.type !== 'end' && node.type !== 'parallel_join') {
+    if (node.type !== 'start' && node.type !== 'end' && node.type !== 'parallel_join' && node.type !== 'director_note') {
       actions.push(nodeToAction(node))
     }
 
