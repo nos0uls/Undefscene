@@ -357,6 +357,8 @@ export const en = {
       parallel_start: 'Parallel Start',
       parallel_join: 'Parallel Join',
       schedule_action: 'Schedule Action',
+      checkpoint_state: 'Checkpoint State',
+      restore_state: 'Restore State',
       attach_to_target: 'Attach To Target',
       detach: 'Detach'
     },

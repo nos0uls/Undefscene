@@ -412,7 +412,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     tips: false
   })
   const [focusNodeRequest, setFocusNodeRequest] = useState<{ nodeId: string; nonce: number } | null>(null)
-  const [focusPositionRequest, setFocusPositionRequest] = useState<{ x: number; y: number; nonce: number } | null>(null)
+  const [focusPositionRequest, setFocusPositionRequest] = useState<{ x: number; y: number; zoom: number; nonce: number } | null>(null)
   const canvasCenterRef = useRef({ x: 0, y: 0 })
 
   // --- Notes callbacks ---
@@ -439,6 +439,13 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
     [setRuntime]
   )
 
+  const handleUpdateNoteForCanvas = useCallback(
+    (note: RuntimeNote) => {
+      handleUpdateNote(note.id, note)
+    },
+    [handleUpdateNote]
+  )
+
   const handleDeleteNote = useCallback(
     (id: string) => {
       setRuntime((prev) => ({
@@ -451,7 +458,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
 
   const handleSelectNote = useCallback(
     (x: number, y: number) => {
-      setFocusPositionRequest({ x, y, nonce: Date.now() })
+      setFocusPositionRequest({ x, y, zoom: 1, nonce: Date.now() })
     },
     [setFocusPositionRequest]
   )
@@ -1126,8 +1133,8 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
             selectedNodeIds={runtime.selectedNodeIds ?? []}
             selectedEdgeId={runtime.selectedEdgeId}
             focusNodeRequest={focusNodeRequest}
-            focusPositionRequest={focusPositionRequest}
-            onViewportCenterChange={(center) => { canvasCenterRef.current = center }}
+            _focusPositionRequest={focusPositionRequest}
+            _onViewportCenterChange={(center) => { canvasCenterRef.current = center }}
             onSelectNodes={handleSelectNodes}
             onSelectEdge={handleSelectEdge}
             onNodePositionChange={handleNodePositionChange}
@@ -1140,9 +1147,9 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
             onPaneDropCreate={createPaletteDropNode}
             onParallelAddBranch={onParallelAddBranch}
             onParallelRemoveBranch={onParallelRemoveBranch}
-            notes={runtime.notes}
-            onUpdateNote={handleUpdateNote}
-            onDeleteNote={handleDeleteNote}
+            _notes={runtime.notes}
+            _onUpdateNote={handleUpdateNoteForCanvas}
+            _onDeleteNote={handleDeleteNote}
           />
         </div>
       </>
@@ -1169,7 +1176,7 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
       onParallelAddBranch,
       onParallelRemoveBranch,
       runtime.notes,
-      handleUpdateNote,
+      handleUpdateNoteForCanvas,
       handleDeleteNote
     ]
   )

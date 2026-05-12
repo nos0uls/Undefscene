@@ -637,6 +637,31 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       return action
     }
 
+    // checkpoint_state / restore_state — pass-through, JSON keys match field names.
+    if (node.type === 'checkpoint_state' || node.type === 'restore_state') {
+      if (typeof node.params?.checkpoint_id === 'string' && node.params.checkpoint_id) {
+        action.checkpoint_id = node.params.checkpoint_id
+      }
+      if (typeof node.params?.include_actors === 'boolean') action.include_actors = node.params.include_actors
+      if (typeof node.params?.include_player === 'boolean') action.include_player = node.params.include_player
+      if (typeof node.params?.include_camera === 'boolean') action.include_camera = node.params.include_camera
+      if (typeof node.params?.include_music === 'boolean') action.include_music = node.params.include_music
+      const rawGlobals = node.params?.include_globals
+      if (typeof rawGlobals === 'string' && rawGlobals.trim().length > 0) {
+        try {
+          const parsed = JSON.parse(rawGlobals)
+          if (Array.isArray(parsed)) action.include_globals = parsed
+        } catch {
+          // Invalid JSON ignored — validation will flag it.
+        }
+      }
+      if (typeof node.params?.cleanup_transients === 'boolean') action.cleanup_transients = node.params.cleanup_transients
+      if (typeof node.params?.restore_camera === 'boolean') action.restore_camera = node.params.restore_camera
+      if (typeof node.params?.restore_music === 'boolean') action.restore_music = node.params.restore_music
+      if (typeof node.params?.on_missing === 'string') action.on_missing = node.params.on_missing
+      return action
+    }
+
     if (node.type === 'set_flag') {
       if (typeof node.params?.key === 'string' && node.params.key) action.key = node.params.key
       const rawVal = node.params?.value
@@ -788,7 +813,19 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       return action
     }
 
-    // Копируем все параметры ноды (кроме editor-only полей).
+    //     // checkpoint_state / restore_state — параметры уже соответствуют ключам JSON, пропускаем as-is.
+    if (node.type === 'checkpoint_state' || node.type === 'restore_state') {
+      if (node.params) {
+        for (const [key, value] of Object.entries(node.params)) {
+          if (value !== undefined && value !== null && value !== '') {
+            action[key] = value
+          }
+        }
+      }
+      return action
+    }
+
+// Копируем все параметры ноды (кроме editor-only полей).
     if (node.params) {
       for (const [key, value] of Object.entries(node.params)) {
         // Пропускаем editor-only поля (branches, joinId, pairId).

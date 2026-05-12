@@ -135,7 +135,8 @@ export function reverseCompileCutscene(raw: unknown): ReverseCompileResult {
       selectedNodeId: null,
       selectedNodeIds: [],
       selectedEdgeId: null,
-      lastSavedAtMs: 0
+      lastSavedAtMs: 0,
+      notes: []
     },
     warnings: [
       'Imported engine JSON as a new editor scene. Use Save As to keep editor-only layout data.'
@@ -553,6 +554,15 @@ function actionToRuntimeNode(
       params.value = typeof value === 'string' ? value : JSON.stringify(value)
       continue
     }
+    // checkpoint_state / restore_state: pass-through, JSON keys match field names.
+    if (
+      normalizedType === 'checkpoint_state' ||
+      normalizedType === 'restore_state'
+    ) {
+      params[key] = value
+      continue
+    }
+
     // schedule_action: разворачиваем вложенный action в action_type + action_params (JSON-строка).
     // blocking и tag кладём как есть.
     if (normalizedType === 'schedule_action' && key === 'action') {
@@ -567,6 +577,11 @@ function actionToRuntimeNode(
         }
         params.action_params = Object.keys(rest).length > 0 ? JSON.stringify(rest) : ''
       }
+      continue
+    }
+    // checkpoint_state / restore_state — pass-through as-is.
+    if (normalizedType === 'checkpoint_state' || normalizedType === 'restore_state') {
+      params[key] = value
       continue
     }
     // Dialogue integration nodes — pass-through as-is.

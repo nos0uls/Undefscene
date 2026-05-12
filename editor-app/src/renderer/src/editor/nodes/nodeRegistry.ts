@@ -315,9 +315,6 @@ const otherNodes: Record<string, NodeDefinition> = {
   set_plot: { type: 'set_plot', label: 'Set Plot', category: 'logic', fields: [
     { key: 'value', label: 'Plot Value', type: 'number', placeholder: '10', defaultValue: 0 }
   ], defaultParams: { value: 0 } },
-  // schedule_action — отложенный запуск одного внутреннего действия.
-  // action_type ограничен fire-and-forget типами.
-  // action_params хранится в UI как JSON-строка и парсится в compileGraph.
   schedule_action: { type: 'schedule_action', label: 'Schedule Action', category: 'logic', fields: [
     { key: 'delay_seconds', label: 'Delay (seconds)', type: 'number', step: 0.1, defaultValue: 0.5 },
     { key: 'action_type', label: 'Action Type', type: 'select', options: ['play_sfx', 'emote', 'flip', 'set_visible', 'set_facing', 'camera_shake', 'halt', 'run_function'], defaultValue: 'play_sfx' },
@@ -360,6 +357,22 @@ const otherNodes: Record<string, NodeDefinition> = {
   // joinId: ссылка на parallel_join (в parallel_start)
   // pairId: обратная ссылка на parallel_start (в parallel_join)
   // Эти поля фильтруются при экспорте в engine JSON (см. compileGraph.ts строка 610-611).
+  checkpoint_state: { type: 'checkpoint_state', label: 'Checkpoint State', category: 'logic', fields: [
+    { key: 'checkpoint_id', label: 'Checkpoint ID', type: 'text', defaultValue: '' },
+    { key: 'include_actors', label: 'Include Actors', type: 'checkbox', defaultValue: true },
+    { key: 'include_player', label: 'Include Player', type: 'checkbox', defaultValue: true },
+    { key: 'include_camera', label: 'Include Camera', type: 'checkbox', defaultValue: true },
+    { key: 'include_music', label: 'Include Music', type: 'checkbox', defaultValue: true },
+    { key: 'include_globals', label: 'Include Globals (JSON array)', type: 'text', defaultValue: '' },
+    { key: 'include_instances', label: 'Include Instances (JSON array)', type: 'text', defaultValue: '' }
+  ], defaultParams: { checkpoint_id: '', include_actors: true, include_player: true, include_camera: true, include_music: true, include_globals: '', include_instances: '' } },
+  restore_state: { type: 'restore_state', label: 'Restore State', category: 'logic', fields: [
+    { key: 'checkpoint_id', label: 'Checkpoint ID', type: 'text', defaultValue: '' },
+    { key: 'cleanup_transients', label: 'Cleanup Transients', type: 'checkbox', defaultValue: true },
+    { key: 'restore_camera', label: 'Restore Camera', type: 'checkbox', defaultValue: true },
+    { key: 'restore_music', label: 'Restore Music', type: 'checkbox', defaultValue: true },
+    { key: 'on_missing', label: 'On Missing', type: 'select', options: ['warn', 'ignore', 'fail'], defaultValue: 'warn' }
+  ], defaultParams: { checkpoint_id: '', cleanup_transients: true, restore_camera: true, restore_music: true, on_missing: 'warn' } },
   parallel_start: { type: 'parallel_start', label: 'Parallel', category: 'logic', fields: [], defaultParams: { branches: ['b0'], joinId: '' } },
   parallel_join: { type: 'parallel_join', label: 'Parallel Join', category: 'logic', fields: [
     { key: 'pairId', label: 'Pair Start Node ID', type: 'text', defaultValue: '' }

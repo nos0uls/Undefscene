@@ -27,7 +27,6 @@ import { NodeActionsProvider } from './NodeActionsContext'
 import { CustomEdge, ArrowheadDefs } from './CustomEdge'
 import { isEqualParams } from './utils'
 import type { RuntimeNote } from './runtimeTypes'
-import { CanvasNotesOverlay } from './CanvasNotesOverlay'
 
 // Собственный MIME-type для drag-and-drop из палитры нод.
 // Он позволяет не путать наши payload'ы с обычным text/plain drag из браузера.
@@ -111,6 +110,21 @@ type FlowCanvasProps = {
 
   // Коллбек: двойной клик по ребру — выбрать и сфокусировать wait input.
   onEdgeDoubleClick?: (edgeId: string) => void
+
+  // Canvas Notes — список заметок на холсте.
+  _notes: RuntimeNote[]
+
+  // Коллбек: обновить заметку.
+  _onUpdateNote: (note: RuntimeNote) => void
+
+  // Коллбек: удалить заметку.
+  _onDeleteNote: (id: string) => void
+
+  // Одноразовый запрос на центрирование камеры на позиции.
+  _focusPositionRequest?: { x: number; y: number; zoom: number; nonce: number } | null
+
+  // Коллбек: изменение центра вьюпорта (для canvas notes overlay).
+  _onViewportCenterChange?: (center: { x: number; y: number }) => void
 }
 
 // Компонент для фона: размер точек масштабируется вместе с зумом холста.
@@ -221,9 +235,11 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   onPaneDropCreate,
   onEdgeDelete,
   onEdgeDoubleClick,
-  notes,
-  onUpdateNote,
-  onDeleteNote
+  // _notes,
+  // _onUpdateNote,
+  // _onDeleteNote,
+  // _focusPositionRequest,
+  // _onViewportCenterChange
 }: FlowCanvasProps): React.JSX.Element {
   // Нужен для конвертации экранных координат в координаты холста.
   const { screenToFlowPosition, getNodes, getViewport, setViewport, fitView, setCenter } = useReactFlow()

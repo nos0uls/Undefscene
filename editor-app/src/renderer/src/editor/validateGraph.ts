@@ -110,7 +110,9 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   music_resume: [],
   schedule_action: ['delay_seconds', 'action_type'],
   attach_to_target: ['target_ref', 'parent_ref'],
-  detach: ['target_ref']
+  detach: ['target_ref'],
+  checkpoint_state: ['checkpoint_id'],
+  restore_state: ['checkpoint_id']
 }
 
 // Главная функция валидации. Принимает текущее состояние графа и опциональный контекст ресурсов.
@@ -1793,6 +1795,48 @@ export function validateGraph(
           ruleId: 'cameraTrackMissingTarget',
           nodeId: node.id,
           message: t('validation.cameraTrackMissingTarget')
+        })
+      }
+    }
+  }
+
+  // checkpoint_id uniqueness: multiple checkpoint_state with same ID.
+  const checkpointIds = new Map<string, string[]>()
+  for (const node of nodes) {
+    if (node.type === 'checkpoint_state') {
+      const cid = String(node.params?.checkpoint_id ?? '').trim()
+      if (cid) {
+        const list = checkpointIds.get(cid) ?? []
+        list.push(node.id)
+        checkpointIds.set(cid, list)
+      }
+    }
+  }
+  for (const [cid, ids] of checkpointIds.entries()) {
+    if (ids.length > 1) {
+      for (const id of ids) {
+        entries.push({
+          severity: 'error',
+          defaultSeverity: 'error',
+          ruleId: 'duplicateCheckpointId',
+          nodeId: id,
+          message: t('validation.duplicateCheckpointId', { cid })
+        })
+      }
+    }
+  }
+
+  // restore_state must reference an existing checkpoint_id.
+  for (const node of nodes) {
+    if (node.type === 'restore_state') {
+      const cid = String(node.params?.checkpoint_id ?? '').trim()
+      if (cid && !checkpointIds.has(cid)) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'restoreCheckpointNotFound',
+          nodeId: node.id,
+          message: t('validation.restoreCheckpointNotFound', { cid })
         })
       }
     }

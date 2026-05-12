@@ -810,13 +810,13 @@ export const MusicPitchNode = memo(function MusicPitchNode({ data, selected }: C
   )
 })
 
-export const MusicPauseNode = memo(function MusicPauseNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const MusicPauseNode = memo(function MusicPauseNode({ selected }: CutsceneNodeProps): React.JSX.Element {
   return (
     <BaseNode nodeType="music_pause" selected={selected} />
   )
 })
 
-export const MusicResumeNode = memo(function MusicResumeNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+export const MusicResumeNode = memo(function MusicResumeNode({ selected }: CutsceneNodeProps): React.JSX.Element {
   return (
     <BaseNode nodeType="music_resume" selected={selected} />
   )
@@ -1069,6 +1069,8 @@ export const SetPlotNode = memo(function SetPlotNode({ data, selected }: Cutscen
 })
 
 
+
+
 // Schedule Action — отложенный запуск одного fire-and-forget действия.
 export const ScheduleActionNode = memo(function ScheduleActionNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const delay = data.params?.delay_seconds ?? "?"
@@ -1122,6 +1124,62 @@ export const AttachToTargetNode = memo(function AttachToTargetNode({ data, selec
   )
 })
 
+
+// Checkpoint State — создаёт снимок состояния катсцены.
+export const CheckpointStateNode = memo(function CheckpointStateNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const id = data.params?.checkpoint_id ?? ''
+  const cats: string[] = []
+  if (data.params?.include_actors === true) cats.push('actors')
+  if (data.params?.include_player === true) cats.push('player')
+  if (data.params?.include_camera === true) cats.push('camera')
+  if (data.params?.include_music === true) cats.push('music')
+  const globals = typeof data.params?.include_globals === 'string' ? data.params.include_globals.trim() : ''
+  const instances = typeof data.params?.include_instances === 'string' ? data.params.include_instances.trim() : ''
+  if (globals) cats.push('globals')
+  if (instances) cats.push('instances')
+  return (
+    <BaseNode nodeType="checkpoint_state" selected={selected}>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">ID</span>
+        <span className="customNodeParamValue">{String(id)}</span>
+      </div>
+      {cats.length > 0 && (
+        <div className="customNodeParam">
+          <span className="customNodeParamKey">Include</span>
+          <span className="customNodeParamValue">{cats.join(', ')}</span>
+        </div>
+      )}
+    </BaseNode>
+  )
+})
+
+// Restore State — восстанавливает состояние из checkpoint.
+export const RestoreStateNode = memo(function RestoreStateNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const id = data.params?.checkpoint_id ?? ''
+  const opts: string[] = []
+  if (data.params?.cleanup_transients === true) opts.push('cleanup')
+  if (data.params?.restore_camera === true) opts.push('camera')
+  if (data.params?.restore_music === true) opts.push('music')
+  const onMissing = typeof data.params?.on_missing === 'string' ? data.params.on_missing : 'warn'
+  return (
+    <BaseNode nodeType="restore_state" selected={selected}>
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">Restore</span>
+        <span className="customNodeParamValue">{String(id)}</span>
+      </div>
+      {opts.length > 0 && (
+        <div className="customNodeParam">
+          <span className="customNodeParamKey">Options</span>
+          <span className="customNodeParamValue">{opts.join(', ')}</span>
+        </div>
+      )}
+      <div className="customNodeParam">
+        <span className="customNodeParamKey">On Missing</span>
+        <span className="customNodeParamValue">{String(onMissing)}</span>
+      </div>
+    </BaseNode>
+  )
+})
 // Detach — отвязка актёра от родителя.
 export const DetachNode = memo(function DetachNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target_ref ?? ''
