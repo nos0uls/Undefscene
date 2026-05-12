@@ -969,10 +969,20 @@ function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps)
         <NotesPanel
           t={t}
           notes={runtime.notes}
+          selectedNode={
+            selectedNode
+              ? { id: selectedNode.id, name: selectedNode.name ?? selectedNode.type }
+              : null
+          }
           onAddNote={handleAddNote}
           onUpdateNote={handleUpdateNote}
           onDeleteNote={handleDeleteNote}
           onSelectNote={handleSelectNote}
+          onFocusNode={selectNode}
+          resolveNodeName={(nodeId) => {
+            const n = runtime.nodes.find((node) => node.id === nodeId)
+            return n ? (n.name ?? n.type) : null
+          }}
         />
       )
     }

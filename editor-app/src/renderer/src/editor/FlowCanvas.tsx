@@ -452,28 +452,33 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
       const sourceType = nodeTypes.get(e.source)
       const targetType = nodeTypes.get(e.target)
 
+      // Для parallel-ноды выбираем shared или b0 в зависимости от режима.
       if (!safeSource && sourceType === 'parallel_start') {
         safeSource = parallelBranchPortMode === 'shared' ? 'out_shared' : 'out_b0'
       }
       if (!safeTarget && targetType === 'parallel_join') {
         safeTarget = parallelBranchPortMode === 'shared' ? 'in_shared' : 'in_b0'
       }
+      // Любые другие ноды (включая обычные, branch, parallel_join в роли source и т.д.)
+      // используют стандартные 'out'/'in' из BaseNode. Явное значение защищает
+      // xyflow от логирования undefined как строкового "null".
+      if (!safeSource) safeSource = 'out'
+      if (!safeTarget) safeTarget = 'in'
 
       const isInternalPair = safeSource === '__pair' && safeTarget === '__pair'
 
       const edge: Edge = {
         id: e.id,
         source: e.source,
+        sourceHandle: safeSource,
         target: e.target,
+        targetHandle: safeTarget,
         data: {
           timingLabel: typeof e.waitSeconds === 'number' ? `${e.waitSeconds}s` : undefined,
           isInternalPair
         },
         selectable: !isInternalPair
       }
-      // Не передаём undefined-поля: xyflow иногда логирует их как строковый "null".
-      if (safeSource) edge.sourceHandle = safeSource
-      if (safeTarget) edge.targetHandle = safeTarget
       return edge
     })
   }, [parallelBranchPortMode, runtimeEdges, runtimeNodes])
@@ -831,27 +836,29 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
       if (!targetHandle && targetNode?.type === 'parallel_join') {
         targetHandle = parallelBranchPortMode === 'shared' ? 'in_shared' : 'in_b0'
       }
-      const sourceHandleId = sourceHandle ?? 'default'
-      const targetHandleId = targetHandle ?? 'default'
-      const edgeId = `edge-${resolvedConnection.source}-${sourceHandleId}-${resolvedConnection.target}-${targetHandleId}`
+      // Всегда подставляем стандартные 'out'/'in' если handle до сих пор undefined.
+      // Это избавляет xyflow от попытки создать edge с null-handle.
+      const finalSourceHandle = sourceHandle ?? 'out'
+      const finalTargetHandle = targetHandle ?? 'in'
+      const edgeId = `edge-${resolvedConnection.source}-${finalSourceHandle}-${resolvedConnection.target}-${finalTargetHandle}`
 
       const newEdge: RuntimeEdge = {
         id: edgeId,
         source: resolvedConnection.source,
-        sourceHandle: sourceHandle ?? 'out',
+        sourceHandle: finalSourceHandle,
         target: resolvedConnection.target,
-        targetHandle: targetHandle ?? 'in'
+        targetHandle: finalTargetHandle
       }
 
-      // addEdge создаёт edge в React Flow store.
-      // undefined handles означают "использовать дефолтный" (out/in).
+      // addEdge создаёт edge в React Flow store. Передаём явные handles,
+      // чтобы xyflow не думал, что поля пустые.
       const addEdgeConnection: Edge = {
         id: edgeId,
         source: resolvedConnection.source,
-        target: resolvedConnection.target
+        sourceHandle: finalSourceHandle,
+        target: resolvedConnection.target,
+        targetHandle: finalTargetHandle
       }
-      if (sourceHandle !== undefined) addEdgeConnection.sourceHandle = sourceHandle
-      if (targetHandle !== undefined) addEdgeConnection.targetHandle = targetHandle
 
       setEdges((prev) => addEdge(addEdgeConnection, prev))
       onEdgeAddRef.current(newEdge)
@@ -1325,15 +1332,6 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         // Дополнительно защищаемся от бесконечного цикла: не вызываем onSelectNodes,
         // если фактическое выделение не изменилось относительно пропсов.
         onSelectionChange={handleSelectionChange}
-        onMoveEnd={() => {
-          if (!onViewportCenterChange) return
-          const v = getViewport()
-          const wrapper = flowCanvasRef.current
-          if (!wrapper) return
-          const rect = wrapper.getBoundingClientRect()
-          const center = screenToFlowPosition({ x: rect.width / 2, y: rect.height / 2 })
-          onViewportCenterChange(center)
-        }}
         // Отключаем встроенное удаление, потому что мы обрабатываем Backspace/Delete глобально
         // в useEditorShortcuts и удаляем элементы из runtime state (Single Source of Truth).
         deleteKeyCode={null}

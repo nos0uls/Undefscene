@@ -88,6 +88,16 @@ export function createDefaultLayout(): LayoutState {
         size: null,
         zIndex: 1,
         collapsed: false
+      },
+      'panel.templates': {
+        id: 'panel.templates',
+        title: 'Templates',
+        mode: 'hidden',
+        slot: null,
+        position: null,
+        size: null,
+        zIndex: 1,
+        collapsed: false
       }
     },
     lastSavedAtMs: 0,

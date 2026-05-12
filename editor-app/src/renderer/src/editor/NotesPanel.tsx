@@ -3,10 +3,18 @@ import type { RuntimeNote } from './runtimeTypes'
 
 export type NotesPanelProps = {
   notes: RuntimeNote[]
+  // Имя выделенной ноды (для кнопки Link to selected).
+  // Передаём `null`, если ничего не выделено.
+  selectedNode: { id: string; name: string } | null
   onAddNote: (note: { text: string; category: RuntimeNote['category']; x?: number; y?: number }) => void
   onUpdateNote: (id: string, patch: Partial<Omit<RuntimeNote, 'id'>>) => void
   onDeleteNote: (id: string) => void
+  // Центрировать канвас на координатах (для заметок без привязки к ноде).
   onSelectNote: (x: number, y: number) => void
+  // Сфокусироваться на конкретной ноде (для заметок с nodeId).
+  onFocusNode: (nodeId: string) => void
+  // Отобразить имя привязанной ноды (или fallback, если она не найдена).
+  resolveNodeName: (nodeId: string) => string | null
   t: (key: string, fallback: string) => string
 }
 
@@ -40,15 +48,21 @@ function categoryLabel(cat: RuntimeNote['category'], t: NotesPanelProps['t']): s
 
 const NoteRow = React.memo(function NoteRow({
   note,
+  selectedNode,
   onUpdateNote,
   onDeleteNote,
   onSelectNote,
+  onFocusNode,
+  resolveNodeName,
   t
 }: {
   note: RuntimeNote
+  selectedNode: NotesPanelProps['selectedNode']
   onUpdateNote: NotesPanelProps['onUpdateNote']
   onDeleteNote: NotesPanelProps['onDeleteNote']
   onSelectNote: NotesPanelProps['onSelectNote']
+  onFocusNode: NotesPanelProps['onFocusNode']
+  resolveNodeName: NotesPanelProps['resolveNodeName']
   t: NotesPanelProps['t']
 }) {
   const [editing, setEditing] = useState(false)
@@ -94,9 +108,30 @@ const NoteRow = React.memo(function NoteRow({
     [note.id, onDeleteNote]
   )
 
+  // Клик по заметке — если есть привязка к ноде, фокусируемся на ней,
+  // иначе центрируем канвас на сохранённых координатах.
   const handleSelect = useCallback(() => {
+    if (note.nodeId) {
+      onFocusNode(note.nodeId)
+      return
+    }
     onSelectNote(note.x, note.y)
-  }, [note.x, note.y, onSelectNote])
+  }, [note.nodeId, note.x, note.y, onFocusNode, onSelectNote])
+
+  const handleLink = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation()
+      if (note.nodeId) {
+        // Повторный клик на "связанной" иконке снимает привязку.
+        onUpdateNote(note.id, { nodeId: undefined })
+      } else if (selectedNode) {
+        onUpdateNote(note.id, { nodeId: selectedNode.id })
+      }
+    },
+    [note.id, note.nodeId, onUpdateNote, selectedNode]
+  )
+
+  const linkedName = note.nodeId ? resolveNodeName(note.nodeId) : null
 
   const color = CATEGORY_COLORS[note.category]
   const catLabel = categoryLabel(note.category, t)
@@ -171,21 +206,69 @@ const NoteRow = React.memo(function NoteRow({
         {catLabel}
       </span>
 
-      {/* Позиция */}
-      <span
-        onClick={handleSelect}
+      {/* Привязанная нода или координаты */}
+      {note.nodeId && linkedName ? (
+        <span
+          onClick={handleSelect}
+          style={{
+            fontSize: 10,
+            color: 'var(--ev-c-accent, #4a9eff)',
+            flexShrink: 0,
+            cursor: 'pointer',
+            fontFamily: 'monospace',
+            maxWidth: 120,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+          title={t('editor.focusNode', 'Focus node') + `: ${linkedName}`}
+        >
+          @ {linkedName}
+        </span>
+      ) : (
+        <span
+          onClick={handleSelect}
+          style={{
+            fontSize: 10,
+            color: 'var(--ev-c-text-2)',
+            opacity: 0.7,
+            flexShrink: 0,
+            cursor: 'pointer',
+            fontFamily: 'monospace'
+          }}
+          title={t('editor.goToPosition', 'Go to position')}
+        >
+          {Math.round(note.x)}, {Math.round(note.y)}
+        </span>
+      )}
+
+      {/* Привязка к выделенной ноде */}
+      <button
+        type="button"
+        onClick={handleLink}
+        disabled={!note.nodeId && !selectedNode}
+        title={
+          note.nodeId
+            ? t('editor.unlinkNote', 'Unlink from node')
+            : selectedNode
+              ? t('editor.linkNote', 'Link to selected node') + `: ${selectedNode.name}`
+              : t('editor.linkNoteHint', 'Select a node first to link this note')
+        }
         style={{
-          fontSize: 10,
-          color: 'var(--ev-c-text-2)',
-          opacity: 0.7,
+          background: 'transparent',
+          border: 'none',
+          color: note.nodeId ? 'var(--ev-c-accent, #4a9eff)' : 'var(--ev-c-text-2)',
+          fontSize: 13,
+          cursor: !note.nodeId && !selectedNode ? 'not-allowed' : 'pointer',
+          padding: '0 2px',
+          lineHeight: 1,
           flexShrink: 0,
-          cursor: 'pointer',
-          fontFamily: 'monospace'
+          opacity: !note.nodeId && !selectedNode ? 0.35 : 1
         }}
-        title={t('editor.goToPosition', 'Go to position')}
       >
-        {Math.round(note.x)}, {Math.round(note.y)}
-      </span>
+        {/* chain link icon */}
+        {'\u{1F517}'}
+      </button>
 
       {/* Pin toggle */}
       <button
@@ -236,10 +319,13 @@ const NoteRow = React.memo(function NoteRow({
 
 export const NotesPanel = React.memo(function NotesPanel({
   notes,
+  selectedNode,
   onAddNote,
   onUpdateNote,
   onDeleteNote,
   onSelectNote,
+  onFocusNode,
+  resolveNodeName,
   t
 }: NotesPanelProps) {
   const [filter, setFilter] = useState<RuntimeNote['category'] | null>(null)
@@ -317,9 +403,12 @@ export const NotesPanel = React.memo(function NotesPanel({
             <NoteRow
               key={note.id}
               note={note}
+              selectedNode={selectedNode}
               onUpdateNote={onUpdateNote}
               onDeleteNote={onDeleteNote}
               onSelectNote={onSelectNote}
+              onFocusNode={onFocusNode}
+              resolveNodeName={resolveNodeName}
               t={t}
             />
           ))}

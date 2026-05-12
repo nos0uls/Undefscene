@@ -89,6 +89,10 @@ export type RuntimeNote = {
 
   // Закреплена ли заметка поверх холста.
   pinned: boolean
+
+  // Опционально: id ноды, к которой заметка привязана.
+  // Если задан, клик по заметке фокусирует канвас на этой ноде.
+  nodeId?: string
 }
 
 // Основное состояние runtime-json, которое мы будем сохранять в файл.
@@ -354,6 +358,9 @@ export function parseRuntimeState(raw: unknown): RuntimeState | null {
         x: cn.x,
         y: cn.y,
         pinned: typeof cn.pinned === 'boolean' ? cn.pinned : false
+      }
+      if (typeof cn.nodeId === 'string' && cn.nodeId) {
+        note.nodeId = cn.nodeId
       }
       notes.push(note)
     }
