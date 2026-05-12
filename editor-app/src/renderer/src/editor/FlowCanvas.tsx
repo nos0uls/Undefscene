@@ -445,8 +445,8 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
     return runtimeEdges.map((e) => {
       // Защита от "null"-строки и null: React Flow при null ищет несуществующий handle.
       // Если handle испорчен или не сохранён в старой сцене, возвращаем обычные порты out/in.
-      const safeSource = e.sourceHandle && e.sourceHandle !== 'null' ? e.sourceHandle : 'out'
-      const safeTarget = e.targetHandle && e.targetHandle !== 'null' ? e.targetHandle : 'in'
+      const safeSource = e.sourceHandle === 'null' || e.sourceHandle === null ? undefined : e.sourceHandle
+      const safeTarget = e.targetHandle === 'null' || e.targetHandle === null ? undefined : e.targetHandle
       const isInternalPair = safeSource === '__pair' && safeTarget === '__pair'
 
       const edge: Edge = {
@@ -806,28 +806,31 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
       const resolvedConnection = resolveParallelConnection(connection)
       if (!resolvedConnection?.source || !resolvedConnection?.target) return
 
-      // Нормализуем handles: React Flow не любит null — превращает его в строку "null".
-      const sourceHandle = resolvedConnection.sourceHandle || 'out'
-      const targetHandle = resolvedConnection.targetHandle || 'in'
-      const edgeId = `edge-${resolvedConnection.source}-${sourceHandle}-${resolvedConnection.target}-${targetHandle}`
+      // Нормализуем handles: React Flow при null превращает его в строку "null".
+      // undefined оставляем undefined — React Flow сам подставит дефолтные handles.
+      const sourceHandle = resolvedConnection.sourceHandle === 'null' || resolvedConnection.sourceHandle === null ? undefined : resolvedConnection.sourceHandle
+      const targetHandle = resolvedConnection.targetHandle === 'null' || resolvedConnection.targetHandle === null ? undefined : resolvedConnection.targetHandle
+      const sourceHandleId = sourceHandle ?? 'default'
+      const targetHandleId = targetHandle ?? 'default'
+      const edgeId = `edge-${resolvedConnection.source}-${sourceHandleId}-${resolvedConnection.target}-${targetHandleId}`
 
       const newEdge: RuntimeEdge = {
         id: edgeId,
         source: resolvedConnection.source,
-        sourceHandle,
+        sourceHandle: sourceHandle ?? 'out',
         target: resolvedConnection.target,
-        targetHandle
+        targetHandle: targetHandle ?? 'in'
       }
 
-      // addEdge создаёт edge в React Flow store. Передаём явные handles,
-      // потому что наши базовые порты имеют id="out" и id="in".
+      // addEdge создаёт edge в React Flow store.
+      // undefined handles означают "использовать дефолтный" (out/in).
       const addEdgeConnection: Edge = {
         id: edgeId,
         source: resolvedConnection.source,
-        sourceHandle,
-        target: resolvedConnection.target,
-        targetHandle
+        target: resolvedConnection.target
       }
+      if (sourceHandle !== undefined) addEdgeConnection.sourceHandle = sourceHandle
+      if (targetHandle !== undefined) addEdgeConnection.targetHandle = targetHandle
 
       setEdges((prev) => addEdge(addEdgeConnection, prev))
       onEdgeAddRef.current(newEdge)
