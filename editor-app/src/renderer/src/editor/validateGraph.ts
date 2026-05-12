@@ -86,7 +86,6 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   tween_camera: ['property'],
   set_property: ['property'],
   emote: ['target'],
-  set_emotion: ['target', 'emotion'],
   jump: ['target'],
   halt: ['target'],
   flip: ['target'],
@@ -1238,19 +1237,6 @@ export function validateGraph(
         }
       }
 
-      // Проверка director_note — пустая заметка не имеет смысла.
-      if (node.type === 'director_note') {
-        const noteText = String(params.note_text ?? '').trim()
-        if (!noteText) {
-          entries.push({
-            severity: 'tip',
-            defaultSeverity: 'tip',
-            ruleId: 'emptyDirectorNote',
-            nodeId: node.id,
-            message: t('validation.emptyDirectorNote')
-          })
-        }
-      }
 
       // Проверка run_function.function — должна быть в whitelist.
       if (node.type === 'run_function' && context.runFunctions) {
@@ -1339,7 +1325,6 @@ export function validateGraph(
     'auto_facing',
     'auto_walk',
     'emote',
-    'set_emotion',
     'halt',
     'flip',
     'spin',

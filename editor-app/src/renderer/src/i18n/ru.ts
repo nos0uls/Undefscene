@@ -348,7 +348,6 @@ export const ru = {
       spawn_entity: 'Spawn Entity',
       destroy_entity: 'Destroy Entity',
       set_plot: 'Set Plot',
-      director_note: 'Заметка режиссёра',
       follow_path: 'Follow Path',
       tween_camera: 'Tween Camera',
       parallel_start: 'Parallel Start',
@@ -616,7 +615,6 @@ export const ru = {
     musicPitchInvalid: '{name}: pitch должен быть больше 0.',
     musicPitchExtreme: '{name}: pitch = {pitch}. Значения вне диапазона 0.5–2.0 могут звучать необычно.',
     cameraTrackMissingTarget: 'У camera_track не задана цель (target).',
-    emptyDirectorNote: 'Пустая заметка режиссёра.'
   },
   // Заголовки панелей докинга
   panels: {

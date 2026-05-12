@@ -221,12 +221,6 @@ const otherNodes: Record<string, NodeDefinition> = {
     { key: 'scale', label: 'Scale', type: 'number', step: 0.1, defaultValue: 1 },
     { key: 'wait', label: 'Wait', type: 'select', options: ['false (fire and forget)', 'true (wait for finish)'], defaultValue: false }
   ], defaultParams: { target: 'player', sprite: '', seconds: 1, offset_x: 0, offset_y: -24, scale: 1, wait: false } },
-  set_emotion: { type: 'set_emotion', label: 'Set Emotion', category: 'visual', fields: [
-    { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
-    { key: 'emotion', label: 'Emotion', type: 'select', options: ['default', 'neutral', 'angry', 'sad', 'scared', 'happy', 'confused'], defaultValue: 'neutral' },
-    { key: 'apply_to_sprite', label: 'Apply to Sprite', type: 'checkbox', defaultValue: true },
-    { key: 'apply_to_portrait', label: 'Apply to Portrait', type: 'checkbox', defaultValue: true }
-  ], defaultParams: { target: 'player', emotion: 'neutral', apply_to_sprite: true, apply_to_portrait: true } },
   jump: { type: 'jump', label: 'Jump', category: 'movement', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'x', label: 'X', type: 'number', defaultValue: 0 },
@@ -305,11 +299,6 @@ const otherNodes: Record<string, NodeDefinition> = {
   set_plot: { type: 'set_plot', label: 'Set Plot', category: 'logic', fields: [
     { key: 'value', label: 'Plot Value', type: 'number', placeholder: '10', defaultValue: 0 }
   ], defaultParams: { value: 0 } },
-  director_note: { type: 'director_note', label: 'Director Note', category: 'meta', fields: [
-    { key: 'note_text', label: 'Note', type: 'text', defaultValue: '' },
-    { key: 'category', label: 'Category', type: 'select', options: ['acting', 'camera', 'sound', 'todo', 'warning'], defaultValue: 'todo' },
-    { key: 'pinned', label: 'Pinned', type: 'checkbox', defaultValue: false }
-  ], defaultParams: { note_text: '', category: 'todo', pinned: false } },
   // Специальная обработка для points array не нужна:
   // - points хранится как массив {x, y}[] в editor params (не как JSON строка)
   // - Общая логика в compileGraph/reverseCompile корректно копирует массивы

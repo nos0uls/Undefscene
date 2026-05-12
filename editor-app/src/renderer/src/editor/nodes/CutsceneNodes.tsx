@@ -836,31 +836,6 @@ export const EmoteNode = memo(function EmoteNode({ data, selected }: CutsceneNod
   )
 })
 
-export const SetEmotionNode = memo(function SetEmotionNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
-  const target = data.params?.target ?? ''
-  const emotion = data.params?.emotion ?? ''
-  const applySprite = data.params?.apply_to_sprite === true
-  const applyPortrait = data.params?.apply_to_portrait === true
-  return (
-    <BaseNode nodeType="set_emotion" selected={selected}>
-      <div className="customNodeParam">
-        <span className="customNodeParamKey">Actor</span>
-        <span className="customNodeParamValue">{String(target)}</span>
-      </div>
-      <div className="customNodeParam">
-        <span className="customNodeParamKey">Emotion</span>
-        <span className="customNodeParamValue">{String(emotion)}</span>
-      </div>
-      {(applySprite || applyPortrait) && (
-        <div className="customNodeParam">
-          {applySprite && <span style={{ opacity: 0.5, fontSize: '0.9em' }}>sprite</span>}
-          {applySprite && applyPortrait && <span style={{ opacity: 0.5, fontSize: '0.9em' }}> · </span>}
-          {applyPortrait && <span style={{ opacity: 0.5, fontSize: '0.9em' }}>portrait</span>}
-        </div>
-      )}
-    </BaseNode>
-  )
-})
 
 export const JumpNode = memo(function JumpNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
@@ -1093,18 +1068,3 @@ export const SetPlotNode = memo(function SetPlotNode({ data, selected }: Cutscen
   )
 })
 
-// Director Note — редактор-only заметка режиссёра. Не экспортируется в JSON.
-export const DirectorNoteNode = memo(function DirectorNoteNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
-  const noteText = String(data.params?.note_text ?? '')
-  const category = String(data.params?.category ?? 'todo')
-  const pinned = Boolean(data.params?.pinned)
-  const displayText = noteText.length > 40 ? noteText.slice(0, 40) + '…' : noteText
-  return (
-    <BaseNode nodeType="director_note" label={displayText || undefined} hasInput={false} hasOutput={false} selected={selected}>
-      <div className="customNodeParam">
-        <span className="customNodeParamKey">{category}</span>
-        {pinned && <span className="customNodeParamValue"> (pinned)</span>}
-      </div>
-    </BaseNode>
-  )
-})

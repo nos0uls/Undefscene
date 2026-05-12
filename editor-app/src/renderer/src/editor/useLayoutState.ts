@@ -149,7 +149,20 @@ export function useLayoutState(): {
           typeof loaded === 'object' &&
           (loaded as Partial<LayoutState>).schemaVersion === 1
         ) {
-          setLayout(loaded as LayoutState)
+          const loadedLayout = loaded as LayoutState
+          // Мержим сохранённую раскладку с дефолтной, чтобы новые панели
+          // (например Templates/Notes) появлялись у пользователей со старым layout.json.
+          setLayout({
+            ...defaultLayout,
+            ...loadedLayout,
+            dockSizes: { ...defaultLayout.dockSizes, ...loadedLayout.dockSizes },
+            docked: {
+              left: loadedLayout.docked?.left ?? defaultLayout.docked.left,
+              right: loadedLayout.docked?.right ?? defaultLayout.docked.right,
+              bottom: loadedLayout.docked?.bottom ?? defaultLayout.docked.bottom
+            },
+            panels: { ...defaultLayout.panels, ...(loadedLayout.panels ?? {}) }
+          })
         }
         didLoadRef.current = true
       })

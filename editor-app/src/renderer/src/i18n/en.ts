@@ -348,7 +348,6 @@ export const en = {
       spawn_entity: 'Spawn Entity',
       destroy_entity: 'Destroy Entity',
       set_plot: 'Set Plot',
-      director_note: 'Director Note',
       follow_path: 'Follow Path',
       tween_camera: 'Tween Camera',
       parallel_start: 'Parallel Start',
@@ -616,7 +615,6 @@ export const en = {
     musicPitchExtreme: '{name}: pitch is {pitch}. Values outside 0.5–2.0 may sound unusual.',
     cameraTrackMissingTarget: 'Camera track has no target.',
     emoteSpriteNotFound: 'emote: sprite "{sprite}" not found in project resources. Check the sprite name or reload the project.',
-    emptyDirectorNote: 'Empty director note.'
   },
   // Dock panel headers
   panels: {

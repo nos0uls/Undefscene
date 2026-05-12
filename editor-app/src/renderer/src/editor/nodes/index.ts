@@ -50,7 +50,6 @@ import {
   MusicPauseNode,
   MusicResumeNode,
   EmoteNode,
-  SetEmotionNode,
   JumpNode,
   HaltNode,
   FlipNode,
@@ -65,8 +64,7 @@ import {
   SetFlagNode,
   SpawnEntityNode,
   DestroyEntityNode,
-  SetPlotNode,
-  DirectorNoteNode
+  SetPlotNode
 } from './CutsceneNodes'
 
 // Маппинг: тип ноды → React-компонент.
@@ -122,7 +120,6 @@ export const cutsceneNodeTypes = {
   music_pause: MusicPauseNode,
   music_resume: MusicResumeNode,
   emote: EmoteNode,
-  set_emotion: SetEmotionNode,
   jump: JumpNode,
   halt: HaltNode,
   flip: FlipNode,
@@ -137,6 +134,5 @@ export const cutsceneNodeTypes = {
   set_flag: SetFlagNode,
   spawn_entity: SpawnEntityNode,
   destroy_entity: DestroyEntityNode,
-  set_plot: SetPlotNode,
-  director_note: DirectorNoteNode
+  set_plot: SetPlotNode
 } as const

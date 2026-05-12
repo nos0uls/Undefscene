@@ -442,28 +442,41 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   // timingLabel и isInternalPair передаём в data — CustomEdge читает их сам.
   const initialEdges = useMemo<Edge[]>(() => {
     if (!runtimeEdges) return []
+    const nodeTypes = new Map(runtimeNodes.map((node) => [node.id, node.type]))
+
     return runtimeEdges.map((e) => {
-      // Защита от "null"-строки и null: React Flow при null ищет несуществующий handle.
-      // Если handle испорчен или не сохранён в старой сцене, возвращаем обычные порты out/in.
-      const safeSource = e.sourceHandle === 'null' || e.sourceHandle === null ? undefined : e.sourceHandle
-      const safeTarget = e.targetHandle === 'null' || e.targetHandle === null ? undefined : e.targetHandle
+      // Старые сцены могли сохранить null/"null" как handle. Для React Flow это битый id.
+      // Для parallel-ноды восстанавливаем shared-порты сразу, до первого рендера.
+      let safeSource = e.sourceHandle && e.sourceHandle !== 'null' ? e.sourceHandle : undefined
+      let safeTarget = e.targetHandle && e.targetHandle !== 'null' ? e.targetHandle : undefined
+      const sourceType = nodeTypes.get(e.source)
+      const targetType = nodeTypes.get(e.target)
+
+      if (!safeSource && sourceType === 'parallel_start') {
+        safeSource = parallelBranchPortMode === 'shared' ? 'out_shared' : 'out_b0'
+      }
+      if (!safeTarget && targetType === 'parallel_join') {
+        safeTarget = parallelBranchPortMode === 'shared' ? 'in_shared' : 'in_b0'
+      }
+
       const isInternalPair = safeSource === '__pair' && safeTarget === '__pair'
 
       const edge: Edge = {
         id: e.id,
         source: e.source,
-        sourceHandle: safeSource,
         target: e.target,
-        targetHandle: safeTarget,
         data: {
           timingLabel: typeof e.waitSeconds === 'number' ? `${e.waitSeconds}s` : undefined,
           isInternalPair
         },
         selectable: !isInternalPair
       }
+      // Не передаём undefined-поля: xyflow иногда логирует их как строковый "null".
+      if (safeSource) edge.sourceHandle = safeSource
+      if (safeTarget) edge.targetHandle = safeTarget
       return edge
     })
-  }, [runtimeEdges])
+  }, [parallelBranchPortMode, runtimeEdges, runtimeNodes])
 
   // Локальное состояние React Flow.
   // Мы используем Uncontrolled Mode (без controlled props nodes/edges),
@@ -808,8 +821,16 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
 
       // Нормализуем handles: React Flow при null превращает его в строку "null".
       // undefined оставляем undefined — React Flow сам подставит дефолтные handles.
-      const sourceHandle = resolvedConnection.sourceHandle === 'null' || resolvedConnection.sourceHandle === null ? undefined : resolvedConnection.sourceHandle
-      const targetHandle = resolvedConnection.targetHandle === 'null' || resolvedConnection.targetHandle === null ? undefined : resolvedConnection.targetHandle
+      let sourceHandle = resolvedConnection.sourceHandle === 'null' || resolvedConnection.sourceHandle === null ? undefined : resolvedConnection.sourceHandle
+      let targetHandle = resolvedConnection.targetHandle === 'null' || resolvedConnection.targetHandle === null ? undefined : resolvedConnection.targetHandle
+      const sourceNode = runtimeNodesRef.current.find((node) => node.id === resolvedConnection.source)
+      const targetNode = runtimeNodesRef.current.find((node) => node.id === resolvedConnection.target)
+      if (!sourceHandle && sourceNode?.type === 'parallel_start') {
+        sourceHandle = parallelBranchPortMode === 'shared' ? 'out_shared' : 'out_b0'
+      }
+      if (!targetHandle && targetNode?.type === 'parallel_join') {
+        targetHandle = parallelBranchPortMode === 'shared' ? 'in_shared' : 'in_b0'
+      }
       const sourceHandleId = sourceHandle ?? 'default'
       const targetHandleId = targetHandle ?? 'default'
       const edgeId = `edge-${resolvedConnection.source}-${sourceHandleId}-${resolvedConnection.target}-${targetHandleId}`
@@ -837,7 +858,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
       // Устанавливаем флаг, чтобы следующий клик по холсту не создавал ноду.
       justConnectedRef.current = true
     },
-    [resolveParallelConnection, setEdges]
+    [parallelBranchPortMode, resolveParallelConnection, setEdges]
   )
 
   // При удалении рёбер — сообщаем runtime.
