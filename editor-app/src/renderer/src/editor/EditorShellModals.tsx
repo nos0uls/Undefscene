@@ -1,0 +1,200 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+import React from 'react'
+
+import { PreferencesModal } from './PreferencesModal'
+import { WelcomeSetupModal } from './WelcomeSetupModal'
+import { TutorialOverlay } from './TutorialOverlay'
+import { TUTORIAL_REGISTRY } from './tutorialConstants'
+import { AboutModal } from './AboutModal'
+import type { NameConflictModalState } from './inspectorTypes'
+
+export interface EditorShellModalsProps {
+  preferencesOpen: boolean
+  preferences: any
+  updatePreferences: (prefs: any) => void
+  setPreferencesOpen: (open: boolean) => void
+  welcomeOpen: boolean
+  handleWelcomeComplete: () => void
+  isTutorialActive: boolean
+  handleTutorialComplete: () => void
+  handleTutorialSkip: () => void
+  inspectorTutorialActive: boolean
+  handleInspectorTutorialComplete: () => void
+  handleInspectorTutorialSkip: () => void
+  visualEditingTutorialActive: boolean
+  handleVisualEditingTutorialComplete: () => void
+  handleVisualEditingTutorialSkip: () => void
+  aboutOpen: boolean
+  appVersion: string
+  handleOpenDocs: () => void
+  setAboutOpen: (open: boolean) => void
+  nameConflictModal: NameConflictModalState | null
+  pendingNodeName: string
+  setPendingNodeName: (name: string) => void
+  setNameConflictModal: (state: NameConflictModalState | null) => void
+  nameConflictOkRef: React.RefObject<HTMLButtonElement | null>
+  runtime: any
+  setRuntime: (updater: (prev: any) => any) => void
+  t: (key: string, fallback: string) => string
+}
+
+export function EditorShellModals({
+  preferencesOpen,
+  preferences,
+  updatePreferences,
+  setPreferencesOpen,
+  welcomeOpen,
+  handleWelcomeComplete,
+  isTutorialActive,
+  handleTutorialComplete,
+  handleTutorialSkip,
+  inspectorTutorialActive,
+  handleInspectorTutorialComplete,
+  handleInspectorTutorialSkip,
+  visualEditingTutorialActive,
+  handleVisualEditingTutorialComplete,
+  handleVisualEditingTutorialSkip,
+  aboutOpen,
+  appVersion,
+  handleOpenDocs,
+  setAboutOpen,
+  nameConflictModal,
+  pendingNodeName,
+  setPendingNodeName,
+  setNameConflictModal,
+  nameConflictOkRef,
+  runtime,
+  setRuntime,
+  t
+}: EditorShellModalsProps) {
+  return (
+    <>
+      <PreferencesModal
+        open={preferencesOpen}
+        preferences={preferences}
+        updatePreferences={updatePreferences}
+        onClose={() => setPreferencesOpen(false)}
+      />
+
+      <WelcomeSetupModal
+        open={welcomeOpen}
+        preferences={preferences}
+        updatePreferences={updatePreferences}
+        onComplete={handleWelcomeComplete}
+      />
+
+      <TutorialOverlay
+        active={isTutorialActive}
+        language={preferences.language}
+        onComplete={handleTutorialComplete}
+        onSkip={handleTutorialSkip}
+      />
+
+      <TutorialOverlay
+        active={inspectorTutorialActive}
+        language={preferences.language}
+        steps={TUTORIAL_REGISTRY.inspector}
+        onComplete={handleInspectorTutorialComplete}
+        onSkip={handleInspectorTutorialSkip}
+      />
+
+      <TutorialOverlay
+        active={visualEditingTutorialActive}
+        language={preferences.language}
+        steps={TUTORIAL_REGISTRY.visualEditing}
+        onComplete={handleVisualEditingTutorialComplete}
+        onSkip={handleVisualEditingTutorialSkip}
+      />
+
+      <AboutModal
+        open={aboutOpen}
+        version={appVersion}
+        onOpenDocs={handleOpenDocs}
+        language={preferences.language}
+        onClose={() => setAboutOpen(false)}
+      />
+
+      {nameConflictModal ? (
+        <div
+          className="prefsOverlay"
+          onClick={() => {
+            setPendingNodeName(nameConflictModal.previousName)
+            setNameConflictModal(null)
+          }}
+        >
+          <div className="prefsModal" onClick={(e) => e.stopPropagation()}>
+            <div className="prefsHeader">
+              <span className="prefsTitle">
+                {t('dialog.duplicateNodeNameTitle', 'Duplicate node name')}
+              </span>
+              <button
+                className="prefsCloseBtn"
+                onClick={() => {
+                  setPendingNodeName(nameConflictModal.previousName)
+                  setNameConflictModal(null)
+                }}
+              >
+                {'\u2715'}
+              </button>
+            </div>
+
+            <div className="prefsBody">
+              <div className="prefsHint">
+                {t('dialog.duplicateNodeNameMessage', 'This name is already used by another node')}
+                {nameConflictModal.conflictingWithNodeId
+                  ? ` (${nameConflictModal.conflictingWithNodeId})`
+                  : ''}
+                {t('dialog.duplicateNodeNameHint', '. Duplicates are allowed, but it can be confusing.')}
+              </div>
+
+              <label className="prefsField">
+                <span>{t('editor.nodeName', 'Name')}</span>
+                <input
+                  className="prefsInput"
+                  value={nameConflictModal.value}
+                  onChange={(e) =>
+                    setNameConflictModal({
+                      ...nameConflictModal,
+                      value: e.target.value
+                    })
+                  }
+                />
+              </label>
+
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
+                <button
+                  className="runtimeButton"
+                  type="button"
+                  onClick={() => {
+                    setPendingNodeName(nameConflictModal.previousName)
+                    setNameConflictModal(null)
+                  }}
+                >
+                  {t('dialog.cancelLabel', 'Cancel')}
+                </button>
+                <button
+                  ref={nameConflictOkRef}
+                  className="runtimeButton"
+                  type="button"
+                  onClick={() => {
+                    const v = nameConflictModal.value
+                    setPendingNodeName(v)
+                    setRuntime({
+                      ...runtime,
+                      nodes: runtime.nodes.map((n: any) =>
+                        n.id === nameConflictModal.nodeId ? { ...n, name: v.trim() } : n
+                      )
+                    })
+                    setNameConflictModal(null)
+                  }}
+                >
+                  {t('dialog.okLabel', 'OK')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  )
+}

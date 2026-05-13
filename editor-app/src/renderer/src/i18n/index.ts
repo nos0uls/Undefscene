@@ -2,21 +2,56 @@
 // Сейчас экспортируем словари и простые типы,
 // чтобы следующие задачи могли подключать их без лишней перестройки структуры.
 
-import { en } from './en'
-import { ru } from './ru'
+// Типы для статического использования
+export type SupportedLanguage = 'en' | 'ru'
+export type TranslationDictionary = {
+  [key: string]: unknown
+}
 
-export const dictionaries = {
-  en,
-  ru
-} as const
+// Кэш для загруженных словарей
+const dictionaryCache = new Map<SupportedLanguage, TranslationDictionary>()
 
-export type SupportedLanguage = keyof typeof dictionaries
-export type TranslationDictionary = (typeof dictionaries)[SupportedLanguage]
+// Предзагрузка словаря для языка (вызывать при старте приложения)
+export async function preloadLanguage(language: SupportedLanguage): Promise<void> {
+  if (dictionaryCache.has(language)) {
+    return
+  }
+
+  try {
+    let dictionary: TranslationDictionary
+    if (language === 'ru') {
+      const module = await import('./ru')
+      dictionary = module.ru
+    } else {
+      const module = await import('./en')
+      dictionary = module.en
+    }
+    dictionaryCache.set(language, dictionary)
+  } catch (error) {
+    console.error(`Failed to preload dictionary for language: ${language}`, error)
+    // Fallback to English if loading fails
+    try {
+      const module = await import('./en')
+      dictionaryCache.set(language, module.en)
+    } catch (fallbackError) {
+      console.error('Failed to load fallback English dictionary', fallbackError)
+    }
+  }
+}
 
 // Возвращаем словарь для текущего языка.
 // Если язык неизвестен, безопасно падаем обратно в English.
+// Синхронная версия - требует предварительной загрузки через preloadLanguage.
 export function getDictionary(language: SupportedLanguage): TranslationDictionary {
-  return dictionaries[language] ?? dictionaries.en
+  const cached = dictionaryCache.get(language)
+  if (cached) {
+    return cached
+  }
+
+  // Если словарь не загружен, возвращаем пустой объект как fallback
+  // В реальном использовании это не должно происходить, если preloadLanguage вызван правильно
+  console.warn(`Dictionary for language "${language}" not preloaded, returning empty object`)
+  return {}
 }
 
 // Читаем строку по пути вида "preferences.language".

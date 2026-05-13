@@ -59,13 +59,41 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
   // Карта исходящих рёбер: nodeId → список рёбер.
   const outEdges = new Map<string, RuntimeEdge[]>()
   for (const e of edges) {
-    const list = outEdges.get(e.source) ?? []
+    let list = outEdges.get(e.source)
+    if (!list) {
+      list = []
+      outEdges.set(e.source, list)
+    }
     list.push(e)
-    outEdges.set(e.source, list)
   }
 
   // Множество посещённых нод — защита от бесконечных циклов.
   const visited = new Set<string>()
+
+  // Cache for normalized node names to avoid duplicate computations
+  const nodeNameCache = new Map<string, string>()
+
+  // Function to get normalized node name with caching
+  function getNormalizedNodeName(node: RuntimeNode): string {
+    if (nodeNameCache.has(node.id)) {
+      return nodeNameCache.get(node.id)!
+    }
+    const name = String(node.name ?? '').trim()
+    nodeNameCache.set(node.id, name)
+    return name
+  }
+
+  // Function to filter edges (excludes internal __pair edges of parallel)
+  // Returns filtered array without creating temporary objects in loops
+  function filterRegularEdges(edges: RuntimeEdge[]): RuntimeEdge[] {
+    const result: RuntimeEdge[] = []
+    for (const edge of edges) {
+      if (edge.sourceHandle !== '__pair' && edge.targetHandle !== '__pair') {
+        result.push(edge)
+      }
+    }
+    return result
+  }
 
   // Создаём action-обёртку, которая запускает вложенные actions только если условие true.
   // Сейчас условие читаем ТОЛЬКО из global переменных.
@@ -137,7 +165,7 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
     // Это нужно для stop_when = "node_reached".
     // Важно: используем именно node.name, потому что в UI end-node выбирается по имени.
     if (node.type !== 'parallel_join') {
-      const nodeName = String(node.name ?? '').trim()
+      const nodeName = getNormalizedNodeName(node)
       if (nodeName) {
         actions.push({ type: 'mark_node', name: nodeName })
       }
@@ -202,9 +230,7 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
   function getNextActions(nodeId: string): CompileResult {
     const outs = outEdges.get(nodeId) ?? []
     // Фильтруем внутренние рёбра parallel (handle __pair).
-    const regularOuts = outs.filter(
-      (e) => e.sourceHandle !== '__pair' && e.targetHandle !== '__pair'
-    )
+    const regularOuts = filterRegularEdges(outs)
 
     if (regularOuts.length === 0) {
       return { ok: true, actions: [] }
@@ -245,9 +271,7 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       : ['b0']
 
     // Собираем исходящие рёбра parallel_start (кроме __pair).
-    const outs = (outEdges.get(startNode.id) ?? []).filter(
-      (e) => e.sourceHandle !== '__pair' && e.targetHandle !== '__pair'
-    )
+    const outs = filterRegularEdges(outEdges.get(startNode.id) ?? [])
 
     // Важно: после обновления движка, ветка parallel может быть:
     // - одним action-объектом
@@ -335,7 +359,7 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
     // Служебный action: отмечаем достижение ноды.
     // В parallel ветках walkFrom не вызывается, поэтому дублируем логику здесь.
     if (node.type !== 'parallel_join') {
-      const nodeName = String(node.name ?? '').trim()
+      const nodeName = getNormalizedNodeName(node)
       if (nodeName) {
         actions.push({ type: 'mark_node', name: nodeName })
       }
@@ -346,9 +370,7 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
     }
 
     // Идём дальше.
-    const outs = (outEdges.get(nodeId) ?? []).filter(
-      (e) => e.sourceHandle !== '__pair' && e.targetHandle !== '__pair'
-    )
+    const outs = filterRegularEdges(outEdges.get(nodeId) ?? [])
 
     // Ветку parallel мы считаем “линейной”: в ней нельзя ветвиться.
     // И главное: ветка ДОЛЖНА дойти до join, иначе parallel не сможет корректно завершиться.
@@ -402,9 +424,7 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
   function compileBranch(node: RuntimeNode): CompileResult {
     const condition = typeof node.params?.condition === 'string' ? node.params.condition : ''
 
-    const outs = (outEdges.get(node.id) ?? []).filter(
-      (e) => e.sourceHandle !== '__pair' && e.targetHandle !== '__pair'
-    )
+    const outs = filterRegularEdges(outEdges.get(node.id) ?? [])
 
     // Ищем рёбра по handle: out_true и out_false.
     const trueEdge = outs.find((e) => e.sourceHandle === 'out_true') ?? outs[0]

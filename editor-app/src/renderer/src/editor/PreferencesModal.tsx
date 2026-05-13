@@ -4,28 +4,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { THEMES, type ThemeId } from './useTheme'
 import type { EditorPreferences, HotkeyActionId } from './usePreferences'
-import { DEFAULT_KEYBINDINGS, HOTKEY_ACTION_IDS, type AccentColorId } from './usePreferences'
+import { DEFAULT_KEYBINDINGS, HOTKEY_ACTION_IDS } from './usePreferences'
 import {
   comboFromEvent,
-  formatComboForDisplay,
   isModifierOnlyEvent,
   normalizeCombo
 } from './useHotkeys'
 import { createTranslator } from '../i18n'
-
-// ACCENT_PRESETS are IDs, they are not translated here as they are mostly color names or internal.
-
-// Пресеты акцентных цветов с HEX-значениями.
-const ACCENT_PRESETS: Array<{ id: AccentColorId; label: string; hex: string }> = [
-  { id: 'purple', label: 'Purple', hex: '#5e6ad2' },
-  { id: 'cyan', label: 'Cyan', hex: '#00c8ff' },
-  { id: 'blue', label: 'Blue', hex: '#4a8fd9' },
-  { id: 'green', label: 'Green', hex: '#3cb371' },
-  { id: 'orange', label: 'Orange', hex: '#e6a020' },
-  { id: 'red', label: 'Red', hex: '#d9534f' },
-  { id: 'pink', label: 'Pink', hex: '#d94a8c' },
-  { id: 'yellow', label: 'Yellow', hex: '#e6c820' }
-]
+import { PreferencesGeneralSection } from './PreferencesGeneralSection'
+import { PreferencesCanvasSection } from './PreferencesCanvasSection'
+import { PreferencesKeyboardSection } from './PreferencesKeyboardSection'
 
 // Пропсы модалки.
 type PreferencesModalProps = {
@@ -164,273 +152,8 @@ export function PreferencesModal({
 
         {/* Содержимое */}
         <div className="prefsBody">
-          {/* --- Секция General --- */}
-          <div className="prefsSection">
-            <div className="prefsSectionSep"><span className="prefsSectionTitle">{t('preferences.general', 'General')}</span></div>
-            <label className="prefsField">
-              <span>{t('preferences.language', 'Language')}</span>
-              <select
-                className="prefsInput"
-                value={preferences.language}
-                onChange={(e) => updatePreferences({ language: e.target.value as 'en' | 'ru' })}
-              >
-                <option value="en">English</option>
-                <option value="ru">Русский</option>
-              </select>
-            </label>
-            <label className="prefsField">
-              <span>{t('preferences.theme', 'Theme')}</span>
-              <select
-                className="prefsInput"
-                value={preferences.theme}
-                onChange={(e) => updatePreferences({ theme: e.target.value as ThemeId })}
-              >
-                {THEMES.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="prefsHint">{THEMES.find((t) => t.id === preferences.theme)?.description ?? ''}</div>
-
-            {/* Акцентный цвет — Grid 2×4 со свотчами */}
-            <div className="prefsField" style={{ alignItems: 'flex-start' }}>
-              <span style={{ paddingTop: 4 }}>{t('preferences.accentColor', 'Accent Color')}</span>
-              <div className="prefsAccentGrid">
-                {ACCENT_PRESETS.map((p) => {
-                  const isActive = preferences.accentColor === p.id
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className={['prefsAccentSwatch', isActive ? 'isActive' : ''].filter(Boolean).join(' ')}
-                      onClick={() => updatePreferences({ accentColor: p.id as AccentColorId })}
-                      title={p.label}
-                    >
-                      <span
-                        className={['prefsAccentSwatchCircle', isActive ? 'isActive' : ''].filter(Boolean).join(' ')}
-                        style={{ backgroundColor: p.hex }}
-                      />
-                      <span className="prefsAccentSwatchLabel">{p.label}</span>
-                    </button>
-                  )
-                })}
-                {/* Custom swatch */}
-                {(() => {
-                  const isCustom = preferences.accentColor === 'custom'
-                  return (
-                    <button
-                      type="button"
-                      className={['prefsAccentSwatch prefsAccentSwatchCustom', isCustom ? 'isActive' : ''].filter(Boolean).join(' ')}
-                      title={t('preferences.custom', 'Custom...')}
-                    >
-                      <span
-                        className={['prefsAccentSwatchCircle', isCustom ? 'isActive' : ''].filter(Boolean).join(' ')}
-                        style={isCustom && preferences.customAccentHex ? { backgroundColor: preferences.customAccentHex } : {}}
-                      >
-                        {!isCustom && <span>+</span>}
-                        <input
-                          className="prefsAccentHexInput"
-                          type="color"
-                          value={preferences.customAccentHex || '#ffffff'}
-                          onChange={(e) => updatePreferences({ accentColor: 'custom' as AccentColorId, customAccentHex: e.target.value })}
-                        />
-                      </span>
-                      <span className="prefsAccentSwatchLabel">{t('preferences.custom', 'Custom')}</span>
-                    </button>
-                  )
-                })()}
-              </div>
-            </div>
-          </div>
-
-          {/* --- Секция Canvas --- */}
-          <div className="prefsSection">
-            <div className="prefsSectionSep"><span className="prefsSectionTitle">{t('preferences.canvas', 'Canvas')}</span></div>
-            <label className="prefsField">
-              <span>{t('preferences.gridSize', 'Grid Size')}</span>
-              <input
-                className="prefsInput"
-                type="number"
-                value={preferences.gridSize}
-                min={8}
-                max={64}
-                onChange={(e) => {
-                  const val = Number(e.target.value)
-                  if (!isNaN(val)) updatePreferences({ gridSize: val })
-                }}
-              />
-            </label>
-            <div className="prefsHint">
-              {t('preferences.gridSizeHint', 'Canvas grid spacing.')}
-            </div>
-            <label className="prefsField">
-              <span>{t('preferences.zoomSpeed', 'Zoom Speed')}</span>
-              <input
-                className="prefsInput"
-                type="number"
-                step={0.1}
-                min={0.5}
-                max={5}
-                value={preferences.zoomSpeed}
-                onChange={(e) => {
-                  const val = Number(e.target.value)
-                  if (!isNaN(val)) updatePreferences({ zoomSpeed: val })
-                }}
-              />
-            </label>
-            <label className="prefsField">
-              <span>{t('preferences.miniMapNodeThreshold', 'MiniMap node threshold')}</span>
-              <input
-                type="number"
-                className="prefsInput"
-                style={{ width: 80 }}
-                value={preferences.miniMapNodeThreshold}
-                onChange={(e) => {
-                  const val = Number(e.target.value)
-                  if (!isNaN(val)) updatePreferences({ miniMapNodeThreshold: val })
-                }}
-              />
-              <span className="prefsFieldHint">
-                {t(
-                  'preferences.miniMapNodeThresholdHint',
-                  '0 = off, -1 = always on, >0 = hide if nodes exceed this count'
-                )}
-              </span>
-            </label>
-            <label className="prefsField prefsCheckbox">
-              <input
-                type="checkbox"
-                checked={preferences.showNodeNameOnCanvas}
-                onChange={(e) => updatePreferences({ showNodeNameOnCanvas: e.target.checked })}
-              />
-              <span>{t('preferences.showNodeNameOnCanvas', 'Show node name on canvas')}</span>
-            </label>
-            <label className="prefsField">
-              <span>{t('preferences.parallelBranchPorts', 'Parallel branch ports')}</span>
-              <select
-                className="prefsInput"
-                value={preferences.parallelBranchPortMode}
-                onChange={(e) =>
-                  updatePreferences({
-                    parallelBranchPortMode: e.target.value as 'shared' | 'separate'
-                  })
-                }
-              >
-                <option value="shared">{t('preferences.sharedSinglePort', 'Shared single port')}</option>
-                <option value="separate">{t('preferences.separatePortsPerBranch', 'Separate ports per branch')}</option>
-              </select>
-            </label>
-            <label className="prefsField prefsCheckbox">
-              <input
-                type="checkbox"
-                checked={preferences.showDockDropPreview}
-                onChange={(e) => updatePreferences({ showDockDropPreview: e.target.checked })}
-              />
-              <span>{t('preferences.showDockDropPreview', 'Show dock drop preview')}</span>
-            </label>
-            <label className="prefsField">
-              <span>{t('preferences.backgroundImage', 'Background Image')}</span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  className="runtimeButton"
-                  type="button"
-                  onClick={() => {
-                    if (!window.api?.preferences?.chooseCanvasBackground) {
-                      console.warn('Preferences API not available')
-                      return
-                    }
-
-                    window.api.preferences
-                      .chooseCanvasBackground()
-                      .then((filePath) => {
-                        if (!filePath) return
-                        updatePreferences({ canvasBackgroundPath: filePath })
-                      })
-                      .catch((err) => {
-                        console.warn('Failed to choose canvas background:', err)
-                      })
-                  }}
-                >
-                  {t('preferences.chooseFile', 'Choose File')}
-                </button>
-                <button
-                  className="runtimeButton"
-                  type="button"
-                  onClick={() => updatePreferences({ canvasBackgroundPath: null })}
-                  disabled={!preferences.canvasBackgroundPath}
-                >
-                  {t('preferences.clear', 'Clear')}
-                </button>
-              </div>
-            </label>
-            {!preferences.canvasBackgroundPath ? (
-              <div className="prefsHint">
-                {t('preferences.noBackgroundSelected', 'No background image selected.')}
-              </div>
-            ) : null}
-            <label className="prefsField">
-              <span>{t('preferences.backgroundAttachment', 'Background Attachment')}</span>
-              <select
-                className="prefsInput"
-                value={preferences.canvasBackgroundAttachment}
-                onChange={(e) =>
-                  updatePreferences({
-                    canvasBackgroundAttachment: e.target.value as 'canvas' | 'viewport'
-                  })
-                }
-                disabled={!preferences.canvasBackgroundPath}
-              >
-                <option value="canvas">
-                  {t('preferences.backgroundAttachmentCanvas', 'Attach to canvas')}
-                </option>
-                <option value="viewport">
-                  {t('preferences.backgroundAttachmentViewport', 'Fix to screen')}
-                </option>
-              </select>
-            </label>
-            <label className="prefsField">
-              <span>{t('preferences.backgroundMode', 'Background Mode')}</span>
-              <select
-                className="prefsInput"
-                value={preferences.canvasBackgroundMode}
-                onChange={(e) =>
-                  updatePreferences({
-                    canvasBackgroundMode: e.target.value as 'stretch' | 'cover'
-                  })
-                }
-                disabled={!preferences.canvasBackgroundPath}
-              >
-                <option value="stretch">{t('preferences.stretch', 'Stretch')}</option>
-                <option value="cover">{t('preferences.coverCrop', 'Cover (crop)')}</option>
-              </select>
-            </label>
-            {/* Отдельная прозрачность помогает сделать картинку фоном,
-                а не визуальной помехой поверх сетки и нод. */}
-            <label className="prefsField">
-              <span>
-                {t('preferences.backgroundOpacity', 'Background Opacity')} ({Math.round(
-                  preferences.canvasBackgroundOpacity * 100
-                )}%)
-              </span>
-              <input
-                className="prefsInput"
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={Math.round(preferences.canvasBackgroundOpacity * 100)}
-                onChange={(e) =>
-                  updatePreferences({
-                    canvasBackgroundOpacity: Number(e.target.value) / 100
-                  })
-                }
-                disabled={!preferences.canvasBackgroundPath}
-              />
-            </label>
-          </div>
-
+          <PreferencesGeneralSection preferences={preferences} updatePreferences={updatePreferences} t={t} />
+          <PreferencesCanvasSection preferences={preferences} updatePreferences={updatePreferences} t={t} />
           {/* --- Секция Editor --- */}
           <div className="prefsSection">
             <div className="prefsSectionSep"><span className="prefsSectionTitle">{t('preferences.editor', 'Editor')}</span></div>
@@ -545,46 +268,14 @@ export function PreferencesModal({
             )}
           </div>
 
-          {/* --- Секция Keyboard Shortcuts --- */}
-          <div className="prefsSection">
-            <div className="prefsSectionSep"><span className="prefsSectionTitle">{t('preferences.keyboardShortcuts', 'Keyboard Shortcuts')}</span></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {HOTKEY_ACTION_IDS.map((actionId) => (
-                <div
-                  key={actionId}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                    fontSize: 12,
-                    color: 'var(--ev-c-text-2)'
-                  }}
-                >
-                  <span>{getHotkeyLabel(actionId)}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <button
-                      className="runtimeButton"
-                      type="button"
-                      onClick={() =>
-                        setCapturingActionId((prev) => (prev === actionId ? null : actionId))
-                      }
-                      style={{ minWidth: 136 }}
-                    >
-                      {capturingActionId === actionId
-                        ? t('preferences.shortcutCapture', 'Press shortcut...')
-                        : formatComboForDisplay(
-                            preferences.keybindings[actionId] ?? '',
-                            t('preferences.unassigned', 'Unassigned')
-                          )}
-                    </button>
-                    <button
-                      className="runtimeButton"
-                      type="button"
-                      onClick={() => applyKeybindingChange(actionId, DEFAULT_KEYBINDINGS[actionId])}
-                    >
-                      {t('preferences.shortcutReset', 'Reset')}
-                    </button>
+          <PreferencesKeyboardSection
+            preferences={{ keybindings: preferences.keybindings }}
+            capturingActionId={capturingActionId}
+            setCapturingActionId={setCapturingActionId}
+            applyKeybindingChange={applyKeybindingChange}
+            getHotkeyLabel={getHotkeyLabel}
+            t={t}
+          />
                   </div>
                 </div>
               ))}

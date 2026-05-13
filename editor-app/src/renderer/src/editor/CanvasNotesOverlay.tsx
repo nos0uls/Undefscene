@@ -67,16 +67,26 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
   const containerRef = useRef<HTMLDivElement>(null)
 
   const [dragging, setDragging] = useState(false)
+  // Ref для throttling обновлений позиции через requestAnimationFrame
+  const rafRef = useRef<number | null>(null)
+  const pendingPositionRef = useRef<{ x: number; y: number } | null>(null)
   const [hovered, setHovered] = useState(false)
   const [pinnedOpen, setPinnedOpen] = useState(false)
   const [snapTargetId, setSnapTargetId] = useState<string | null>(null)
   const dragOffset = useRef({ x: 0, y: 0 })
+  // Ref для актуальных render координат, чтобы handleMouseDown не пересоздавался
+  const renderPosRef = useRef({ x: 0, y: 0 })
 
   // Compute render position (snapped to node or free)
   const node = note.nodeId ? nodes.find((n) => n.id === note.nodeId) : undefined
   const renderX = node ? node.position.x + SNAP_OFFSET_X : note.x
   const renderY = node ? node.position.y + SNAP_OFFSET_Y : note.y
   const pos = flowToScreen(renderX, renderY, viewport)
+
+  // Обновляем ref при изменении render координат
+  useEffect(() => {
+    renderPosRef.current = { x: renderX, y: renderY }
+  }, [renderX, renderY])
 
   const open = hovered || pinnedOpen
   const Icon = CATEGORY_ICON[note.category] ?? Drama
@@ -87,14 +97,25 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
       if (e.button !== 0) return
       setDragging(true)
       const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+      const { x: currentRenderX, y: currentRenderY } = renderPosRef.current
       // If snapped, detach on drag start so we can move freely.
       if (note.nodeId) {
-        onUpdateNote(note.id, { nodeId: undefined, x: renderX, y: renderY })
+        onUpdateNote(note.id, { nodeId: undefined, x: currentRenderX, y: currentRenderY })
       }
-      dragOffset.current = { x: flowPos.x - renderX, y: flowPos.y - renderY }
+      dragOffset.current = { x: flowPos.x - currentRenderX, y: flowPos.y - currentRenderY }
     },
-    [note.nodeId, note.id, onUpdateNote, renderX, renderY, screenToFlowPosition]
+    [note.nodeId, note.id, onUpdateNote, screenToFlowPosition]
   )
+
+  useEffect(() => {
+    // Cleanup RAF when dragging stops or component unmounts
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+      }
+    }
+  }, [dragging])
 
   useEffect(() => {
     if (!dragging) return
@@ -103,7 +124,18 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
       const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY })
       const newX = flowPos.x - dragOffset.current.x
       const newY = flowPos.y - dragOffset.current.y
-      onUpdateNote(note.id, { x: newX, y: newY })
+
+      // Throttle обновление позиции через requestAnimationFrame
+      pendingPositionRef.current = { x: newX, y: newY }
+      if (rafRef.current === null) {
+        rafRef.current = requestAnimationFrame(() => {
+          if (pendingPositionRef.current) {
+            onUpdateNote(note.id, pendingPositionRef.current)
+            pendingPositionRef.current = null
+          }
+          rafRef.current = null
+        })
+      }
 
       // Check if hovering over a node for snap preview
       const allNodes = getNodes()
@@ -128,11 +160,23 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
 
     const handleMouseUp = () => {
       setDragging(false)
-      if (snapTargetId) {
-        const targetNode = getNodes().find((n) => n.id === snapTargetId)
+      // Cancel pending RAF if exists
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+        // Apply final position immediately
+        if (pendingPositionRef.current) {
+          onUpdateNote(note.id, pendingPositionRef.current)
+          pendingPositionRef.current = null
+        }
+      }
+
+      const currentSnapTargetId = snapTargetId
+      if (currentSnapTargetId) {
+        const targetNode = getNodes().find((n) => n.id === currentSnapTargetId)
         if (targetNode) {
           onUpdateNote(note.id, {
-            nodeId: snapTargetId,
+            nodeId: currentSnapTargetId,
             x: targetNode.position.x + SNAP_OFFSET_X,
             y: targetNode.position.y + SNAP_OFFSET_Y
           })
@@ -146,8 +190,12 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
+      // Cleanup RAF on unmount
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current)
+      }
     }
-  }, [dragging, note.id, onUpdateNote, screenToFlowPosition, getNodes, snapTargetId])
+  }, [dragging, note.id, onUpdateNote, screenToFlowPosition, getNodes])
 
   // Close pinned tooltip when clicking outside
   useEffect(() => {
@@ -160,6 +208,16 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
     window.addEventListener('click', handleDocClick)
     return () => window.removeEventListener('click', handleDocClick)
   }, [pinnedOpen])
+
+  // Cleanup RAF on component unmount
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+      }
+    }
+  }, [])
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
@@ -180,14 +238,17 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
     [note.id, onDeleteNote]
   )
 
+  const handleMouseEnter = useCallback(() => setHovered(true), [])
+  const handleMouseLeave = useCallback(() => setHovered(false), [])
+
   const glowColor = snapTargetId ? CATEGORY_BORDER[note.category] : 'transparent'
 
   return (
     <div
       ref={containerRef}
       onMouseDown={handleMouseDown}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onClick={handleClick}
       style={{
         position: 'absolute',

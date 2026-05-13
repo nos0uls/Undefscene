@@ -3,7 +3,7 @@
 // Для NSIS: предлагает перезапуститься и установить.
 // Для portable: просто сообщает о новой версии.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, memo } from 'react'
 import { usePreferencesContext } from './PreferencesContext'
 import { createTranslator } from '../i18n'
 
@@ -15,7 +15,7 @@ type UpdateStatus =
   | { kind: 'ready' }
   | { kind: 'error'; message: string }
 
-export function UpdateNotification(): React.JSX.Element | null {
+function UpdateNotification(): React.JSX.Element | null {
   const { preferences } = usePreferencesContext()
   const t = createTranslator(preferences.language ?? 'en')
 
@@ -156,3 +156,5 @@ export function UpdateNotification(): React.JSX.Element | null {
     </div>
   )
 }
+
+export const UpdateNotification = memo(UpdateNotification)

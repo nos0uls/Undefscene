@@ -12,6 +12,11 @@ import {
 import { createTranslator, type SupportedLanguage } from '../i18n'
 import { RoomVisualEditorOverlay } from './RoomVisualEditorOverlay'
 import { SearchableSelect } from './SearchableSelect'
+import { RoomVisualEditorToolbar } from './RoomVisualEditorToolbar'
+import { RoomVisualEditorSidebar } from './RoomVisualEditorSidebar'
+import { RoomVisualEditorViewport } from './RoomVisualEditorViewport'
+import { RoomVisualEditorCanvas } from './RoomVisualEditorCanvas'
+import { useRoomVisualEditorState } from './RoomVisualEditorState'
 import { getAccentCssVariables } from './usePreferences'
 import { usePreferencesContext } from './PreferencesContext'
 import {
@@ -20,6 +25,22 @@ import {
   type VisualEditorActorPreview,
   type LoadedActorSpritePreview
 } from './RoomVisualEditorTypes'
+import {
+  usePathEditorLogic,
+  PATH_GRID_STEP,
+  PATH_ERASE_RADIUS,
+  simplifyPathPoints,
+  arePathPointsEqual,
+  buildPreparedPathSegments,
+  getPathPointsSyncKey
+} from './usePathEditorLogic'
+import {
+  useActorEditorLogic,
+  ACTOR_MARKER_RADIUS,
+  getActorPreviewsSyncKey,
+  getPointAtDistanceOnPreparedPath
+} from './useActorEditorLogic'
+import { useViewportControls, MIN_ZOOM, MAX_ZOOM, clamp } from './useViewportControls'
 
 // Пропсы окна visual editing.
 type RoomVisualEditorModalProps = {
@@ -40,36 +61,8 @@ type RoomVisualEditorModalProps = {
   onClose: () => void
 }
 
-// Ограничения zoom, чтобы окно оставалось управляемым и не улетало в бесконечность.
-const MIN_ZOOM = 0.1
-const MAX_ZOOM = 8
-
-// Шаг сетки для path points в room coordinates.
-// Теперь snap включён всегда, чтобы точки ложились ровно по рабочей сетке.
-const PATH_GRID_STEP = 20
-
-// Радиус стирания точек в режиме eraser.
-// Держим его умеренным, чтобы можно было удалять отдельные waypoints без грубого захвата.
-const PATH_ERASE_RADIUS = 14
-
-// Минимальная дистанция между новыми точками path.
-// Это помогает не засорять путь десятками почти одинаковых waypoint'ов при drag.
-const PATH_APPEND_MIN_DISTANCE = 16
-
-// Визуальный размер waypoint-точек делаем компактнее,
-// чтобы они не перекрывали room preview и не выглядели слишком грубо.
-const PATH_POINT_RADIUS = 4
-const PATH_PREVIEW_POINT_RADIUS = 4
-const ACTOR_MARKER_RADIUS = 8
-
-// Скорость локального preview для Play.
-// Этого хватает, чтобы траекторию можно было оценить глазами без слишком резкого рывка.
-const PLAY_PREVIEW_SPEED_PX_PER_SEC = 180
-
-// Маленький helper для clamp логики.
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value))
-}
+// Константы MIN_ZOOM, MAX_ZOOM, PATH_GRID_STEP, PATH_ERASE_RADIUS, ACTOR_MARKER_RADIUS и функция clamp
+// теперь вынесены в useViewportControls, usePathEditorLogic и useActorEditorLogic
 
 // Округляем координату к рабочей сетке visual editor.
 // Так path points остаются чистыми и предсказуемыми при импорте обратно в graph.
@@ -81,161 +74,6 @@ function snapToGrid(value: number, step: number): number {
 // Это позволяет подстроить snap под реальную локальную фазу room grid.
 function snapToGridWithOffset(value: number, step: number, offset: number): number {
   return snapToGrid(value - offset, step) + offset
-}
-
-// Сравниваем два массива path points без лишней магии.
-// Это помогает не засорять undo/redo history одинаковыми snapshot'ами.
-function arePathPointsEqual(
-  left: Array<{ x: number; y: number }>,
-  right: Array<{ x: number; y: number }>
-): boolean {
-  if (left.length !== right.length) return false
-  return left.every((point, index) => point.x === right[index]?.x && point.y === right[index]?.y)
-}
-
-// Упрощаем подряд идущие collinear points.
-// Если несколько точек лежат на одной прямой и продолжают один сегмент,
-// оставляем только начало и конец этого сегмента.
-function simplifyPathPoints(
-  points: Array<{ x: number; y: number }>
-): Array<{ x: number; y: number }> {
-  if (points.length <= 2) {
-    return points.map((point) => ({ ...point }))
-  }
-
-  const simplified: Array<{ x: number; y: number }> = [{ ...points[0] }, { ...points[1] }]
-
-  for (let index = 2; index < points.length; index += 1) {
-    const nextPoint = { ...points[index] }
-    const middlePoint = simplified[simplified.length - 1]
-    const startPoint = simplified[simplified.length - 2]
-
-    const abx = middlePoint.x - startPoint.x
-    const aby = middlePoint.y - startPoint.y
-    const bcx = nextPoint.x - middlePoint.x
-    const bcy = nextPoint.y - middlePoint.y
-    const cross = abx * bcy - aby * bcx
-    const dot = abx * bcx + aby * bcy
-
-    if (cross === 0 && dot >= 0) {
-      simplified[simplified.length - 1] = nextPoint
-      continue
-    }
-
-    simplified.push(nextPoint)
-  }
-
-  return simplified
-}
-
-// Подготовленный сегмент пути для Play preview.
-// Храним длину и накопленные границы, чтобы не пересчитывать весь путь на каждом кадре.
-type PreparedPathSegment = {
-  startPoint: { x: number; y: number }
-  endPoint: { x: number; y: number }
-  startDistance: number
-  endDistance: number
-  length: number
-}
-
-// Собираем сегменты пути один раз на изменение draft path.
-// Это уменьшает лаги на длинных путях и в точках перехода между сегментами.
-function buildPreparedPathSegments(points: Array<{ x: number; y: number }>): PreparedPathSegment[] {
-  const segments: PreparedPathSegment[] = []
-  let accumulatedDistance = 0
-
-  for (let index = 1; index < points.length; index += 1) {
-    const startPoint = points[index - 1]
-    const endPoint = points[index]
-    const length = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y)
-    if (length <= 0) {
-      continue
-    }
-
-    segments.push({
-      startPoint,
-      endPoint,
-      startDistance: accumulatedDistance,
-      endDistance: accumulatedDistance + length,
-      length
-    })
-    accumulatedDistance += length
-  }
-
-  return segments
-}
-
-// Короткий key для сравнения path по содержимому, а не по ссылке на массив.
-// Это защищает standalone visual editor от лишних reset'ов при одинаковом bridge-state.
-function getPathPointsSyncKey(points: Array<{ x: number; y: number }>): string {
-  return points.map((point) => `${Math.round(point.x)}:${Math.round(point.y)}`).join('|')
-}
-
-// То же сравнение для actor preview entries.
-// Если main прислал новый массив с теми же значениями, локальный draft не надо перетирать.
-function getActorPreviewsSyncKey(actors: VisualEditorActorPreview[]): string {
-  return actors
-    .map((actor) => {
-      const spriteOrObject = String(actor.spriteOrObject ?? '')
-      return `${actor.id}:${actor.key}:${Math.round(actor.x)}:${Math.round(actor.y)}:${spriteOrObject}:${actor.isVirtual === true ? '1' : '0'}`
-    })
-    .join('|')
-}
-
-// Возвращаем точку на path по дистанции от начала.
-// Так локальный preview может плавно идти по нескольким сегментам подряд.
-function getPointAtDistanceOnPreparedPath(
-  segments: PreparedPathSegment[],
-  distance: number,
-  fallbackPoint: { x: number; y: number },
-  startIndex = 0
-): { point: { x: number; y: number }; segmentIndex: number } {
-  if (segments.length <= 0) {
-    return { point: { ...fallbackPoint }, segmentIndex: 0 }
-  }
-
-  const normalizedDistance = Math.max(0, distance)
-  let segmentIndex = Math.max(0, Math.min(startIndex, segments.length - 1))
-
-  while (
-    segmentIndex < segments.length - 1 &&
-    normalizedDistance > segments[segmentIndex].endDistance
-  ) {
-    segmentIndex += 1
-  }
-
-  while (segmentIndex > 0 && normalizedDistance < segments[segmentIndex].startDistance) {
-    segmentIndex -= 1
-  }
-
-  const segment = segments[segmentIndex]
-  if (!segment || segment.length <= 0) {
-    return { point: { ...fallbackPoint }, segmentIndex: 0 }
-  }
-
-  const localDistance = Math.min(
-    segment.length,
-    Math.max(0, normalizedDistance - segment.startDistance)
-  )
-  const t = localDistance / segment.length
-
-  return {
-    point: {
-      x: Math.round(segment.startPoint.x + (segment.endPoint.x - segment.startPoint.x) * t),
-      y: Math.round(segment.startPoint.y + (segment.endPoint.y - segment.startPoint.y) * t)
-    },
-    segmentIndex
-  }
-}
-
-// Грузим data URL в HTMLImageElement, чтобы потом можно было нарисовать tile на canvas.
-function loadImage(dataUrl: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error('Failed to load tile image'))
-    img.src = dataUrl
-  })
 }
 
 // Отдельное окно room visual editing.
@@ -275,19 +113,20 @@ export function RoomVisualEditorModal({
   const stitchedRoomCacheRef = useRef<Map<string, string>>(new Map())
   const gridPatternId = useId().replace(/:/g, '-')
 
-  // Текущая выбранная room.
-  const [selectedRoom, setSelectedRoom] = useState<string>('')
+  // Управление состоянием room: selectedRoom, bundle, isLoading, errorMessage
+  const roomState = useRoomVisualEditorState({
+    open,
+    screenshotRooms,
+    projectDir,
+    roomScreenshotsDir,
+    language,
+    onRoomChange: (room) => {
+      // Обработчик смены комнаты будет использован в useEffect
+    }
+  })
 
-  // В room picker показываем только комнаты с готовыми screenshot bundles.
-  // Если список пустой, пользователь увидит понятный hint вместо пустых preview-вариантов.
-  const availableRooms = useMemo(() => screenshotRooms, [screenshotRooms])
-
-  // Загруженный screenshot bundle для выбранной room.
-  const [bundle, setBundle] = useState<RoomScreenshotBundle | null>(null)
-
-  // Простое состояние загрузки и ошибки, чтобы UI был понятнее.
-  const [isLoading, setIsLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const { selectedRoom, bundle, isLoading, errorMessage, availableRooms, handleRoomChange, handleRefresh } =
+    roomState
 
   // Короткие алиасы для local settings Visual Editing.
   // Это упрощает чтение формул ниже и делает intent более явным.
@@ -304,16 +143,32 @@ export function RoomVisualEditorModal({
     [preferences]
   )
 
-  // Управление viewport: zoom и pan offset.
-  const [zoom, setZoom] = useState(1)
-  const [offset, setOffset] = useState({ x: 24, y: 24 })
+  // Управление path editor
+  const pathEditor = usePathEditorLogic({
+    open,
+    selectedPathPoints,
+    selectedNode,
+    onImportPath,
+    clearTransientInteractionState
+  })
 
-  // Счётчик ручного refresh. Увеличиваем его кнопкой Refresh.
-  const [refreshToken, setRefreshToken] = useState(0)
-
-  // Draft path points — это локальный path editor поверх stitched room preview.
-  // Пользователь может рисовать его кликами и потом импортировать в graph.
-  const [draftPathPoints, setDraftPathPoints] = useState<Array<{ x: number; y: number }>>([])
+  const {
+    draftPathPoints,
+    pathPreviewPoint,
+    preparedDraftPathSegments,
+    preparedDraftPathTotalLength,
+    draftPathPolyline,
+    draftPathPointsRef,
+    pathDrawRef,
+    setPathPreviewPoint,
+    commitDraftPathPoints,
+    appendDraftPathPoint,
+    eraseDraftPathPoints,
+    clearDraftPath,
+    importDraftPath,
+    undoPath,
+    redoPath
+  } = pathEditor
 
   // Активный инструмент visual editor.
   // Select двигает actor markers, pencil/eraser редактируют path, null оставляет только pan.
@@ -339,13 +194,6 @@ export function RoomVisualEditorModal({
   const [actorSpritePreviews, setActorSpritePreviews] = useState<
     Record<string, LoadedActorSpritePreview>
   >({})
-  const dragPanRef = useRef<{
-    pointerId: number
-    startClientX: number
-    startClientY: number
-    startOffsetX: number
-    startOffsetY: number
-  } | null>(null)
 
   // Отдельный drag-state для actor markers в режиме Select.
   // Мы двигаем только локальный preview, а запись в graph делаем отдельным Import Actors.
@@ -400,12 +248,33 @@ export function RoomVisualEditorModal({
   // Это особенно полезно на длинных путях с большим числом точек.
   const playPreviewSegmentIndexRef = useRef(0)
 
+  // RAF throttling для path preview, actor drag и viewport pan.
+  // Это уменьшает количество ререндеров при быстром движении мыши.
+  const pathPreviewRafRef = useRef<number | null>(null)
+  const actorDragRafRef = useRef<number | null>(null)
+  const viewportPanRafRef = useRef<number | null>(null)
+
   // Останавливаем локальный preview безопасно из любого сценария.
   // Это важно при смене room, инструментов, Alt+Tab и ручном Stop.
   const stopPlayPreview = useCallback((): void => {
     if (playPreviewFrameRef.current !== null) {
       window.cancelAnimationFrame(playPreviewFrameRef.current)
       playPreviewFrameRef.current = null
+    }
+
+    if (pathPreviewRafRef.current !== null) {
+      window.cancelAnimationFrame(pathPreviewRafRef.current)
+      pathPreviewRafRef.current = null
+    }
+
+    if (actorDragRafRef.current !== null) {
+      window.cancelAnimationFrame(actorDragRafRef.current)
+      actorDragRafRef.current = null
+    }
+
+    if (viewportPanRafRef.current !== null) {
+      window.cancelAnimationFrame(viewportPanRafRef.current)
+      viewportPanRafRef.current = null
     }
 
     setIsPlayPreviewRunning(false)
@@ -415,12 +284,34 @@ export function RoomVisualEditorModal({
   // Сбрасываем временные drag/preview состояния.
   // Так viewport не застревает в старом pointer-state после blur или отмены действий.
   const clearTransientInteractionState = useCallback((): void => {
-    dragPanRef.current = null
+    viewportDragPanRef.current = null
     actorDragRef.current = null
     pathDrawRef.current = null
     hoverClientPointRef.current = null
     setPathPreviewPoint(null)
   }, [])
+
+  // Управление viewport: zoom и pan offset.
+  const viewportControls = useViewportControls({
+    bundle,
+    stopPlayPreview,
+    clearTransientInteractionState
+  })
+
+  const {
+    zoom,
+    offset,
+    viewportRef,
+    dragPanRef: viewportDragPanRef,
+    setZoom,
+    setOffset,
+    resetView,
+    fitToViewport,
+    zoomAroundClientPoint,
+    zoomIn,
+    zoomOut,
+    handleViewportWheel
+  } = viewportControls
 
   // Хелпер переводит pointer position в world-space координаты комнаты.
   // Это основа и для path drawing, и для actor placement.
@@ -439,7 +330,7 @@ export function RoomVisualEditorModal({
         y: clamp(Math.round(rawY), 0, meta.room_height)
       }
     },
-    [bundle, offset.x, offset.y, zoom]
+    [bundle, offset, zoom]
   )
 
   // Применяем keyboard modifiers к path point.
@@ -965,7 +856,7 @@ export function RoomVisualEditorModal({
         y: Math.round(clientY - rect.top - worldY * nextZoom)
       })
     },
-    [offset.x, offset.y, zoom]
+    [offset, zoom]
   )
 
   // Запрашиваем пакет room screenshot данных у main процесса.
@@ -1368,8 +1259,7 @@ export function RoomVisualEditorModal({
       getPathPointFromPointerEvent,
       getWorldPointFromClient,
       isActorPlacementMode,
-      offset.x,
-      offset.y,
+      offset,
       stopPlayPreview
     ]
   )
@@ -1387,7 +1277,15 @@ export function RoomVisualEditorModal({
         if (!nextPoint) return
 
         pathDrawState.latestPoint = nextPoint
-        setPathPreviewPoint(nextPoint)
+
+        // RAF throttling для path preview
+        if (pathPreviewRafRef.current !== null) {
+          window.cancelAnimationFrame(pathPreviewRafRef.current)
+        }
+        pathPreviewRafRef.current = requestAnimationFrame(() => {
+          setPathPreviewPoint(nextPoint)
+          pathPreviewRafRef.current = null
+        })
 
         if (pathDrawState.tool === 'eraser') {
           eraseDraftPathPoints(nextPoint)
@@ -1405,7 +1303,15 @@ export function RoomVisualEditorModal({
         const anchorPoint =
           draftPathPointsRef.current[draftPathPointsRef.current.length - 1] ?? null
         const nextPoint = getPathPointFromPointerEvent(event, anchorPoint)
-        setPathPreviewPoint(nextPoint)
+
+        // RAF throttling для path preview
+        if (pathPreviewRafRef.current !== null) {
+          window.cancelAnimationFrame(pathPreviewRafRef.current)
+        }
+        pathPreviewRafRef.current = requestAnimationFrame(() => {
+          setPathPreviewPoint(nextPoint)
+          pathPreviewRafRef.current = null
+        })
       }
 
       const actorDragState = actorDragRef.current
@@ -1419,11 +1325,18 @@ export function RoomVisualEditorModal({
         const nextX = clamp(Math.round(actorDragState.startActorX + deltaX), 0, meta.room_width)
         const nextY = clamp(Math.round(actorDragState.startActorY + deltaY), 0, meta.room_height)
 
-        setDraftActors((prev) =>
-          prev.map((actor) =>
-            actor.id === actorDragState.actorId ? { ...actor, x: nextX, y: nextY } : actor
+        // RAF throttling для actor drag
+        if (actorDragRafRef.current !== null) {
+          window.cancelAnimationFrame(actorDragRafRef.current)
+        }
+        actorDragRafRef.current = requestAnimationFrame(() => {
+          setDraftActors((prev) =>
+            prev.map((actor) =>
+              actor.id === actorDragState.actorId ? { ...actor, x: nextX, y: nextY } : actor
+            )
           )
-        )
+          actorDragRafRef.current = null
+        })
         return
       }
 
@@ -1432,9 +1345,19 @@ export function RoomVisualEditorModal({
 
       const deltaX = event.clientX - dragState.startClientX
       const deltaY = event.clientY - dragState.startClientY
-      setOffset({
-        x: dragState.startOffsetX + deltaX,
-        y: dragState.startOffsetY + deltaY
+      const nextOffsetX = dragState.startOffsetX + deltaX
+      const nextOffsetY = dragState.startOffsetY + deltaY
+
+      // RAF throttling для viewport pan
+      if (viewportPanRafRef.current !== null) {
+        window.cancelAnimationFrame(viewportPanRafRef.current)
+      }
+      viewportPanRafRef.current = requestAnimationFrame(() => {
+        setOffset({
+          x: nextOffsetX,
+          y: nextOffsetY
+        })
+        viewportPanRafRef.current = null
       })
     },
     [
@@ -1459,6 +1382,12 @@ export function RoomVisualEditorModal({
           appendDraftPathPoint(pathDrawState.latestPoint)
         }
 
+        // Отменяем pending RAF для path preview
+        if (pathPreviewRafRef.current !== null) {
+          window.cancelAnimationFrame(pathPreviewRafRef.current)
+          pathPreviewRafRef.current = null
+        }
+
         pathDrawRef.current = null
         setPathPreviewPoint(null)
         event.currentTarget.releasePointerCapture(event.pointerId)
@@ -1467,6 +1396,12 @@ export function RoomVisualEditorModal({
 
       const actorDragState = actorDragRef.current
       if (actorDragState && actorDragState.pointerId === event.pointerId) {
+        // Отменяем pending RAF для actor drag
+        if (actorDragRafRef.current !== null) {
+          window.cancelAnimationFrame(actorDragRafRef.current)
+          actorDragRafRef.current = null
+        }
+
         actorDragRef.current = null
         event.currentTarget.releasePointerCapture(event.pointerId)
         return
@@ -1474,6 +1409,13 @@ export function RoomVisualEditorModal({
 
       const dragState = dragPanRef.current
       if (!dragState || dragState.pointerId !== event.pointerId) return
+
+      // Отменяем pending RAF для viewport pan
+      if (viewportPanRafRef.current !== null) {
+        window.cancelAnimationFrame(viewportPanRafRef.current)
+        viewportPanRafRef.current = null
+      }
+
       dragPanRef.current = null
       event.currentTarget.releasePointerCapture(event.pointerId)
     },
@@ -1674,6 +1616,43 @@ export function RoomVisualEditorModal({
     [updatePreferences]
   )
 
+  // Обработчики для checkbox inputs
+  const handleShowGridChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      updatePreferences({ visualEditorShowGrid: event.target.checked })
+    },
+    [updatePreferences]
+  )
+
+  const handleSnapToGridChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      updatePreferences({ visualEditorSnapToGrid: event.target.checked })
+    },
+    [updatePreferences]
+  )
+
+  // Обработчики для number inputs
+  const handleGridOffsetXChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      updateVisualSettingFromNumber('visualEditorGridOffsetX', Number(event.target.value))
+    },
+    [updateVisualSettingFromNumber]
+  )
+
+  const handleGridOffsetYChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      updateVisualSettingFromNumber('visualEditorGridOffsetY', Number(event.target.value))
+    },
+    [updateVisualSettingFromNumber]
+  )
+
+  const handlePathSizeMultiplierChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      updateVisualSettingFromNumber('visualEditorPathSizeMultiplier', Number(event.target.value))
+    },
+    [updateVisualSettingFromNumber]
+  )
+
   // Основной контент visual editor переиспользуется и для modal, и для standalone window.
   // Разница только в внешней оболочке и размерах контейнера.
   const content = (
@@ -1696,455 +1675,99 @@ export function RoomVisualEditorModal({
       </div>
 
       <div className="prefsBody roomVisualEditorBody">
-        <div className="roomVisualEditorToolbar">
-          <label className="runtimeField roomVisualEditorField" style={{ margin: 0, padding: 0 }}>
-            <span style={{ minWidth: 60 }}>{t('editor.visualEditingRoom', 'Room')}</span>
-            <SearchableSelect
-              className="runtimeInput"
-              options={availableRooms}
-              value={selectedRoom}
-              onChange={(value) => setSelectedRoom(value)}
-              placeholder={t('editor.visualEditingChooseRoom', 'Choose room...')}
-              disabled={availableRooms.length <= 0}
-            />
-          </label>
-
-          <div className="roomVisualEditorActions">
-            <button
-              className="runtimeButton"
-              type="button"
-              onClick={() => setRefreshToken((prev) => prev + 1)}
-              disabled={!projectDir || !selectedRoom}
-            >
-              {t('editor.visualEditingRefresh', 'Refresh')}
-            </button>
-            <button
-              className="runtimeButton"
-              type="button"
-              onClick={zoomOut}
-              disabled={!bundle?.meta}
-            >
-              {t('editor.visualEditingZoomOut', 'Zoom -')}
-            </button>
-            <button
-              className="runtimeButton"
-              type="button"
-              onClick={zoomIn}
-              disabled={!bundle?.meta}
-            >
-              {t('editor.visualEditingZoomIn', 'Zoom +')}
-            </button>
-            <button
-              className="runtimeButton"
-              type="button"
-              onClick={fitToViewport}
-              disabled={!bundle?.meta}
-            >
-              {t('editor.visualEditingFit', 'Fit')}
-            </button>
-            <button
-              className="runtimeButton"
-              type="button"
-              onClick={resetView}
-              disabled={!bundle?.meta}
-            >
-              {t('editor.visualEditingReset', 'Reset')}
-            </button>
-            {/* Индикатор скорости follow_path — показываем только когда выбрана нода с points. */}
-            {selectedNode?.type === 'follow_path' &&
-            Array.isArray(selectedNode.params?.points) ? (
-              <div
-                className="roomVisualEditorSpeedIndicator"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  padding: '2px 8px',
-                  borderRadius: '6px',
-                  background: 'var(--ev-c-gray-3)',
-                  color: 'var(--ev-c-text-2)',
-                  fontSize: '12px',
-                  marginLeft: '4px',
-                  whiteSpace: 'nowrap'
-                }}
-                title={t('editor.pathSpeedTitle', 'Path movement speed (px/sec)')}
-              >
-                {`Скорость: ${Number(selectedNode.params?.speed_px_sec ?? 60)} px/sec`}
-              </div>
-            ) : null}
-          </div>
-        </div>
+        <RoomVisualEditorToolbar
+          availableRooms={availableRooms}
+          selectedRoom={selectedRoom}
+          onRoomChange={(value) => setSelectedRoom(value)}
+          onRefresh={() => setRefreshToken((prev) => prev + 1)}
+          zoomIn={zoomIn}
+          zoomOut={zoomOut}
+          fitToViewport={fitToViewport}
+          resetView={resetView}
+          selectedNode={selectedNode}
+          projectDir={projectDir}
+          bundle={bundle}
+          t={t}
+        />
 
         <div className="roomVisualEditorLayout">
-          <div className="roomVisualEditorSidebar runtimeSection">
-            <div className="runtimeSectionTitle">{t('editor.visualEditingInfo', 'Info')}</div>
+          <RoomVisualEditorSidebar
+            techMode={techMode}
+            selectedNode={selectedNode}
+            projectDir={projectDir}
+            isLoading={isLoading}
+            errorMessage={errorMessage}
+            bundle={bundle}
+            visualEditorShowGrid={visualEditorShowGrid}
+            visualEditorSnapToGrid={visualEditorSnapToGrid}
+            visualGridOffsetX={visualGridOffsetX}
+            visualGridOffsetY={visualGridOffsetY}
+            visualPathSizeMultiplier={visualPathSizeMultiplier}
+            handleShowGridChange={handleShowGridChange}
+            handleSnapToGridChange={handleSnapToGridChange}
+            handleGridOffsetXChange={handleGridOffsetXChange}
+            handleGridOffsetYChange={handleGridOffsetYChange}
+            handlePathSizeMultiplierChange={handlePathSizeMultiplierChange}
+            activeTool={activeTool}
+            draftPathPoints={draftPathPoints}
+            clearDraftPath={clearDraftPath}
+            importDraftPath={importDraftPath}
+            stopPlayPreview={stopPlayPreview}
+            clearTransientInteractionState={clearTransientInteractionState}
+            setActiveTool={setActiveTool}
+            setIsActorPlacementMode={setIsActorPlacementMode}
+            draftActors={draftActors}
+            selectedActorId={selectedActorId}
+            selectedActor={selectedActor}
+            actorOptionEntries={actorOptionEntries}
+            isActorPlacementMode={isActorPlacementMode}
+            isPlayPreviewRunning={isPlayPreviewRunning}
+            togglePlayPreview={togglePlayPreview}
+            hasImportableActors={hasImportableActors}
+            importDraftActors={importDraftActors}
+            zoom={zoom}
+            availableRooms={availableRooms}
+            selectedRoom={selectedRoom}
+            setSelectedActorId={setSelectedActorId}
+            t={t}
+          />
 
-            <div className="runtimeField roomVisualEditorField">
-              <span>{t('editor.visualEditingSelectedNode', 'Selected Node')}</span>
-              <code className="roomVisualEditorCode">
-                {selectedNode
-                  ? `${String(selectedNode.name ?? selectedNode.type)} · ${selectedNode.type}`
-                  : t('editor.visualEditingNoNodeSelected', 'No node selected')}
-              </code>
-            </div>
-
-            {!projectDir ? (
-              <div className="runtimeHint">
-                {t('editor.visualEditingNoProject', 'Open a project.')}
-              </div>
-            ) : null}
-
-            {isLoading ? (
-              <div className="runtimeHint">
-                {t('editor.visualEditingLoading', 'Loading screenshots...')}
-              </div>
-            ) : null}
-
-            {errorMessage ? <div className="runtimeHint">{errorMessage}</div> : null}
-
-            {bundle?.warning ? <div className="runtimeHint">{bundle.warning}</div> : null}
-
-            {/* Техническая информация о скриншотах: размеры комнаты, сетка тайлов и т.д. */}
-            {techMode && bundle?.meta ? (
-              <>
-                <div className="runtimeField roomVisualEditorField">
-                  <span>{t('editor.visualEditingRoomSize', 'Room Size')}</span>
-                  <code className="roomVisualEditorCode">
-                    {bundle.meta.room_width} × {bundle.meta.room_height}
-                  </code>
-                </div>
-                <div className="runtimeField roomVisualEditorField">
-                  <span>{t('editor.visualEditingGrid', 'Tile Grid')}</span>
-                  <code className="roomVisualEditorCode">
-                    {bundle.meta.rows} × {bundle.meta.cols}
-                  </code>
-                </div>
-                <div className="runtimeField roomVisualEditorField">
-                  <span>{t('editor.visualEditingTilesLoaded', 'Tiles Loaded')}</span>
-                  <code className="roomVisualEditorCode">{bundle.tiles.length}</code>
-                </div>
-                <div className="runtimeField roomVisualEditorField">
-                  <span>{t('editor.visualEditingZoomLabel', 'Zoom')}</span>
-                  <code className="roomVisualEditorCode">{Math.round(zoom * 100)}%</code>
-                </div>
-              </>
-            ) : projectDir && selectedRoom && !isLoading && !bundle?.meta ? (
-              <div className="runtimeHint">
-                {t('editor.visualEditingNoMeta', 'No room screenshot data found.')}
-              </div>
-            ) : null}
-
-            {!projectDir ? null : !isLoading && availableRooms.length <= 0 ? (
-              <div className="runtimeHint">
-                {t('editor.visualEditingNoScreenshotRooms', 'No rooms with screenshots.')}
-              </div>
-            ) : null}
-
-            <div className="runtimeSectionTitle" style={{ marginTop: 12 }}>
-              {t('editor.visualEditingPathTools', 'Path Tools')}
-            </div>
-
-            <label
-              className="runtimeField"
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-            >
-              <input
-                type="checkbox"
-                checked={visualEditorShowGrid}
-                onChange={(event) =>
-                  updatePreferences({ visualEditorShowGrid: event.target.checked })
-                }
-              />
-              <span>{t('editor.visualEditingShowGrid', 'Show Grid')}</span>
-            </label>
-
-            <label
-              className="runtimeField"
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-            >
-              <input
-                type="checkbox"
-                checked={visualEditorSnapToGrid}
-                onChange={(event) =>
-                  updatePreferences({ visualEditorSnapToGrid: event.target.checked })
-                }
-              />
-              <span>{t('editor.visualEditingSnapToGrid', 'Snap to Grid')}</span>
-            </label>
-
-            {visualEditorSnapToGrid ? (
-              <>
-                <div className="runtimeField roomVisualEditorField">
-                  <span>{t('editor.visualEditingGridOffsetX', 'Grid Offset X')}</span>
-                  <input
-                    className="runtimeInput"
-                    type="number"
-                    step={1}
-                    value={visualGridOffsetX}
-                    onChange={(event) =>
-                      updateVisualSettingFromNumber(
-                        'visualEditorGridOffsetX',
-                        Number(event.target.value)
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="runtimeField roomVisualEditorField">
-                  <span>{t('editor.visualEditingGridOffsetY', 'Grid Offset Y')}</span>
-                  <input
-                    className="runtimeInput"
-                    type="number"
-                    step={1}
-                    value={visualGridOffsetY}
-                    onChange={(event) =>
-                      updateVisualSettingFromNumber(
-                        'visualEditorGridOffsetY',
-                        Number(event.target.value)
-                      )
-                    }
-                  />
-                </div>
-              </>
-            ) : null}
-
-            <div className="runtimeField roomVisualEditorField">
-              <span>{t('editor.visualEditingPathSizeMultiplier', 'Path Size Multiplier')}</span>
-              <input
-                className="runtimeInput"
-                type="number"
-                min={0.5}
-                max={4}
-                step={0.1}
-                value={visualPathSizeMultiplier}
-                onChange={(event) =>
-                  updateVisualSettingFromNumber(
-                    'visualEditorPathSizeMultiplier',
-                    Number(event.target.value)
-                  )
-                }
-              />
-            </div>
-
-            <div className="roomVisualEditorActions roomVisualEditorSidebarActions">
-              <button
-                className={['runtimeButton', activeTool === 'pencil' ? 'isActive' : '']
-                  .filter(Boolean)
-                  .join(' ')}
-                type="button"
-                onClick={() => {
-                  stopPlayPreview()
-                  clearTransientInteractionState()
-                  setActiveTool((prev) => (prev === 'pencil' ? null : 'pencil'))
-                  setIsActorPlacementMode(false)
-                }}
-              >
-                {t('editor.visualEditingPencil', 'Pencil')}
-              </button>
-              <button
-                className={['runtimeButton', activeTool === 'eraser' ? 'isActive' : '']
-                  .filter(Boolean)
-                  .join(' ')}
-                type="button"
-                onClick={() => {
-                  stopPlayPreview()
-                  clearTransientInteractionState()
-                  setActiveTool((prev) => (prev === 'eraser' ? null : 'eraser'))
-                  setIsActorPlacementMode(false)
-                }}
-              >
-                {t('editor.visualEditingEraser', 'Eraser')}
-              </button>
-              <button
-                className="runtimeButton"
-                type="button"
-                onClick={clearDraftPath}
-                disabled={draftPathPoints.length <= 0}
-              >
-                {t('editor.visualEditingClearPath', 'Clear Path')}
-              </button>
-              <button
-                className="runtimeButton"
-                type="button"
-                onClick={importDraftPath}
-                disabled={draftPathPoints.length <= 0}
-              >
-                {t('editor.visualEditingImportPath', 'Import Path')}
-              </button>
-            </div>
-
-            <div className="runtimeHint">
-              {t(
-                'editor.visualEditingPathHint',
-                'B: Pencil · G: Eraser · Ctrl+E: Import Path · Shift: straight line'
-              )}
-            </div>
-
-            <div className="runtimeSectionTitle" style={{ marginTop: 12 }}>
-              {t('editor.visualEditingActorTools', 'Actor Preview')}
-            </div>
-            <label className="runtimeField roomVisualEditorField">
-              <span>{t('editor.visualEditingActorPicker', 'Actor')}</span>
-              <select
-                className="runtimeInput"
-                value={selectedActorId ?? ''}
-                onChange={(event) => {
-                  const nextActorId = event.target.value.trim()
-                  setSelectedActorId(nextActorId.length > 0 ? nextActorId : null)
-                }}
-                disabled={draftActors.length <= 0}
-              >
-                {draftActors.length <= 0 ? (
-                  <option value="">
-                    {t('editor.visualEditingChooseActor', 'Choose actor...')}
-                  </option>
-                ) : null}
-                {actorOptionEntries.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {draftActors.length <= 0 ? (
-              <div className="runtimeHint">
-                {t('editor.visualEditingNoActors', 'No actors available.')}
-              </div>
-            ) : null}
-
-            {selectedActor ? (
-              <div className="runtimeField roomVisualEditorField">
-                <span>{t('editor.visualEditingActorPosition', 'Actor Position')}</span>
-                <code className="roomVisualEditorCode">
-                  {`${selectedActor.x}, ${selectedActor.y}`}
-                </code>
-              </div>
-            ) : null}
-
-            <div className="roomVisualEditorActions roomVisualEditorSidebarActions">
-              <button
-                className={['runtimeButton', activeTool === 'select' ? 'isActive' : '']
-                  .filter(Boolean)
-                  .join(' ')}
-                type="button"
-                onClick={() => {
-                  clearTransientInteractionState()
-                  setActiveTool((prev) => (prev === 'select' ? null : 'select'))
-                  setIsActorPlacementMode(false)
-                }}
-                disabled={draftActors.length <= 0}
-              >
-                {t('editor.visualEditingSelect', 'Select')}
-              </button>
-              <button
-                className={['runtimeButton', isActorPlacementMode ? 'isActive' : '']
-                  .filter(Boolean)
-                  .join(' ')}
-                type="button"
-                onClick={() => {
-                  stopPlayPreview()
-                  clearTransientInteractionState()
-                  setIsActorPlacementMode((prev) => !prev)
-                }}
-                disabled={!selectedActor}
-              >
-                {isActorPlacementMode
-                  ? t('editor.visualEditingStopActorPlacement', 'Stop Placement')
-                  : t('editor.visualEditingPlaceActor', 'Place Selected Actor')}
-              </button>
-              <button
-                className={['runtimeButton', isPlayPreviewRunning ? 'isActive' : '']
-                  .filter(Boolean)
-                  .join(' ')}
-                type="button"
-                onClick={togglePlayPreview}
-                disabled={!selectedActor || draftPathPoints.length < 2}
-              >
-                {isPlayPreviewRunning
-                  ? t('editor.visualEditingStopPreview', 'Stop')
-                  : t('editor.visualEditingPlay', 'Play')}
-              </button>
-              <button
-                className="runtimeButton"
-                type="button"
-                onClick={importDraftActors}
-                disabled={!hasImportableActors}
-              >
-                {t('editor.visualEditingImportActors', 'Import Actors')}
-              </button>
-            </div>
-
-            {selectedActor ? (
-              <div className="runtimeHint">
-                {t(
-                  'editor.visualEditingActorHint',
-                  'Select an actor, place it on the room, then import actors when ready.'
-                )}
-              </div>
-            ) : null}
-          </div>
-
-          <div
-            ref={viewportRef}
-            className={[
-              'roomVisualEditorViewport',
-              activeTool === 'select' ? 'isSelectMode' : '',
-              activeTool === 'pencil' || activeTool === 'eraser' ? 'isPathDrawMode' : '',
-              activeTool === 'eraser' ? 'isPathEraseMode' : '',
-              isActorPlacementMode ? 'isActorPlacementMode' : ''
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            onPointerDown={handleViewportPointerDown}
-            onPointerMove={handleViewportPointerMove}
-            onPointerUp={handleViewportPointerUp}
-            onPointerCancel={handleViewportPointerUp}
-            onPointerLeave={handleViewportPointerLeave}
-            onWheel={handleViewportWheel}
-            onClick={handleViewportClick}
-          >
-            <div
-              className="roomVisualEditorCanvasWrap"
-              style={{
-                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
-                transformOrigin: 'top left'
-              }}
-            >
-              <canvas ref={canvasRef} className="roomVisualEditorCanvas" />
-
-              {/* SVG-overlay вынесен в отдельный component,
-                  чтобы основной modal был короче и легче читался.
-                  Логику pointer/state мы при этом не меняем. */}
-              {bundle?.meta ? (
-                <RoomVisualEditorOverlay
-                  meta={bundle.meta}
-                  gridPatternId={gridPatternId}
-                  gridPhaseX={gridPhaseX}
-                  gridPhaseY={gridPhaseY}
-                  pathGridStep={PATH_GRID_STEP}
-                  pathEraseRadius={PATH_ERASE_RADIUS}
-                  actorMarkerRadius={ACTOR_MARKER_RADIUS}
-                  showGrid={visualEditorShowGrid}
-                  draftPathPoints={draftPathPoints}
-                  draftPathPolyline={draftPathPolyline}
-                  draftPathPreviewPolyline={draftPathPreviewPolyline}
-                  pathPreviewPoint={pathPreviewPoint}
-                  pathLineStrokeWidth={pathLineStrokeWidth}
-                  pathPreviewStrokeWidth={pathPreviewStrokeWidth}
-                  pathPointRadius={pathPointRadius}
-                  pathPreviewPointRadius={pathPreviewPointRadius}
-                  draftActors={draftActors}
-                  selectedActorId={selectedActorId}
-                  playPreviewPoint={playPreviewPoint}
-                  activeTool={activeTool}
-                  getActorSpritePreview={getActorSpritePreview}
-                  liquidGlassEnabled={preferences.liquidGlassEnabled}
-                  liquidGlassBlur={preferences.liquidGlassBlur}
-                  showPathLabels={preferences.visualEditorShowPathLabels}
-                />
-              ) : null}
-            </div>
-          </div>
+          <RoomVisualEditorViewport
+            viewportRef={viewportRef}
+            canvasRef={canvasRef}
+            zoom={zoom}
+            offset={offset}
+            activeTool={activeTool}
+            isActorPlacementMode={isActorPlacementMode}
+            bundle={bundle}
+            gridPatternId={gridPatternId}
+            gridPhaseX={gridPhaseX}
+            gridPhaseY={gridPhaseY}
+            PATH_GRID_STEP={PATH_GRID_STEP}
+            PATH_ERASE_RADIUS={PATH_ERASE_RADIUS}
+            ACTOR_MARKER_RADIUS={ACTOR_MARKER_RADIUS}
+            visualEditorShowGrid={visualEditorShowGrid}
+            draftPathPoints={draftPathPoints}
+            draftPathPolyline={draftPathPolyline}
+            draftPathPreviewPolyline={draftPathPreviewPolyline}
+            pathPreviewPoint={pathPreviewPoint}
+            pathLineStrokeWidth={pathLineStrokeWidth}
+            pathPreviewStrokeWidth={pathPreviewStrokeWidth}
+            pathPointRadius={pathPointRadius}
+            pathPreviewPointRadius={pathPreviewPointRadius}
+            draftActors={draftActors}
+            selectedActorId={selectedActorId}
+            playPreviewPoint={playPreviewPoint}
+            getActorSpritePreview={getActorSpritePreview}
+            preferences={preferences}
+            handleViewportPointerDown={handleViewportPointerDown}
+            handleViewportPointerMove={handleViewportPointerMove}
+            handleViewportPointerUp={handleViewportPointerUp}
+            handleViewportPointerCancel={handleViewportPointerUp}
+            handleViewportPointerLeave={handleViewportPointerLeave}
+            handleViewportWheel={handleViewportWheel}
+            handleViewportClick={handleViewportClick}
+          />
         </div>
       </div>
     </div>

@@ -110,6 +110,11 @@ export const ru = {
       pink: 'Розовый',
       yellow: 'Жёлтый',
       custom: 'Свой'
+    },
+    miniMapNodeThreshold: 'Порог видимости миникарты',
+    miniMapNodeThresholdHint: '0 = выключена, -1 = всегда включена, >0 = скрыть если нод больше',
+    unassigned: 'Не назначено',
+    close: 'Закрыть'
     }
   },
   // Приветствие / обучение

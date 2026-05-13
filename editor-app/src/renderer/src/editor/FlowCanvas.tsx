@@ -28,6 +28,10 @@ import { NodeActionsProvider } from './NodeActionsContext'
 import { CustomEdge, ArrowheadDefs } from './CustomEdge'
 import { CanvasNotesOverlay } from './CanvasNotesOverlay'
 import { isEqualParams } from './utils'
+import { FlowCanvasToolbar } from './FlowCanvasToolbar'
+import { FlowCanvasMiniMap } from './FlowCanvasMiniMap'
+import { FlowCanvasControls } from './FlowCanvasControls'
+import { FlowCanvasKeyboardShortcuts } from './FlowCanvasKeyboardShortcuts'
 
 // Собственный MIME-type для drag-and-drop из палитры нод.
 // Он позволяет не путать наши payload'ы с обычным text/plain drag из браузера.
@@ -48,8 +52,8 @@ const RF_EDGE_TYPES: EdgeTypes = { default: CustomEdge }
 
 const RF_PAN_ON_DRAG: number[] = [2]
 const RF_STYLE: React.CSSProperties = { background: 'transparent', position: 'relative', zIndex: 1 }
-const RF_MINIMAP_STYLE: React.CSSProperties = { overflow: 'hidden' }
-const RF_FAB_PANEL_STYLE: React.CSSProperties = { marginLeft: 74, marginBottom: 15 }
+
+
 
 // Helper для сравнения параметров нод (вынесен в utils.ts).
 
@@ -1197,9 +1201,9 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
     }
   }, [handleWheel])
 
-  // Обрабатываем Space прямо внутри холста: вызываем fitView без подъёма
-  // запроса через state/props. Это предотвращает ре-рендер EditorShell
-  // при каждом нажатии Space на большом графе.
+
+
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code !== 'Space') return

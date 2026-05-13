@@ -278,10 +278,13 @@ export const DialogueControlNode = memo(function DialogueControlNode({ data, sel
   const preventSkip = data.params?.prevent_skip ?? false
   const stayOpen = data.params?.stay_open ?? false
   const autoAdvance = data.params?.auto_advance ?? false
-  const flags: string[] = []
-  if (preventSkip) flags.push('no skip')
-  if (stayOpen) flags.push('stay open')
-  if (autoAdvance) flags.push('auto advance')
+  const flags = useMemo(() => {
+    const f: string[] = []
+    if (preventSkip) f.push('no skip')
+    if (stayOpen) f.push('stay open')
+    if (autoAdvance) f.push('auto advance')
+    return f
+  }, [preventSkip, stayOpen, autoAdvance])
   return (
     <BaseNode nodeType="dialogue_control" selected={selected}>
       <div className="customNodeParam">
@@ -573,6 +576,33 @@ export const BranchNode = memo(function BranchNode({ data, selected }: CutsceneN
   const { preferences } = usePreferencesContext()
   const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
   const condition = data.params?.condition ?? ''
+  
+  // Выносим inline style в useMemo для избежания создания новых объектов на каждом рендере
+  const trueLabelStyle = useMemo(() => ({
+    position: 'absolute',
+    right: 18,
+    top: '25%',
+    transform: 'translateY(-50%)',
+    fontSize: 9,
+    fontWeight: 700,
+    color: 'var(--ev-c-success)',
+    letterSpacing: '0.04em',
+    pointerEvents: 'none',
+    userSelect: 'none'
+  }), [])
+
+  const falseLabelStyle = useMemo(() => ({
+    position: 'absolute',
+    right: 18,
+    top: '75%',
+    transform: 'translateY(-50%)',
+    fontSize: 9,
+    fontWeight: 700,
+    color: 'var(--ev-c-error)',
+    letterSpacing: '0.04em',
+    pointerEvents: 'none',
+    userSelect: 'none'
+  }), [])
   return (
     <BaseNode       nodeType="branch"
       selected={selected}
@@ -589,18 +619,7 @@ export const BranchNode = memo(function BranchNode({ data, selected }: CutsceneN
           />
           {/* Метка TRUE рядом с handle */}
           <span
-            style={{
-              position: 'absolute',
-              right: 18,
-              top: '25%',
-              transform: 'translateY(-50%)',
-              fontSize: 9,
-              fontWeight: 700,
-              color: 'var(--ev-c-success)',
-              letterSpacing: '0.04em',
-              pointerEvents: 'none',
-              userSelect: 'none'
-            }}
+            style={trueLabelStyle}
           >
             {t('editor.true', 'TRUE')}
           </span>
@@ -615,18 +634,7 @@ export const BranchNode = memo(function BranchNode({ data, selected }: CutsceneN
           />
           {/* Метка FALSE рядом с handle */}
           <span
-            style={{
-              position: 'absolute',
-              right: 18,
-              top: '75%',
-              transform: 'translateY(-50%)',
-              fontSize: 9,
-              fontWeight: 700,
-              color: 'var(--ev-c-error)',
-              letterSpacing: '0.04em',
-              pointerEvents: 'none',
-              userSelect: 'none'
-            }}
+            style={falseLabelStyle}
           >
             {t('editor.false', 'FALSE')}
           </span>
@@ -826,10 +834,12 @@ export const EmoteNode = memo(function EmoteNode({ data, selected }: CutsceneNod
   const target = data.params?.target ?? ''
   const sprite = data.params?.sprite ?? ''
   const wait = data.params?.wait === true
+  
+  const waitStyle = useMemo(() => ({ opacity: 0.5, fontSize: '0.9em' }), [])
   return (
     <BaseNode  nodeType="emote" selected={selected}>
       <div className="customNodeParam">
-        {String(target)} {wait && <span style={{ opacity: 0.5, fontSize: '0.9em' }}>(wait)</span>}
+        {String(target)} {wait && <span style={waitStyle}>(wait)</span>}
       </div>
       {sprite && <div className="customNodeParam">{String(sprite)}</div>}
     </BaseNode>
@@ -1128,15 +1138,22 @@ export const AttachToTargetNode = memo(function AttachToTargetNode({ data, selec
 // Checkpoint State — создаёт снимок состояния катсцены.
 export const CheckpointStateNode = memo(function CheckpointStateNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const id = data.params?.checkpoint_id ?? ''
-  const cats: string[] = []
-  if (data.params?.include_actors === true) cats.push('actors')
-  if (data.params?.include_player === true) cats.push('player')
-  if (data.params?.include_camera === true) cats.push('camera')
-  if (data.params?.include_music === true) cats.push('music')
+  const includeActors = data.params?.include_actors === true
+  const includePlayer = data.params?.include_player === true
+  const includeCamera = data.params?.include_camera === true
+  const includeMusic = data.params?.include_music === true
   const globals = typeof data.params?.include_globals === 'string' ? data.params.include_globals.trim() : ''
   const instances = typeof data.params?.include_instances === 'string' ? data.params.include_instances.trim() : ''
-  if (globals) cats.push('globals')
-  if (instances) cats.push('instances')
+  const cats = useMemo(() => {
+    const c: string[] = []
+    if (includeActors) c.push('actors')
+    if (includePlayer) c.push('player')
+    if (includeCamera) c.push('camera')
+    if (includeMusic) c.push('music')
+    if (globals) c.push('globals')
+    if (instances) c.push('instances')
+    return c
+  }, [includeActors, includePlayer, includeCamera, includeMusic, globals, instances])
   return (
     <BaseNode nodeType="checkpoint_state" selected={selected}>
       <div className="customNodeParam">
@@ -1156,11 +1173,17 @@ export const CheckpointStateNode = memo(function CheckpointStateNode({ data, sel
 // Restore State — восстанавливает состояние из checkpoint.
 export const RestoreStateNode = memo(function RestoreStateNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const id = data.params?.checkpoint_id ?? ''
-  const opts: string[] = []
-  if (data.params?.cleanup_transients === true) opts.push('cleanup')
-  if (data.params?.restore_camera === true) opts.push('camera')
-  if (data.params?.restore_music === true) opts.push('music')
+  const cleanupTransients = data.params?.cleanup_transients === true
+  const restoreCamera = data.params?.restore_camera === true
+  const restoreMusic = data.params?.restore_music === true
   const onMissing = typeof data.params?.on_missing === 'string' ? data.params.on_missing : 'warn'
+  const opts = useMemo(() => {
+    const o: string[] = []
+    if (cleanupTransients) o.push('cleanup')
+    if (restoreCamera) o.push('camera')
+    if (restoreMusic) o.push('music')
+    return o
+  }, [cleanupTransients, restoreCamera, restoreMusic])
   return (
     <BaseNode nodeType="restore_state" selected={selected}>
       <div className="customNodeParam">

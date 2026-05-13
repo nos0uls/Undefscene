@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, memo } from 'react'
 
 export type FollowPathPoint = {
   x: number
@@ -170,7 +170,7 @@ function getMarkerPoint(
 
 // Компонент показывает безопасный editor-side preview пути.
 // Он не зависит от layout canvas и не подменяет реальные room coordinates.
-export function FollowPathPreview(props: FollowPathPreviewProps): React.JSX.Element {
+function FollowPathPreview(props: FollowPathPreviewProps): React.JSX.Element {
   const { points, speedPxPerSecond, title, hint, emptyLabel, worldSpaceLabel } = props
 
   // Нормализуем входные точки один раз на набор points.
@@ -329,3 +329,5 @@ export function FollowPathPreview(props: FollowPathPreviewProps): React.JSX.Elem
     </div>
   )
 }
+
+export const FollowPathPreview = memo(FollowPathPreview)

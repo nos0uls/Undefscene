@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import React, { memo, useState, useEffect } from 'react'
+import React, { memo, useState, useEffect, useCallback } from 'react'
 import type { CSSProperties } from 'react'
 
 import { DockPanel } from './DockPanel'
@@ -71,6 +71,47 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
       })
     }
   }, [activeBottomTabId, layout, setLayout])
+
+  // Обработчики для collapse dock buttons
+  const handleToggleLeftDock = useCallback(() => {
+    setCollapsedDocks((prev) => ({ ...prev, left: !prev.left }))
+  }, [setCollapsedDocks])
+
+  const handleToggleRightDock = useCallback(() => {
+    setCollapsedDocks((prev) => ({ ...prev, right: !prev.right }))
+  }, [setCollapsedDocks])
+
+  const handleToggleBottomDock = useCallback(() => {
+    setCollapsedDocks((prev) => ({ ...prev, bottom: !prev.bottom }))
+  }, [setCollapsedDocks])
+
+  // Обработчики для panel collapse/close
+  const handleTogglePanelCollapse = useCallback(
+    (panelId: string) => {
+      togglePanelCollapse(panelId)
+    },
+    [togglePanelCollapse]
+  )
+
+  const handleClosePanel = useCallback(
+    (panelId: string) => {
+      togglePanel(panelId)
+    },
+    [togglePanel]
+  )
+
+  // Обработчик для bottom tab selection
+  const handleSetActiveBottomTab = useCallback(
+    (panelId: string) => {
+      setActiveBottomTabId(panelId)
+    },
+    []
+  )
+
+  // Обработчик для preventing double-click on tab buttons
+  const handleTabPointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.button === 0 && e.detail >= 2) return
+  }, [])
 
   const leftTopGrow = layout.dockSizes.leftSplit
   const leftBottomGrow = Math.max(0.001, 1 - layout.dockSizes.leftSplit)
@@ -208,7 +249,7 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
         )}
         <div
           className="dockCollapseBar dockCollapseBarLeft"
-          onClick={() => setCollapsedDocks((prev) => ({ ...prev, left: !prev.left }))}
+          onClick={handleToggleLeftDock}
           title={collapsedDocks.left ? t('editor.expandLeftDock', 'Expand left dock') : t('editor.collapseLeftDock', 'Collapse left dock')}
         >
           <span>{collapsedDocks.left ? '\u203A' : '\u2039'}</span>
@@ -226,10 +267,10 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
                   })}
                   onHeaderPointerDown={startPanelDrag(entry.id)}
                   collapsed={layout.panels[entry.id]?.collapsed}
-                  onToggleCollapse={() => togglePanelCollapse(entry.id)}
+                  onToggleCollapse={() => handleTogglePanelCollapse(entry.id)}
                   collapseLabel={collapsePanelLabel}
                   closeLabel={closePanelLabel}
-                  onClose={() => togglePanel(entry.id)}
+                  onClose={() => handleClosePanel(entry.id)}
                 >
                   {renderPanelContents(entry.id)}
                 </DockPanel>
@@ -263,7 +304,7 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
         )}
         <div
           className="dockCollapseBar dockCollapseBarRight"
-          onClick={() => setCollapsedDocks((prev) => ({ ...prev, right: !prev.right }))}
+          onClick={handleToggleRightDock}
           title={collapsedDocks.right ? t('editor.expandRightDock', 'Expand right dock') : t('editor.collapseRightDock', 'Collapse right dock')}
         >
           <span>{collapsedDocks.right ? '\u2039' : '\u203A'}</span>
@@ -281,10 +322,10 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
                   })}
                   onHeaderPointerDown={startPanelDrag(entry.id)}
                   collapsed={layout.panels[entry.id]?.collapsed}
-                  onToggleCollapse={() => togglePanelCollapse(entry.id)}
+                  onToggleCollapse={() => handleTogglePanelCollapse(entry.id)}
                   collapseLabel={collapsePanelLabel}
                   closeLabel={closePanelLabel}
-                  onClose={() => togglePanel(entry.id)}
+                  onClose={() => handleClosePanel(entry.id)}
                 >
                   {renderPanelContents(entry.id)}
                 </DockPanel>
@@ -318,7 +359,7 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
         {bottomDockedIds.length > 0 ? (
           <div
             className="dockCollapseBar dockCollapseBarBottom"
-            onClick={() => setCollapsedDocks((prev) => ({ ...prev, bottom: !prev.bottom }))}
+            onClick={handleToggleBottomDock}
             title={collapsedDocks.bottom ? t('editor.expandBottomDock', 'Expand bottom dock') : t('editor.collapseBottomDock', 'Collapse bottom dock')}
           >
             <span>{collapsedDocks.bottom ? '\u25B4' : '\u25BE'}</span>
@@ -363,10 +404,8 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
                         >
                           <button
                             type="button"
-                            onClick={() => setActiveBottomTabId(panelId)}
-                            onPointerDown={(e) => {
-                              if (e.button === 0 && e.detail >= 2) return
-                            }}
+                            onClick={() => handleSetActiveBottomTab(panelId)}
+                            onPointerDown={handleTabPointerDown}
                             style={{
                               flex: 1,
                               minWidth: 0,
@@ -389,7 +428,7 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
                             type="button"
                             aria-label={closePanelLabel}
                             title={closePanelLabel}
-                            onClick={() => togglePanel(panelId)}
+                            onClick={() => handleClosePanel(panelId)}
                             style={{
                               width: 28,
                               border: 'none',
@@ -539,3 +578,4 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
 }
 
 export const DockingLayout = memo(DockingLayoutInner)
+

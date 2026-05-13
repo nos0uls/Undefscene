@@ -110,6 +110,11 @@ export const en = {
       pink: 'Pink',
       yellow: 'Yellow',
       custom: 'Custom'
+    },
+    miniMapNodeThreshold: 'MiniMap node threshold',
+    miniMapNodeThresholdHint: '0 = off, -1 = always on, >0 = hide if nodes exceed this count',
+    unassigned: 'Unassigned',
+    close: 'Close',
     }
   },
   // Welcome / onboarding
@@ -666,6 +671,7 @@ export const en = {
     focus_bottom_dock: 'Focus Bottom Dock',
     toggle_all_dock_panels: 'Toggle All Dock Panels',
     fit_view: 'Fit View',
+    zen_mode: 'Zen Mode'
   }
 } as const
 
