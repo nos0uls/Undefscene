@@ -1766,7 +1766,7 @@ export function RoomVisualEditorModal({
                   marginLeft: '4px',
                   whiteSpace: 'nowrap'
                 }}
-                title="Скорость движения по пути (px/sec)"
+                title={t('editor.pathSpeedTitle', 'Path movement speed (px/sec)')}
               >
                 {`Скорость: ${Number(selectedNode.params?.speed_px_sec ?? 60)} px/sec`}
               </div>

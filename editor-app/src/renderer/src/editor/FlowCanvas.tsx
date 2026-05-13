@@ -23,6 +23,7 @@ import { Plus } from 'lucide-react'
 import type { RuntimeEdge, RuntimeNode, RuntimeNote } from './runtimeTypes'
 import { cutsceneNodeTypes } from './nodes'
 import { usePreferencesContext } from './PreferencesContext'
+import { createTranslator } from '../i18n'
 import { NodeActionsProvider } from './NodeActionsContext'
 import { CustomEdge, ArrowheadDefs } from './CustomEdge'
 import { CanvasNotesOverlay } from './CanvasNotesOverlay'
@@ -250,6 +251,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   // Деструктуризация не предотвращает ререндер при смене других полей,
   // но готовит почву для дальнейшей изоляции через refs / вынесение в sub-components.
   const { preferences, updatePreferences: updatePreferencesFromContext } = usePreferencesContext()
+  const t = React.useMemo(() => createTranslator(preferences.language), [preferences.language])
   const {
     zoomSpeed,
     parallelBranchPortMode,
@@ -1392,8 +1394,8 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
           <button
             className="actionButtonPlus"
             onClick={handleFabAdd}
-            title="Add New Node (Middle Click)"
-            aria-label="Add Node"
+            title={t('editor.addNodeButtonTitle', 'Add New Node (Middle Click)')}
+            aria-label={t('editor.addNodeAriaLabel', 'Add Node')}
           >
             <Plus size={18} strokeWidth={2.5} />
           </button>

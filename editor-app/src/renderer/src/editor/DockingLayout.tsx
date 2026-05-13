@@ -7,6 +7,8 @@ import { UpdateNotification } from './UpdateNotification'
 import { useDockingContext } from './DockingContext'
 import { useDocking } from './useDocking'
 import { COLLAPSED_DOCK_SIZE } from './dockingConstants'
+import { usePreferencesContext } from './PreferencesContext'
+import { createTranslator } from '../i18n'
 
 type DockingLayoutProps = React.PropsWithChildren<{
   renderPanelContents: (panelId: string) => React.JSX.Element
@@ -38,6 +40,8 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
   } = props
 
   const ctx = useDockingContext()
+  const { preferences } = usePreferencesContext()
+  const t = React.useMemo(() => createTranslator(preferences.language), [preferences.language])
   const {
     startPanelDrag,
     startResizeDrag,
@@ -205,7 +209,7 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
         <div
           className="dockCollapseBar dockCollapseBarLeft"
           onClick={() => setCollapsedDocks((prev) => ({ ...prev, left: !prev.left }))}
-          title={collapsedDocks.left ? 'Expand left dock' : 'Collapse left dock'}
+          title={collapsedDocks.left ? t('editor.expandLeftDock', 'Expand left dock') : t('editor.collapseLeftDock', 'Collapse left dock')}
         >
           <span>{collapsedDocks.left ? '\u203A' : '\u2039'}</span>
         </div>
@@ -260,7 +264,7 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
         <div
           className="dockCollapseBar dockCollapseBarRight"
           onClick={() => setCollapsedDocks((prev) => ({ ...prev, right: !prev.right }))}
-          title={collapsedDocks.right ? 'Expand right dock' : 'Collapse right dock'}
+          title={collapsedDocks.right ? t('editor.expandRightDock', 'Expand right dock') : t('editor.collapseRightDock', 'Collapse right dock')}
         >
           <span>{collapsedDocks.right ? '\u2039' : '\u203A'}</span>
         </div>
@@ -315,7 +319,7 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
           <div
             className="dockCollapseBar dockCollapseBarBottom"
             onClick={() => setCollapsedDocks((prev) => ({ ...prev, bottom: !prev.bottom }))}
-            title={collapsedDocks.bottom ? 'Expand bottom dock' : 'Collapse bottom dock'}
+            title={collapsedDocks.bottom ? t('editor.expandBottomDock', 'Expand bottom dock') : t('editor.collapseBottomDock', 'Collapse bottom dock')}
           >
             <span>{collapsedDocks.bottom ? '\u25B4' : '\u25BE'}</span>
           </div>

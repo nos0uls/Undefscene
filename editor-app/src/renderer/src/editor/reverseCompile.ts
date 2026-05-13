@@ -554,12 +554,21 @@ function actionToRuntimeNode(
       params.value = typeof value === 'string' ? value : JSON.stringify(value)
       continue
     }
-    // checkpoint_state / restore_state: pass-through, JSON keys match field names.
+    // checkpoint_state / restore_state: pass-through, но массивы include_globals / include_instances
+    // сериализуем обратно в JSON-строку, т.к. редактор хранит их в text-полях.
     if (
       normalizedType === 'checkpoint_state' ||
       normalizedType === 'restore_state'
     ) {
-      params[key] = value
+      if (key === 'include_globals' || key === 'include_instances') {
+        if (Array.isArray(value)) {
+          params[key] = JSON.stringify(value)
+        } else if (typeof value === 'string') {
+          params[key] = value
+        }
+      } else {
+        params[key] = value
+      }
       continue
     }
 
@@ -577,11 +586,6 @@ function actionToRuntimeNode(
         }
         params.action_params = Object.keys(rest).length > 0 ? JSON.stringify(rest) : ''
       }
-      continue
-    }
-    // checkpoint_state / restore_state — pass-through as-is.
-    if (normalizedType === 'checkpoint_state' || normalizedType === 'restore_state') {
-      params[key] = value
       continue
     }
     // Dialogue integration nodes — pass-through as-is.
