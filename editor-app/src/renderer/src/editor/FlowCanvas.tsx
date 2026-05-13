@@ -19,7 +19,7 @@ import {
   type NodeTypes
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Plus } from 'lucide-react'
+
 import type { RuntimeEdge, RuntimeNode, RuntimeNote } from './runtimeTypes'
 import { cutsceneNodeTypes } from './nodes'
 import { usePreferencesContext } from './PreferencesContext'
@@ -1204,31 +1204,6 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
 
 
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code !== 'Space') return
-      if (event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return
-
-      // Не перехватываем Space если фокус в поле ввода.
-      const target = event.target as HTMLElement | null
-      if (!target) return
-      const tag = target.tagName
-      if (tag === 'TEXTAREA' || tag === 'SELECT') return
-      if (tag === 'INPUT') {
-        const inputType = (target as HTMLInputElement).type?.toLowerCase()
-        if (!['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(inputType)) {
-          return
-        }
-      }
-      if (target.closest('[contenteditable="true"]')) return
-
-      event.preventDefault()
-      void fitView({ duration: 180, padding: 0.18 })
-    }
-
-    window.addEventListener('keydown', handleKeyDown, true)
-    return () => window.removeEventListener('keydown', handleKeyDown, true)
-  }, [fitView])
 
   // Initial fitView после первого монтирования: раньше это делал boolean prop
   // `fitView` на <ReactFlow>, но он мог перестреливать на смену nodes-массива.
@@ -1368,6 +1343,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
       >
         {/* SVG markers для стрелок на кастомных рёбрах. */}
         <ArrowheadDefs />
+        <FlowCanvasKeyboardShortcuts fitView={fitView} />
         {/* Размер сетки теперь реально читается из Preferences,
             чтобы настройка grid size меняла canvas, а не висела мёртвым полем. */}
         <ScaledBackground />
@@ -1377,33 +1353,16 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         <EdgeLODController runtimeEdges={runtimeEdges} />
         {/* MiniMap: порог отключения управляется настройкой.
             0 = всегда скрыта, -1 = всегда показана, >0 = скрыть если нод > порога. */}
-      {miniMapNodeThreshold !== 0 &&
-        (miniMapNodeThreshold === -1 || runtimeNodes.length <= miniMapNodeThreshold) ? (
-          <MiniMap
-            pannable
-            zoomable
-            nodeColor="#7ea4ff"
-            nodeStrokeColor="#4a6fcb"
-            nodeBorderRadius={2}
-            nodeStrokeWidth={1}
-            maskColor="rgba(0, 0, 0, 0.5)"
-            maskStrokeColor="rgba(126, 164, 255, 0.35)"
-            maskStrokeWidth={1}
-            style={RF_MINIMAP_STYLE}
-          />
-        ) : null}
-        <Controls showInteractive={false} />
-        {/* Кнопка создания ноды, вынесенная рядом с Controls в нижний левый угол */}
-        <Panel position="bottom-left" style={RF_FAB_PANEL_STYLE}>
-          <button
-            className="actionButtonPlus"
-            onClick={handleFabAdd}
-            title={t('editor.addNodeButtonTitle', 'Add New Node (Middle Click)')}
-            aria-label={t('editor.addNodeAriaLabel', 'Add Node')}
-          >
-            <Plus size={18} strokeWidth={2.5} />
-          </button>
-        </Panel>
+      <FlowCanvasMiniMap
+          miniMapNodeThreshold={miniMapNodeThreshold}
+          nodeCount={runtimeNodes.length}
+        />
+        <FlowCanvasControls />
+        <FlowCanvasToolbar
+          onAddNode={handleFabAdd}
+          addButtonTitle={t('editor.addNodeButtonTitle', 'Add New Node (Middle Click)')}
+          addNodeAriaLabel={t('editor.addNodeAriaLabel', 'Add Node')}
+        />
         </ReactFlow>
       </NodeActionsProvider>
       {notes && notes.length > 0 && onUpdateNote && onDeleteNote && (

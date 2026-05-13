@@ -276,14 +276,6 @@ export function PreferencesModal({
             getHotkeyLabel={getHotkeyLabel}
             t={t}
           />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="prefsHint">
-              {t('preferences.shortcutCaptureHint', 'Click a shortcut, then press keys. Delete clears it.')}
-            </div>
-          </div>
         </div>
 
         {/* Footer */}

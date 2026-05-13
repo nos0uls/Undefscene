@@ -174,30 +174,38 @@ export function RoomVisualEditorModal({
   // Select двигает actor markers, pencil/eraser редактируют path, null оставляет только pan.
   const [activeTool, setActiveTool] = useState<'select' | 'pencil' | 'eraser' | null>(null)
 
-  // Preview точки нужен для straight-line режима и визуальной подсказки под курсором.
-  const [pathPreviewPoint, setPathPreviewPoint] = useState<{ x: number; y: number } | null>(null)
 
-  // Draft actor markers нужны как визуальный слой,
-  // чтобы пользователь мог прикинуть расстановку актёров прямо на stitched room preview.
-  const [draftActors, setDraftActors] = useState<VisualEditorActorPreview[]>([])
+  // Управление actor editor
+  const actorEditor = useActorEditorLogic({
+    open,
+    actorPreviews,
+    selectedActorTarget,
+    projectDir,
+    preparedDraftPathSegments,
+    preparedDraftPathTotalLength,
+    onImportActors
+  })
 
-  // Выбранный actor marker для локального placement режима.
-  const [selectedActorId, setSelectedActorId] = useState<string | null>(null)
-
-  // Пока режим активен, следующий клик по room preview переносит выбранного актёра в новую точку.
-  const [isActorPlacementMode, setIsActorPlacementMode] = useState(false)
-
-  // Локальное состояние Play preview.
-  // Оно не меняет graph и нужно только для визуальной проверки пути внутри окна.
-  const [isPlayPreviewRunning, setIsPlayPreviewRunning] = useState(false)
-  const [playPreviewPoint, setPlayPreviewPoint] = useState<{ x: number; y: number } | null>(null)
-  const [actorSpritePreviews, setActorSpritePreviews] = useState<
-    Record<string, LoadedActorSpritePreview>
-  >({})
-
-  // Отдельный drag-state для actor markers в режиме Select.
-  // Мы двигаем только локальный preview, а запись в graph делаем отдельным Import Actors.
-  const actorDragRef = useRef<{
+  const {
+    draftActors,
+    selectedActorId,
+    isActorPlacementMode,
+    isPlayPreviewRunning,
+    playPreviewPoint,
+    selectedActor,
+    hasImportableActors,
+    actorOptionEntries,
+    actorSpritePreviews,
+    actorDragRef,
+    setDraftActors,
+    setSelectedActorId,
+    setIsActorPlacementMode,
+    stopPlayPreview,
+    togglePlayPreview,
+    importDraftActors,
+    findActorAtPoint,
+    getActorSpritePreview
+  } = actorEditor
     pointerId: number
     actorId: string
     startWorldPoint: { x: number; y: number }
@@ -215,38 +223,13 @@ export function RoomVisualEditorModal({
     isStraightSegment: boolean
   } | null>(null)
 
-  // Текущее значение path points дублируем в ref,
-  // чтобы pointer handlers и history работали без stale-замыканий.
-  const draftPathPointsRef = useRef<Array<{ x: number; y: number }>>([])
-
-  // History нужна для Ctrl+Z / Ctrl+Y внутри visual editor.
-  // Это не должно зависеть от focus в room selector или других autocomplete-полях.
-  const pathHistoryRef = useRef<Array<Array<{ x: number; y: number }>>>([])
-  const pathHistoryIndexRef = useRef(-1)
-
   // Последняя позиция курсора над viewport нужна,
   // чтобы Shift-preview обновлялся сразу даже без нового движения мыши.
   const hoverClientPointRef = useRef<{ clientX: number; clientY: number } | null>(null)
 
-  // requestAnimationFrame для Play preview держим в ref,
-  // чтобы корректно останавливать анимацию при смене room/tool или Alt+Tab.
-  const playPreviewFrameRef = useRef<number | null>(null)
-
-  // После новой успешной загрузки screenshot bundle один раз делаем fit.
-  // Это убирает лишние ручные поиски комнаты после Refresh или смены room.
-  const shouldAutoFitRef = useRef(false)
-
   // Последние upstream-keys нужны, чтобы не сбрасывать локальный draft на каждый bridge sync.
   // Это особенно важно для отдельного окна Visual Editing, где main часто присылает одинаковый snapshot.
-  const lastSyncedPathKeyRef = useRef<string | null>(null)
   const lastSyncedActorsKeyRef = useRef<string | null>(null)
-
-  // Базовый timestamp нужен для расчёта прогресса анимации по path.
-  const playPreviewStartTimeRef = useRef(0)
-
-  // Индекс текущего сегмента помогает идти по пути вперёд без полного поиска на каждом кадре.
-  // Это особенно полезно на длинных путях с большим числом точек.
-  const playPreviewSegmentIndexRef = useRef(0)
 
   // RAF throttling для path preview, actor drag и viewport pan.
   // Это уменьшает количество ререндеров при быстром движении мыши.
@@ -254,37 +237,10 @@ export function RoomVisualEditorModal({
   const actorDragRafRef = useRef<number | null>(null)
   const viewportPanRafRef = useRef<number | null>(null)
 
-  // Останавливаем локальный preview безопасно из любого сценария.
-  // Это важно при смене room, инструментов, Alt+Tab и ручном Stop.
-  const stopPlayPreview = useCallback((): void => {
-    if (playPreviewFrameRef.current !== null) {
-      window.cancelAnimationFrame(playPreviewFrameRef.current)
-      playPreviewFrameRef.current = null
-    }
-
-    if (pathPreviewRafRef.current !== null) {
-      window.cancelAnimationFrame(pathPreviewRafRef.current)
-      pathPreviewRafRef.current = null
-    }
-
-    if (actorDragRafRef.current !== null) {
-      window.cancelAnimationFrame(actorDragRafRef.current)
-      actorDragRafRef.current = null
-    }
-
-    if (viewportPanRafRef.current !== null) {
-      window.cancelAnimationFrame(viewportPanRafRef.current)
-      viewportPanRafRef.current = null
-    }
-
-    setIsPlayPreviewRunning(false)
-    setPlayPreviewPoint(null)
-  }, [])
-
   // Сбрасываем временные drag/preview состояния.
   // Так viewport не застревает в старом pointer-state после blur или отмены действий.
   const clearTransientInteractionState = useCallback((): void => {
-    viewportDragPanRef.current = null
+    dragPanRef.current = null
     actorDragRef.current = null
     pathDrawRef.current = null
     hoverClientPointRef.current = null
@@ -302,7 +258,7 @@ export function RoomVisualEditorModal({
     zoom,
     offset,
     viewportRef,
-    dragPanRef: viewportDragPanRef,
+    dragPanRef,
     setZoom,
     setOffset,
     resetView,
@@ -594,364 +550,14 @@ export function RoomVisualEditorModal({
   // Сбрасываем визуальное состояние, когда пользователь явно меняет room.
   useEffect(() => {
     if (!open || !selectedRoom) return
-    setZoom(1)
-    setOffset({ x: 24, y: 24 })
+    resetView()
     setActiveTool(null)
     setIsActorPlacementMode(false)
     stopPlayPreview()
     clearTransientInteractionState()
-  }, [clearTransientInteractionState, open, selectedRoom, stopPlayPreview])
+  }, [clearTransientInteractionState, open, selectedRoom, stopPlayPreview, resetView])
 
-  // Когда меняется выбранная follow_path-нода,
-  // синхронизируем draft path с её текущими points.
-  useEffect(() => {
-    if (!open) return
-    const nextPoints = selectedPathPoints.map((point) => ({ x: point.x, y: point.y }))
-    const nextPathKey = `${selectedNode?.id ?? 'none'}::${getPathPointsSyncKey(nextPoints)}`
-    if (lastSyncedPathKeyRef.current === nextPathKey) {
-      return
-    }
 
-    lastSyncedPathKeyRef.current = nextPathKey
-    setDraftPathPoints(nextPoints)
-    draftPathPointsRef.current = nextPoints
-    pathHistoryRef.current = [nextPoints.map((point) => ({ ...point }))]
-    pathHistoryIndexRef.current = 0
-  }, [open, selectedPathPoints, selectedNode?.id])
-
-  // Синхронизируем ref с актуальным React-state после любых изменений.
-  useEffect(() => {
-    draftPathPointsRef.current = draftPathPoints
-  }, [draftPathPoints])
-
-  // Если реальных actor_create нет, собираем виртуальные preview entries.
-  // Это позволяет выбрать target выбранной ноды и player даже без actor_create в graph.
-  const effectiveActorPreviews = useMemo(() => {
-    if (actorPreviews.length > 0) {
-      return actorPreviews
-    }
-
-    const fallbackActors: VisualEditorActorPreview[] = []
-    const pushVirtualActor = (actorKey: string): void => {
-      const normalizedKey = actorKey.trim()
-      if (!normalizedKey) {
-        return
-      }
-      if (fallbackActors.some((actor) => actor.key === normalizedKey)) {
-        return
-      }
-
-      fallbackActors.push({
-        id: `virtual:${normalizedKey}`,
-        key: normalizedKey,
-        x: 0,
-        y: 0,
-        spriteOrObject: normalizedKey.toLowerCase() === 'player' ? 'obj_player' : '',
-        isVirtual: true
-      })
-    }
-
-    pushVirtualActor(selectedActorTarget ?? '')
-    pushVirtualActor('player')
-    return fallbackActors
-  }, [actorPreviews, selectedActorTarget])
-
-  // Actor preview markers тоже копируем локально,
-  // чтобы их можно было переставлять внутри окна без немедленного влияния на graph.
-  useEffect(() => {
-    if (!open) return
-    const nextActorsKey = getActorPreviewsSyncKey(effectiveActorPreviews)
-    if (lastSyncedActorsKeyRef.current === nextActorsKey) {
-      return
-    }
-
-    lastSyncedActorsKeyRef.current = nextActorsKey
-    setDraftActors(effectiveActorPreviews.map((actor) => ({ ...actor })))
-    setSelectedActorId((prev) =>
-      effectiveActorPreviews.some((actor) => actor.id === prev)
-        ? prev
-        : (effectiveActorPreviews[0]?.id ?? null)
-    )
-  }, [effectiveActorPreviews, open])
-
-  // Для sprite preview важен только список resource names,
-  // а не текущие координаты actor markers. Это убирает лишние IPC-загрузки при drag/move.
-  const actorSpriteResourceNames = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          draftActors
-            .map((actor) => {
-              const directResource = actor.spriteOrObject.trim()
-              if (directResource) {
-                return directResource
-              }
-
-              const fallbackResource = actor.isVirtual ? actor.key.trim() : ''
-              return fallbackResource
-            })
-            .filter((resourceName) => resourceName.length > 0)
-        )
-      ),
-    [draftActors]
-  )
-
-  // Подгружаем sprite previews только для тех actor entries, где есть шанс найти ресурс.
-  // Для virtual fallback пробуем actor.key как имя sprite/object ресурса.
-  useEffect(() => {
-    if (!open || !projectDir || !window.api?.project?.readActorSpritePreview) {
-      setActorSpritePreviews({})
-      return
-    }
-
-    if (actorSpriteResourceNames.length <= 0) {
-      setActorSpritePreviews({})
-      return
-    }
-
-    let cancelled = false
-    Promise.all(
-      actorSpriteResourceNames.map(async (resourceName) => {
-        try {
-          const preview = (await window.api.project.readActorSpritePreview(
-            projectDir,
-            resourceName
-          )) as LoadedActorSpritePreview | null
-          return preview ? ([resourceName, preview] as const) : null
-        } catch {
-          return null
-        }
-      })
-    ).then((entries) => {
-      if (cancelled) {
-        return
-      }
-
-      const nextPreviews: Record<string, LoadedActorSpritePreview> = {}
-      for (const entry of entries) {
-        if (!entry) {
-          continue
-        }
-
-        nextPreviews[entry[0]] = entry[1]
-      }
-
-      setActorSpritePreviews(nextPreviews)
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [actorSpriteResourceNames, open, projectDir])
-
-  // Центральный helper для обновления path points и записи history snapshot'ов.
-  // Так Ctrl+Z / Ctrl+Y работает одинаково для pencil, eraser и clear/import действий.
-  const commitDraftPathPoints = useCallback(
-    (nextPoints: Array<{ x: number; y: number }>, options?: { recordHistory?: boolean }): void => {
-      const normalizedNext = simplifyPathPoints(
-        nextPoints.map((point) => ({ x: point.x, y: point.y }))
-      )
-      if (arePathPointsEqual(draftPathPointsRef.current, normalizedNext)) return
-
-      draftPathPointsRef.current = normalizedNext
-      setDraftPathPoints(normalizedNext)
-
-      if (options?.recordHistory === false) return
-
-      const trimmedHistory = pathHistoryRef.current.slice(0, pathHistoryIndexRef.current + 1)
-      const lastSnapshot = trimmedHistory[trimmedHistory.length - 1] ?? []
-      if (arePathPointsEqual(lastSnapshot, normalizedNext)) return
-
-      trimmedHistory.push(normalizedNext.map((point) => ({ ...point })))
-      pathHistoryRef.current = trimmedHistory
-      pathHistoryIndexRef.current = trimmedHistory.length - 1
-    },
-    []
-  )
-
-  // Добавляем новую точку только если она реально отличается от предыдущей.
-  // Это защищает path от лишних дублей при drag и pointer jitter.
-  const appendDraftPathPoint = useCallback(
-    (point: { x: number; y: number }): void => {
-      const prev = draftPathPointsRef.current
-      const lastPoint = prev[prev.length - 1]
-      if (lastPoint && lastPoint.x === point.x && lastPoint.y === point.y) {
-        return
-      }
-
-      if (
-        lastPoint &&
-        Math.hypot(lastPoint.x - point.x, lastPoint.y - point.y) < PATH_APPEND_MIN_DISTANCE
-      ) {
-        return
-      }
-
-      commitDraftPathPoints([...prev, point])
-    },
-    [commitDraftPathPoints]
-  )
-
-  // Eraser удаляет точки вокруг курсора по небольшому радиусу.
-  // Так инструментом можно провести по path и локально почистить waypoint'ы.
-  const eraseDraftPathPoints = useCallback(
-    (point: { x: number; y: number }): void => {
-      const nextPoints = draftPathPointsRef.current.filter(
-        (candidate) => Math.hypot(candidate.x - point.x, candidate.y - point.y) > PATH_ERASE_RADIUS
-      )
-      commitDraftPathPoints(nextPoints)
-    },
-    [commitDraftPathPoints]
-  )
-
-  // Fit рассчитывает zoom так, чтобы вся room влезла в viewport с небольшим внутренним отступом.
-  const fitToViewport = useCallback((): void => {
-    const meta = bundle?.meta
-    const viewport = viewportRef.current
-    if (!meta || !viewport) return
-
-    const innerWidth = Math.max(120, viewport.clientWidth - 32)
-    const innerHeight = Math.max(120, viewport.clientHeight - 32)
-    const nextZoom = clamp(
-      Math.min(
-        innerWidth / Math.max(1, meta.room_width),
-        innerHeight / Math.max(1, meta.room_height)
-      ),
-      MIN_ZOOM,
-      MAX_ZOOM
-    )
-
-    const contentWidth = meta.room_width * nextZoom
-    const contentHeight = meta.room_height * nextZoom
-
-    setZoom(nextZoom)
-    setOffset({
-      x: Math.round((viewport.clientWidth - contentWidth) / 2),
-      y: Math.round((viewport.clientHeight - contentHeight) / 2)
-    })
-  }, [bundle])
-
-  // Reset возвращает user view в понятное исходное состояние.
-  const resetView = useCallback((): void => {
-    setZoom(1)
-    setOffset({ x: 24, y: 24 })
-  }, [])
-
-  // Zoom вокруг курсора делает wheel-навигацию заметно удобнее,
-  // потому что пользователь не теряет нужную точку комнаты при приближении.
-  const zoomAroundClientPoint = useCallback(
-    (clientX: number, clientY: number, requestedZoom: number): void => {
-      const viewport = viewportRef.current
-      if (!viewport) return
-
-      const nextZoom = clamp(Number(requestedZoom.toFixed(3)), MIN_ZOOM, MAX_ZOOM)
-      if (nextZoom === zoom) return
-
-      const rect = viewport.getBoundingClientRect()
-      const worldX = (clientX - rect.left - offset.x) / zoom
-      const worldY = (clientY - rect.top - offset.y) / zoom
-
-      setZoom(nextZoom)
-      setOffset({
-        x: Math.round(clientX - rect.left - worldX * nextZoom),
-        y: Math.round(clientY - rect.top - worldY * nextZoom)
-      })
-    },
-    [offset, zoom]
-  )
-
-  // Запрашиваем пакет room screenshot данных у main процесса.
-  const refreshBundle = useCallback(async (): Promise<void> => {
-    if (!open) return
-
-    // Без открытого проекта окно остаётся полезным только как empty shell.
-    if (!projectDir || !selectedRoom || !window.api?.project?.readRoomScreenshotBundle) {
-      setBundle(null)
-      setErrorMessage(null)
-      return
-    }
-
-    setIsLoading(true)
-    setErrorMessage(null)
-
-    try {
-      const result = await window.api.project.readRoomScreenshotBundle(
-        projectDir,
-        selectedRoom,
-        roomScreenshotsDir
-      )
-
-      if (!result) {
-        setBundle(null)
-        setErrorMessage(
-          t('editor.visualEditingFailedToLoad', 'Failed to load room screenshot data.')
-        )
-        return
-      }
-
-      setErrorMessage(null)
-      setBundle(result)
-      shouldAutoFitRef.current = true
-    } catch (error) {
-      console.warn('Failed to load room screenshot bundle:', error)
-      setBundle(null)
-      setErrorMessage(t('editor.visualEditingFailedToLoad', 'Failed to load room screenshot data.'))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [open, projectDir, roomScreenshotsDir, selectedRoom, t])
-
-  // Автозагрузка при открытии окна, смене room и ручном refresh.
-  useEffect(() => {
-    void refreshBundle()
-  }, [refreshBundle, refreshToken])
-
-  // Если пользователь вернулся в editor после внешнего screenshot runner,
-  // пробуем тихо перечитать bundle автоматически.
-  // Это убирает лишний ручной Refresh в самом частом desktop-flow.
-  useEffect(() => {
-    if (!open) return
-
-    const handleWindowFocus = (): void => {
-      void refreshBundle()
-    }
-
-    const handleWindowBlur = (): void => {
-      stopPlayPreview()
-      clearTransientInteractionState()
-    }
-
-    const handleVisibilityChange = (): void => {
-      if (document.visibilityState === 'hidden') {
-        stopPlayPreview()
-        clearTransientInteractionState()
-        return
-      }
-
-      if (document.visibilityState === 'visible') {
-        void refreshBundle()
-      }
-    }
-
-    window.addEventListener('focus', handleWindowFocus)
-    window.addEventListener('blur', handleWindowBlur)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      window.removeEventListener('focus', handleWindowFocus)
-      window.removeEventListener('blur', handleWindowBlur)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [clearTransientInteractionState, open, refreshBundle, stopPlayPreview])
-
-  // После успешной новой загрузки один раз делаем fit,
-  // чтобы пользователю не приходилось каждый раз искать room вручную.
-  useEffect(() => {
-    if (!open || !bundle?.meta || !shouldAutoFitRef.current) return
-
-    shouldAutoFitRef.current = false
-    const frame = window.requestAnimationFrame(() => fitToViewport())
-    return () => window.cancelAnimationFrame(frame)
-  }, [bundle, fitToViewport, open])
 
   // Stitch draw: собираем все тайлы на один canvas.
   // Тут renderer удобнее всего, потому что canvas API уже рядом с UI tool surface.
@@ -1049,138 +655,7 @@ export function RoomVisualEditorModal({
     }
   }, [bundle, t])
 
-  // Простые zoom controls кнопками.
-  const zoomIn = useCallback((): void => {
-    setZoom((prev) => clamp(Number((prev * 1.25).toFixed(3)), MIN_ZOOM, MAX_ZOOM))
-  }, [])
 
-  const zoomOut = useCallback((): void => {
-    setZoom((prev) => clamp(Number((prev / 1.25).toFixed(3)), MIN_ZOOM, MAX_ZOOM))
-  }, [])
-
-  // Колесо мыши и жесты тачпада теперь масштабируют viewport.
-  // Это особенно важно в отдельном native окне, где кнопочный zoom слишком медленный.
-  const handleViewportWheel = useCallback(
-    (event: ReactWheelEvent<HTMLDivElement>): void => {
-      event.preventDefault()
-
-      const scaleFactor = Math.exp(-event.deltaY * 0.0015)
-      zoomAroundClientPoint(event.clientX, event.clientY, zoom * scaleFactor)
-    },
-    [zoom, zoomAroundClientPoint]
-  )
-
-  // Ищем actor marker под курсором в режиме Select.
-  // Берём небольшой допуск, чтобы по marker было легко попадать мышью и тачпадом.
-  const findActorAtPoint = useCallback(
-    (point: { x: number; y: number }): VisualEditorActorPreview | null => {
-      for (let index = draftActors.length - 1; index >= 0; index -= 1) {
-        const actor = draftActors[index]
-        const displayPoint =
-          actor.id === selectedActorId && playPreviewPoint
-            ? playPreviewPoint
-            : { x: actor.x, y: actor.y }
-
-        if (
-          Math.hypot(displayPoint.x - point.x, displayPoint.y - point.y) <=
-          ACTOR_MARKER_RADIUS + 6
-        ) {
-          return actor
-        }
-      }
-
-      return null
-    },
-    [draftActors, playPreviewPoint, selectedActorId]
-  )
-
-  // Подготовленные сегменты для Play preview считаем заранее.
-  // Так requestAnimationFrame не тратит время на повторный проход по всему пути.
-  const preparedDraftPathSegments = useMemo(
-    () => buildPreparedPathSegments(draftPathPoints),
-    [draftPathPoints]
-  )
-
-  // Общая длина подготовленного пути нужна для лимита preview по времени и финальной точки.
-  const preparedDraftPathTotalLength = useMemo(
-    () => preparedDraftPathSegments[preparedDraftPathSegments.length - 1]?.endDistance ?? 0,
-    [preparedDraftPathSegments]
-  )
-
-  // Запускаем локальный Play preview для выбранного actor marker.
-  // Позиции actor_create в graph не меняются, пока пользователь явно не нажмёт Import Actors.
-  const togglePlayPreview = useCallback((): void => {
-    if (isPlayPreviewRunning) {
-      stopPlayPreview()
-      return
-    }
-
-    if (!selectedActorId || draftPathPoints.length < 2) {
-      return
-    }
-
-    const totalLength = preparedDraftPathTotalLength
-    if (totalLength <= 0) {
-      return
-    }
-
-    const finalPathPoint = draftPathPoints[draftPathPoints.length - 1]
-    if (!finalPathPoint) {
-      return
-    }
-
-    stopPlayPreview()
-    setIsPlayPreviewRunning(true)
-    setPlayPreviewPoint({ ...draftPathPoints[0] })
-    playPreviewStartTimeRef.current = performance.now()
-    playPreviewSegmentIndexRef.current = 0
-
-    const tick = (timestamp: number): void => {
-      const elapsedSeconds = Math.max(0, (timestamp - playPreviewStartTimeRef.current) / 1000)
-      const travelledDistance = Math.min(
-        totalLength,
-        elapsedSeconds * PLAY_PREVIEW_SPEED_PX_PER_SEC
-      )
-      const nextPreviewState = getPointAtDistanceOnPreparedPath(
-        preparedDraftPathSegments,
-        travelledDistance,
-        finalPathPoint,
-        playPreviewSegmentIndexRef.current
-      )
-
-      playPreviewSegmentIndexRef.current = nextPreviewState.segmentIndex
-      setPlayPreviewPoint(nextPreviewState.point)
-
-      if (travelledDistance >= totalLength) {
-        playPreviewFrameRef.current = null
-        setIsPlayPreviewRunning(false)
-        playPreviewSegmentIndexRef.current = 0
-
-        // Во время preview не трогаем реальную позицию актёра.
-        // Обновляем её только в конце, когда пользователь уже увидел весь проход по пути.
-        setDraftActors((prev) =>
-          prev.map((actor) =>
-            actor.id === selectedActorId
-              ? { ...actor, x: finalPathPoint.x, y: finalPathPoint.y }
-              : actor
-          )
-        )
-        setPlayPreviewPoint(null)
-        return
-      }
-
-      playPreviewFrameRef.current = window.requestAnimationFrame(tick)
-    }
-
-    playPreviewFrameRef.current = window.requestAnimationFrame(tick)
-  }, [
-    draftPathPoints,
-    isPlayPreviewRunning,
-    preparedDraftPathSegments,
-    preparedDraftPathTotalLength,
-    selectedActorId,
-    stopPlayPreview
-  ])
 
   // Pointer drag нужен для ручного pan по stitched room preview.
   const handleViewportPointerDown = useCallback(
