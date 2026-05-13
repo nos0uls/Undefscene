@@ -67,6 +67,8 @@ import {
   SetPlotNode,
   ScheduleActionNode,
   AttachToTargetNode,
+  CheckpointStateNode,
+  RestoreStateNode,
   DetachNode
 } from './CutsceneNodes'
 
@@ -140,5 +142,7 @@ export const cutsceneNodeTypes = {
   set_plot: SetPlotNode,
   schedule_action: ScheduleActionNode,
   attach_to_target: AttachToTargetNode,
+  checkpoint_state: CheckpointStateNode,
+  restore_state: RestoreStateNode,
   detach: DetachNode
 } as const

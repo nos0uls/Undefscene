@@ -170,10 +170,10 @@ export const createDefaultRuntimeState = (): RuntimeState => {
     edges: [
       // Пауза хранится на ребре, а не отдельной нодой.
       { id: 'e-start-parallel', source: 'n-start', target: 'n-parallel-start', waitSeconds: 1.5 },
-      { id: 'e-parallel-dialogue', source: 'n-parallel-start', sourceHandle: 'b0', target: 'n-dialogue' },
-      { id: 'e-parallel-move', source: 'n-parallel-start', sourceHandle: 'b1', target: 'n-move' },
-      { id: 'e-dialogue-join', source: 'n-dialogue', target: 'n-parallel-join', targetHandle: 'b0' },
-      { id: 'e-move-join', source: 'n-move', target: 'n-parallel-join', targetHandle: 'b1' },
+      { id: 'e-parallel-dialogue', source: 'n-parallel-start', sourceHandle: 'out_b0', target: 'n-dialogue' },
+      { id: 'e-parallel-move', source: 'n-parallel-start', sourceHandle: 'out_b1', target: 'n-move' },
+      { id: 'e-dialogue-join', source: 'n-dialogue', target: 'n-parallel-join', targetHandle: 'in_b0' },
+      { id: 'e-move-join', source: 'n-move', target: 'n-parallel-join', targetHandle: 'in_b1' },
       { id: 'e-pair-parallel', source: 'n-parallel-start', sourceHandle: '__pair', target: 'n-parallel-join', targetHandle: '__pair' },
       { id: 'e-join-end', source: 'n-parallel-join', target: 'n-end' }
     ],
@@ -255,6 +255,7 @@ export function parseRuntimeState(raw: unknown): RuntimeState | null {
   const edges: RuntimeEdge[] = []
   const rawEdges = (candidate as Record<string, unknown>).edges
   const nodeIds = new Set(nodes.map((node) => node.id))
+  const nodeMap = new Map(nodes.map((node) => [node.id, node]))
   if (Array.isArray(rawEdges)) {
     for (const rawEdge of rawEdges) {
       if (!rawEdge || typeof rawEdge !== 'object') continue
@@ -280,6 +281,29 @@ export function parseRuntimeState(raw: unknown): RuntimeState | null {
       }
       if (typeof ce.targetHandle === 'string' && ce.targetHandle && ce.targetHandle !== 'null') {
         edge.targetHandle = ce.targetHandle
+      }
+
+      // Миграция: старые версии сохраняли параллельные handle без префикса (b0, b1).
+      // Новый формат требует out_/in_ префиксы для parallel_start/parallel_join.
+      if (
+        edge.sourceHandle &&
+        edge.sourceHandle !== '__pair' &&
+        !edge.sourceHandle.startsWith('out_')
+      ) {
+        const sourceNode = nodeMap.get(edge.source)
+        if (sourceNode?.type === 'parallel_start') {
+          edge.sourceHandle = `out_${edge.sourceHandle}`
+        }
+      }
+      if (
+        edge.targetHandle &&
+        edge.targetHandle !== '__pair' &&
+        !edge.targetHandle.startsWith('in_')
+      ) {
+        const targetNode = nodeMap.get(edge.target)
+        if (targetNode?.type === 'parallel_join') {
+          edge.targetHandle = `in_${edge.targetHandle}`
+        }
       }
 
       // Wait — только если число >= 0.

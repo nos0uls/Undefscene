@@ -20,13 +20,13 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { Plus } from 'lucide-react'
-import type { RuntimeEdge, RuntimeNode } from './runtimeTypes'
+import type { RuntimeEdge, RuntimeNode, RuntimeNote } from './runtimeTypes'
 import { cutsceneNodeTypes } from './nodes'
 import { usePreferencesContext } from './PreferencesContext'
 import { NodeActionsProvider } from './NodeActionsContext'
 import { CustomEdge, ArrowheadDefs } from './CustomEdge'
+import { CanvasNotesOverlay } from './CanvasNotesOverlay'
 import { isEqualParams } from './utils'
-import type { RuntimeNote } from './runtimeTypes'
 
 // Собственный MIME-type для drag-and-drop из палитры нод.
 // Он позволяет не путать наши payload'ы с обычным text/plain drag из браузера.
@@ -112,19 +112,22 @@ type FlowCanvasProps = {
   onEdgeDoubleClick?: (edgeId: string) => void
 
   // Canvas Notes — список заметок на холсте.
-  _notes: RuntimeNote[]
+  notes?: RuntimeNote[]
 
   // Коллбек: обновить заметку.
-  _onUpdateNote: (note: RuntimeNote) => void
+  onUpdateNote?: (id: string, patch: Partial<Omit<RuntimeNote, 'id'>>) => void
 
   // Коллбек: удалить заметку.
-  _onDeleteNote: (id: string) => void
+  onDeleteNote?: (id: string) => void
+
+  // Коллбек: сфокусировать ноду по ID (из заметки).
+  onFocusNode?: (nodeId: string) => void
 
   // Одноразовый запрос на центрирование камеры на позиции.
-  _focusPositionRequest?: { x: number; y: number; zoom: number; nonce: number } | null
+  focusPositionRequest?: { x: number; y: number; zoom: number; nonce: number } | null
 
   // Коллбек: изменение центра вьюпорта (для canvas notes overlay).
-  _onViewportCenterChange?: (center: { x: number; y: number }) => void
+  onViewportCenterChange?: (center: { x: number; y: number }) => void
 }
 
 // Компонент для фона: размер точек масштабируется вместе с зумом холста.
@@ -235,11 +238,10 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   onPaneDropCreate,
   onEdgeDelete,
   onEdgeDoubleClick,
-  // _notes,
-  // _onUpdateNote,
-  // _onDeleteNote,
-  // _focusPositionRequest,
-  // _onViewportCenterChange
+  notes,
+  onUpdateNote,
+  onDeleteNote,
+  onFocusNode
 }: FlowCanvasProps): React.JSX.Element {
   // Нужен для конвертации экранных координат в координаты холста.
   const { screenToFlowPosition, getNodes, getViewport, setViewport, fitView, setCenter } = useReactFlow()
@@ -1398,6 +1400,14 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         </Panel>
         </ReactFlow>
       </NodeActionsProvider>
+      {notes && notes.length > 0 && onUpdateNote && onDeleteNote && (
+        <CanvasNotesOverlay
+          notes={notes}
+          onUpdateNote={onUpdateNote}
+          onDeleteNote={onDeleteNote}
+          onFocusNode={onFocusNode}
+        />
+      )}
     </div>
   )
 })

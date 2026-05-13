@@ -301,6 +301,8 @@ export const en = {
       wait: 'Wait',
       move: 'Move',
       set_position: 'Set Position',
+      move_relative: 'Move Relative',
+      set_position_relative: 'Set Position Relative',
       actor_create: 'Actor Create',
       actor_destroy: 'Actor Destroy',
       animate: 'Animate',
