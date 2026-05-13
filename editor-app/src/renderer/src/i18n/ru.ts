@@ -673,6 +673,5 @@ export const ru = {
     fit_view: 'Вписать граф',
     zen_mode: 'Zen Mode'
   }
-} as const
 
 export type RuDictionary = typeof ru

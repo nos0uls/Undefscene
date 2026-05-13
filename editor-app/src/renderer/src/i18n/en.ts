@@ -673,7 +673,6 @@ export const en = {
     fit_view: 'Fit View',
     zen_mode: 'Zen Mode'
   }
-} as const
 
 export type EnDictionary = typeof en
 

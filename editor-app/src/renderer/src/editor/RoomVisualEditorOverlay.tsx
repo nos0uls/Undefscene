@@ -1,4 +1,4 @@
-import { memo, type React.JSX } from 'react'
+import { memo } from 'react'
 
 // Этот компонент отвечает только за SVG-overlay поверх stitched room preview.
 // Здесь нет pointer logic, state sync или IPC — только чистый render visual layers.
