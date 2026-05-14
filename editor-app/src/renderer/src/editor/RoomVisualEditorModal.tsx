@@ -1673,8 +1673,8 @@ export function RoomVisualEditorModal({
         <RoomVisualEditorToolbar
           availableRooms={availableRooms}
           selectedRoom={selectedRoom}
-          onRoomChange={(value) => setSelectedRoom(value)}
-          onRefresh={() => setRefreshToken((prev) => prev + 1)}
+          onRoomChange={handleRoomChange}
+          onRefresh={handleRefresh}
           zoomIn={zoomIn}
           zoomOut={zoomOut}
           fitToViewport={fitToViewport}
@@ -1783,6 +1783,14 @@ export function RoomVisualEditorModal({
 
   const handleStopPropagation = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
     event.stopPropagation()
+  }, [])
+
+  const handleRoomChange = useCallback((value: string): void => {
+    setSelectedRoom(value)
+  }, [])
+
+  const handleRefresh = useCallback((): void => {
+    setRefreshToken((prev) => prev + 1)
   }, [])
 
   return (
