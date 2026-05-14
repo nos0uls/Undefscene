@@ -30,17 +30,12 @@ import {
   PATH_GRID_STEP,
   PATH_ERASE_RADIUS,
   simplifyPathPoints,
-  arePathPointsEqual,
-  buildPreparedPathSegments,
-  getPathPointsSyncKey
 } from './usePathEditorLogic'
 import {
   useActorEditorLogic,
   ACTOR_MARKER_RADIUS,
-  getActorPreviewsSyncKey,
-  getPointAtDistanceOnPreparedPath
 } from './useActorEditorLogic'
-import { useViewportControls, MIN_ZOOM, MAX_ZOOM, clamp } from './useViewportControls'
+import { useViewportControls, clamp } from './useViewportControls'
 
 // Пропсы окна visual editing.
 type RoomVisualEditorModalProps = {
@@ -61,7 +56,7 @@ type RoomVisualEditorModalProps = {
   onClose: () => void
 }
 
-// Константы MIN_ZOOM, MAX_ZOOM, PATH_GRID_STEP, PATH_ERASE_RADIUS, ACTOR_MARKER_RADIUS и функция clamp
+// Константы PATH_GRID_STEP, PATH_ERASE_RADIUS, ACTOR_MARKER_RADIUS и функция clamp
 // теперь вынесены в useViewportControls, usePathEditorLogic и useActorEditorLogic
 
 // Округляем координату к рабочей сетке visual editor.
@@ -1665,7 +1660,7 @@ export function RoomVisualEditorModal({
         .filter(Boolean)
         .join(' ')}
       style={accentCssVariables}
-      onClick={(event) => event.stopPropagation()}
+      onClick={handleStopPropagation}
     >
       <div className="prefsHeader">
         <span className="prefsTitle">{t('editor.visualEditingTitle', 'Visual Editing')}</span>
@@ -1779,15 +1774,22 @@ export function RoomVisualEditorModal({
     return <div className="roomVisualEditorWindowRoot">{content}</div>
   }
 
+  // Inline click handlers вынесены в useCallback для предотвращения лишних ререндеров
+  const handleOverlayClick = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (event.target === overlayRef.current) {
+      onClose()
+    }
+  }, [onClose])
+
+  const handleStopPropagation = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
+    event.stopPropagation()
+  }, [])
+
   return (
     <div
       ref={overlayRef}
       className="prefsOverlay"
-      onClick={(event) => {
-        if (event.target === overlayRef.current) {
-          onClose()
-        }
-      }}
+      onClick={handleOverlayClick}
     >
       {content}
     </div>
