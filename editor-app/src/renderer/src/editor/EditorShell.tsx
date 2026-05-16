@@ -9,7 +9,7 @@ import { useRuntimeState } from './useRuntimeState'
 import { PanelDataProvider } from './PanelDataContext'
 import { usePreferencesContext } from './PreferencesContext'
 import { useHotkeys } from './useHotkeys'
-import { DockingProvider, useDockingContext, type CollapsedDocksState } from './DockingContext'
+import { DockingProvider, useDockingContext } from './DockingContext'
 import { DockingLayout } from './DockingLayout'
 import { useDocking } from './useDocking'
 import { createTranslator } from '../i18n'
@@ -180,15 +180,8 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
     createDefaultPaneNode,
     createPaletteDropNode
   } = useNodeOperations({
-    runtime,
     setRuntime,
-    actorTargetOptions: editorState.actorTargetOptions,
-    validationContext: editorState.validationContext,
-    validation: editorValidation.validation,
-    toasts,
-    confirm,
-    t,
-    setFocusNodeRequest: editorState.setFocusNodeRequest
+    shouldFocusEdgeWaitRef: editorState.shouldFocusEdgeWaitRef
   })
 
   // useVisualEditing
@@ -223,8 +216,7 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
   ])
 
   // useDocking
-  const { togglePanel, isPanelVisible, allPanels } = useDocking({
-    getPanelTitle: () => '', // Will be provided by editorCallbacks
+  const { togglePanel, isPanelVisible } = useDocking({
     showDockDropPreview: preferences.showDockDropPreview
   })
 
@@ -374,6 +366,8 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
     handleDeleteNote: editorCallbacks.handleDeleteNote,
     handleSelectNote: editorCallbacks.handleSelectNote,
     selectNode: editorCallbacks.selectNode,
+    selectedNodes: runtime.nodes.filter((node) => runtime.selectedNodeIds?.includes(node.id)),
+    selectedEdges: runtime.edges.filter((edge) => edge.id === runtime.selectedEdgeId),
     templates: editorState.templates,
     handleSaveTemplate: editorCallbacks.handleSaveTemplate,
     handleInsertTemplate: editorCallbacks.handleInsertTemplate,
@@ -390,7 +384,7 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
   // Stabilize renderPanelContents callback via ref
   const renderPanelContentsRef = useRef(renderPanelContents)
   renderPanelContentsRef.current = renderPanelContents
-  const renderPanelContentsStable = useCallback((panelId: string): React.JSX.Element => {
+  const renderPanelContentsStable = useCallback((panelId: string): React.JSX.Element | null => {
     return renderPanelContentsRef.current(panelId)
   }, [])
 
@@ -482,11 +476,21 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
 
   // Top bar content
   const topBarContent = useMemo(
-    () => (
-      <TopMenuBar
-        allPanels={allPanels}
-        isPanelVisible={isPanelVisible}
-        togglePanel={togglePanel}
+    () => {
+      const panels = [
+        { id: 'panel.actions', label: editorCallbacks.getPanelTitle('panel.actions') },
+        { id: 'panel.bookmarks', label: editorCallbacks.getPanelTitle('panel.bookmarks') },
+        { id: 'panel.notes', label: editorCallbacks.getPanelTitle('panel.notes') },
+        { id: 'panel.text', label: editorCallbacks.getPanelTitle('panel.text') },
+        { id: 'panel.inspector', label: editorCallbacks.getPanelTitle('panel.inspector') },
+        { id: 'panel.logs', label: editorCallbacks.getPanelTitle('panel.logs') },
+        { id: 'panel.templates', label: editorCallbacks.getPanelTitle('panel.templates') }
+      ]
+      return (
+        <TopMenuBar
+          panels={panels}
+          isPanelVisible={isPanelVisible}
+          togglePanel={togglePanel}
         onOpenProject={openProject}
         onExport={handleExport}
         onNew={handleNew}
@@ -513,14 +517,15 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
         onAbout={editorCallbacks.handleAbout}
         onTutorial={editorCallbacks.handleTutorial}
         onExit={editorCallbacks.handleExit}
-        onPreferences={editorCallbacks.handlePreferences}
+        onPreferences={() => editorState.setPreferencesOpen(true)}
         language={preferences.language}
         keybindings={preferences.keybindings}
         showSavedIndicator={editorState.showSavedIndicator}
-      />
-    ),
+        />
+      )
+    },
     [
-      allPanels,
+      editorCallbacks.getPanelTitle,
       isPanelVisible,
       togglePanel,
       openProject,

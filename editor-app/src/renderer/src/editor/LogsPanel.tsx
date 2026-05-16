@@ -254,12 +254,12 @@ export const LogsPanel = React.memo(function LogsPanel({
               // это предотвращает проблемы при изменении порядка или добавлении элементов.
               for (let i = start; i < end; i++) {
                 const entry = visibleEntries[i]
-                const s = severityStyle[entry.severity] ?? severityStyle.warn
+                const t = severityStyle[entry.severity] ?? severityStyle.warn
                 rows.push(
                   <LogEntryRow
                     key={`${entry.severity}-${entry.nodeId || entry.edgeId || ''}-${entry.message.slice(0, 20)}-${i}`}
                     entry={entry}
-                    style={s}
+                    style={t}
                     top={i * ROW_HEIGHT}
                     onClick={() => handleEntryClick(entry)}
                     onContextMenu={(e) => handleContextMenu(e, entry)}

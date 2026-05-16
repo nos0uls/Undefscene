@@ -114,8 +114,7 @@ export const en = {
     miniMapNodeThreshold: 'MiniMap node threshold',
     miniMapNodeThresholdHint: '0 = off, -1 = always on, >0 = hide if nodes exceed this count',
     unassigned: 'Unassigned',
-    close: 'Close',
-    }
+    close: 'Close'
   },
   // Welcome / onboarding
   welcome: {
@@ -673,6 +672,7 @@ export const en = {
     fit_view: 'Fit View',
     zen_mode: 'Zen Mode'
   }
+}
 
 export type EnDictionary = typeof en
 

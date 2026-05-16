@@ -1903,6 +1903,12 @@ app.whenReady().then(() => {
     }
   })
 
+  // IPC: Заглушки для меню About, Tutorial, Exit, Preferences.
+  ipcMain.handle('app.openAbout', async () => { })
+  ipcMain.handle('app.openTutorial', async () => { })
+  ipcMain.handle('app.exit', async () => { app.quit() })
+  ipcMain.handle('app.openPreferences', async () => { })
+
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 

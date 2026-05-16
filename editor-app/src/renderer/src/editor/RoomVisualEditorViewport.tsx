@@ -4,8 +4,8 @@ import { RoomVisualEditorOverlay } from './RoomVisualEditorOverlay'
 import type { VisualEditorActorPreview, LoadedActorSpritePreview } from './RoomVisualEditorTypes'
 
 type RoomVisualEditorViewportProps = {
-  viewportRef: React.RefObject<HTMLDivElement>
-  canvasRef: React.RefObject<HTMLCanvasElement>
+  viewportRef: React.RefObject<HTMLDivElement | null>
+  canvasRef: React.RefObject<HTMLCanvasElement | null>
   zoom: number
   offset: { x: number; y: number }
   activeTool: 'select' | 'pencil' | 'eraser' | null

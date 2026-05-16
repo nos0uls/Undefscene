@@ -5,7 +5,7 @@ import type {
 } from './RoomVisualEditorTypes'
 
 export const ACTOR_MARKER_RADIUS = 8
-const PLAY_PREVIEW_SPEED_PX_PER_SEC = 180
+export const PLAY_PREVIEW_SPEED_PX_PER_SEC = 180
 
 // Возвращаем точку на path по дистанции от начала.
 export function getPointAtDistanceOnPreparedPath(

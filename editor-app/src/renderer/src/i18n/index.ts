@@ -11,6 +11,12 @@ export type TranslationDictionary = {
 // Кэш для загруженных словарей
 const dictionaryCache = new Map<SupportedLanguage, TranslationDictionary>()
 
+// Eagerly load both dictionaries synchronously to avoid "not preloaded" warnings
+import { ru as ruDict } from './ru'
+import { en as enDict } from './en'
+dictionaryCache.set('ru', ruDict)
+dictionaryCache.set('en', enDict)
+
 // Предзагрузка словаря для языка (вызывать при старте приложения)
 export async function preloadLanguage(language: SupportedLanguage): Promise<void> {
   if (dictionaryCache.has(language)) {

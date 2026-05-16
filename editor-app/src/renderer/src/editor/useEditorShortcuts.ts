@@ -24,7 +24,7 @@ type UseEditorShortcutsDeps = {
   newRef: React.MutableRefObject<(() => void) | null>
   exportRef: React.MutableRefObject<(() => void) | null>
   // Стабильный setter для preferences modal (useState setter — стабильная ссылка).
-  setPreferencesOpen: (value: boolean | ((prev: boolean) => boolean)) => void
+  setPreferencesOpen: (value: boolean) => void
   // Генератор уникального имени ноды (чистая функция, без состояния).
   suggestUniqueNodeName: (baseName: string, takenNames: Set<string>) => string
 }

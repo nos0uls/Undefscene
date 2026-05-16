@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createTranslator, type SupportedLanguage } from '../i18n'
 import type { RoomScreenshotBundle } from './RoomVisualEditorTypes'
 
@@ -19,7 +19,7 @@ export function useRoomVisualEditorState({
   language,
   onRoomChange
 }: RoomVisualEditorStateProps) {
-  const t = createTranslator(language)
+  const t = useMemo(() => createTranslator(language), [language])
 
   // Текущая выбранная room.
   const [selectedRoom, setSelectedRoom] = useState<string>('')
@@ -109,11 +109,18 @@ export function useRoomVisualEditorState({
 
   return {
     selectedRoom,
+    setSelectedRoom,
     bundle,
+    setBundle,
     isLoading,
+    setIsLoading,
     errorMessage,
+    setErrorMessage,
     availableRooms,
+    refreshToken,
+    setRefreshToken,
     handleRoomChange,
-    handleRefresh
+    handleRefresh,
+    refreshBundle
   }
 }

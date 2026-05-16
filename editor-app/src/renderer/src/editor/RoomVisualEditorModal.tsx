@@ -6,21 +6,17 @@ import {
   useMemo,
   useRef,
   useState,
-  type PointerEvent as ReactPointerEvent,
-  type WheelEvent as ReactWheelEvent
+  type PointerEvent as ReactPointerEvent
 } from 'react'
 import { createTranslator, type SupportedLanguage } from '../i18n'
-import { RoomVisualEditorOverlay } from './RoomVisualEditorOverlay'
-import { SearchableSelect } from './SearchableSelect'
 import { RoomVisualEditorToolbar } from './RoomVisualEditorToolbar'
 import { RoomVisualEditorSidebar } from './RoomVisualEditorSidebar'
 import { RoomVisualEditorViewport } from './RoomVisualEditorViewport'
-import { RoomVisualEditorCanvas } from './RoomVisualEditorCanvas'
+import { loadImage } from './RoomVisualEditorCanvas'
 import { useRoomVisualEditorState } from './RoomVisualEditorState'
 import { getAccentCssVariables } from './usePreferences'
 import { usePreferencesContext } from './PreferencesContext'
 import {
-  type RoomScreenshotBundle,
   type VisualEditorSelectedNode,
   type VisualEditorActorPreview,
   type LoadedActorSpritePreview
@@ -29,11 +25,15 @@ import {
   usePathEditorLogic,
   PATH_GRID_STEP,
   PATH_ERASE_RADIUS,
+  PATH_POINT_RADIUS,
+  PATH_PREVIEW_POINT_RADIUS,
   simplifyPathPoints,
 } from './usePathEditorLogic'
 import {
-  useActorEditorLogic,
   ACTOR_MARKER_RADIUS,
+  getActorPreviewsSyncKey,
+  PLAY_PREVIEW_SPEED_PX_PER_SEC,
+  getPointAtDistanceOnPreparedPath,
 } from './useActorEditorLogic'
 import { useViewportControls, clamp } from './useViewportControls'
 
@@ -99,8 +99,7 @@ export function RoomVisualEditorModal({
   // Overlay ref нужен, чтобы закрывать окно кликом по затемнённому фону.
   const overlayRef = useRef<HTMLDivElement | null>(null)
 
-  // Viewport и canvas refs нужны для fit, pan и stitch draw.
-  const viewportRef = useRef<HTMLDivElement | null>(null)
+  // Canvas ref нужен для stitch draw.
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   // Уже склеенные комнаты кешируем по cacheKey из main.
@@ -115,13 +114,22 @@ export function RoomVisualEditorModal({
     projectDir,
     roomScreenshotsDir,
     language,
-    onRoomChange: (room) => {
+    onRoomChange: (_room: string) => {
       // Обработчик смены комнаты будет использован в useEffect
     }
   })
 
-  const { selectedRoom, bundle, isLoading, errorMessage, availableRooms, handleRoomChange, handleRefresh } =
-    roomState
+  const {
+    selectedRoom,
+    setSelectedRoom,
+    bundle,
+    isLoading,
+    errorMessage,
+    setErrorMessage,
+    availableRooms,
+    handleRoomChange,
+    handleRefresh
+  } = roomState
 
   // Короткие алиасы для local settings Visual Editing.
   // Это упрощает чтение формул ниже и делает intent более явным.
@@ -138,13 +146,17 @@ export function RoomVisualEditorModal({
     [preferences]
   )
 
+  // Shared ref для clearTransientInteractionState, чтобы разорвать circular dependency
+  // между usePathEditorLogic / useViewportControls и самим callback.
+  const clearTransientInteractionStateRef = useRef<(() => void) | null>(null)
+
   // Управление path editor
   const pathEditor = usePathEditorLogic({
     open,
     selectedPathPoints,
     selectedNode,
     onImportPath,
-    clearTransientInteractionState
+    clearTransientInteractionState: () => clearTransientInteractionStateRef.current?.()
   })
 
   const {
@@ -156,7 +168,6 @@ export function RoomVisualEditorModal({
     draftPathPointsRef,
     pathDrawRef,
     setPathPreviewPoint,
-    commitDraftPathPoints,
     appendDraftPathPoint,
     eraseDraftPathPoints,
     clearDraftPath,
@@ -168,9 +179,6 @@ export function RoomVisualEditorModal({
   // Активный инструмент visual editor.
   // Select двигает actor markers, pencil/eraser редактируют path, null оставляет только pan.
   const [activeTool, setActiveTool] = useState<'select' | 'pencil' | 'eraser' | null>(null)
-
-  // Preview точки нужен для straight-line режима и визуальной подсказки под курсором.
-  const [pathPreviewPoint, setPathPreviewPoint] = useState<{ x: number; y: number } | null>(null)
 
   // Draft actor markers нужны как визуальный слой,
   // чтобы пользователь мог прикинуть расстановку актёров прямо на stitched room preview.
@@ -200,25 +208,6 @@ export function RoomVisualEditorModal({
     startActorY: number
   } | null>(null)
 
-  // Во время path drawing держим отдельный drag-state.
-  // Он позволяет различать freehand pencil и straight-line режим с модификаторами.
-  const pathDrawRef = useRef<{
-    pointerId: number
-    tool: 'pencil' | 'eraser'
-    anchorPoint: { x: number; y: number } | null
-    latestPoint: { x: number; y: number } | null
-    isStraightSegment: boolean
-  } | null>(null)
-
-  // Текущее значение path points дублируем в ref,
-  // чтобы pointer handlers и history работали без stale-замыканий.
-  const draftPathPointsRef = useRef<Array<{ x: number; y: number }>>([])
-
-  // History нужна для Ctrl+Z / Ctrl+Y внутри visual editor.
-  // Это не должно зависеть от focus в room selector или других autocomplete-полях.
-  const pathHistoryRef = useRef<Array<Array<{ x: number; y: number }>>>([])
-  const pathHistoryIndexRef = useRef(-1)
-
   // Последняя позиция курсора над viewport нужна,
   // чтобы Shift-preview обновлялся сразу даже без нового движения мыши.
   const hoverClientPointRef = useRef<{ clientX: number; clientY: number } | null>(null)
@@ -231,9 +220,7 @@ export function RoomVisualEditorModal({
   // Это убирает лишние ручные поиски комнаты после Refresh или смены room.
   const shouldAutoFitRef = useRef(false)
 
-  // Последние upstream-keys нужны, чтобы не сбрасывать локальный draft на каждый bridge sync.
-  // Это особенно важно для отдельного окна Visual Editing, где main часто присылает одинаковый snapshot.
-  const lastSyncedPathKeyRef = useRef<string | null>(null)
+  // upstream-key для actors, чтобы не сбрасывать локальный draft на каждый bridge sync.
   const lastSyncedActorsKeyRef = useRef<string | null>(null)
 
   // Базовый timestamp нужен для расчёта прогресса анимации по path.
@@ -286,11 +273,13 @@ export function RoomVisualEditorModal({
     setPathPreviewPoint(null)
   }, [])
 
+  clearTransientInteractionStateRef.current = clearTransientInteractionState
+
   // Управление viewport: zoom и pan offset.
   const viewportControls = useViewportControls({
     bundle,
     stopPlayPreview,
-    clearTransientInteractionState
+    clearTransientInteractionState: () => clearTransientInteractionStateRef.current?.()
   })
 
   const {
@@ -302,7 +291,6 @@ export function RoomVisualEditorModal({
     setOffset,
     resetView,
     fitToViewport,
-    zoomAroundClientPoint,
     zoomIn,
     zoomOut,
     handleViewportWheel
@@ -470,14 +458,7 @@ export function RoomVisualEditorModal({
       if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && key === 'z') {
         event.preventDefault()
         event.stopPropagation()
-
-        const nextIndex = pathHistoryIndexRef.current - 1
-        if (nextIndex < 0) return
-
-        const nextPoints = (pathHistoryRef.current[nextIndex] ?? []).map((point) => ({ ...point }))
-        pathHistoryIndexRef.current = nextIndex
-        draftPathPointsRef.current = nextPoints
-        setDraftPathPoints(nextPoints)
+        undoPath()
         return
       }
 
@@ -487,14 +468,7 @@ export function RoomVisualEditorModal({
       ) {
         event.preventDefault()
         event.stopPropagation()
-
-        const nextIndex = pathHistoryIndexRef.current + 1
-        if (nextIndex >= pathHistoryRef.current.length) return
-
-        const nextPoints = (pathHistoryRef.current[nextIndex] ?? []).map((point) => ({ ...point }))
-        pathHistoryIndexRef.current = nextIndex
-        draftPathPointsRef.current = nextPoints
-        setDraftPathPoints(nextPoints)
+        redoPath()
         return
       }
 
@@ -596,28 +570,6 @@ export function RoomVisualEditorModal({
     stopPlayPreview()
     clearTransientInteractionState()
   }, [clearTransientInteractionState, open, selectedRoom, stopPlayPreview])
-
-  // Когда меняется выбранная follow_path-нода,
-  // синхронизируем draft path с её текущими points.
-  useEffect(() => {
-    if (!open) return
-    const nextPoints = selectedPathPoints.map((point) => ({ x: point.x, y: point.y }))
-    const nextPathKey = `${selectedNode?.id ?? 'none'}::${getPathPointsSyncKey(nextPoints)}`
-    if (lastSyncedPathKeyRef.current === nextPathKey) {
-      return
-    }
-
-    lastSyncedPathKeyRef.current = nextPathKey
-    setDraftPathPoints(nextPoints)
-    draftPathPointsRef.current = nextPoints
-    pathHistoryRef.current = [nextPoints.map((point) => ({ ...point }))]
-    pathHistoryIndexRef.current = 0
-  }, [open, selectedPathPoints, selectedNode?.id])
-
-  // Синхронизируем ref с актуальным React-state после любых изменений.
-  useEffect(() => {
-    draftPathPointsRef.current = draftPathPoints
-  }, [draftPathPoints])
 
   // Если реальных actor_create нет, собираем виртуальные preview entries.
   // Это позволяет выбрать target выбранной ноды и player даже без actor_create в graph.
@@ -739,205 +691,6 @@ export function RoomVisualEditorModal({
     }
   }, [actorSpriteResourceNames, open, projectDir])
 
-  // Центральный helper для обновления path points и записи history snapshot'ов.
-  // Так Ctrl+Z / Ctrl+Y работает одинаково для pencil, eraser и clear/import действий.
-  const commitDraftPathPoints = useCallback(
-    (nextPoints: Array<{ x: number; y: number }>, options?: { recordHistory?: boolean }): void => {
-      const normalizedNext = simplifyPathPoints(
-        nextPoints.map((point) => ({ x: point.x, y: point.y }))
-      )
-      if (arePathPointsEqual(draftPathPointsRef.current, normalizedNext)) return
-
-      draftPathPointsRef.current = normalizedNext
-      setDraftPathPoints(normalizedNext)
-
-      if (options?.recordHistory === false) return
-
-      const trimmedHistory = pathHistoryRef.current.slice(0, pathHistoryIndexRef.current + 1)
-      const lastSnapshot = trimmedHistory[trimmedHistory.length - 1] ?? []
-      if (arePathPointsEqual(lastSnapshot, normalizedNext)) return
-
-      trimmedHistory.push(normalizedNext.map((point) => ({ ...point })))
-      pathHistoryRef.current = trimmedHistory
-      pathHistoryIndexRef.current = trimmedHistory.length - 1
-    },
-    []
-  )
-
-  // Добавляем новую точку только если она реально отличается от предыдущей.
-  // Это защищает path от лишних дублей при drag и pointer jitter.
-  const appendDraftPathPoint = useCallback(
-    (point: { x: number; y: number }): void => {
-      const prev = draftPathPointsRef.current
-      const lastPoint = prev[prev.length - 1]
-      if (lastPoint && lastPoint.x === point.x && lastPoint.y === point.y) {
-        return
-      }
-
-      if (
-        lastPoint &&
-        Math.hypot(lastPoint.x - point.x, lastPoint.y - point.y) < PATH_APPEND_MIN_DISTANCE
-      ) {
-        return
-      }
-
-      commitDraftPathPoints([...prev, point])
-    },
-    [commitDraftPathPoints]
-  )
-
-  // Eraser удаляет точки вокруг курсора по небольшому радиусу.
-  // Так инструментом можно провести по path и локально почистить waypoint'ы.
-  const eraseDraftPathPoints = useCallback(
-    (point: { x: number; y: number }): void => {
-      const nextPoints = draftPathPointsRef.current.filter(
-        (candidate) => Math.hypot(candidate.x - point.x, candidate.y - point.y) > PATH_ERASE_RADIUS
-      )
-      commitDraftPathPoints(nextPoints)
-    },
-    [commitDraftPathPoints]
-  )
-
-  // Fit рассчитывает zoom так, чтобы вся room влезла в viewport с небольшим внутренним отступом.
-  const fitToViewport = useCallback((): void => {
-    const meta = bundle?.meta
-    const viewport = viewportRef.current
-    if (!meta || !viewport) return
-
-    const innerWidth = Math.max(120, viewport.clientWidth - 32)
-    const innerHeight = Math.max(120, viewport.clientHeight - 32)
-    const nextZoom = clamp(
-      Math.min(
-        innerWidth / Math.max(1, meta.room_width),
-        innerHeight / Math.max(1, meta.room_height)
-      ),
-      MIN_ZOOM,
-      MAX_ZOOM
-    )
-
-    const contentWidth = meta.room_width * nextZoom
-    const contentHeight = meta.room_height * nextZoom
-
-    setZoom(nextZoom)
-    setOffset({
-      x: Math.round((viewport.clientWidth - contentWidth) / 2),
-      y: Math.round((viewport.clientHeight - contentHeight) / 2)
-    })
-  }, [bundle])
-
-  // Reset возвращает user view в понятное исходное состояние.
-  const resetView = useCallback((): void => {
-    setZoom(1)
-    setOffset({ x: 24, y: 24 })
-  }, [])
-
-  // Zoom вокруг курсора делает wheel-навигацию заметно удобнее,
-  // потому что пользователь не теряет нужную точку комнаты при приближении.
-  const zoomAroundClientPoint = useCallback(
-    (clientX: number, clientY: number, requestedZoom: number): void => {
-      const viewport = viewportRef.current
-      if (!viewport) return
-
-      const nextZoom = clamp(Number(requestedZoom.toFixed(3)), MIN_ZOOM, MAX_ZOOM)
-      if (nextZoom === zoom) return
-
-      const rect = viewport.getBoundingClientRect()
-      const worldX = (clientX - rect.left - offset.x) / zoom
-      const worldY = (clientY - rect.top - offset.y) / zoom
-
-      setZoom(nextZoom)
-      setOffset({
-        x: Math.round(clientX - rect.left - worldX * nextZoom),
-        y: Math.round(clientY - rect.top - worldY * nextZoom)
-      })
-    },
-    [offset, zoom]
-  )
-
-  // Запрашиваем пакет room screenshot данных у main процесса.
-  const refreshBundle = useCallback(async (): Promise<void> => {
-    if (!open) return
-
-    // Без открытого проекта окно остаётся полезным только как empty shell.
-    if (!projectDir || !selectedRoom || !window.api?.project?.readRoomScreenshotBundle) {
-      setBundle(null)
-      setErrorMessage(null)
-      return
-    }
-
-    setIsLoading(true)
-    setErrorMessage(null)
-
-    try {
-      const result = await window.api.project.readRoomScreenshotBundle(
-        projectDir,
-        selectedRoom,
-        roomScreenshotsDir
-      )
-
-      if (!result) {
-        setBundle(null)
-        setErrorMessage(
-          t('editor.visualEditingFailedToLoad', 'Failed to load room screenshot data.')
-        )
-        return
-      }
-
-      setErrorMessage(null)
-      setBundle(result)
-      shouldAutoFitRef.current = true
-    } catch (error) {
-      console.warn('Failed to load room screenshot bundle:', error)
-      setBundle(null)
-      setErrorMessage(t('editor.visualEditingFailedToLoad', 'Failed to load room screenshot data.'))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [open, projectDir, roomScreenshotsDir, selectedRoom, t])
-
-  // Автозагрузка при открытии окна, смене room и ручном refresh.
-  useEffect(() => {
-    void refreshBundle()
-  }, [refreshBundle, refreshToken])
-
-  // Если пользователь вернулся в editor после внешнего screenshot runner,
-  // пробуем тихо перечитать bundle автоматически.
-  // Это убирает лишний ручной Refresh в самом частом desktop-flow.
-  useEffect(() => {
-    if (!open) return
-
-    const handleWindowFocus = (): void => {
-      void refreshBundle()
-    }
-
-    const handleWindowBlur = (): void => {
-      stopPlayPreview()
-      clearTransientInteractionState()
-    }
-
-    const handleVisibilityChange = (): void => {
-      if (document.visibilityState === 'hidden') {
-        stopPlayPreview()
-        clearTransientInteractionState()
-        return
-      }
-
-      if (document.visibilityState === 'visible') {
-        void refreshBundle()
-      }
-    }
-
-    window.addEventListener('focus', handleWindowFocus)
-    window.addEventListener('blur', handleWindowBlur)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      window.removeEventListener('focus', handleWindowFocus)
-      window.removeEventListener('blur', handleWindowBlur)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [clearTransientInteractionState, open, refreshBundle, stopPlayPreview])
-
   // После успешной новой загрузки один раз делаем fit,
   // чтобы пользователю не приходилось каждый раз искать room вручную.
   useEffect(() => {
@@ -1044,27 +797,6 @@ export function RoomVisualEditorModal({
     }
   }, [bundle, t])
 
-  // Простые zoom controls кнопками.
-  const zoomIn = useCallback((): void => {
-    setZoom((prev) => clamp(Number((prev * 1.25).toFixed(3)), MIN_ZOOM, MAX_ZOOM))
-  }, [])
-
-  const zoomOut = useCallback((): void => {
-    setZoom((prev) => clamp(Number((prev / 1.25).toFixed(3)), MIN_ZOOM, MAX_ZOOM))
-  }, [])
-
-  // Колесо мыши и жесты тачпада теперь масштабируют viewport.
-  // Это особенно важно в отдельном native окне, где кнопочный zoom слишком медленный.
-  const handleViewportWheel = useCallback(
-    (event: ReactWheelEvent<HTMLDivElement>): void => {
-      event.preventDefault()
-
-      const scaleFactor = Math.exp(-event.deltaY * 0.0015)
-      zoomAroundClientPoint(event.clientX, event.clientY, zoom * scaleFactor)
-    },
-    [zoom, zoomAroundClientPoint]
-  )
-
   // Ищем actor marker под курсором в режиме Select.
   // Берём небольшой допуск, чтобы по marker было легко попадать мышью и тачпадом.
   const findActorAtPoint = useCallback(
@@ -1087,19 +819,6 @@ export function RoomVisualEditorModal({
       return null
     },
     [draftActors, playPreviewPoint, selectedActorId]
-  )
-
-  // Подготовленные сегменты для Play preview считаем заранее.
-  // Так requestAnimationFrame не тратит время на повторный проход по всему пути.
-  const preparedDraftPathSegments = useMemo(
-    () => buildPreparedPathSegments(draftPathPoints),
-    [draftPathPoints]
-  )
-
-  // Общая длина подготовленного пути нужна для лимита preview по времени и финальной точки.
-  const preparedDraftPathTotalLength = useMemo(
-    () => preparedDraftPathSegments[preparedDraftPathSegments.length - 1]?.endDistance ?? 0,
-    [preparedDraftPathSegments]
   )
 
   // Запускаем локальный Play preview для выбранного actor marker.
@@ -1236,7 +955,7 @@ export function RoomVisualEditorModal({
         }
       }
 
-      dragPanRef.current = {
+      viewportDragPanRef.current = {
         pointerId: event.pointerId,
         startClientX: event.clientX,
         startClientY: event.clientY,
@@ -1335,7 +1054,7 @@ export function RoomVisualEditorModal({
         return
       }
 
-      const dragState = dragPanRef.current
+      const dragState = viewportDragPanRef.current
       if (!dragState || dragState.pointerId !== event.pointerId) return
 
       const deltaX = event.clientX - dragState.startClientX
@@ -1402,7 +1121,7 @@ export function RoomVisualEditorModal({
         return
       }
 
-      const dragState = dragPanRef.current
+      const dragState = viewportDragPanRef.current
       if (!dragState || dragState.pointerId !== event.pointerId) return
 
       // Отменяем pending RAF для viewport pan
@@ -1411,7 +1130,7 @@ export function RoomVisualEditorModal({
         viewportPanRafRef.current = null
       }
 
-      dragPanRef.current = null
+      viewportDragPanRef.current = null
       event.currentTarget.releasePointerCapture(event.pointerId)
     },
     [appendDraftPathPoint]
@@ -1459,14 +1178,6 @@ export function RoomVisualEditorModal({
     ]
   )
 
-  const clearDraftPath = useCallback((): void => {
-    commitDraftPathPoints([])
-  }, [commitDraftPathPoints])
-
-  const importDraftPath = useCallback((): void => {
-    onImportPath(simplifyPathPoints(draftPathPoints))
-  }, [draftPathPoints, onImportPath])
-
   // Actor markers импортируем отдельным явным действием.
   // Так пользователь может сначала спокойно расставить несколько preview markers,
   // а уже потом одним кликом применить их обратно к actor_create nodes в graph.
@@ -1477,13 +1188,6 @@ export function RoomVisualEditorModal({
     }
     onImportActors(importableActors)
   }, [draftActors, onImportActors])
-
-  // SVG polyline удобно рисовать прямо поверх stitched canvas,
-  // потому что точки и подписи остаются независимыми от самого PNG слоя.
-  const draftPathPolyline = useMemo(
-    () => draftPathPoints.map((point) => `${point.x},${point.y}`).join(' '),
-    [draftPathPoints]
-  )
 
   // Preview-сегмент помогает видеть итог straight-line до отпускания кнопки мыши.
   const draftPathPreviewPolyline = useMemo(() => {
@@ -1648,6 +1352,10 @@ export function RoomVisualEditorModal({
     [updateVisualSettingFromNumber]
   )
 
+  const handleStopPropagation = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
+    event.stopPropagation()
+  }, [])
+
   // Основной контент visual editor переиспользуется и для modal, и для standalone window.
   // Разница только в внешней оболочке и размерах контейнера.
   const content = (
@@ -1774,24 +1482,11 @@ export function RoomVisualEditorModal({
     return <div className="roomVisualEditorWindowRoot">{content}</div>
   }
 
-  // Inline click handlers вынесены в useCallback для предотвращения лишних ререндеров
   const handleOverlayClick = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
     if (event.target === overlayRef.current) {
       onClose()
     }
   }, [onClose])
-
-  const handleStopPropagation = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
-    event.stopPropagation()
-  }, [])
-
-  const handleRoomChange = useCallback((value: string): void => {
-    setSelectedRoom(value)
-  }, [])
-
-  const handleRefresh = useCallback((): void => {
-    setRefreshToken((prev) => prev + 1)
-  }, [])
 
   return (
     <div

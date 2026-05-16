@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect } from 'react'
 import type { CSSProperties } from 'react'
 
 import type { DockSlotId, LayoutState, Size, Vec2 } from './layoutTypes'
@@ -24,7 +24,6 @@ export type DockedPanelRenderEntry = {
 }
 
 export type UseDockingParams = {
-  getPanelTitle: (panelId: string) => string
   showDockDropPreview: boolean
 }
 
@@ -34,7 +33,6 @@ export type UseDockingResult = {
   togglePanel: (panelId: string) => void
   togglePanelCollapse: (panelId: string) => void
   isPanelVisible: (panelId: string) => boolean
-  allPanels: Array<{ id: string; label: string }>
   getVerticalDockRenderState: (entries: Array<DockedPanelRenderEntry | null>) => {
     orderedEntries: DockedPanelRenderEntry[]
     fillRemainingPanelId: string | null
@@ -111,7 +109,7 @@ const enforceSlotCapacity = (
 }
 
 export function useDocking(params: UseDockingParams): UseDockingResult {
-  const { getPanelTitle, showDockDropPreview } = params
+  const { showDockDropPreview } = params
   const ctx = useDockingContext()
 
   // --- getDockHitTestRect ---
@@ -378,15 +376,16 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
   }
 
   // --- togglePanel ---
-  const togglePanel = (panelId: string) => {
-    const current = ctx.layoutRef.current.panels[panelId]
+  const togglePanel = useCallback((panelId: string) => {
+    const layout = ctx.layoutRef.current
+    const current = layout.panels[panelId]
     if (!current) return
 
     if (current.mode !== 'hidden') {
       const nextDocked = {
-        left: [...ctx.layout.docked.left],
-        right: [...ctx.layout.docked.right],
-        bottom: [...ctx.layout.docked.bottom]
+        left: [...layout.docked.left],
+        right: [...layout.docked.right],
+        bottom: [...layout.docked.bottom]
       }
       removeFromAllSlots(nextDocked, panelId)
 
@@ -394,10 +393,10 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
       const lastFloatingSize = current.size ?? current.lastFloatingSize ?? null
 
       ctx.setLayout({
-        ...ctx.layout,
+        ...layout,
         docked: nextDocked,
         panels: {
-          ...ctx.layout.panels,
+          ...layout.panels,
           [panelId]: {
             ...current,
             mode: 'hidden',
@@ -416,11 +415,11 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
     const preferredDockSlot = current.lastDockedSlot
     if (preferredDockSlot) {
       const nextDocked = {
-        left: [...ctx.layout.docked.left],
-        right: [...ctx.layout.docked.right],
-        bottom: [...ctx.layout.docked.bottom]
+        left: [...layout.docked.left],
+        right: [...layout.docked.right],
+        bottom: [...layout.docked.bottom]
       }
-      const nextPanels = { ...ctx.layout.panels }
+      const nextPanels = { ...layout.panels }
 
       removeFromAllSlots(nextDocked, panelId)
       insertIntoSlot(nextDocked, preferredDockSlot, panelId, nextDocked[preferredDockSlot].length)
@@ -428,7 +427,7 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
 
       if (nextPanels[panelId]?.mode !== 'hidden') {
         ctx.setLayout({
-          ...ctx.layout,
+          ...layout,
           docked: nextDocked,
           panels: {
             ...nextPanels,
@@ -465,12 +464,12 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
       y: rootRect ? Math.max(60, (rootRect.height - clampedHeight) / 2) : 80
     }
 
-    const maxZ = Math.max(1, ...Object.values(ctx.layout.panels).map((p) => p.zIndex ?? 1))
+    const maxZ = Math.max(1, ...Object.values(layout.panels).map((p) => p.zIndex ?? 1))
 
     ctx.setLayout({
-      ...ctx.layout,
+      ...layout,
       panels: {
-        ...ctx.layout.panels,
+        ...layout.panels,
         [panelId]: {
           ...current,
           mode: 'floating',
@@ -481,27 +480,14 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
         }
       }
     })
-  }
+  }, [])
 
   // --- isPanelVisible ---
-  const isPanelVisible = (panelId: string): boolean => {
-    const p = ctx.layout.panels[panelId]
+  const isPanelVisible = useCallback((panelId: string): boolean => {
+    const p = ctx.layoutRef.current.panels[panelId]
     if (!p) return false
     return p.mode !== 'hidden'
-  }
-
-  // --- allPanels ---
-  const allPanels = useMemo(() => {
-    return [
-      { id: 'panel.actions', label: getPanelTitle('panel.actions') },
-      { id: 'panel.bookmarks', label: getPanelTitle('panel.bookmarks') },
-      { id: 'panel.notes', label: getPanelTitle('panel.notes') },
-      { id: 'panel.text', label: getPanelTitle('panel.text') },
-      { id: 'panel.inspector', label: getPanelTitle('panel.inspector') },
-      { id: 'panel.logs', label: getPanelTitle('panel.logs') },
-      { id: 'panel.templates', label: getPanelTitle('panel.templates') }
-    ]
-  }, [getPanelTitle])
+  }, [])
 
   // --- startPanelDrag ---
   const startPanelDrag = (panelId: string) => (event: React.PointerEvent<HTMLElement>) => {
@@ -1190,7 +1176,6 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
     togglePanel,
     togglePanelCollapse,
     isPanelVisible,
-    allPanels,
     getVerticalDockRenderState,
     getDockedPanelStyle,
     clamp

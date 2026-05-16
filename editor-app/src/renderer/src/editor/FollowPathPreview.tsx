@@ -170,7 +170,7 @@ function getMarkerPoint(
 
 // Компонент показывает безопасный editor-side preview пути.
 // Он не зависит от layout canvas и не подменяет реальные room coordinates.
-function FollowPathPreview(props: FollowPathPreviewProps): React.JSX.Element {
+function FollowPathPreviewComponent(props: FollowPathPreviewProps): React.JSX.Element {
   const { points, speedPxPerSecond, title, hint, emptyLabel, worldSpaceLabel } = props
 
   // Нормализуем входные точки один раз на набор points.
@@ -330,4 +330,4 @@ function FollowPathPreview(props: FollowPathPreviewProps): React.JSX.Element {
   )
 }
 
-export const FollowPathPreview = memo(FollowPathPreview)
+export const FollowPathPreview = memo(FollowPathPreviewComponent)

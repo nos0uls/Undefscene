@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { useReactFlow, useStore } from '@xyflow/react'
+import { useReactFlow, useStore, useStoreApi } from '@xyflow/react'
 import type { RuntimeNote } from './runtimeTypes'
 import { Drama, Camera, Volume2, ListChecks, AlertTriangle, X } from 'lucide-react'
 
@@ -49,19 +49,22 @@ export type CanvasNotesOverlayProps = {
   onFocusNode?: (nodeId: string) => void
 }
 
-const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
-  note,
-  viewport,
-  onUpdateNote,
-  onDeleteNote,
-  onFocusNode
-}: {
+type CanvasNoteStickerProps = {
   note: RuntimeNote
-  viewport: { x: number; y: number; zoom: number }
   onUpdateNote: CanvasNotesOverlayProps['onUpdateNote']
   onDeleteNote: CanvasNotesOverlayProps['onDeleteNote']
   onFocusNode?: CanvasNotesOverlayProps['onFocusNode']
-}) {
+  registerSticker: (id: string, el: HTMLDivElement | null) => void
+}
+
+const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
+  note,
+  onUpdateNote,
+  onDeleteNote,
+  onFocusNode,
+  registerSticker
+}: CanvasNoteStickerProps) {
+  const storeApi = useStoreApi()
   const nodes = useStore((s) => s.nodes)
   const { screenToFlowPosition, getNodes } = useReactFlow()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -81,7 +84,19 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
   const node = note.nodeId ? nodes.find((n) => n.id === note.nodeId) : undefined
   const renderX = node ? node.position.x + SNAP_OFFSET_X : note.x
   const renderY = node ? node.position.y + SNAP_OFFSET_Y : note.y
-  const pos = flowToScreen(renderX, renderY, viewport)
+
+  // Берём актуальный viewport из store на момент рендера.
+  // Подписка в CanvasNotesOverlay обновляет style.left/top напрямую во время pan,
+  // поэтому компонент не перерендеривается на каждый кадр.
+  const viewport = storeApi.getState().transform
+  const pos = flowToScreen(renderX, renderY, { x: viewport[0], y: viewport[1], zoom: viewport[2] })
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    registerSticker(note.id, el)
+    return () => registerSticker(note.id, null)
+  }, [note.id, registerSticker])
 
   // Обновляем ref при изменении render координат
   useEffect(() => {
@@ -367,7 +382,42 @@ export const CanvasNotesOverlay = React.memo(function CanvasNotesOverlay({
   onDeleteNote,
   onFocusNode
 }: CanvasNotesOverlayProps): React.JSX.Element {
-  const viewport = useStore((s) => ({ x: s.transform[0], y: s.transform[1], zoom: s.transform[2] }))
+  const storeApi = useStoreApi()
+  const stickerRefs = useRef(new Map<string, HTMLDivElement>())
+  const notesRef = useRef(notes)
+  notesRef.current = notes
+
+  const registerSticker = useCallback((id: string, el: HTMLDivElement | null) => {
+    if (el) stickerRefs.current.set(id, el)
+    else stickerRefs.current.delete(id)
+  }, [])
+
+  // Подписываемся на zustand store и обновляем DOM напрямую,
+  // чтобы избежать ререндера всех заметок на каждый кадр pan.
+  useEffect(() => {
+    const updatePositions = () => {
+      const state = storeApi.getState()
+      const [x, y, zoom] = state.transform
+      const map = stickerRefs.current
+      for (const note of notesRef.current) {
+        const el = map.get(note.id)
+        if (!el) continue
+        const node = note.nodeId
+          ? state.nodes.find((n) => n.id === note.nodeId)
+          : undefined
+        const renderX = node ? node.position.x + SNAP_OFFSET_X : note.x
+        const renderY = node ? node.position.y + SNAP_OFFSET_Y : note.y
+        const screenX = (renderX - x) * zoom
+        const screenY = (renderY - y) * zoom
+        el.style.left = `${screenX}px`
+        el.style.top = `${screenY}px`
+      }
+    }
+
+    const unsub = storeApi.subscribe(updatePositions)
+    updatePositions()
+    return unsub
+  }, [storeApi])
 
   if (!notes || notes.length === 0) return <></>
 
@@ -385,10 +435,10 @@ export const CanvasNotesOverlay = React.memo(function CanvasNotesOverlay({
         <CanvasNoteSticker
           key={note.id}
           note={note}
-          viewport={viewport}
           onUpdateNote={onUpdateNote}
           onDeleteNote={onDeleteNote}
           onFocusNode={onFocusNode}
+          registerSticker={registerSticker}
         />
       ))}
     </div>

@@ -1,5 +1,6 @@
 import { Handle, Position } from '@xyflow/react'
 import { memo, useMemo } from 'react'
+import type { CSSProperties } from 'react'
 import { BaseNode } from './BaseNode'
 import { usePreferencesContext } from '../PreferencesContext'
 import { useNodeActionsRef } from '../NodeActionsContext'
@@ -578,7 +579,7 @@ export const BranchNode = memo(function BranchNode({ data, selected }: CutsceneN
   const condition = data.params?.condition ?? ''
   
   // Выносим inline style в useMemo для избежания создания новых объектов на каждом рендере
-  const trueLabelStyle = useMemo(() => ({
+  const trueLabelStyle = useMemo((): CSSProperties => ({
     position: 'absolute',
     right: 18,
     top: '25%',
@@ -591,7 +592,7 @@ export const BranchNode = memo(function BranchNode({ data, selected }: CutsceneN
     userSelect: 'none'
   }), [])
 
-  const falseLabelStyle = useMemo(() => ({
+  const falseLabelStyle = useMemo((): CSSProperties => ({
     position: 'absolute',
     right: 18,
     top: '75%',

@@ -1,15 +1,15 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { createTranslator, type SupportedLanguage } from '../i18n'
 import type { RoomScreenshotBundle } from './RoomVisualEditorTypes'
 
 type RoomVisualEditorCanvasProps = {
   bundle: RoomScreenshotBundle | null
   language: SupportedLanguage
-  onStitchError?: (message: string) => void
+  onStitchError?: (message: string | null) => void
 }
 
 // Грузим data URL в HTMLImageElement, чтобы потом можно было нарисовать tile на canvas.
-function loadImage(dataUrl: string): Promise<HTMLImageElement> {
+export function loadImage(dataUrl: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => resolve(img)
@@ -24,7 +24,7 @@ export const RoomVisualEditorCanvas = ({
   onStitchError
 }: RoomVisualEditorCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const t = createTranslator(language)
+  const t = useMemo(() => createTranslator(language), [language])
 
   // Кеш уже склеенных комнат
   const stitchedRoomCacheRef = useRef<Map<string, string>>(new Map())

@@ -11,7 +11,7 @@ import { usePreferencesContext } from './PreferencesContext'
 import { createTranslator } from '../i18n'
 
 type DockingLayoutProps = React.PropsWithChildren<{
-  renderPanelContents: (panelId: string) => React.JSX.Element
+  renderPanelContents: (panelId: string) => React.JSX.Element | null
   getPanelTitle: (panelId: string) => string
   getPanelBadge?: (panelId: string) => React.ReactNode
   collapsePanelLabel: string
@@ -24,7 +24,7 @@ type DockingLayoutProps = React.PropsWithChildren<{
   showDockDropPreview?: boolean
 }>
 
-function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
+const DockingLayoutInner = React.memo(function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
   const {
     renderPanelContents,
     getPanelTitle,
@@ -49,7 +49,7 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
     togglePanelCollapse,
     getVerticalDockRenderState,
     getDockedPanelStyle
-  } = useDocking({ getPanelTitle, showDockDropPreview: showDockDropPreview ?? true })
+  } = useDocking({ showDockDropPreview: showDockDropPreview ?? true })
 
   const [activeBottomTabId, setActiveBottomTabId] = useState<string | null>(null)
 
@@ -575,7 +575,7 @@ function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
       {children}
     </div>
   )
-}
+})
 
 export const DockingLayout = memo(DockingLayoutInner)
 

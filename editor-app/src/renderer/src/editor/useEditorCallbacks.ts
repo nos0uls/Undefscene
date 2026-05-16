@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useMemo } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 
 import type { LayoutState } from './useLayoutState'
-import { DockingProvider, useDockingContext, type CollapsedDocksState } from './DockingContext'
+import type { CollapsedDocksState } from './DockingContext'
 import { COLLAPSED_HEADER_HEIGHT } from './dockingConstants'
 import type { CutsceneTemplateSnippet } from './templateStorage'
 import { createTemplate, prepareTemplateForInsertion, saveTemplates } from './templateStorage'
-import type { RuntimeNote } from './runtimeTypes'
+import type { RuntimeNote, RuntimeState } from './runtimeTypes'
+import type { HotkeyActionId } from './usePreferences'
 import { useToasts, pushSuccess, pushError, pushInfo } from './ToastHub'
 import { useConfirm } from './confirmContext'
 
@@ -17,7 +19,7 @@ export interface EditorCallbacksReturn {
   handleRenameTemplate: (templateId: string, newName: string) => void
   handleDeleteTemplate: (templateId: string) => void
   handleToggleZenMode: () => void
-  hotkeyHandlers: Array<{ actionId: string; handler: () => void }>
+  hotkeyHandlers: Array<{ actionId: HotkeyActionId; handler: () => void }>
   handleToggleLogFilter: (key: 'errors' | 'warnings' | 'tips') => void
   handleLogsSelectNode: (nodeId: string) => void
   handleLogsSelectEdge: (edgeId: string) => void
@@ -35,7 +37,7 @@ export interface EditorCallbacksReturn {
   handleExit: () => void
   handlePreferences: () => void
   selectNode: (nodeId: string) => void
-  handleAddNote: (note: RuntimeNote) => void
+  handleAddNote: (note: Omit<RuntimeNote, 'id' | 'pinned' | 'x' | 'y'> & { id?: string; pinned?: boolean; x?: number; y?: number }) => void
   handleUpdateNote: (id: string, patch: Partial<RuntimeNote>) => void
   handleDeleteNote: (id: string) => void
   handleSelectNote: (x: number, y: number) => void
@@ -49,28 +51,31 @@ export function useEditorCallbacks(
   templates: CutsceneTemplateSnippet[],
   setTemplates: (templates: CutsceneTemplateSnippet[]) => void,
   runtime: { nodes: { id: string; position?: { x: number; y: number } }[]; selectedNodeIds: string[]; edges: unknown[]; notes: RuntimeNote[] },
-  setRuntime: (updater: (prev: unknown) => unknown) => void,
+  setRuntime: (
+    nextOrUpdater: RuntimeState | ((prev: RuntimeState) => RuntimeState),
+    options?: { skipHistory?: boolean }
+  ) => void,
   setFocusNodeRequest: (request: { nodeId: string; nonce: number } | null) => void,
   setFocusPositionRequest: (request: { x: number; y: number; zoom: number; nonce: number } | null) => void,
-  setLogsFilters: (filters: { errors: boolean; warnings: boolean; tips: boolean }) => void,
-  setShowSavedIndicator: (show: boolean) => void,
+  setLogsFilters: Dispatch<SetStateAction<{ errors: boolean; warnings: boolean; tips: boolean }>>,
+  _setShowSavedIndicator: (show: boolean) => void,
   togglePanel: (panelId: string) => void,
   preferences: { showDockDropPreview: boolean; autoSaveEnabled: boolean; autoSaveIntervalMinutes: number; visualEditorTechMode: boolean; disableHardwareAcceleration: boolean; language: string | null; keybindings: unknown },
-  updatePreferences: (prefs: Partial<{ visualEditorTechMode: boolean; disableHardwareAcceleration: boolean }>) => void,
+  updatePreferences: (prefs: Partial<{ visualEditorTechMode: boolean; disableHardwareAcceleration: boolean; screenshotOutputDir: string | null }>) => void,
   toasts: ReturnType<typeof useToasts>,
   confirm: ReturnType<typeof useConfirm>,
   t: (key: string, fallback: string) => string,
-  openProject: () => void,
-  handleExport: () => void,
-  handleNew: () => void,
-  handleCreateExample: () => void,
-  handleOpenScene: () => void,
-  handleSave: () => void,
-  handleSaveAs: () => void,
-  undo: () => void,
-  redo: () => void,
-  openVisualEditorWindow: () => void,
-  sceneFilePath: string | null
+  _openProject: () => void,
+  _handleExport: () => void,
+  _handleNew: () => void,
+  _handleCreateExample: () => void,
+  _handleOpenScene: () => void,
+  _handleSave: () => void,
+  _handleSaveAs: () => void,
+  _undo: () => void,
+  _redo: () => void,
+  _openVisualEditorWindow: () => void,
+  _sceneFilePath: string | null
 ): EditorCallbacksReturn {
   const getPanelTitle = useCallback(
     (panelId: string): string => {
@@ -92,7 +97,7 @@ export function useEditorCallbacks(
     (name: string) => {
       const selectedNodes = runtime.nodes.filter((n) => runtime.selectedNodeIds.includes(n.id))
       const selectedEdges = runtime.edges.filter(
-        (e) => selectedNodes.some((n) => n.id === e.source) && selectedNodes.some((n) => n.id === e.target)
+        (e) => selectedNodes.some((n) => n.id === (e as { source: string; target: string }).source) && selectedNodes.some((n) => n.id === (e as { source: string; target: string }).target)
       )
       const newTemplate = createTemplate(name, selectedNodes as any, selectedEdges as any)
       const nextTemplates = [...templates, newTemplate]
@@ -146,8 +151,7 @@ export function useEditorCallbacks(
   const handleToggleZenMode = useCallback(() => {
     // Сохраняем текущее состояние доков в layout.docks
     const nextLayout: LayoutState = {
-      ...layout,
-      docks: { ...collapsedDocks }
+      ...layout
     }
 
     // Сворачиваем доки
@@ -321,9 +325,9 @@ export function useEditorCallbacks(
     window.api.preferences
       .chooseScreenshotOutputDir()
       .then((result) => {
-        if (result.canceled) return
+        if (!result) return
 
-        updatePreferences({ screenshotOutputDir: result.filePath })
+        updatePreferences({ screenshotOutputDir: result })
         pushSuccess(toasts, t('toasts.screenshotDirUpdated', 'Screenshot output directory updated'))
       })
       .catch((err) => {
@@ -338,24 +342,25 @@ export function useEditorCallbacks(
     })
   }, [preferences.visualEditorTechMode, updatePreferences])
 
-  const handleCleanupDevData = useCallback(() => {
-    if (!window.api?.dev?.cleanupDevData) {
-      console.warn('Dev API not available')
+  const handleCleanupDevData = useCallback(async () => {
+    if (!window.api?.appInfo?.cleanupDevData) {
+      console.warn('App info API not available')
       return
     }
 
-    confirm({
+    const confirmed = await confirm({
       title: t('dialog.cleanupDevDataTitle', 'Cleanup development data'),
-      message: t('dialog.cleanupDevDataMessage', 'This will delete all temporary development data. Are you sure?'),
-      onConfirm: () => {
-        window.api.dev.cleanupDevData().then(() => {
-          pushSuccess(toasts, t('toasts.devDataCleaned', 'Development data cleaned'))
-        }).catch((err) => {
-          const msg = err instanceof Error ? err.message : String(err)
-          pushError(toasts, msg, { title: t('toasts.devDataCleanupFailed', 'Failed to cleanup development data') })
-        })
-      }
+      message: t('dialog.cleanupDevDataMessage', 'This will delete all temporary development data. Are you sure?')
     })
+    if (!confirmed) return
+
+    try {
+      await window.api.appInfo.cleanupDevData()
+      pushSuccess(toasts, t('toasts.devDataCleaned', 'Development data cleaned'))
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      pushError(toasts, msg, { title: t('toasts.devDataCleanupFailed', 'Failed to cleanup development data') })
+    }
   }, [confirm, toasts, t])
 
   const handleAbout = useCallback(() => {
@@ -406,10 +411,18 @@ export function useEditorCallbacks(
 
   // Notes callbacks
   const handleAddNote = useCallback(
-    (note: RuntimeNote) => {
+    (note: Omit<RuntimeNote, 'id' | 'pinned' | 'x' | 'y'> & { id?: string; pinned?: boolean; x?: number; y?: number }) => {
+      const fullNote: RuntimeNote = {
+        id: note.id ?? `note_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        text: note.text,
+        category: note.category,
+        x: note.x ?? 0,
+        y: note.y ?? 0,
+        pinned: note.pinned ?? false
+      }
       setRuntime((prev: any) => ({
         ...prev,
-        notes: [...prev.notes, note]
+        notes: [...prev.notes, fullNote]
       }))
     },
     [setRuntime]
@@ -450,7 +463,6 @@ export function useEditorCallbacks(
     handleDeleteTemplate,
     handleToggleZenMode,
     hotkeyHandlers,
-    handleSaveSuccess,
     handleToggleLogFilter,
     handleLogsSelectNode,
     handleLogsSelectEdge,

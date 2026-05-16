@@ -336,8 +336,9 @@ export const NotesPanel = React.memo(function NotesPanel({
   }, [notes, filter])
 
   const handleAdd = useCallback(() => {
-    onAddNote({ text: t('editor.newNoteText', 'New note'), category: 'todo' })
-  }, [onAddNote, t])
+    const category = filter ?? 'todo'
+    onAddNote({ text: t('editor.newNoteText', 'New note'), category })
+  }, [onAddNote, t, filter])
 
   return (
     <div className="runtimeSection" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>

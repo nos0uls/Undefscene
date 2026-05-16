@@ -15,7 +15,7 @@ type UpdateStatus =
   | { kind: 'ready' }
   | { kind: 'error'; message: string }
 
-function UpdateNotification(): React.JSX.Element | null {
+function UpdateNotificationInner(): React.JSX.Element | null {
   const { preferences } = usePreferencesContext()
   const t = createTranslator(preferences.language ?? 'en')
 
@@ -157,4 +157,4 @@ function UpdateNotification(): React.JSX.Element | null {
   )
 }
 
-export const UpdateNotification = memo(UpdateNotification)
+export const UpdateNotification = memo(UpdateNotificationInner)

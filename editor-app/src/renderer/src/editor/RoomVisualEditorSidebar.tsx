@@ -1,4 +1,5 @@
 import { memo } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import type { VisualEditorActorPreview, VisualEditorSelectedNode, RoomScreenshotBundle } from './RoomVisualEditorTypes'
 
 type RoomVisualEditorSidebarProps = {
@@ -24,8 +25,8 @@ type RoomVisualEditorSidebarProps = {
   importDraftPath: () => void
   stopPlayPreview: () => void
   clearTransientInteractionState: () => void
-  setActiveTool: (tool: 'select' | 'pencil' | 'eraser' | null) => void
-  setIsActorPlacementMode: (value: boolean) => void
+  setActiveTool: Dispatch<SetStateAction<'select' | 'pencil' | 'eraser' | null>>
+  setIsActorPlacementMode: Dispatch<SetStateAction<boolean>>
   draftActors: VisualEditorActorPreview[]
   selectedActorId: string | null
   selectedActor: VisualEditorActorPreview | null

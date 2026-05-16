@@ -45,7 +45,7 @@ export const PreferencesKeyboardSection = React.memo(function PreferencesKeyboar
                 className="runtimeButton"
                 type="button"
                 onClick={() =>
-                  setCapturingActionId((prev) => (prev === actionId ? null : actionId))
+                  setCapturingActionId(capturingActionId === actionId ? null : actionId)
                 }
                 style={{ minWidth: 136 }}
               >

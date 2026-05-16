@@ -2,7 +2,6 @@
 // Открывается из File → Preferences. Закрывается по Esc или кнопке Close.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { THEMES, type ThemeId } from './useTheme'
 import type { EditorPreferences, HotkeyActionId } from './usePreferences'
 import { DEFAULT_KEYBINDINGS, HOTKEY_ACTION_IDS } from './usePreferences'
 import {

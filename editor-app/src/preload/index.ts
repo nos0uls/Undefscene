@@ -200,7 +200,11 @@ const api = {
     openDevTools: (): Promise<unknown> => ipcRenderer.invoke('app.openDevTools'),
     copyLogToClipboard: (): Promise<unknown> => ipcRenderer.invoke('app.copyLogToClipboard'),
     cleanupDevData: (): Promise<unknown> => ipcRenderer.invoke('app.cleanupDevData'),
-    setZoomFactor: (factor: number): void => webFrame.setZoomFactor(factor)
+    setZoomFactor: (factor: number): void => webFrame.setZoomFactor(factor),
+    openAbout: (): Promise<unknown> => ipcRenderer.invoke('app.openAbout'),
+    openTutorial: (): Promise<unknown> => ipcRenderer.invoke('app.openTutorial'),
+    exit: (): Promise<unknown> => ipcRenderer.invoke('app.exit'),
+    openPreferences: (): Promise<unknown> => ipcRenderer.invoke('app.openPreferences')
   }
 }
 

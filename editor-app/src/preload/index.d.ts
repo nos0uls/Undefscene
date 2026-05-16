@@ -316,6 +316,10 @@ export interface RendererApi {
     copyLogToClipboard: () => Promise<{ copied: boolean }>
     cleanupDevData: () => Promise<{ success: boolean; error?: string }>
     setZoomFactor: (factor: number) => void
+    openAbout: () => Promise<void>
+    openTutorial: () => Promise<void>
+    exit: () => Promise<void>
+    openPreferences: () => Promise<void>
   }
 }
 

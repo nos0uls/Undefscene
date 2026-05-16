@@ -1,7 +1,7 @@
 import React, { memo, useEffect } from 'react'
 
 type FlowCanvasKeyboardShortcutsProps = {
-  fitView: (options?: { duration?: number; padding?: number }) => void | Promise<void>
+  fitView: (options?: { duration?: number; padding?: number }) => void | Promise<void | boolean>
 }
 
 export const FlowCanvasKeyboardShortcuts = memo(function FlowCanvasKeyboardShortcuts({

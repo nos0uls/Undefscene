@@ -12,24 +12,33 @@ type UseViewportControlsProps = {
   bundle: RoomScreenshotBundle | null
   stopPlayPreview: () => void
   clearTransientInteractionState: () => void
+  dragPanRef?: React.MutableRefObject<{
+    pointerId: number
+    startClientX: number
+    startClientY: number
+    startOffsetX: number
+    startOffsetY: number
+  } | null>
 }
 
 export function useViewportControls({
   bundle,
   stopPlayPreview,
-  clearTransientInteractionState
+  clearTransientInteractionState,
+  dragPanRef: externalDragPanRef
 }: UseViewportControlsProps) {
   const [zoom, setZoom] = useState(1)
   const [offset, setOffset] = useState({ x: 24, y: 24 })
 
   const viewportRef = useRef<HTMLDivElement>(null)
-  const dragPanRef = useRef<{
+  const internalDragPanRef = useRef<{
     pointerId: number
     startClientX: number
     startClientY: number
     startOffsetX: number
     startOffsetY: number
   } | null>(null)
+  const dragPanRef = externalDragPanRef ?? internalDragPanRef
 
   // Сброс viewport к начальному состоянию.
   const resetView = useCallback((): void => {

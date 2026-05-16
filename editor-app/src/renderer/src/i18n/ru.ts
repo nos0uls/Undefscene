@@ -115,7 +115,6 @@ export const ru = {
     miniMapNodeThresholdHint: '0 = выключена, -1 = всегда включена, >0 = скрыть если нод больше',
     unassigned: 'Не назначено',
     close: 'Закрыть'
-    }
   },
   // Приветствие / обучение
   welcome: {
@@ -673,5 +672,6 @@ export const ru = {
     fit_view: 'Вписать граф',
     zen_mode: 'Zen Mode'
   }
+}
 
 export type RuDictionary = typeof ru

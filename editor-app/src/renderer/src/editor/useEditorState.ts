@@ -1,17 +1,18 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 
 import { parseYarnPreview } from './yarnPreview'
-import type { LayoutState } from './useLayoutState'
-import type { RuntimeEdge, RuntimeNote } from './runtimeTypes'
+import type { RuntimeNote } from './runtimeTypes'
 import type { ValidationContext } from './validateGraph'
 import { createTranslator, preloadLanguage } from '../i18n'
+import type { SupportedLanguage } from '../i18n'
+import type { ProjectResources } from './useProjectResources'
 import type { NameConflictModalState } from './inspectorTypes'
 import { loadTemplates } from './templateStorage'
 import type { CutsceneTemplateSnippet } from './templateStorage'
+import type { ValidationRuleOverrides } from './validationRuleOverrides'
 import { loadValidationOverrides } from './validationRuleOverrides'
-import type { ValidationSeverityOverride } from './validationRuleOverrides'
-import { applyOverrides } from './validationRuleOverrides'
 
 export interface EditorStateReturn {
   // Local state
@@ -37,8 +38,8 @@ export interface EditorStateReturn {
   setSelectedYarnPreviewTitle: (title: string | null) => void
   templates: CutsceneTemplateSnippet[]
   setTemplates: (templates: CutsceneTemplateSnippet[]) => void
-  ruleOverrides: ValidationSeverityOverride[]
-  setRuleOverrides: (overrides: ValidationSeverityOverride[]) => void
+  ruleOverrides: ValidationRuleOverrides
+  setRuleOverrides: Dispatch<SetStateAction<ValidationRuleOverrides>>
   welcomeOpen: boolean
   setWelcomeOpen: (open: boolean) => void
   pendingNodeName: string
@@ -52,7 +53,7 @@ export interface EditorStateReturn {
   focusPositionRequest: { x: number; y: number; zoom: number; nonce: number } | null
   setFocusPositionRequest: (request: { x: number; y: number; zoom: number; nonce: number } | null) => void
   logsFilters: { errors: boolean; warnings: boolean; tips: boolean }
-  setLogsFilters: (filters: { errors: boolean; warnings: boolean; tips: boolean }) => void
+  setLogsFilters: Dispatch<SetStateAction<{ errors: boolean; warnings: boolean; tips: boolean }>>
 
   // Refs
   nameConflictOkRef: React.RefObject<HTMLButtonElement | null>
@@ -78,12 +79,12 @@ export function useEditorState(
   preferences: { language: string | null; hasCompletedInitialSetup: boolean; hasCompletedTutorial: boolean; hasCompletedInspectorTutorial: boolean; hasCompletedVisualEditingTutorial: boolean },
   preferencesLoaded: boolean,
   updatePreferences: (prefs: Partial<{ hasCompletedInitialSetup: boolean; hasCompletedTutorial: boolean; hasCompletedInspectorTutorial: boolean; hasCompletedVisualEditingTutorial: boolean }>) => void,
-  resources: { objects?: string[]; projectDir?: string } | null,
+  resources: ProjectResources | null,
   engineSettings: { runFunctions?: unknown; branchConditions?: unknown } | null,
   yarnFiles: { file: string; nodes: unknown[] }[] | null,
   runtime: { nodes: { id: string; type: string; params?: { file?: string; node?: string; actor_name?: string } }[]; selectedNodeId: string | null; selectedNodeIds: string[]; selectedEdgeId: string | null; notes: RuntimeNote[] }
 ): EditorStateReturn {
-  const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
+  const t = useMemo(() => createTranslator((preferences.language as SupportedLanguage) ?? 'en'), [preferences.language])
 
   // Local state
   const [sceneFilePath, setSceneFilePath] = useState<string | null>(null)
@@ -102,7 +103,7 @@ export function useEditorState(
 
   const [templates, setTemplates] = useState<CutsceneTemplateSnippet[]>([])
 
-  const [ruleOverrides, setRuleOverrides] = useState<ValidationSeverityOverride[]>([])
+  const [ruleOverrides, setRuleOverrides] = useState<ValidationRuleOverrides>({})
 
   const [welcomeOpen, setWelcomeOpen] = useState(false)
 
@@ -133,7 +134,7 @@ export function useEditorState(
   // Предзагрузка словаря i18n для выбранного языка
   useEffect(() => {
     if (!preferencesLoaded) return
-    preloadLanguage(preferences.language).catch((error) => {
+    preloadLanguage((preferences.language as SupportedLanguage) ?? 'en').catch((error) => {
       console.error('Failed to preload language:', error)
     })
   }, [preferencesLoaded, preferences.language])
@@ -295,12 +296,12 @@ export function useEditorState(
   const validationContext: ValidationContext | undefined = useMemo(() => {
     if (!resources && !engineSettings) return undefined
     return {
-      language: preferences.language ?? 'en',
+      language: (preferences.language as SupportedLanguage) ?? 'en',
       objects: resources?.objects,
       sprites: resources?.sprites,
-      yarnFiles: yarnFiles ? new Map(yarnFiles.map((y) => [y.file, y.nodes])) : undefined,
-      runFunctions: engineSettings?.runFunctions,
-      branchConditions: engineSettings?.branchConditions
+      yarnFiles: yarnFiles ? new Map(yarnFiles.map((y) => [y.file, y.nodes as string[]])) : undefined,
+      runFunctions: engineSettings?.runFunctions as string[] | undefined,
+      branchConditions: engineSettings?.branchConditions as string[] | undefined
     }
   }, [preferences.language, resources, engineSettings, yarnFiles])
 

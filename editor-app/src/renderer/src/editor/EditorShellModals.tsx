@@ -59,7 +59,6 @@ export function EditorShellModals({
   handleOpenDocs,
   setAboutOpen,
   nameConflictModal,
-  pendingNodeName,
   setPendingNodeName,
   setNameConflictModal,
   nameConflictOkRef,

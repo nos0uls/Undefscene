@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 
 import type { ValidationResult, ValidationContext } from './validateGraph'
-import type { ValidationSeverityOverride } from './validationRuleOverrides'
+import type { RuntimeState } from './runtimeTypes'
+import type { ValidationSeverityOverride, ValidationRuleOverrides } from './validationRuleOverrides'
 import { applyOverrides } from './validationRuleOverrides'
 
 export interface EditorValidationReturn {
@@ -24,10 +26,10 @@ export interface EditorValidationReturn {
 }
 
 export function useEditorValidation(
-  runtime: { nodes: unknown[]; edges: unknown[]; selectedNodeId: string | null; selectedNodeIds: string[]; selectedEdgeId: string | null },
+  runtime: RuntimeState,
   validationContext: ValidationContext | undefined,
-  ruleOverrides: ValidationSeverityOverride[],
-  setRuleOverrides: (overrides: ValidationSeverityOverride[]) => void,
+  ruleOverrides: ValidationRuleOverrides,
+  setRuleOverrides: Dispatch<SetStateAction<ValidationRuleOverrides>>,
   logsFilters: { errors: boolean; warnings: boolean; tips: boolean },
   preferencesLanguage: string | null,
   t: (key: string, fallback: string) => string
@@ -35,7 +37,7 @@ export function useEditorValidation(
   const [validation, setValidation] = useState<ValidationResult>({ entries: [], hasErrors: false })
 
   // Lazy-loaded validateGraph function (68KB module)
-  const [validateGraphFn, setValidateGraphFn] = useState<((graph: ValidationContext, context: ValidationContext) => ValidationResult) | null>(null)
+  const [validateGraphFn, setValidateGraphFn] = useState<((state: RuntimeState, context?: ValidationContext) => ValidationResult) | null>(null)
 
   // Валидация графа — дорогая операция на больших графах
   useEffect(() => {
@@ -47,12 +49,7 @@ export function useEditorValidation(
           const id = setTimeout(() => {
             setValidation(
               validateGraphFn(
-                {
-                  ...runtime,
-                  selectedNodeId: null,
-                  selectedNodeIds: [],
-                  selectedEdgeId: null
-                },
+                runtime as RuntimeState,
                 validationContext
               )
             )
@@ -64,25 +61,20 @@ export function useEditorValidation(
           const module = await import('./validateGraph')
           if (!cancelled) {
             setValidateGraphFn(() => module.validateGraph)
-            const id = setTimeout(() => {
+            setTimeout(() => {
               setValidation(
                 module.validateGraph(
-                  {
-                    ...runtime,
-                    selectedNodeId: null,
-                    selectedNodeIds: [],
-                    selectedEdgeId: null
-                  },
+                  runtime as RuntimeState,
                   validationContext
                 )
               )
             }, 0)
-            return () => clearTimeout(id)
           }
         } catch (error) {
           console.error('Failed to load validateGraph module:', error)
         }
       }
+      return undefined
     }
 
     loadAndValidate()
@@ -90,7 +82,15 @@ export function useEditorValidation(
     return () => {
       cancelled = true
     }
-  }, [runtime, validationContext, validateGraphFn])
+  }, [
+    runtime?.nodes,
+    runtime?.edges,
+    runtime?.title,
+    runtime?.schemaVersion,
+    runtime?.notes,
+    validationContext,
+    validateGraphFn
+  ])
 
   // Применяем пользовательские переопределения серьёзности к записям валидации
   const overriddenEntries = useMemo(
@@ -171,7 +171,7 @@ export function useEditorValidation(
   )
 
   const handleResetAllOverrides = useCallback(() => {
-    setRuleOverrides([])
+    setRuleOverrides({})
   }, [setRuleOverrides])
 
   return {

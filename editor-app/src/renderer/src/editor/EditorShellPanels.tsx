@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import React, { useCallback, useMemo, useRef } from 'react'
+import React, { useCallback } from 'react'
 
 import { ActionsPanel } from './ActionsPanel'
 import { BookmarksPanel } from './BookmarksPanel'
@@ -8,20 +8,25 @@ import { TextPanel } from './TextPanel'
 import { LogsPanel } from './LogsPanel'
 import { InspectorPanel } from './InspectorPanel'
 import { TemplateLibraryPanel } from './TemplateLibraryPanel'
-import type { RuntimeNote } from './runtimeTypes'
+import type { RuntimeNote, RuntimeState, RuntimeNode, RuntimeEdge } from './runtimeTypes'
+import type { ProjectResources, EngineSettings, YarnFileInfo } from './useProjectResources'
 
 export interface EditorShellPanelsProps {
-  t: (key: string, fallback: string) => string
-  runtime: any
-  setRuntime: (updater: (prev: any) => any) => void
-  selectedNode: any
+  t: (
+    path: string,
+    fallbackOrParams?: string | Record<string, string | number | undefined>,
+    maybeFallback?: string
+  ) => string
+  runtime: RuntimeState
+  setRuntime: (next: RuntimeState | ((prev: RuntimeState) => RuntimeState)) => void
+  selectedNode: RuntimeNode | null
   actorTargetOptions: string[]
-  resources: { objects?: string[]; projectDir?: string } | null
-  engineSettings: { runFunctions?: unknown; branchConditions?: unknown } | null
-  yarnFiles: { file: string; nodes: unknown[] }[] | null
+  resources: ProjectResources | null
+  engineSettings: EngineSettings | null
+  yarnFiles: YarnFileInfo[]
   pendingNodeName: string
   setPendingNodeName: (name: string) => void
-  suggestUniqueNodeName: (baseName: string) => string
+  suggestUniqueNodeName: (baseName: string, takenNames: Set<string>) => string
   setNameConflictModal: (state: any) => void
   shouldFocusEdgeWaitRef: React.MutableRefObject<boolean>
   yarnPreviewNodes: any[]
@@ -34,11 +39,13 @@ export interface EditorShellPanelsProps {
   handleLogsSelectNode: (nodeId: string) => void
   handleLogsSelectEdge: (edgeId: string) => void
   handleSetRuleOverride: (ruleId: string, severity: any) => void
-  handleAddNote: (note: RuntimeNote) => void
+  handleAddNote: (note: { text: string; category: RuntimeNote['category']; x?: number; y?: number }) => void
   handleUpdateNote: (id: string, patch: Partial<RuntimeNote>) => void
   handleDeleteNote: (id: string) => void
   handleSelectNote: (x: number, y: number) => void
   selectNode: (nodeId: string) => void
+  selectedNodes: RuntimeNode[]
+  selectedEdges: RuntimeEdge[]
   templates: any[]
   handleSaveTemplate: (name: string) => void
   handleInsertTemplate: (templateId: string) => void
@@ -81,6 +88,8 @@ export function useEditorShellPanels({
   handleDeleteNote,
   handleSelectNote,
   selectNode,
+  selectedNodes,
+  selectedEdges,
   templates,
   handleSaveTemplate,
   handleInsertTemplate,
@@ -93,7 +102,7 @@ export function useEditorShellPanels({
   canRedo,
   addNode
 }: EditorShellPanelsProps) {
-  const renderPanelContents = useCallback((panelId: string): React.JSX.Element => {
+  const renderPanelContents = useCallback((panelId: string): React.JSX.Element | null => {
     if (panelId === 'panel.actions') {
       return (
         <ActionsPanel
@@ -193,6 +202,8 @@ export function useEditorShellPanels({
         <TemplateLibraryPanel
           t={t}
           templates={templates}
+          selectedNodes={selectedNodes}
+          selectedEdges={selectedEdges}
           onSaveTemplate={handleSaveTemplate}
           onInsertTemplate={handleInsertTemplate}
           onRenameTemplate={handleRenameTemplate}
@@ -241,6 +252,8 @@ export function useEditorShellPanels({
     handleSaveTemplate,
     handleInsertTemplate,
     handleRenameTemplate,
+    selectedNodes,
+    selectedEdges,
     handleDeleteTemplate
   ])
 

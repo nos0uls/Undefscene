@@ -11,8 +11,8 @@ export const PATH_ERASE_RADIUS = 14
 const PATH_APPEND_MIN_DISTANCE = 16
 
 // Визуальный размер waypoint-точек.
-const PATH_POINT_RADIUS = 4
-const PATH_PREVIEW_POINT_RADIUS = 4
+export const PATH_POINT_RADIUS = 4
+export const PATH_PREVIEW_POINT_RADIUS = 4
 
 // Сравниваем два массива path points без лишней магии.
 export function arePathPointsEqual(
@@ -102,6 +102,13 @@ type UsePathEditorLogicProps = {
   selectedNode: VisualEditorSelectedNode | null
   onImportPath: (points: Array<{ x: number; y: number }>) => void
   clearTransientInteractionState: () => void
+  pathDrawRef?: React.MutableRefObject<{
+    pointerId: number
+    tool: 'pencil' | 'eraser'
+    anchorPoint: { x: number; y: number } | null
+    latestPoint: { x: number; y: number }
+    isStraightSegment: boolean
+  } | null>
 }
 
 export function usePathEditorLogic({
@@ -109,7 +116,8 @@ export function usePathEditorLogic({
   selectedPathPoints,
   selectedNode,
   onImportPath,
-  clearTransientInteractionState
+  clearTransientInteractionState,
+  pathDrawRef: externalPathDrawRef
 }: UsePathEditorLogicProps) {
   const [draftPathPoints, setDraftPathPoints] = useState<Array<{ x: number; y: number }>>([])
   const [pathPreviewPoint, setPathPreviewPoint] = useState<{ x: number; y: number } | null>(null)
@@ -118,13 +126,14 @@ export function usePathEditorLogic({
   const pathHistoryRef = useRef<Array<Array<{ x: number; y: number }>>>([])
   const pathHistoryIndexRef = useRef(0)
   const lastSyncedPathKeyRef = useRef('')
-  const pathDrawRef = useRef<{
+  const internalPathDrawRef = useRef<{
     pointerId: number
     tool: 'pencil' | 'eraser'
     anchorPoint: { x: number; y: number } | null
     latestPoint: { x: number; y: number }
     isStraightSegment: boolean
   } | null>(null)
+  const pathDrawRef = externalPathDrawRef ?? internalPathDrawRef
 
   // Когда меняется выбранная follow_path-нода, синхронизируем draft path.
   useEffect(() => {
