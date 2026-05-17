@@ -136,8 +136,21 @@ const NoteRow = React.memo(function NoteRow({
   const color = CATEGORY_COLORS[note.category]
   const catLabel = categoryLabel(note.category, t)
 
+  const handleDragStart = useCallback(
+    (e: React.DragEvent) => {
+      e.dataTransfer.setData('application/x-undefscene-note-id', note.id)
+      e.dataTransfer.effectAllowed = 'move'
+    },
+    [note.id]
+  )
+
   return (
-    <li className="runtimeListItem" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px' }}>
+    <li
+      className="runtimeListItem"
+      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', cursor: 'grab' }}
+      draggable
+      onDragStart={handleDragStart}
+    >
       {/* Цветовой индикатор категории */}
       <span
         title={catLabel}
@@ -311,7 +324,7 @@ const NoteRow = React.memo(function NoteRow({
           ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--ev-c-text-2)'
         }}
       >
-        \u00D7
+        {'\u00D7'}
       </button>
     </li>
   )

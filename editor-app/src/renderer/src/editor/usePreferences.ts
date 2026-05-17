@@ -260,7 +260,7 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
             : 0
           : DEFAULT_PREFERENCES.miniMapNodeThreshold,
     zoomSpeed:
-      typeof c.zoomSpeed === 'number' && c.zoomSpeed >= 0.5 && c.zoomSpeed <= 5
+      typeof c.zoomSpeed === 'number' && c.zoomSpeed >= 0.5 && c.zoomSpeed <= 10
         ? c.zoomSpeed
         : DEFAULT_PREFERENCES.zoomSpeed,
     showDockDropPreview:

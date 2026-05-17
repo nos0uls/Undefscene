@@ -43,7 +43,7 @@ export const PreferencesCanvasSection = React.memo(function PreferencesCanvasSec
           type="number"
           step={0.1}
           min={0.5}
-          max={5}
+          max={10}
           value={preferences.zoomSpeed}
           onChange={(e) => {
             const val = Number(e.target.value)

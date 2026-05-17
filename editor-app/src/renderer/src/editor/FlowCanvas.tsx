@@ -33,6 +33,7 @@ import { FlowCanvasKeyboardShortcuts } from './FlowCanvasKeyboardShortcuts'
 // Собственный MIME-type для drag-and-drop из палитры нод.
 // Он позволяет не путать наши payload'ы с обычным text/plain drag из браузера.
 const NODE_PALETTE_DRAG_MIME = 'application/x-undefscene-node-type'
+const NOTE_DRAG_MIME = 'application/x-undefscene-note-id'
 
 // Singleton для нод без параметров — избегаем O(N) allocations при каждом rebuild initialNodes.
 const EMPTY_PARAMS: Record<string, unknown> = {}
@@ -118,9 +119,6 @@ type FlowCanvasProps = {
 
   // Коллбек: обновить заметку.
   onUpdateNote?: (id: string, patch: Partial<Omit<RuntimeNote, 'id'>>) => void
-
-  // Коллбек: удалить заметку.
-  onDeleteNote?: (id: string) => void
 
   // Коллбек: сфокусировать ноду по ID (из заметки).
   onFocusNode?: (nodeId: string) => void
@@ -242,7 +240,6 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   onEdgeDoubleClick,
   notes,
   onUpdateNote,
-  onDeleteNote,
   onFocusNode
 }: FlowCanvasProps): React.JSX.Element {
   // Нужен для конвертации экранных координат в координаты холста.
@@ -357,6 +354,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   const onPaneDropCreateRef = useRef(onPaneDropCreate)
   const onEdgeDeleteRef = useRef(onEdgeDelete)
   const onEdgeDoubleClickRef = useRef(onEdgeDoubleClick)
+  const onUpdateNoteRef = useRef(onUpdateNote)
 
   // Обновляем refs в useEffect, чтобы не нарушать правила React Hooks.
   useEffect(() => {
@@ -370,6 +368,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
     onPaneDropCreateRef.current = onPaneDropCreate
     onEdgeDeleteRef.current = onEdgeDelete
     onEdgeDoubleClickRef.current = onEdgeDoubleClick
+    onUpdateNoteRef.current = onUpdateNote
   }, [
     onSelectNodes,
     onSelectEdge,
@@ -380,7 +379,8 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
     onPaneClickCreate,
     onPaneDropCreate,
     onEdgeDelete,
-    onEdgeDoubleClick
+    onEdgeDoubleClick,
+    onUpdateNote
   ])
 
   // Drag preview показывает, где именно окажется нода после drop.
@@ -411,7 +411,11 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
     if (!dataTransfer) return false
 
     const dragTypes = Array.from(dataTransfer.types ?? [])
-    return dragTypes.includes(NODE_PALETTE_DRAG_MIME) || dragTypes.includes('text/plain')
+    return (
+      dragTypes.includes(NODE_PALETTE_DRAG_MIME) ||
+      dragTypes.includes(NOTE_DRAG_MIME) ||
+      dragTypes.includes('text/plain')
+    )
   }, [])
 
   // Проверяем, что курсор находится над основной рабочей областью canvas.
@@ -986,6 +990,23 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
       }
 
       event.preventDefault()
+
+      // Drag заметки из панели — показываем простой preview.
+      const dragTypes = Array.from(event.dataTransfer?.types ?? [])
+      if (dragTypes.includes(NOTE_DRAG_MIME)) {
+        event.dataTransfer.dropEffect = 'move'
+        const canvasRect = flowCanvasRef.current?.getBoundingClientRect()
+        if (!canvasRect) return
+        setDragPreview({
+          type: 'note',
+          localX: event.clientX - canvasRect.left,
+          localY: event.clientY - canvasRect.top,
+          flowX: 0,
+          flowY: 0
+        })
+        return
+      }
+
       event.dataTransfer.dropEffect = 'copy'
 
       const nodeType = getDraggedNodeType(event.dataTransfer) ?? 'node'
@@ -1034,8 +1055,22 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
 
   // Drop создаёт ноду выбранного типа прямо на canvas-позиции preview.
   // Остальную семантику (имя, selection, special cases) оставляем EditorShell.
+  // Также поддерживаем drop заметок из панели NotesPanel.
   const handleDrop = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
+      const noteId = event.dataTransfer?.getData(NOTE_DRAG_MIME).trim()
+      if (noteId) {
+        // Drop заметки из панели — перемещаем её на canvas-координаты.
+        if (!isCanvasDropTarget(event.target, flowCanvasRef.current)) return
+        event.preventDefault()
+        const flowPosition = screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY
+        })
+        onUpdateNoteRef.current?.(noteId, { x: flowPosition.x, y: flowPosition.y, nodeId: undefined })
+        return
+      }
+
       const nodeType = getDraggedNodeType(event.dataTransfer)
       setDragPreview(null)
       if (!nodeType) return
@@ -1262,9 +1297,13 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
           }}
         >
           <div className="flowCanvasDropPreviewLabel">{dragPreview.type}</div>
-          <div className="flowCanvasDropPreviewMeta">
-            {dragPreview.flowX}, {dragPreview.flowY}
-          </div>
+          {dragPreview.type !== 'note' ? (
+            <div className="flowCanvasDropPreviewMeta">
+              {dragPreview.flowX}, {dragPreview.flowY}
+            </div>
+          ) : (
+            <div className="flowCanvasDropPreviewMeta">Drop note</div>
+          )}
         </div>
       ) : null}
 
@@ -1318,8 +1357,10 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         // Держим ноды смонтированными во время pan/fitView.
         // Встроенная visible-elements виртуализация пересчитывала видимость на каждом движении viewport
         // и могла давать дорогой mount/unmount + paint spike на больших графах.
-        // Отключаем встроенный wheel zoom, чтобы не было конфликта с нашим handler.
+        // Отключаем встроенный wheel zoom и pinch, чтобы не было конфликта с нашим handler.
+        // Наш handleWheel учитывает zoomSpeed из Preferences для всех устройств.
         zoomOnScroll={false}
+        zoomOnPinch={false}
         // ПКМ по ноде — удаляем.
         onNodeContextMenu={handleNodeContextMenu}
         onEdgeClick={handleEdgeClick}
@@ -1360,16 +1401,15 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
           addButtonTitle={t('editor.addNodeButtonTitle', 'Add New Node (Middle Click)')}
           addNodeAriaLabel={t('editor.addNodeAriaLabel', 'Add Node')}
         />
+        {notes && notes.length > 0 && onUpdateNote && (
+          <CanvasNotesOverlay
+            notes={notes}
+            onUpdateNote={onUpdateNote}
+            onFocusNode={onFocusNode}
+          />
+        )}
         </ReactFlow>
       </NodeActionsProvider>
-      {notes && notes.length > 0 && onUpdateNote && onDeleteNote && (
-        <CanvasNotesOverlay
-          notes={notes}
-          onUpdateNote={onUpdateNote}
-          onDeleteNote={onDeleteNote}
-          onFocusNode={onFocusNode}
-        />
-      )}
     </div>
   )
 })

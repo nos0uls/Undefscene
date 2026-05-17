@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 
 import type { LayoutState } from './useLayoutState'
@@ -147,11 +147,32 @@ export function useEditorCallbacks(
     [templates, setTemplates]
   )
 
-  // Zen mode
+  // Zen mode — toggle: сворачивает все панели при первом нажатии, восстанавливает при втором.
+  const zenPrevStateRef = useRef<{
+    collapsedDocks: CollapsedDocksState
+    panels: LayoutState['panels']
+  } | null>(null)
+
   const handleToggleZenMode = useCallback(() => {
-    // Сохраняем текущее состояние доков в layout.docks
-    const nextLayout: LayoutState = {
-      ...layout
+    // Если все доки уже свёрнуты — восстанавливаем предыдущее состояние.
+    const allCollapsed = collapsedDocks.left && collapsedDocks.right && collapsedDocks.bottom
+    const allFloatingCollapsed = Object.values(layout.panels).every(
+      (p) => p.mode !== 'floating' || p.collapsed
+    )
+
+    if (allCollapsed && allFloatingCollapsed && zenPrevStateRef.current) {
+      setCollapsedDocks(zenPrevStateRef.current.collapsedDocks)
+      setLayout({ ...layout, panels: zenPrevStateRef.current.panels })
+      zenPrevStateRef.current = null
+      return
+    }
+
+    // Сохраняем текущее состояние перед сворачиванием.
+    zenPrevStateRef.current = {
+      collapsedDocks: { ...collapsedDocks },
+      panels: Object.fromEntries(
+        Object.entries(layout.panels).map(([pid, p]) => [pid, { ...p }])
+      ) as LayoutState['panels']
     }
 
     // Сворачиваем доки
@@ -176,11 +197,11 @@ export function useEditorCallbacks(
             }
           ]
         }
-        return [panelId, panel]
+        return [panelId, { ...panel }]
       })
     ) as LayoutState['panels']
 
-    setLayout({ ...nextLayout, panels: nextLayoutPanels })
+    setLayout({ ...layout, panels: nextLayoutPanels })
   }, [layout, setLayout, collapsedDocks, setCollapsedDocks])
 
   // Hotkeys

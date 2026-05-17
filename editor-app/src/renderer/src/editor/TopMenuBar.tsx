@@ -1,5 +1,6 @@
 import { Undo2, Redo2 } from 'lucide-react'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { createTranslator, type SupportedLanguage } from '../i18n'
 import type { EditorKeybindings } from './usePreferences'
 import { formatComboForDisplay } from './useHotkeys'
@@ -333,84 +334,101 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
 
   // Какая вкладка сейчас “раскрыта”.
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
+  // Ref для измерения позиции trigger'а меню — нужен для portal с position:fixed.
+  const menuItemRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
   useEffect(() => {
     if (!activeMenuId) return
 
-    // Закрываем меню только когда пользователь кликнул снаружи.
-    // Уход курсора (mouseleave) меню не закрывает.
-    const onPointerDownCapture = (ev: PointerEvent): void => {
-      const el = barRef.current
-      if (!el) return
-      if (el.contains(ev.target as Node)) return
+    // Bubble-phase listener: dropdown div сам остановит propagation через onPointerDown,
+    // поэтому клик внутри dropdown не дойдёт до document и меню не закроется раньше onClick.
+    const onPointerDown = (ev: PointerEvent): void => {
+      const barEl = barRef.current
+      const target = ev.target as Node
+      if (barEl && barEl.contains(target)) return
       setActiveMenuId(null)
     }
 
-    document.addEventListener('pointerdown', onPointerDownCapture, true)
+    document.addEventListener('pointerdown', onPointerDown)
     return () => {
-      document.removeEventListener('pointerdown', onPointerDownCapture, true)
+      document.removeEventListener('pointerdown', onPointerDown)
     }
   }, [activeMenuId])
 
   return (
     <div className="topMenuBar" ref={barRef}>
       <div className="topMenuBarLeft">
-        {menus.map((m) => (
-          <div
-            key={m.id}
-            className={['topMenuBarItem', activeMenuId === m.id ? 'isActive' : ''].join(' ')}
-            onMouseEnter={() => setActiveMenuId(m.id)}
-          >
-            <span className="topMenuBarItemLabel">{m.label}</span>
-            {activeMenuId === m.id && (
-              <div className="topMenuDropdown" role="menu">
-                {m.entries.map((e) => (
+        {menus.map((m) => {
+          const triggerEl = menuItemRefs.current.get(m.id)
+          const rect = triggerEl?.getBoundingClientRect()
+          return (
+            <div
+              key={m.id}
+              ref={(el) => {
+                if (el) menuItemRefs.current.set(m.id, el)
+                else menuItemRefs.current.delete(m.id)
+              }}
+              className={['topMenuBarItem', activeMenuId === m.id ? 'isActive' : ''].join(' ')}
+              onMouseEnter={() => setActiveMenuId(m.id)}
+            >
+              <span className="topMenuBarItemLabel">{m.label}</span>
+              {activeMenuId === m.id && rect &&
+                createPortal(
                   <div
-                    key={e.id}
-                    className={['topMenuDropdownItem', e.children?.length ? 'hasSubmenu' : '']
-                      .filter(Boolean)
-                      .join(' ')}
-                    role="menuitem"
-                    onClick={() => {
-                      if (e.children?.length) return
-                      e.onSelect?.()
-                      setActiveMenuId(null)
-                    }}
+                    className="topMenuDropdown"
+                    role="menu"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    style={{ position: 'fixed', top: rect.bottom, left: rect.left, zIndex: 10000 }}
                   >
-                    <span className="topMenuDropdownLabel">{e.label}</span>
-                    {e.children?.length ? (
-                      <span className="topMenuDropdownShortcut">›</span>
-                    ) : e.shortcut ? (
-                      <span className="topMenuDropdownShortcut">{e.shortcut}</span>
-                    ) : null}
+                    {m.entries.map((e) => (
+                      <div
+                        key={e.id}
+                        className={['topMenuDropdownItem', e.children?.length ? 'hasSubmenu' : '']
+                          .filter(Boolean)
+                          .join(' ')}
+                        role="menuitem"
+                        onClick={() => {
+                          if (e.children?.length) return
+                          e.onSelect?.()
+                          setActiveMenuId(null)
+                        }}
+                      >
+                        <span className="topMenuDropdownLabel">{e.label}</span>
+                        {e.children?.length ? (
+                          <span className="topMenuDropdownShortcut">›</span>
+                        ) : e.shortcut ? (
+                          <span className="topMenuDropdownShortcut">{e.shortcut}</span>
+                        ) : null}
 
-                    {e.children?.length ? (
-                      <div className="topMenuDropdown topMenuDropdownSubmenu" role="menu">
-                        {e.children.map((child) => (
-                          <div
-                            key={child.id}
-                            className="topMenuDropdownItem"
-                            role="menuitem"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              child.onSelect?.()
-                              setActiveMenuId(null)
-                            }}
-                          >
-                            <span className="topMenuDropdownLabel">{child.label}</span>
-                            {child.shortcut ? (
-                              <span className="topMenuDropdownShortcut">{child.shortcut}</span>
-                            ) : null}
+                        {e.children?.length ? (
+                          <div className="topMenuDropdown topMenuDropdownSubmenu" role="menu">
+                            {e.children.map((child) => (
+                              <div
+                                key={child.id}
+                                className="topMenuDropdownItem"
+                                role="menuitem"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  child.onSelect?.()
+                                  setActiveMenuId(null)
+                                }}
+                              >
+                                <span className="topMenuDropdownLabel">{child.label}</span>
+                                {child.shortcut ? (
+                                  <span className="topMenuDropdownShortcut">{child.shortcut}</span>
+                                ) : null}
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        ) : null}
                       </div>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+                    ))}
+                  </div>,
+                  document.body
+                )}
+            </div>
+          )
+        })}
       </div>
 
       <div className="topMenuBarRight">

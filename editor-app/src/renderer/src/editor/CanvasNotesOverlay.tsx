@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useReactFlow, useStore, useStoreApi } from '@xyflow/react'
 import type { RuntimeNote } from './runtimeTypes'
 import { Drama, Camera, Volume2, ListChecks, AlertTriangle, X } from 'lucide-react'
@@ -28,43 +28,30 @@ const CATEGORY_ICON: Record<RuntimeNote['category'], React.ElementType> = {
 }
 
 const STICKER_SIZE = 28
-const SNAP_OFFSET_X = 180
+const SNAP_OFFSET_X = 115
 const SNAP_OFFSET_Y = -10
-
-function flowToScreen(
-  flowX: number,
-  flowY: number,
-  viewport: { x: number; y: number; zoom: number }
-): { x: number; y: number } {
-  return {
-    x: (flowX - viewport.x) * viewport.zoom,
-    y: (flowY - viewport.y) * viewport.zoom
-  }
-}
 
 export type CanvasNotesOverlayProps = {
   notes: RuntimeNote[]
   onUpdateNote: (id: string, patch: Partial<Omit<RuntimeNote, 'id'>>) => void
-  onDeleteNote: (id: string) => void
   onFocusNode?: (nodeId: string) => void
 }
 
 type CanvasNoteStickerProps = {
   note: RuntimeNote
   onUpdateNote: CanvasNotesOverlayProps['onUpdateNote']
-  onDeleteNote: CanvasNotesOverlayProps['onDeleteNote']
   onFocusNode?: CanvasNotesOverlayProps['onFocusNode']
   registerSticker: (id: string, el: HTMLDivElement | null) => void
 }
 
+const ALL_CATEGORIES: RuntimeNote['category'][] = ['acting', 'camera', 'sound', 'todo', 'warning']
+
 const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
   note,
   onUpdateNote,
-  onDeleteNote,
   onFocusNode,
   registerSticker
 }: CanvasNoteStickerProps) {
-  const storeApi = useStoreApi()
   const nodes = useStore((s) => s.nodes)
   const { screenToFlowPosition, getNodes } = useReactFlow()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -76,6 +63,7 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
   const [hovered, setHovered] = useState(false)
   const [pinnedOpen, setPinnedOpen] = useState(false)
   const [snapTargetId, setSnapTargetId] = useState<string | null>(null)
+  const snapTargetRef = useRef<string | null>(null)
   const dragOffset = useRef({ x: 0, y: 0 })
   // Ref для актуальных render координат, чтобы handleMouseDown не пересоздавался
   const renderPosRef = useRef({ x: 0, y: 0 })
@@ -84,12 +72,6 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
   const node = note.nodeId ? nodes.find((n) => n.id === note.nodeId) : undefined
   const renderX = node ? node.position.x + SNAP_OFFSET_X : note.x
   const renderY = node ? node.position.y + SNAP_OFFSET_Y : note.y
-
-  // Берём актуальный viewport из store на момент рендера.
-  // Подписка в CanvasNotesOverlay обновляет style.left/top напрямую во время pan,
-  // поэтому компонент не перерендеривается на каждый кадр.
-  const viewport = storeApi.getState().transform
-  const pos = flowToScreen(renderX, renderY, { x: viewport[0], y: viewport[1], zoom: viewport[2] })
 
   useEffect(() => {
     const el = containerRef.current
@@ -171,6 +153,7 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
         }
       }
       setSnapTargetId(found)
+      snapTargetRef.current = found
     }
 
     const handleMouseUp = () => {
@@ -186,7 +169,7 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
         }
       }
 
-      const currentSnapTargetId = snapTargetId
+      const currentSnapTargetId = snapTargetRef.current
       if (currentSnapTargetId) {
         const targetNode = getNodes().find((n) => n.id === currentSnapTargetId)
         if (targetNode) {
@@ -245,12 +228,21 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
     [note.nodeId, onFocusNode]
   )
 
-  const handleDelete = useCallback(
+  const handleCloseTooltip = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
-      onDeleteNote(note.id)
+      setPinnedOpen(false)
+      setHovered(false)
     },
-    [note.id, onDeleteNote]
+    []
+  )
+
+  const handleCategoryChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      e.stopPropagation()
+      onUpdateNote(note.id, { category: e.target.value as RuntimeNote['category'] })
+    },
+    [note.id, onUpdateNote]
   )
 
   const handleMouseEnter = useCallback(() => setHovered(true), [])
@@ -267,14 +259,16 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
       onClick={handleClick}
       style={{
         position: 'absolute',
-        left: pos.x,
-        top: pos.y,
+        left: 0,
+        top: 0,
         width: STICKER_SIZE,
         height: STICKER_SIZE,
         zIndex: 50,
         pointerEvents: 'auto',
         cursor: dragging ? 'grabbing' : 'grab',
-        userSelect: 'none'
+        userSelect: 'none',
+        willChange: 'transform',
+        transformOrigin: '0 0'
       }}
     >
       {/* Sticker square */}
@@ -327,18 +321,34 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
               gap: 6
             }}
           >
-            <span
+            <select
+              value={note.category}
+              onChange={handleCategoryChange}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               style={{
                 fontWeight: 700,
                 fontSize: 10,
                 textTransform: 'uppercase',
-                color: CATEGORY_BORDER[note.category]
+                color: CATEGORY_BORDER[note.category],
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                outline: 'none',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                maxWidth: 80
               }}
             >
-              {note.category}
-            </span>
+              {ALL_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
             <button
-              onClick={handleDelete}
+              onClick={handleCloseTooltip}
               style={{
                 background: 'none',
                 border: 'none',
@@ -350,7 +360,7 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
                 lineHeight: 1,
                 display: 'flex'
               }}
-              title="Delete"
+              title="Close"
             >
               <X size={12} />
             </button>
@@ -379,7 +389,6 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
 export const CanvasNotesOverlay = React.memo(function CanvasNotesOverlay({
   notes,
   onUpdateNote,
-  onDeleteNote,
   onFocusNode
 }: CanvasNotesOverlayProps): React.JSX.Element {
   const storeApi = useStoreApi()
@@ -392,32 +401,41 @@ export const CanvasNotesOverlay = React.memo(function CanvasNotesOverlay({
     else stickerRefs.current.delete(id)
   }, [])
 
-  // Подписываемся на zustand store и обновляем DOM напрямую,
-  // чтобы избежать ререндера всех заметок на каждый кадр pan.
-  useEffect(() => {
-    const updatePositions = () => {
-      const state = storeApi.getState()
-      const [x, y, zoom] = state.transform
-      const map = stickerRefs.current
-      for (const note of notesRef.current) {
-        const el = map.get(note.id)
-        if (!el) continue
-        const node = note.nodeId
-          ? state.nodes.find((n) => n.id === note.nodeId)
-          : undefined
-        const renderX = node ? node.position.x + SNAP_OFFSET_X : note.x
-        const renderY = node ? node.position.y + SNAP_OFFSET_Y : note.y
-        const screenX = (renderX - x) * zoom
-        const screenY = (renderY - y) * zoom
-        el.style.left = `${screenX}px`
-        el.style.top = `${screenY}px`
+  // Единая функция обновления позиций через transform (не вызывает layout).
+  const updatePositions = useCallback(() => {
+    const state = storeApi.getState()
+    const [x, y, zoom] = state.transform
+    const map = stickerRefs.current
+    for (const note of notesRef.current) {
+      const el = map.get(note.id)
+      if (!el) continue
+      const node = note.nodeId
+        ? state.nodes.find((n) => n.id === note.nodeId)
+        : undefined
+      const renderX = node ? node.position.x + SNAP_OFFSET_X : note.x
+      const renderY = node ? node.position.y + SNAP_OFFSET_Y : note.y
+      const screenX = renderX * zoom + x
+      const screenY = renderY * zoom + y
+      if (zoom < 0.15) {
+        el.style.display = 'none'
+      } else {
+        el.style.display = ''
+        el.style.transform = `translate3d(${screenX}px, ${screenY}px, 0) scale(${zoom})`
       }
     }
-
-    const unsub = storeApi.subscribe(updatePositions)
-    updatePositions()
-    return unsub
   }, [storeApi])
+
+  // Обновляем позиции сразу после рендера (mount, drag заметки, snap и т.д.)
+  useLayoutEffect(() => {
+    updatePositions()
+  }, [notes, updatePositions])
+
+  // Подписываемся на zustand store для pan/zoom — обновляем через transform,
+  // чтобы не конфликтовать с React-рендером left/top.
+  useEffect(() => {
+    const unsub = storeApi.subscribe(updatePositions)
+    return unsub
+  }, [storeApi, updatePositions])
 
   if (!notes || notes.length === 0) return <></>
 
@@ -436,7 +454,6 @@ export const CanvasNotesOverlay = React.memo(function CanvasNotesOverlay({
           key={note.id}
           note={note}
           onUpdateNote={onUpdateNote}
-          onDeleteNote={onDeleteNote}
           onFocusNode={onFocusNode}
           registerSticker={registerSticker}
         />

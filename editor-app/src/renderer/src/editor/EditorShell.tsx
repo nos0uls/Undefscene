@@ -381,13 +381,6 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
     addNode
   })
 
-  // Stabilize renderPanelContents callback via ref
-  const renderPanelContentsRef = useRef(renderPanelContents)
-  renderPanelContentsRef.current = renderPanelContents
-  const renderPanelContentsStable = useCallback((panelId: string): React.JSX.Element | null => {
-    return renderPanelContentsRef.current(panelId)
-  }, [])
-
   // Center content
   const centerContent = useMemo(
     () => (
@@ -417,7 +410,6 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
             onParallelRemoveBranch={onParallelRemoveBranch}
             notes={runtime.notes}
             onUpdateNote={editorCallbacks.handleUpdateNote}
-            onDeleteNote={editorCallbacks.handleDeleteNote}
             onFocusNode={editorCallbacks.selectNode}
           />
         </div>
@@ -567,7 +559,7 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
     <>
       <PanelDataProvider value={panelData}>
         <DockingLayout
-          renderPanelContents={renderPanelContentsStable}
+          renderPanelContents={renderPanelContents}
           getPanelTitle={editorCallbacks.getPanelTitle}
           getPanelBadge={getPanelBadge}
           showDockDropPreview={preferences.showDockDropPreview}

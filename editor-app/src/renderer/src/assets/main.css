@@ -60,7 +60,7 @@ code {
 .editorTopBar {
   grid-area: top;
   position: relative;
-  z-index: 2;
+  z-index: 100;
   background: var(--color-background-soft);
   border-bottom: 1px solid var(--ev-c-gray-3);
 }
@@ -85,6 +85,7 @@ code {
   display: flex;
   flex-direction: column;
   position: relative;
+  z-index: 1;
   min-width: 0;
   min-height: 0;
   background: var(--color-background);
@@ -95,6 +96,8 @@ code {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 0;
   background: var(--color-background);
 }
 
@@ -1118,7 +1121,7 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   align-items: center;
   padding: 0 6px;
   position: relative;
-  z-index: 1;
+  z-index: 10;
   background: var(--color-background-soft);
   border-bottom: 1px solid var(--ev-c-gray-3);
   -webkit-app-region: drag;
@@ -1196,7 +1199,7 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   border: 1px solid var(--ev-c-gray-2);
   border-radius: 8px;
   padding: 4px;
-  z-index: 9999;
+  z-index: 10000;
   pointer-events: auto;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
@@ -1414,7 +1417,7 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   min-width: 140px;
   max-width: 240px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  overflow: hidden;
+  overflow: visible;
   contain: layout;
 }
 
@@ -1713,7 +1716,7 @@ label.runtimeField:has(.searchable-select-open) {
   transform-origin: center;
 }
 
-/* Invisible hit area around handle — увеличена до 28px для удобства.
+/* Hit-area around handle — чуть дальше границ ноды для удобства захвата.
    position:absolute здесь корректен, потому что ::after позиционируется
    относительно ближайшего positioned ancestor (сам handle, у которого
    React Flow уже выставляет position:absolute). */
@@ -1722,22 +1725,41 @@ label.runtimeField:has(.searchable-select-open) {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 34px;
-  height: 34px;
+  width: 18px;
+  height: 18px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
+  background: transparent;
+  transition: background 0.15s;
 }
 
+/* Правый handle — hit-area чуть правее границы ноды */
 .customHandle.react-flow__handle-right::after {
-  width: 46px;
-  transform: translate(-35%, -50%);
+  width: 22px;
+  transform: translate(-42%, -50%);
 }
 
+/* Левый handle — hit-area чуть левее границы ноды */
 .customHandle.react-flow__handle-left::after {
-  width: 38px;
-  transform: translate(-65%, -50%);
+  width: 20px;
+  transform: translate(-58%, -50%);
 }
 
+/* Hover подсветка hit-area */
+.customHandle:hover::after {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Selected нода — handle'и тоже подсвечены */
+.customNode.isSelected .customHandle::after {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.customNode.isSelected .customHandle:hover::after {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Видимая точка handle'а */
 .customHandle:hover {
   background: var(--ev-c-accent);
   border-color: var(--ev-c-black-soft);
@@ -1828,6 +1850,7 @@ label.runtimeField:has(.searchable-select-open) {
   height: clamp(78px, 14vh, 120px) !important;
   overflow: hidden !important;
   cursor: grab !important;
+  z-index: 60 !important;
   /* pointer-events: none УБРАН — иначе minimap неинтерактивен.
      React Flow сам управляет pointer-events внутри minimap для pan/zoom. */
 }
