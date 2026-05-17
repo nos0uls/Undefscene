@@ -444,7 +444,13 @@ function actionToRuntimeNode(
       normalizedType === 'music_unduck' ||
       normalizedType === 'music_pitch' ||
       normalizedType === 'music_pause' ||
-      normalizedType === 'music_resume'
+      normalizedType === 'music_resume' ||
+      normalizedType === 'play_boss_music' ||
+      normalizedType === 'stop_boss_music' ||
+      normalizedType === 'boss_music_phase' ||
+      normalizedType === 'play_music_intro' ||
+      normalizedType === 'play_music_intro_layered' ||
+      normalizedType === 'crossfade_music'
     ) {
       params[key] = value
       continue

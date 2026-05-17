@@ -108,6 +108,12 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   music_pitch: [],
   music_pause: [],
   music_resume: [],
+  play_boss_music: ['calm', 'battle'],
+  stop_boss_music: [],
+  boss_music_phase: ['phases'],
+  play_music_intro: ['intro', 'loop'],
+  play_music_intro_layered: ['intro', 'calm'],
+  crossfade_music: ['intensity'],
   schedule_action: ['delay_seconds', 'action_type'],
   attach_to_target: ['target_ref', 'parent_ref'],
   detach: ['target_ref'],
@@ -479,6 +485,65 @@ export function validateGraph(
           ruleId: 'playMusicMissingSound',
           nodeId: node.id,
           message: t('validation.playMusicNoSound', { name: nodeDisplayName })
+        })
+      }
+    }
+
+    if (node.type === 'play_boss_music') {
+      const calm = String(node.params?.calm ?? '').trim()
+      const battle = String(node.params?.battle ?? '').trim()
+      if (!calm) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'playBossMusicMissingCalm',
+          nodeId: node.id,
+          message: t('validation.playBossMusicNoCalm', { name: nodeDisplayName })
+        })
+      }
+      if (!battle) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'playBossMusicMissingBattle',
+          nodeId: node.id,
+          message: t('validation.playBossMusicNoBattle', { name: nodeDisplayName })
+        })
+      }
+    }
+
+    if (node.type === 'play_music_intro') {
+      const intro = String(node.params?.intro ?? '').trim()
+      const loop = String(node.params?.loop ?? '').trim()
+      if (!intro) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'playMusicIntroMissingIntro',
+          nodeId: node.id,
+          message: t('validation.playMusicIntroNoIntro', { name: nodeDisplayName })
+        })
+      }
+      if (!loop) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'playMusicIntroMissingLoop',
+          nodeId: node.id,
+          message: t('validation.playMusicIntroNoLoop', { name: nodeDisplayName })
+        })
+      }
+    }
+
+    if (node.type === 'crossfade_music') {
+      const intensity = Number(node.params?.intensity ?? NaN)
+      if (!Number.isFinite(intensity) || intensity < 0 || intensity > 1) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'crossfadeMusicIntensityInvalid',
+          nodeId: node.id,
+          message: t('validation.crossfadeMusicIntensityInvalid', { name: nodeDisplayName })
         })
       }
     }
@@ -1361,6 +1426,85 @@ export function validateGraph(
           })
         }
       }
+
+      if (node.type === 'play_boss_music' && context.sounds) {
+        const calm = String(params.calm ?? '').trim()
+        if (calm && context.sounds.length > 0 && !context.sounds.includes(calm)) {
+          entries.push({
+            severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'playBossMusicCalmNotFound',
+            nodeId: node.id,
+            message: t('validation.playBossMusicCalmNotFound', { sound: calm })
+          })
+        }
+        const battle = String(params.battle ?? '').trim()
+        if (battle && context.sounds.length > 0 && !context.sounds.includes(battle)) {
+          entries.push({
+            severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'playBossMusicBattleNotFound',
+            nodeId: node.id,
+            message: t('validation.playBossMusicBattleNotFound', { sound: battle })
+          })
+        }
+      }
+
+      if (node.type === 'play_music_intro' && context.sounds) {
+        const intro = String(params.intro ?? '').trim()
+        if (intro && context.sounds.length > 0 && !context.sounds.includes(intro)) {
+          entries.push({
+            severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'playMusicIntroNotFound',
+            nodeId: node.id,
+            message: t('validation.playMusicIntroNotFound', { sound: intro })
+          })
+        }
+        const loop = String(params.loop ?? '').trim()
+        if (loop && context.sounds.length > 0 && !context.sounds.includes(loop)) {
+          entries.push({
+            severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'playMusicLoopNotFound',
+            nodeId: node.id,
+            message: t('validation.playMusicLoopNotFound', { sound: loop })
+          })
+        }
+      }
+
+      if (node.type === 'play_music_intro_layered' && context.sounds) {
+        const intro = String(params.intro ?? '').trim()
+        if (intro && context.sounds.length > 0 && !context.sounds.includes(intro)) {
+          entries.push({
+            severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'playMusicIntroNotFound',
+            nodeId: node.id,
+            message: t('validation.playMusicIntroNotFound', { sound: intro })
+          })
+        }
+        const calm = String(params.calm ?? '').trim()
+        if (calm && context.sounds.length > 0 && !context.sounds.includes(calm)) {
+          entries.push({
+            severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'playBossMusicCalmNotFound',
+            nodeId: node.id,
+            message: t('validation.playBossMusicCalmNotFound', { sound: calm })
+          })
+        }
+        const battle = String(params.battle ?? '').trim()
+        if (battle && context.sounds.length > 0 && !context.sounds.includes(battle)) {
+          entries.push({
+            severity: 'warn',
+            defaultSeverity: 'warn',
+            ruleId: 'playBossMusicBattleNotFound',
+            nodeId: node.id,
+            message: t('validation.playBossMusicBattleNotFound', { sound: battle })
+          })
+        }
+      }
     }
   }
 
@@ -1771,7 +1915,7 @@ export function validateGraph(
     if (node.type === 'play_music') {
       playMusicSeen = true
     }
-    if (node.type === 'music_volume' || node.type === 'music_duck' || node.type === 'music_unduck' || node.type === 'music_pitch' || node.type === 'music_pause' || node.type === 'music_resume') {
+    if (node.type === 'music_volume' || node.type === 'music_duck' || node.type === 'music_unduck' || node.type === 'music_pitch' || node.type === 'music_pause' || node.type === 'music_resume' || node.type === 'crossfade_music') {
       if (!playMusicSeen) {
         entries.push({
           severity: 'tip',
@@ -1887,7 +2031,9 @@ export function validateGraph(
   // music_not_stopped: play_music without corresponding stop_music anywhere in graph.
   const hasPlayMusic = nodes.some((n) => n.type === 'play_music')
   const hasStopMusic = nodes.some((n) => n.type === 'stop_music')
-  if (hasPlayMusic && !hasStopMusic) {
+  const hasPlayBossMusic = nodes.some((n) => n.type === 'play_boss_music')
+  const hasStopBossMusic = nodes.some((n) => n.type === 'stop_boss_music')
+  if ((hasPlayMusic && !hasStopMusic) || (hasPlayBossMusic && !hasStopBossMusic)) {
     entries.push({
       severity: 'tip',
       defaultSeverity: 'tip',

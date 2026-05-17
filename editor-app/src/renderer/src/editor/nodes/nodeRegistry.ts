@@ -228,6 +228,34 @@ const otherNodes: Record<string, NodeDefinition> = {
   ], defaultParams: { pitch: 1 } },
   music_pause: { type: 'music_pause', label: 'Music Pause', category: 'audio', fields: [], defaultParams: {} },
   music_resume: { type: 'music_resume', label: 'Music Resume', category: 'audio', fields: [], defaultParams: {} },
+  play_boss_music: { type: 'play_boss_music', label: 'Play Boss Music', category: 'audio', fields: [
+    { key: 'calm', label: 'Calm Track', type: 'searchable', placeholder: 'music_calm...', options: [], defaultValue: '' },
+    { key: 'battle', label: 'Battle Track', type: 'searchable', placeholder: 'music_battle...', options: [], defaultValue: '' },
+    { key: 'fade', label: 'Fade In (sec)', type: 'number', step: 0.1, defaultValue: 0.5 }
+  ], defaultParams: { calm: '', battle: '', fade: 0.5 } },
+  stop_boss_music: { type: 'stop_boss_music', label: 'Stop Boss Music', category: 'audio', fields: [
+    { key: 'fade', label: 'Fade Out (sec)', type: 'number', step: 0.1, defaultValue: 1 }
+  ], defaultParams: { fade: 1 } },
+  boss_music_phase: { type: 'boss_music_phase', label: 'Boss Music Phase', category: 'audio', fields: [
+    { key: 'phases', label: 'Phases (JSON)', type: 'json', placeholder: '[{"intro":"snd_intro","calm":"snd_calm","battle":"snd_battle","intensity":0,"fade":0.5}]', defaultValue: '' },
+    { key: 'fade', label: 'Default Fade (sec)', type: 'number', step: 0.1, defaultValue: 0.5 }
+  ], defaultParams: { phases: '', fade: 0.5 } },
+  play_music_intro: { type: 'play_music_intro', label: 'Play Music Intro', category: 'audio', fields: [
+    { key: 'intro', label: 'Intro Track', type: 'searchable', placeholder: 'music_intro...', options: [], defaultValue: '' },
+    { key: 'loop', label: 'Loop Track', type: 'searchable', placeholder: 'music_loop...', options: [], defaultValue: '' },
+    { key: 'fade', label: 'Fade In (sec)', type: 'number', step: 0.1, defaultValue: 0.5 }
+  ], defaultParams: { intro: '', loop: '', fade: 0.5 } },
+  play_music_intro_layered: { type: 'play_music_intro_layered', label: 'Play Intro Layered', category: 'audio', fields: [
+    { key: 'intro', label: 'Intro Track', type: 'searchable', placeholder: 'music_intro...', options: [], defaultValue: '' },
+    { key: 'calm', label: 'Calm Track', type: 'searchable', placeholder: 'music_calm...', options: [], defaultValue: '' },
+    { key: 'battle', label: 'Battle Track', type: 'searchable', placeholder: 'music_battle...', options: [], defaultValue: '' },
+    { key: 'fade', label: 'Fade In (sec)', type: 'number', step: 0.1, defaultValue: 0.5 },
+    { key: 'start_intensity', label: 'Start Intensity', type: 'number', step: 0.1, defaultValue: 0 }
+  ], defaultParams: { intro: '', calm: '', battle: '', fade: 0.5, start_intensity: 0 } },
+  crossfade_music: { type: 'crossfade_music', label: 'Crossfade Music', category: 'audio', fields: [
+    { key: 'intensity', label: 'Intensity (0=calm, 1=battle)', type: 'number', step: 0.1, defaultValue: 0.5 },
+    { key: 'fade', label: 'Fade (sec)', type: 'number', step: 0.1, defaultValue: 1 }
+  ], defaultParams: { intensity: 0.5, fade: 1 } },
   emote: { type: 'emote', label: 'Emote', category: 'visual', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'sprite', label: 'Sprite', type: 'searchable', placeholder: 'spr_...', options: [] },

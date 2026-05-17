@@ -450,7 +450,7 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(props: Docking
                     className={['dockPanelLogs', drag?.panelId === activeId ? 'isDragSource' : '']
                       .filter(Boolean)
                       .join(' ')}
-                    style={getDockedPanelStyle(activeId)}
+                    style={getDockedPanelStyle(activeId, { flex: 1, minHeight: 0 })}
                     onHeaderPointerDown={startPanelDrag(activeId)}
                     collapsed={layout.panels[activeId]?.collapsed}
                     onToggleCollapse={() => togglePanelCollapse(activeId)}

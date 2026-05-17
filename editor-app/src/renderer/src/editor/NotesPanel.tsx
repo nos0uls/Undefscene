@@ -108,6 +108,14 @@ const NoteRow = React.memo(function NoteRow({
     [note.id, onDeleteNote]
   )
 
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      onDeleteNote(note.id)
+    },
+    [note.id, onDeleteNote]
+  )
+
   // Клик по заметке — если есть привязка к ноде, фокусируемся на ней,
   // иначе центрируем канвас на сохранённых координатах.
   const handleSelect = useCallback(() => {
@@ -150,6 +158,7 @@ const NoteRow = React.memo(function NoteRow({
       style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', cursor: 'grab' }}
       draggable
       onDragStart={handleDragStart}
+      onContextMenu={handleContextMenu}
     >
       {/* Цветовой индикатор категории */}
       <span

@@ -2096,7 +2096,7 @@ label.runtimeField:has(.searchable-select-open) {
    Последний — серый с «+», открывает custom color picker. */
 .prefsAccentGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 8px 12px;
   padding: 4px 0;
 }

@@ -13,7 +13,6 @@ export type AccentColorId =
   | 'green'
   | 'orange'
   | 'red'
-  | 'pink'
   | 'yellow'
   | 'custom'
 
@@ -377,7 +376,6 @@ function isValidAccentColor(value: string): value is AccentColorId {
     'green',
     'orange',
     'red',
-    'pink',
     'yellow',
     'custom'
   ].includes(value)
@@ -439,7 +437,6 @@ export function getAccentColorHex(preferences: Pick<EditorPreferences, 'accentCo
     green: '#3cb371',
     orange: '#e6a020',
     red: '#d9534f',
-    pink: '#d94a8c',
     yellow: '#e6c820'
   }
 

@@ -831,6 +831,70 @@ export const MusicResumeNode = memo(function MusicResumeNode({ selected }: Cutsc
   )
 })
 
+export const PlayBossMusicNode = memo(function PlayBossMusicNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const calm = data.params?.calm ?? ''
+  const battle = data.params?.battle ?? ''
+  return (
+    <BaseNode nodeType="play_boss_music" selected={selected}>
+      {calm && <div className="customNodeParam">calm: {String(calm)}</div>}
+      {battle && <div className="customNodeParam">battle: {String(battle)}</div>}
+    </BaseNode>
+  )
+})
+
+export const StopBossMusicNode = memo(function StopBossMusicNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const fade = data.params?.fade ?? 1
+  return (
+    <BaseNode nodeType="stop_boss_music" selected={selected}>
+      <div className="customNodeParam">fade: {String(fade)}s</div>
+    </BaseNode>
+  )
+})
+
+export const BossMusicPhaseNode = memo(function BossMusicPhaseNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const fade = data.params?.fade ?? 0.5
+  return (
+    <BaseNode nodeType="boss_music_phase" selected={selected}>
+      <div className="customNodeParam">fade: {String(fade)}s</div>
+    </BaseNode>
+  )
+})
+
+export const PlayMusicIntroNode = memo(function PlayMusicIntroNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const intro = data.params?.intro ?? ''
+  const loop = data.params?.loop ?? ''
+  return (
+    <BaseNode nodeType="play_music_intro" selected={selected}>
+      {intro && <div className="customNodeParam">intro: {String(intro)}</div>}
+      {loop && <div className="customNodeParam">loop: {String(loop)}</div>}
+    </BaseNode>
+  )
+})
+
+export const PlayMusicIntroLayeredNode = memo(function PlayMusicIntroLayeredNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const intro = data.params?.intro ?? ''
+  const calm = data.params?.calm ?? ''
+  const battle = data.params?.battle ?? ''
+  return (
+    <BaseNode nodeType="play_music_intro_layered" selected={selected}>
+      {intro && <div className="customNodeParam">intro: {String(intro)}</div>}
+      {calm && <div className="customNodeParam">calm: {String(calm)}</div>}
+      {battle && <div className="customNodeParam">battle: {String(battle)}</div>}
+    </BaseNode>
+  )
+})
+
+export const CrossfadeMusicNode = memo(function CrossfadeMusicNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
+  const intensity = data.params?.intensity ?? 0.5
+  const fade = data.params?.fade ?? 1
+  return (
+    <BaseNode nodeType="crossfade_music" selected={selected}>
+      <div className="customNodeParam">intensity: {String(intensity)}</div>
+      <div className="customNodeParam">fade: {String(fade)}s</div>
+    </BaseNode>
+  )
+})
+
 export const EmoteNode = memo(function EmoteNode({ data, selected }: CutsceneNodeProps): React.JSX.Element {
   const target = data.params?.target ?? ''
   const sprite = data.params?.sprite ?? ''

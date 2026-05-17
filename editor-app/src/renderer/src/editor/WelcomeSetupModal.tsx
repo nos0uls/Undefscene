@@ -21,7 +21,6 @@ const ACCENT_PRESETS: Array<{ id: AccentColorId; label: string; hex: string }> =
   { id: 'green', label: 'Green', hex: '#3cb371' },
   { id: 'orange', label: 'Orange', hex: '#e6a020' },
   { id: 'red', label: 'Red', hex: '#d9534f' },
-  { id: 'pink', label: 'Pink', hex: '#d94a8c' },
   { id: 'yellow', label: 'Yellow', hex: '#e6c820' }
 ]
 

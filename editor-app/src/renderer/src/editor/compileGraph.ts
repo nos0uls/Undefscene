@@ -774,6 +774,52 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       return action
     }
 
+    if (node.type === 'play_boss_music') {
+      if (typeof node.params?.calm === 'string' && node.params.calm) action.calm = node.params.calm
+      if (typeof node.params?.battle === 'string' && node.params.battle) action.battle = node.params.battle
+      if (typeof node.params?.fade === 'number') action.fade = node.params.fade
+      return action
+    }
+
+    if (node.type === 'stop_boss_music') {
+      if (typeof node.params?.fade === 'number') action.fade = node.params.fade
+      return action
+    }
+
+    if (node.type === 'boss_music_phase') {
+      if (typeof node.params?.phases === 'string' && node.params.phases) {
+        try {
+          action.phases = JSON.parse(node.params.phases) as unknown
+        } catch {
+          action.phases = node.params.phases
+        }
+      }
+      if (typeof node.params?.fade === 'number') action.fade = node.params.fade
+      return action
+    }
+
+    if (node.type === 'play_music_intro') {
+      if (typeof node.params?.intro === 'string' && node.params.intro) action.intro = node.params.intro
+      if (typeof node.params?.loop === 'string' && node.params.loop) action.loop = node.params.loop
+      if (typeof node.params?.fade === 'number') action.fade = node.params.fade
+      return action
+    }
+
+    if (node.type === 'play_music_intro_layered') {
+      if (typeof node.params?.intro === 'string' && node.params.intro) action.intro = node.params.intro
+      if (typeof node.params?.calm === 'string' && node.params.calm) action.calm = node.params.calm
+      if (typeof node.params?.battle === 'string' && node.params.battle) action.battle = node.params.battle
+      if (typeof node.params?.fade === 'number') action.fade = node.params.fade
+      if (typeof node.params?.start_intensity === 'number') action.start_intensity = node.params.start_intensity
+      return action
+    }
+
+    if (node.type === 'crossfade_music') {
+      if (typeof node.params?.intensity === 'number') action.intensity = node.params.intensity
+      if (typeof node.params?.fade === 'number') action.fade = node.params.fade
+      return action
+    }
+
     // Dialogue integration nodes.
     if (node.type === 'set_dialogue_speed') {
       if (typeof node.params?.speed === 'number') action.speed = node.params.speed

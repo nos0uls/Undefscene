@@ -525,9 +525,23 @@ async function readCanvasBackgroundDataUrl(filePath: string): Promise<string | n
     return null
   }
 
-  const image = nativeImage.createFromPath(resolvedPath)
-  if (image.isEmpty()) return null
-  return image.toDataURL()
+  const ext = extname(resolvedPath).toLowerCase()
+  const mimeMap: Record<string, string> = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.bmp': 'image/bmp'
+  }
+  const mime = mimeMap[ext] || 'image/png'
+
+  try {
+    const buffer = await readFile(resolvedPath)
+    return `data:${mime};base64,${buffer.toString('base64')}`
+  } catch {
+    return null
+  }
 }
 
 // GameMaker .yy часто содержит trailing commas.
