@@ -1316,6 +1316,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
             position: canvasBackgroundAttachment === 'viewport' ? 'fixed' : 'absolute',
             inset: 0,
             pointerEvents: 'none',
+            zIndex: 0,
             backgroundImage: `url("${canvasBackgroundUrl}")`,
             backgroundRepeat: 'no-repeat',
             backgroundPosition: 'center',

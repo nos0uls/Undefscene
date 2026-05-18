@@ -136,11 +136,31 @@ export const PreferencesCanvasSection = React.memo(function PreferencesCanvasSec
           </button>
         </div>
       </label>
-      {!preferences.canvasBackgroundPath ? (
+      {preferences.canvasBackgroundPath ? (
+        <div
+          className="prefsHint"
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          title={preferences.canvasBackgroundPath}
+        >
+          <span
+            style={{
+              display: 'inline-block',
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              background: '#5e6ad2',
+              flexShrink: 0
+            }}
+          />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {preferences.canvasBackgroundPath.split(/[\\/]/).pop()}
+          </span>
+        </div>
+      ) : (
         <div className="prefsHint">
           {t('preferences.noBackgroundSelected', 'No background image selected.')}
         </div>
-      ) : null}
+      )}
       <label className="prefsField">
         <span>{t('preferences.backgroundAttachment', 'Background Attachment')}</span>
         <select

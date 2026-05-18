@@ -701,7 +701,6 @@ code {
    Так fixed-screen картинка не пролезает поверх top bar, panel headers и других chrome-слоёв. */
 .flowCanvasBackgroundLayer {
   pointer-events: none;
-  z-index: -1;
 }
 
 /* Preview badge показывает тип ноды и координаты до drop,
@@ -738,6 +737,11 @@ code {
   height: 100%;
   min-width: 0;
   min-height: 0;
+  background: transparent !important;
+}
+
+.flowCanvas .react-flow__background {
+  background-color: transparent !important;
 }
 
 .placeholderText {
