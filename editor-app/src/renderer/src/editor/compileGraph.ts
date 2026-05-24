@@ -171,10 +171,11 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       }
     }
 
-    // start и end не генерируют действий — это маркеры графа.
+    // start и end — маркеры графа, но start экспортирует параметры запуска катсцены.
     if (node.type === 'start' || node.type === 'end') {
       // Для start — идём дальше по единственному выходу.
       if (node.type === 'start') {
+        actions.push(nodeToAction(node))
         const next = getNextActions(nodeId)
         if (!next.ok) return next
         actions.push(...next.actions)

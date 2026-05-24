@@ -56,7 +56,9 @@ export function whenParamNotEquals(paramKey: string, value: unknown): (params: R
 
 // Базовые ноды без полей.
 const baseNodes: Record<string, NodeDefinition> = {
-  start: { type: 'start', label: 'Start', category: 'flow', fields: [], defaultParams: {} },
+  start: { type: 'start', label: 'Start', category: 'flow', fields: [
+    { key: 'debug', label: 'Debug', type: 'checkbox', defaultValue: true }
+  ], defaultParams: { debug: true } },
   end: { type: 'end', label: 'End', category: 'flow', fields: [], defaultParams: {} },
   wait: { type: 'wait', label: 'Wait', category: 'flow', fields: [{ key: 'seconds', label: 'Seconds', type: 'number', step: 0.1, defaultValue: 1 }], defaultParams: { seconds: 1 } },
   move: { type: 'move', label: 'Move', category: 'movement', fields: [
@@ -111,8 +113,9 @@ const baseNodes: Record<string, NodeDefinition> = {
   ], defaultParams: { target: 'player', image_index: 0, image_speed: 1, pause: false } },
   dialogue: { type: 'dialogue', label: 'Dialogue', category: 'dialogue', fields: [
     { key: 'file', label: 'File', type: 'searchable', placeholder: 'dialogue', options: [] },
-    { key: 'node', label: 'Node', type: 'searchable', placeholder: 'Intro', options: [] }
-  ], defaultParams: { file: '', node: '' } },
+    { key: 'node', label: 'Node', type: 'searchable', placeholder: 'Intro', options: [] },
+    { key: 'block_queue', label: 'Block Queue', type: 'checkbox', defaultValue: true }
+  ], defaultParams: { file: '', node: '', block_queue: true } },
   wait_for_dialogue: { type: 'wait_for_dialogue', label: 'Wait For Dialogue', category: 'dialogue', fields: [
     { key: 'dialogue_controller', label: 'Dialogue Controller (optional)', type: 'text', placeholder: 'instance ref / leave empty for active textbox', defaultValue: '' }
   ], defaultParams: { dialogue_controller: '' } }
