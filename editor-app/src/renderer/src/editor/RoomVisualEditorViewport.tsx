@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { RoomVisualEditorOverlay } from './RoomVisualEditorOverlay'
-import type { VisualEditorActorPreview, LoadedActorSpritePreview } from './RoomVisualEditorTypes'
+import type { VisualEditorActorPreview, LoadedActorSpritePreview, RoomScreenshotBundle } from './RoomVisualEditorTypes'
 
 type RoomVisualEditorViewportProps = {
   viewportRef: React.RefObject<HTMLDivElement | null>
@@ -10,7 +10,7 @@ type RoomVisualEditorViewportProps = {
   offset: { x: number; y: number }
   activeTool: 'select' | 'pencil' | 'eraser' | null
   isActorPlacementMode: boolean
-  bundle: any
+  bundle: RoomScreenshotBundle | null
   gridPatternId: string
   gridPhaseX: number
   gridPhaseY: number

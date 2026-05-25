@@ -598,6 +598,8 @@ export const ru = {
     shakeFrequencyTooLow: '{name}: частота тряски должна быть не меньше 1.',
     shakeMagnitudeXNegative: '{name}: сила тряски по X не может быть отрицательной.',
     shakeMagnitudeYNegative: '{name}: сила тряски по Y не может быть отрицательной.',
+    checkpointInvalidArray: '{name}: поле «{field}» должно быть JSON-массивом (например, ["var1", "var2"]).',
+    checkpointInvalidJson: '{name}: поле «{field}» содержит невалидный JSON.',
     followPathEmpty: '{name}: путь пуст. Нарисуйте или импортируйте его в инспекторе.',
     followPathOnePoint: '{name}: в пути всего 1 точка. Возможно, стоит использовать set_position.',
     haltHasOutgoing: '{name}: нода halt блокирует выполнение, но имеет исходящие связи. Удалите их.',

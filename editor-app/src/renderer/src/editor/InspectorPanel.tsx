@@ -243,7 +243,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
   )
 
   const updateEdge = useCallback(
-    (edgeId: string, patch: Partial<(typeof runtime.edges)[number]>) => {
+    (edgeId: string, patch: Partial<RuntimeEdge>) => {
       setRuntime((prev) => ({
         ...prev,
         edges: prev.edges.map((e) => (e.id === edgeId ? { ...e, ...patch } : e))

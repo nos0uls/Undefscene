@@ -598,6 +598,8 @@ export const en = {
     shakeFrequencyTooLow: '{name}: shake frequency must be at least 1.',
     shakeMagnitudeXNegative: '{name}: shake magnitude X cannot be negative.',
     shakeMagnitudeYNegative: '{name}: shake magnitude Y cannot be negative.',
+    checkpointInvalidArray: '{name}: field "{field}" must be a JSON array (e.g. ["var1", "var2"]).',
+    checkpointInvalidJson: '{name}: field "{field}" contains invalid JSON.',
     followPathEmpty: '{name}: path is empty. Draw or import a path in the inspector.',
     followPathOnePoint: '{name}: path has only 1 point. Consider using set_position instead.',
     haltHasOutgoing: '{name}: halt blocks execution, yet it has outgoing connections. Remove them or use a different node.',

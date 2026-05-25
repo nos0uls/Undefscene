@@ -671,7 +671,7 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       if (typeof rawGlobals === 'string' && rawGlobals.trim().length > 0) {
         try {
           const parsed = JSON.parse(rawGlobals)
-          if (Array.isArray(parsed)) action.include_globals = parsed
+          if (Array.isArray(parsed)) action.include_globals = rawGlobals
         } catch {
           // Invalid JSON ignored — validation will flag it.
         }
@@ -680,7 +680,7 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       if (typeof rawInstances === 'string' && rawInstances.trim().length > 0) {
         try {
           const parsed = JSON.parse(rawInstances)
-          if (Array.isArray(parsed)) action.include_instances = parsed
+          if (Array.isArray(parsed)) action.include_instances = rawInstances
         } catch {
           // Invalid JSON ignored — validation will flag it.
         }

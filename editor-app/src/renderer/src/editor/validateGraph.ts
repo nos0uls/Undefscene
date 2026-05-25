@@ -11,7 +11,7 @@ import { NODE_REGISTRY } from './nodes/nodeRegistry'
 export type ValidationContext = {
   // Язык интерфейса ('en' | 'ru').
   language?: SupportedLanguage
-  // Список объектов из .yyp (для проверки actor_create.key, target и т.д.).
+  // Список объектов из .yyp (для проверки actor_create.actor_name, target и т.д.).
   objects?: string[]
   // Список спрайтов из .yyp.
   sprites?: string[]
@@ -654,6 +654,35 @@ export function validateGraph(
       }
     }
 
+    // checkpoint_state: include_globals и include_instances должны быть валидными JSON-массивами (если не пустые).
+    if (node.type === 'checkpoint_state') {
+      for (const field of ['include_globals', 'include_instances'] as const) {
+        const raw = String(node.params?.[field] ?? '').trim()
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw)
+            if (!Array.isArray(parsed)) {
+              entries.push({
+                severity: 'warn',
+                defaultSeverity: 'warn',
+                ruleId: 'checkpointInvalidArray',
+                nodeId: node.id,
+                message: t('validation.checkpointInvalidArray', { field, name: nodeDisplayName })
+              })
+            }
+          } catch {
+            entries.push({
+              severity: 'warn',
+              defaultSeverity: 'warn',
+              ruleId: 'checkpointInvalidJson',
+              nodeId: node.id,
+              message: t('validation.checkpointInvalidJson', { field, name: nodeDisplayName })
+            })
+          }
+        }
+      }
+    }
+
     // camera_shake / shake_object: проверяем seconds, frequency и magnitudes.
     if (node.type === 'camera_shake' || node.type === 'shake_object') {
       const seconds = Number(node.params?.seconds ?? 0)
@@ -786,7 +815,7 @@ export function validateGraph(
       }
     }
 
-    // Actor target resolution: target должен ссылаться на 'player' или actor_create.key в этом графе.
+    // Actor target resolution: target должен ссылаться на 'player' или actor_create.actor_name в этом графе.
     const actorTargetTypes = new Set([
       'move',
       'actor_destroy',
@@ -1308,9 +1337,9 @@ export function validateGraph(
     for (const node of nodes) {
       const params = node.params ?? {}
 
-      // Проверка actor_create.key — должен быть в списке объектов/спрайтов.
+      // Проверка actor_create.actor_name — должен быть в списке объектов/спрайтов.
       if (node.type === 'actor_create') {
-        const key = String(params.key ?? '').trim()
+        const key = String(params.actor_name ?? '').trim()
         if (key && allResources.length > 0 && !allResources.includes(key)) {
           entries.push({
             severity: 'warn',

@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { useReactFlow, useStore, useStoreApi } from '@xyflow/react'
 import type { RuntimeNote } from './runtimeTypes'
 import { Drama, Camera, Volume2, ListChecks, AlertTriangle, X } from 'lucide-react'
+import { createTranslator } from '../i18n'
+import { usePreferencesContext } from './PreferencesContext'
 
 const CATEGORY_BG: Record<RuntimeNote['category'], string> = {
   acting: 'hsl(200, 90%, 88%)',
@@ -30,6 +32,9 @@ const CATEGORY_ICON: Record<RuntimeNote['category'], React.ElementType> = {
 const STICKER_SIZE = 28
 const SNAP_OFFSET_X = 115
 const SNAP_OFFSET_Y = -10
+const DEFAULT_NODE_WIDTH = 200
+const DEFAULT_NODE_HEIGHT = 80
+const TOOLTIP_WIDTH = 180
 
 export type CanvasNotesOverlayProps = {
   notes: RuntimeNote[]
@@ -42,6 +47,7 @@ type CanvasNoteStickerProps = {
   onUpdateNote: CanvasNotesOverlayProps['onUpdateNote']
   onFocusNode?: CanvasNotesOverlayProps['onFocusNode']
   registerSticker: (id: string, el: HTMLDivElement | null) => void
+  t: (path: string, fallback?: string) => string
 }
 
 const ALL_CATEGORIES: RuntimeNote['category'][] = ['acting', 'camera', 'sound', 'todo', 'warning']
@@ -50,9 +56,11 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
   note,
   onUpdateNote,
   onFocusNode,
-  registerSticker
+  registerSticker,
+  t
 }: CanvasNoteStickerProps) {
   const nodes = useStore((s) => s.nodes)
+  const transform = useStore((s) => s.transform)
   const { screenToFlowPosition, getNodes } = useReactFlow()
   const containerRef = useRef<HTMLDivElement>(null)
 

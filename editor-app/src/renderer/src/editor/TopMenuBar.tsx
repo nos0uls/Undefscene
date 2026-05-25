@@ -91,7 +91,6 @@ export type TopMenuBarProps = {
 }
 
 // Верхняя панель меню, как в классических desktop IDE.
-// Меню раскрывается по наведению мыши (hover).
 function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
   const {
     panels,
@@ -334,14 +333,38 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
 
   // Какая вкладка сейчас “раскрыта”.
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
+  // Открытый submenu (id item внутри activeMenuId).
+  const [openSubmenuId, setOpenSubmenuId] = useState<string | null>(null)
+  // Текущий focused item внутри открытого меню / submenu.
+  const [focusedItemId, setFocusedItemId] = useState<string | null>(null)
   // Ref для измерения позиции trigger'а меню — нужен для portal с position:fixed.
   const menuItemRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  // Ref для измерения позиции dropdown item (submenu trigger).
+  const dropdownItemRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
+  // Закрываем submenu при смене active top-level меню.
+  useEffect(() => {
+    setOpenSubmenuId(null)
+    if (activeMenuId) {
+      const menu = menus.find((m) => m.id === activeMenuId)
+      setFocusedItemId(menu?.entries[0]?.id ?? null)
+    } else {
+      setFocusedItemId(null)
+    }
+  }, [activeMenuId, menus])
+
+  // При открытии submenu фокусируем первый child.
+  useEffect(() => {
+    if (!activeMenuId || !openSubmenuId) return
+    const menu = menus.find((m) => m.id === activeMenuId)
+    const parent = menu?.entries.find((e) => e.id === openSubmenuId)
+    setFocusedItemId(parent?.children?.[0]?.id ?? null)
+  }, [openSubmenuId, activeMenuId, menus])
+
+  // Закрытие по клику снаружи.
   useEffect(() => {
     if (!activeMenuId) return
 
-    // Bubble-phase listener: dropdown div сам остановит propagation через onPointerDown,
-    // поэтому клик внутри dropdown не дойдёт до document и меню не закроется раньше onClick.
     const onPointerDown = (ev: PointerEvent): void => {
       const barEl = barRef.current
       const target = ev.target as Node
@@ -354,6 +377,75 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
       document.removeEventListener('pointerdown', onPointerDown)
     }
   }, [activeMenuId])
+
+  // Keyboard navigation.
+  const menuStateRef = useRef({ activeMenuId, openSubmenuId, focusedItemId, menus })
+  menuStateRef.current = { activeMenuId, openSubmenuId, focusedItemId, menus }
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const { activeMenuId, openSubmenuId, focusedItemId, menus } = menuStateRef.current
+      if (!activeMenuId) return
+
+      const menu = menus.find((m) => m.id === activeMenuId)
+      if (!menu) return
+
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setActiveMenuId(null)
+        return
+      }
+
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        const currentIndex = menus.findIndex((m) => m.id === activeMenuId)
+        const nextIndex = e.shiftKey
+          ? (currentIndex - 1 + menus.length) % menus.length
+          : (currentIndex + 1) % menus.length
+        setActiveMenuId(menus[nextIndex].id)
+        return
+      }
+
+      const currentList = openSubmenuId
+        ? (menu.entries.find((entry) => entry.id === openSubmenuId)?.children ?? [])
+        : menu.entries
+
+      if (currentList.length === 0) return
+
+      const currentIndex = currentList.findIndex((item) => item.id === focusedItemId)
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % currentList.length : 0
+        setFocusedItemId(currentList[nextIndex].id)
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        const nextIndex =
+          currentIndex >= 0
+            ? (currentIndex - 1 + currentList.length) % currentList.length
+            : currentList.length - 1
+        setFocusedItemId(currentList[nextIndex].id)
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        const focusedItem = currentList[currentIndex]
+        if (!focusedItem) return
+
+        if (!openSubmenuId) {
+          const entry = menu.entries.find((en) => en.id === focusedItemId)
+          if (entry?.children?.length) {
+            setOpenSubmenuId(entry.id)
+            return
+          }
+        }
+
+        focusedItem.onSelect?.()
+        setActiveMenuId(null)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   return (
     <div className="topMenuBar" ref={barRef}>
@@ -370,6 +462,16 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
               }}
               className={['topMenuBarItem', activeMenuId === m.id ? 'isActive' : ''].join(' ')}
               onMouseEnter={() => setActiveMenuId(m.id)}
+              onClick={() => setActiveMenuId((prev) => (prev === m.id ? null : m.id))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setActiveMenuId((prev) => (prev === m.id ? null : m.id))
+                }
+              }}
+              aria-expanded={activeMenuId === m.id}
+              role="button"
+              tabIndex={0}
             >
               <span className="topMenuBarItemLabel">{m.label}</span>
               {activeMenuId === m.id && rect &&
@@ -378,51 +480,93 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
                     className="topMenuDropdown"
                     role="menu"
                     onPointerDown={(e) => e.stopPropagation()}
-                    style={{ position: 'fixed', top: rect.bottom, left: rect.left, zIndex: 10000 }}
+                    style={{ position: 'fixed', top: rect.bottom, left: rect.left }}
                   >
-                    {m.entries.map((e) => (
-                      <div
-                        key={e.id}
-                        className={['topMenuDropdownItem', e.children?.length ? 'hasSubmenu' : '']
-                          .filter(Boolean)
-                          .join(' ')}
-                        role="menuitem"
-                        onClick={() => {
-                          if (e.children?.length) return
-                          e.onSelect?.()
-                          setActiveMenuId(null)
-                        }}
-                      >
-                        <span className="topMenuDropdownLabel">{e.label}</span>
-                        {e.children?.length ? (
-                          <span className="topMenuDropdownShortcut">›</span>
-                        ) : e.shortcut ? (
-                          <span className="topMenuDropdownShortcut">{e.shortcut}</span>
-                        ) : null}
+                    {m.entries.map((e) => {
+                      const itemEl = dropdownItemRefs.current.get(e.id)
+                      const itemRect = itemEl?.getBoundingClientRect()
+                      const SUBMENU_WIDTH = 200
+                      const submenuStyle: React.CSSProperties | undefined = itemRect
+                        ? {
+                            position: 'fixed',
+                            top: itemRect.top - 4,
+                            left: Math.min(itemRect.right, window.innerWidth - SUBMENU_WIDTH)
+                          }
+                        : undefined
 
-                        {e.children?.length ? (
-                          <div className="topMenuDropdown topMenuDropdownSubmenu" role="menu">
-                            {e.children.map((child) => (
-                              <div
-                                key={child.id}
-                                className="topMenuDropdownItem"
-                                role="menuitem"
-                                onClick={(event) => {
-                                  event.stopPropagation()
-                                  child.onSelect?.()
-                                  setActiveMenuId(null)
-                                }}
-                              >
-                                <span className="topMenuDropdownLabel">{child.label}</span>
-                                {child.shortcut ? (
-                                  <span className="topMenuDropdownShortcut">{child.shortcut}</span>
-                                ) : null}
-                              </div>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
+                      return (
+                        <div
+                          key={e.id}
+                          ref={(el) => {
+                            if (el) dropdownItemRefs.current.set(e.id, el)
+                            else dropdownItemRefs.current.delete(e.id)
+                          }}
+                          className={[
+                            'topMenuDropdownItem',
+                            e.children?.length ? 'hasSubmenu' : '',
+                            focusedItemId === e.id || openSubmenuId === e.id ? 'isFocused' : ''
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          role="menuitem"
+                          onMouseEnter={() => {
+                            setFocusedItemId(e.id)
+                            if (e.children?.length) {
+                              setOpenSubmenuId(e.id)
+                            } else {
+                              setOpenSubmenuId(null)
+                            }
+                          }}
+                          onClick={() => {
+                            if (e.children?.length) {
+                              setOpenSubmenuId((prev) => (prev === e.id ? null : e.id))
+                              return
+                            }
+                            e.onSelect?.()
+                            setActiveMenuId(null)
+                          }}
+                        >
+                          <span className="topMenuDropdownLabel">{e.label}</span>
+                          {e.children?.length ? (
+                            <span className="topMenuDropdownShortcut">›</span>
+                          ) : e.shortcut ? (
+                            <span className="topMenuDropdownShortcut">{e.shortcut}</span>
+                          ) : null}
+
+                          {openSubmenuId === e.id && e.children?.length ? (
+                            <div
+                              className="topMenuDropdown topMenuDropdownSubmenu"
+                              role="menu"
+                              style={submenuStyle}
+                            >
+                              {e.children.map((child) => (
+                                <div
+                                  key={child.id}
+                                  className={[
+                                    'topMenuDropdownItem',
+                                    focusedItemId === child.id ? 'isFocused' : ''
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' ')}
+                                  role="menuitem"
+                                  onMouseEnter={() => setFocusedItemId(child.id)}
+                                  onClick={(event) => {
+                                    event.stopPropagation()
+                                    child.onSelect?.()
+                                    setActiveMenuId(null)
+                                  }}
+                                >
+                                  <span className="topMenuDropdownLabel">{child.label}</span>
+                                  {child.shortcut ? (
+                                    <span className="topMenuDropdownShortcut">{child.shortcut}</span>
+                                  ) : null}
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      )
+                    })}
                   </div>,
                   document.body
                 )}

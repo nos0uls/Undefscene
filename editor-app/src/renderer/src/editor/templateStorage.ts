@@ -47,7 +47,10 @@ export function loadTemplates(): TemplateStorage | null {
     const parsed = JSON.parse(raw) as unknown
     if (!parsed || typeof parsed !== 'object') return null
     const candidate = parsed as Partial<TemplateStorage>
-    if (candidate.version !== 1) return null
+    if (candidate.version !== 1) {
+      console.warn(`[templateStorage] Version mismatch: expected 1, got ${candidate.version}. Clearing templates.`)
+      return null
+    }
     if (!Array.isArray(candidate.templates)) return null
     return candidate as TemplateStorage
   } catch {
