@@ -292,7 +292,7 @@ export const LogsPanel = React.memo(function LogsPanel({
         >
           {/* Копировать сообщение — доступно всегда. */}
           <div
-            style={{ padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            style={{ padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap', color: 'var(--ev-c-text-1, #eee)' }}
             onClick={() => handleCopy(contextMenu.entry.message)}
             onMouseEnter={() => setSubmenuOpen(false)}
           >
@@ -302,7 +302,7 @@ export const LogsPanel = React.memo(function LogsPanel({
           {/* Перейти к ноде или ребру, если применимо. */}
           {(contextMenu.entry.nodeId || contextMenu.entry.edgeId) && (
             <div
-              style={{ padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              style={{ padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap', color: 'var(--ev-c-text-1, #eee)' }}
               onClick={() => handleGoTo(contextMenu.entry)}
               onMouseEnter={() => setSubmenuOpen(false)}
             >
@@ -319,7 +319,7 @@ export const LogsPanel = React.memo(function LogsPanel({
               onMouseEnter={() => setSubmenuOpen(true)}
               onMouseLeave={() => setSubmenuOpen(false)}
             >
-              <div style={{ padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <div style={{ padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap', color: 'var(--ev-c-text-1, #eee)' }}>
                 {t('editor.logs.configureSeverity', { ruleId: contextMenu.entry.ruleId }, "Configure Severity")}
                 {' '}
                 <span style={{ opacity: 0.6 }}>&rsaquo;</span>
@@ -343,31 +343,31 @@ export const LogsPanel = React.memo(function LogsPanel({
                   }}
                 >
                   <div
-                    style={{ padding: '6px 12px', cursor: 'pointer' }}
+                    style={{ padding: '6px 12px', cursor: 'pointer', color: 'var(--ev-c-text-1, #eee)' }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'error')}
                   >
                     {t('editor.logs.error', 'Error')}
                   </div>
                   <div
-                    style={{ padding: '6px 12px', cursor: 'pointer' }}
+                    style={{ padding: '6px 12px', cursor: 'pointer', color: 'var(--ev-c-text-1, #eee)' }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'warn')}
                   >
                     {t('editor.logs.warn', 'Warn')}
                   </div>
                   <div
-                    style={{ padding: '6px 12px', cursor: 'pointer' }}
+                    style={{ padding: '6px 12px', cursor: 'pointer', color: 'var(--ev-c-text-1, #eee)' }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'tip')}
                   >
                     {t('editor.logs.suggestion', 'Suggestion')}
                   </div>
                   <div
-                    style={{ padding: '6px 12px', cursor: 'pointer' }}
+                    style={{ padding: '6px 12px', cursor: 'pointer', color: 'var(--ev-c-text-1, #eee)' }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'hidden')}
                   >
                     {t('editor.logs.ignore', 'Ignore')}
                   </div>
                   <div
-                    style={{ padding: '6px 12px', cursor: 'pointer', borderTop: '1px solid var(--ev-c-border, #333)' }}
+                    style={{ padding: '6px 12px', cursor: 'pointer', borderTop: '1px solid var(--ev-c-border, #333)', color: 'var(--ev-c-text-1, #eee)' }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'reset')}
                   >
                     {t('editor.logs.resetToDefault', 'Reset to Default')}
