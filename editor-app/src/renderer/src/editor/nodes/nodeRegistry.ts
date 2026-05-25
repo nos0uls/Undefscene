@@ -67,7 +67,7 @@ const baseNodes: Record<string, NodeDefinition> = {
     { key: 'y', label: 'Y', type: 'number', defaultValue: 0 },
     { key: 'speed_px_sec', label: 'Speed (px/sec)', type: 'number', placeholder: '60', defaultValue: 60 },
     { key: 'collision', label: 'Collision', type: 'select', options: ['false', 'true'], defaultValue: false }
-  ], defaultParams: { target: 'player', x: 0, y: 0, speed_px_sec: 60, collision: false } },
+  ], defaultParams: { target: 'player', x: 0, y: 0, speed_px_sec: 60, collision: 'false' } },
   set_position: { type: 'set_position', label: 'Set Position', category: 'movement', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'x', label: 'X', type: 'number', defaultValue: 0 },
@@ -99,6 +99,17 @@ const baseNodes: Record<string, NodeDefinition> = {
     { key: 'keep_world_position', label: 'Keep World Position', type: 'select', options: ['true', 'false'], defaultValue: true },
     { key: 'destroy_after_detach', label: 'Destroy After Detach', type: 'select', options: ['true', 'false'], defaultValue: false }
   ], defaultParams: { target_ref: 'player', keep_world_position: true, destroy_after_detach: false } },
+  lerp: { type: 'lerp', label: 'Lerp Property', category: 'actor', fields: [
+    { key: 'target', label: 'Target', type: 'searchable', options: [] },
+    { key: 'property', label: 'Property', type: 'searchable', options: ['x', 'y', 'image_xscale', 'image_yscale', 'image_angle', 'image_alpha', 'depth'], defaultValue: 'x' },
+    { key: 'to_value', label: 'To Value', type: 'number', defaultValue: 0 },
+    { key: 'factor', label: 'Factor (0..1)', type: 'number', step: 0.01, defaultValue: 0.1 }
+  ], defaultParams: { target: 'player', property: 'x', to_value: 0, factor: 0.1 } },
+  set_emotion: { type: 'set_emotion', label: 'Set Emotion', category: 'actor', fields: [
+    { key: 'target', label: 'Target', type: 'searchable', options: [] },
+    { key: 'emotion', label: 'Emotion', type: 'searchable', options: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'custom'], defaultValue: 'neutral' },
+    { key: 'blend', label: 'Blend Color', type: 'searchable', options: ['c_white', 'c_red', 'c_blue', 'c_green', 'c_yellow'], defaultValue: 'c_white' }
+  ], defaultParams: { target: 'player', emotion: 'neutral', blend: 'c_white' } },
   animate: { type: 'animate', label: 'Animate', category: 'visual', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'sprite', label: 'Sprite', type: 'searchable', placeholder: 'spr_...', options: [] },
@@ -143,6 +154,12 @@ const cameraNodes: Record<string, NodeDefinition> = {
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'seconds', label: 'Seconds', type: 'number', step: 0.1, placeholder: '1', defaultValue: 1 }
   ], defaultParams: { target: 'player', seconds: 1 } },
+  camera_pan_speed: { type: 'camera_pan_speed', label: 'Camera Pan (Speed)', category: 'camera', fields: [
+    { key: 'x', label: 'Target X', type: 'number', defaultValue: 0 },
+    { key: 'y', label: 'Target Y', type: 'number', defaultValue: 0 },
+    { key: 'speed', label: 'Speed (px/sec)', type: 'number', step: 10, defaultValue: 100 },
+    { key: 'smooth', label: 'Smooth', type: 'checkbox', defaultValue: true }
+  ], defaultParams: { x: 0, y: 0, speed: 100, smooth: true } },
   camera_center: { type: 'camera_center', label: 'Camera Center', category: 'camera', fields: [
     { key: 'x', label: 'X', type: 'number', defaultValue: 0 },
     { key: 'y', label: 'Y', type: 'number', defaultValue: 0 }
@@ -226,8 +243,8 @@ const otherNodes: Record<string, NodeDefinition> = {
   music_unduck: { type: 'music_unduck', label: 'Music Unduck', category: 'audio', fields: [
     { key: 'fade', label: 'Fade (sec)', type: 'number', step: 0.1, defaultValue: 0.3 }
   ], defaultParams: { fade: 0.3 } },
-  music_pitch: { type: 'music_pitch', label: 'Music Pitch', category: 'audio', fields: [
-    { key: 'pitch', label: 'Pitch', type: 'number', step: 0.1, defaultValue: 1 }
+  music_pitch: { type: 'music_pitch', label: 'Music Pitch (Playback Speed)', category: 'audio', fields: [
+    { key: 'pitch', label: 'Pitch / Rate', type: 'number', step: 0.1, placeholder: '1.0 = normal speed', defaultValue: 1 }
   ], defaultParams: { pitch: 1 } },
   music_pause: { type: 'music_pause', label: 'Music Pause', category: 'audio', fields: [], defaultParams: {} },
   music_resume: { type: 'music_resume', label: 'Music Resume', category: 'audio', fields: [], defaultParams: {} },
@@ -302,7 +319,7 @@ const otherNodes: Record<string, NodeDefinition> = {
     { key: 'visible', label: 'Visible', type: 'select', options: ['true', 'false'], defaultValue: true }
   ], defaultParams: { target: 'player', visible: true } },
   instant_mode: { type: 'instant_mode', label: 'Instant Mode', category: 'logic', fields: [
-    { key: 'enabled', label: 'Enabled', type: 'select', options: ['true', 'false'], defaultValue: true }
+    { key: 'enabled', label: 'Enabled', type: 'select', options: ['true', 'false'], defaultValue: 'true' }
   ], defaultParams: { enabled: true } },
   mark_node: { type: 'mark_node', label: 'Mark Node', category: 'logic', fields: [
     { key: 'name', label: 'Mark Name', type: 'searchable', placeholder: 'point_a', options: [], defaultValue: '' }
@@ -321,7 +338,7 @@ const otherNodes: Record<string, NodeDefinition> = {
   wait_for_interact: { type: 'wait_for_interact', label: 'Wait Interact', category: 'logic', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / object', options: [] },
     { key: 'timeout', label: 'Timeout (seconds, 0=never)', type: 'number', step: 0.1, defaultValue: 0 },
-    { key: 'timeout_action', label: 'Timeout Action', type: 'select', options: ['continue', 'skip'], defaultValue: 'continue' }
+    { key: 'timeout_action', label: 'Timeout Action', type: 'select', options: ['continue', 'abort_parallel'], defaultValue: 'continue' }
   ], defaultParams: { target: 'player', timeout: 0, timeout_action: 'continue' } },
   wait_until: { type: 'wait_until', label: 'Wait Until', category: 'logic', fields: [
     { key: 'condition_var', label: 'Condition Var', type: 'text', defaultValue: '', placeholder: 'e.g. door_opened' },
@@ -343,6 +360,17 @@ const otherNodes: Record<string, NodeDefinition> = {
   destroy_entity: { type: 'destroy_entity', label: 'Destroy Entity', category: 'logic', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key', options: [] }
   ], defaultParams: { target: '' } },
+  guard_global: { type: 'guard_global', label: 'Guard Global', category: 'logic', fields: [
+    { key: 'var', label: 'Global Var', type: 'text', defaultValue: '', placeholder: 'e.g. door_opened' },
+    { key: 'equals', label: 'Equals', type: 'text', defaultValue: '' },
+    { key: 'if_false', label: 'If False', type: 'select', options: ['skip', 'wait_until_true'], defaultValue: 'skip' },
+    { key: 'actions', label: 'Actions (JSON)', type: 'json', defaultValue: '' },
+    { key: 'stop_when', label: 'Stop When', type: 'select', options: ['none', 'timeout', 'var_equals', 'node_reached'], defaultValue: 'none' },
+    { key: 'end_var', label: 'End Var', type: 'text', defaultValue: '' },
+    { key: 'end_equals', label: 'End Equals', type: 'text', defaultValue: '' },
+    { key: 'end_node', label: 'End Node', type: 'text', defaultValue: '' },
+    { key: 'end_timeout', label: 'End Timeout (seconds)', type: 'number', step: 0.1, defaultValue: 0 }
+  ], defaultParams: { var: '', equals: '', if_false: 'skip', actions: '', stop_when: 'none', end_var: '', end_equals: '', end_node: '', end_timeout: 0 } },
   set_plot: { type: 'set_plot', label: 'Set Plot', category: 'logic', fields: [
     { key: 'value', label: 'Plot Value', type: 'number', placeholder: '10', defaultValue: 0 }
   ], defaultParams: { value: 0 } },
