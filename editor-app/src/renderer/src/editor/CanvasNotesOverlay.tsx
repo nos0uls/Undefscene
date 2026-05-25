@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useReactFlow, useStore, useStoreApi } from '@xyflow/react'
 import type { RuntimeNote } from './runtimeTypes'
 import { Drama, Camera, Volume2, ListChecks, AlertTriangle, X } from 'lucide-react'
@@ -47,22 +47,40 @@ type CanvasNoteStickerProps = {
   onUpdateNote: CanvasNotesOverlayProps['onUpdateNote']
   onFocusNode?: CanvasNotesOverlayProps['onFocusNode']
   registerSticker: (id: string, el: HTMLDivElement | null) => void
-  t: (path: string, fallback?: string) => string
 }
 
 const ALL_CATEGORIES: RuntimeNote['category'][] = ['acting', 'camera', 'sound', 'todo', 'warning']
+
+function categoryLabel(cat: RuntimeNote['category'], t: (path: string, fallback?: string) => string): string {
+  switch (cat) {
+    case 'acting':
+      return t('editor.noteCategories.acting', 'Acting')
+    case 'camera':
+      return t('editor.noteCategories.camera', 'Camera')
+    case 'sound':
+      return t('editor.noteCategories.sound', 'Sound')
+    case 'todo':
+      return t('editor.noteCategories.todo', 'Todo')
+    case 'warning':
+      return t('editor.noteCategories.warning', 'Warning')
+    default:
+      return cat
+  }
+}
 
 const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
   note,
   onUpdateNote,
   onFocusNode,
-  registerSticker,
-  t
+  registerSticker
 }: CanvasNoteStickerProps) {
   const nodes = useStore((s) => s.nodes)
   const transform = useStore((s) => s.transform)
   const { screenToFlowPosition, getNodes } = useReactFlow()
   const containerRef = useRef<HTMLDivElement>(null)
+
+  const { preferences } = usePreferencesContext()
+  const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
 
   const [dragging, setDragging] = useState(false)
   // Ref для throttling обновлений позиции через requestAnimationFrame
@@ -148,8 +166,8 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
       for (const n of allNodes) {
         const nx = n.position.x
         const ny = n.position.y
-        const nw = n.width ?? 200
-        const nh = n.height ?? 80
+        const nw = n.width ?? DEFAULT_NODE_WIDTH
+        const nh = n.height ?? DEFAULT_NODE_HEIGHT
         if (
           flowPos.x >= nx &&
           flowPos.x <= nx + nw &&
@@ -211,8 +229,8 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
         setPinnedOpen(false)
       }
     }
-    window.addEventListener('click', handleDocClick)
-    return () => window.removeEventListener('click', handleDocClick)
+    window.addEventListener('mousedown', handleDocClick)
+    return () => window.removeEventListener('mousedown', handleDocClick)
   }, [pinnedOpen])
 
   // Cleanup RAF on component unmount
@@ -258,6 +276,17 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
 
   const glowColor = snapTargetId ? CATEGORY_BORDER[note.category] : 'transparent'
 
+  // Tooltip clamp — не уходить за правый край экрана
+  const [winWidth, setWinWidth] = useState(window.innerWidth)
+  useEffect(() => {
+    const onResize = () => setWinWidth(window.innerWidth)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  const screenX = renderX * transform[2] + transform[0]
+  const tooltipLeft = Math.min(0, winWidth - screenX - TOOLTIP_WIDTH - 8)
+
   return (
     <div
       ref={containerRef}
@@ -271,7 +300,7 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
         top: 0,
         width: STICKER_SIZE,
         height: STICKER_SIZE,
-        zIndex: 50,
+        zIndex: 5,
         pointerEvents: 'auto',
         cursor: dragging ? 'grabbing' : 'grab',
         userSelect: 'none',
@@ -306,8 +335,8 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
           style={{
             position: 'absolute',
             top: STICKER_SIZE + 4,
-            left: 0,
-            width: 180,
+            left: tooltipLeft,
+            width: TOOLTIP_WIDTH,
             padding: '8px 10px',
             borderRadius: 6,
             background: CATEGORY_BG[note.category],
@@ -351,7 +380,7 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
             >
               {ALL_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
-                  {cat}
+                  {categoryLabel(cat, t)}
                 </option>
               ))}
             </select>
@@ -368,13 +397,13 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
                 lineHeight: 1,
                 display: 'flex'
               }}
-              title="Close"
+              title={t('editor.closeTooltip', 'Close')}
             >
               <X size={12} />
             </button>
           </div>
           <div style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>
-            {note.text || 'New note'}
+            {note.text || t('editor.newNoteText', 'New note')}
           </div>
           {note.nodeId && (
             <div

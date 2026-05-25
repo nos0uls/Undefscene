@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef } from 'react'
+import type { RuntimeEdge } from './runtimeTypes'
 
 import { FlowCanvas } from './FlowCanvas'
 import { TopMenuBar } from './TopMenuBar'
@@ -91,8 +92,8 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
       const portMode = preferences.parallelBranchPortMode
       const nodeTypes = new Map(prev.nodes.map((n) => [n.id, n.type]))
 
-      const edgesBySource = new Map<string, any[]>()
-      const edgesByTarget = new Map<string, any[]>()
+      const edgesBySource = new Map<string, RuntimeEdge[]>()
+      const edgesByTarget = new Map<string, RuntimeEdge[]>()
 
       for (const edge of prev.edges) {
         const sourceType = nodeTypes.get(edge.source)
@@ -269,6 +270,8 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
   saveRef.current = handleSave
   const newRef = useRef<(() => void) | null>(null)
   newRef.current = handleNew
+  const openSceneRef = useRef<(() => void) | null>(null)
+  openSceneRef.current = handleOpenScene
 
   useEditorShortcuts({
     runtimeRef,
@@ -277,6 +280,7 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
     redoRef,
     saveRef,
     newRef,
+    openRef: openSceneRef,
     exportRef,
     setPreferencesOpen: editorState.setPreferencesOpen,
     suggestUniqueNodeName

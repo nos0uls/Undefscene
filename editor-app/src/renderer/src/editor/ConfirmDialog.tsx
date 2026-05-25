@@ -8,6 +8,7 @@ import { ConfirmContext, type ConfirmOptions } from './confirmContext'
 
 type ConfirmState = ConfirmOptions & {
   resolve: (value: boolean) => void
+  reject: (reason?: unknown) => void
 }
 
 
@@ -18,10 +19,25 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }): Re
   const [state, setState] = useState<ConfirmState | null>(null)
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const confirmBtnRef = useRef<HTMLButtonElement | null>(null)
+  const pendingRef = useRef<ConfirmState | null>(null)
+
+  useEffect(() => {
+    pendingRef.current = state
+  }, [state])
+
+  // Reject pending promise on unmount.
+  useEffect(() => {
+    return () => {
+      if (pendingRef.current) {
+        pendingRef.current.reject(new Error('ConfirmDialog unmounted'))
+        pendingRef.current = null
+      }
+    }
+  }, [])
 
   const confirm = useCallback((opts: ConfirmOptions): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setState({ ...opts, resolve })
+    return new Promise((resolve, reject) => {
+      setState({ ...opts, resolve, reject })
     })
   }, [])
 

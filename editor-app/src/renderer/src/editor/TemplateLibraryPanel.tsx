@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react'
 import type { RuntimeNode, RuntimeEdge } from './runtimeTypes'
 import type { CutsceneTemplateSnippet } from './templateStorage'
+import { useConfirm } from './confirmContext'
 
 // Пропсы панели библиотеки шаблонов.
 type TemplateLibraryPanelProps = {
@@ -32,6 +33,8 @@ const TemplateRow = React.memo(function TemplateRow({
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState(template.name)
 
+  const confirm = useConfirm()
+
   const startEdit = useCallback(() => {
     setEditName(template.name)
     setEditing(true)
@@ -58,17 +61,21 @@ const TemplateRow = React.memo(function TemplateRow({
   )
 
   const handleDelete = useCallback(
-    (e: React.MouseEvent) => {
+    async (e: React.MouseEvent) => {
       e.stopPropagation()
-      onDeleteTemplate(template.id)
+      const confirmed = await confirm({
+        title: t('editor.confirmDeleteTemplate', 'Delete Template'),
+        message: t('editor.confirmDeleteTemplateMessage', 'Are you sure?')
+      })
+      if (confirmed) onDeleteTemplate(template.id)
     },
-    [template.id, onDeleteTemplate]
+    [template.id, onDeleteTemplate, confirm, t]
   )
 
   return (
-    <div className="runtimeListItem" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px' }}>
+    <div className="runtimeListItem templateRow">
       {/* Левая часть: название (inline-редактирование), статистика */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="templateRowInfo">
         {editing ? (
           <input
             autoFocus
@@ -77,17 +84,7 @@ const TemplateRow = React.memo(function TemplateRow({
             onBlur={commitEdit}
             onKeyDown={handleKeyDown}
             onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '100%',
-              fontSize: 12,
-              fontWeight: 600,
-              background: 'var(--bg-elevated, var(--color-background-soft))',
-              color: 'var(--text-primary, var(--ev-c-text-1))',
-              border: '1px solid var(--ev-c-accent)',
-              borderRadius: 3,
-              padding: '2px 4px',
-              outline: 'none'
-            }}
+            className="templateRowInput"
           />
         ) : (
           <div
@@ -95,21 +92,13 @@ const TemplateRow = React.memo(function TemplateRow({
               e.stopPropagation()
               startEdit()
             }}
-            style={{
-              fontWeight: 600,
-              fontSize: 12,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              cursor: 'text',
-              color: 'var(--ev-c-text-1)'
-            }}
+            className="templateRowName"
             title={template.name}
           >
             {template.name}
           </div>
         )}
-        <div style={{ color: 'var(--ev-c-text-2)', fontSize: 11, marginTop: 2 }}>
+        <div className="templateRowMeta">
           {template.nodes.length} {t('editor.nodesCount', 'nodes')} ·{' '}
           {template.edges.length} {t('editor.edgesCount', 'edges')} ·{' '}
           {new Date(template.createdAt).toLocaleDateString()}
@@ -117,12 +106,11 @@ const TemplateRow = React.memo(function TemplateRow({
       </div>
 
       {/* Правая часть: Insert + Delete */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+      <div className="templateRowActions">
         <button
-          className="runtimeButton"
+          className="runtimeButton templateRowInsertBtn"
           type="button"
           onClick={() => onInsertTemplate(template.id)}
-          style={{ padding: '2px 8px', fontSize: 11 }}
         >
           {t('editor.insert', 'Insert')}
         </button>
@@ -130,22 +118,7 @@ const TemplateRow = React.memo(function TemplateRow({
           type="button"
           onClick={handleDelete}
           title={t('editor.delete', 'Delete')}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--ev-c-text-2)',
-            fontSize: 13,
-            cursor: 'pointer',
-            padding: '0 2px',
-            lineHeight: 1,
-            flexShrink: 0
-          }}
-          onMouseEnter={(e) => {
-            ;(e.currentTarget as HTMLButtonElement).style.color = 'hsl(0, 80%, 60%)'
-          }}
-          onMouseLeave={(e) => {
-            ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--ev-c-text-2)'
-          }}
+          className="templateRowDeleteBtn"
         >
           {'\u00D7'}
         </button>
@@ -187,37 +160,20 @@ export const TemplateLibraryPanel = React.memo(function TemplateLibraryPanel({
       <div className="runtimeSectionTitle">{t('editor.templates', 'Templates')}</div>
 
       {/* Строка с полем названия и кнопкой сохранения */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 6,
-          marginBottom: 8,
-          alignItems: 'center'
-        }}
-      >
+      <div className="templateSaveRow">
         <input
           type="text"
           value={draftName}
           onChange={(e) => setDraftName(e.target.value)}
           placeholder={t('editor.templateNamePlaceholder', 'Template name…')}
           onKeyDown={handleKeyDown}
-          style={{
-            flex: 1,
-            minWidth: 60,
-            fontSize: 12,
-            padding: '3px 6px',
-            borderRadius: 4,
-            border: '1px solid var(--ev-c-gray-2)',
-            background: 'var(--color-background-mute)',
-            color: 'var(--ev-c-text-1)'
-          }}
+          className="templateSaveInput"
         />
         <button
-          className="runtimeButton"
+          className="runtimeButton templateSaveBtn"
           type="button"
           onClick={handleSave}
           disabled={!canSave}
-          style={{ whiteSpace: 'nowrap' }}
         >
           {t('editor.saveSelection', 'Save Selection')}
         </button>
@@ -228,7 +184,7 @@ export const TemplateLibraryPanel = React.memo(function TemplateLibraryPanel({
           {t('editor.templatesEmpty', 'Select nodes and save them as a template.')}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div className="templateList">
           {templates.map((template) => (
             <TemplateRow
               key={template.id}

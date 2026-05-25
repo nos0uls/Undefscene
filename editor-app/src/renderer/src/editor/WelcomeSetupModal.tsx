@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { THEMES, type ThemeId } from './useTheme'
 import type { EditorPreferences, AccentColorId } from './usePreferences'
 import { createTranslator } from '../i18n'
@@ -31,6 +31,19 @@ export function WelcomeSetupModal({
   onComplete
 }: WelcomeSetupModalProps): React.JSX.Element | null {
   const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
+
+  // Закрытие по Escape.
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onComplete()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open, onComplete])
 
   if (!open) return null
 

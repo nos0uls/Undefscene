@@ -152,27 +152,31 @@ export function useLayoutState(): {
       .then((loaded) => {
         if (cancelled) return
 
-        // Если файл существует, но формат старый/битый — не падаем.
-        // Просто используем дефолтную раскладку.
-        if (
-          loaded &&
-          typeof loaded === 'object' &&
-          (loaded as Partial<LayoutState>).schemaVersion === 1
-        ) {
-          const loadedLayout = loaded as LayoutState
-          // Мержим сохранённую раскладку с дефолтной, чтобы новые панели
-          // (например Templates/Notes) появлялись у пользователей со старым layout.json.
-          setLayout({
-            ...defaultLayout,
-            ...loadedLayout,
-            dockSizes: { ...defaultLayout.dockSizes, ...loadedLayout.dockSizes },
-            docked: {
-              left: loadedLayout.docked?.left ?? defaultLayout.docked.left,
-              right: loadedLayout.docked?.right ?? defaultLayout.docked.right,
-              bottom: loadedLayout.docked?.bottom ?? defaultLayout.docked.bottom
-            },
-            panels: { ...defaultLayout.panels, ...(loadedLayout.panels ?? {}) }
-          })
+        try {
+          // Если файл существует, но формат старый/битый — не падаем.
+          // Просто используем дефолтную раскладку.
+          if (
+            loaded &&
+            typeof loaded === 'object' &&
+            (loaded as Partial<LayoutState>).schemaVersion === 1
+          ) {
+            const loadedLayout = loaded as LayoutState
+            // Мержим сохранённую раскладку с дефолтной, чтобы новые панели
+            // (например Templates/Notes) появлялись у пользователей со старым layout.json.
+            setLayout({
+              ...defaultLayout,
+              ...loadedLayout,
+              dockSizes: { ...defaultLayout.dockSizes, ...loadedLayout.dockSizes },
+              docked: {
+                left: loadedLayout.docked?.left ?? defaultLayout.docked.left,
+                right: loadedLayout.docked?.right ?? defaultLayout.docked.right,
+                bottom: loadedLayout.docked?.bottom ?? defaultLayout.docked.bottom
+              },
+              panels: { ...defaultLayout.panels, ...(loadedLayout.panels ?? {}) }
+            })
+          }
+        } catch (err) {
+          console.warn('Corrupted layout data, using default layout:', err)
         }
         didLoadRef.current = true
       })

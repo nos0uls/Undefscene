@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import type { RuntimeNote } from './runtimeTypes'
+import { useConfirm } from './confirmContext'
 
 export type NotesPanelProps = {
   notes: RuntimeNote[]
@@ -68,6 +69,8 @@ const NoteRow = React.memo(function NoteRow({
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState(note.text)
 
+  const confirm = useConfirm()
+
   const startEdit = useCallback(() => {
     setEditText(note.text)
     setEditing(true)
@@ -101,19 +104,27 @@ const NoteRow = React.memo(function NoteRow({
   )
 
   const handleDelete = useCallback(
-    (e: React.MouseEvent) => {
+    async (e: React.MouseEvent) => {
       e.stopPropagation()
-      onDeleteNote(note.id)
+      const confirmed = await confirm({
+        title: t('editor.confirmDeleteNote', 'Delete Note'),
+        message: t('editor.confirmDeleteNoteMessage', 'Are you sure?')
+      })
+      if (confirmed) onDeleteNote(note.id)
     },
-    [note.id, onDeleteNote]
+    [note.id, onDeleteNote, confirm, t]
   )
 
   const handleContextMenu = useCallback(
-    (e: React.MouseEvent) => {
+    async (e: React.MouseEvent) => {
       e.preventDefault()
-      onDeleteNote(note.id)
+      const confirmed = await confirm({
+        title: t('editor.confirmDeleteNote', 'Delete Note'),
+        message: t('editor.confirmDeleteNoteMessage', 'Are you sure?')
+      })
+      if (confirmed) onDeleteNote(note.id)
     },
-    [note.id, onDeleteNote]
+    [note.id, onDeleteNote, confirm, t]
   )
 
   // Клик по заметке — если есть привязка к ноде, фокусируемся на ней,
@@ -154,8 +165,7 @@ const NoteRow = React.memo(function NoteRow({
 
   return (
     <li
-      className="runtimeListItem"
-      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', cursor: 'grab' }}
+      className="runtimeListItem noteRow"
       draggable
       onDragStart={handleDragStart}
       onContextMenu={handleContextMenu}
@@ -163,19 +173,13 @@ const NoteRow = React.memo(function NoteRow({
       {/* Цветовой индикатор категории */}
       <span
         title={catLabel}
-        style={{
-          width: 10,
-          height: 10,
-          borderRadius: '50%',
-          background: color,
-          flexShrink: 0,
-          cursor: 'pointer'
-        }}
+        className="noteRowCategoryDot"
+        style={{ background: color }}
         onClick={handleSelect}
       />
 
       {/* Текст заметки (inline-редактирование) */}
-      <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={handleSelect}>
+      <div className="noteRowText" onClick={handleSelect}>
         {editing ? (
           <input
             autoFocus
@@ -184,16 +188,7 @@ const NoteRow = React.memo(function NoteRow({
             onBlur={commitEdit}
             onKeyDown={handleKeyDown}
             onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '100%',
-              fontSize: 12,
-              background: 'var(--bg-elevated, var(--color-background-soft))',
-              color: 'var(--text-primary, var(--ev-c-text-1))',
-              border: '1px solid var(--ev-c-accent)',
-              borderRadius: 3,
-              padding: '2px 4px',
-              outline: 'none'
-            }}
+            className="noteRowInput"
           />
         ) : (
           <span
@@ -201,11 +196,7 @@ const NoteRow = React.memo(function NoteRow({
               e.stopPropagation()
               startEdit()
             }}
-            style={{
-              fontSize: 12,
-              color: 'var(--ev-c-text-1)',
-              wordBreak: 'break-word'
-            }}
+            className="noteRowTextContent"
           >
             {note.text || t('editor.emptyNoteText', 'Empty note')}
           </span>
@@ -214,16 +205,8 @@ const NoteRow = React.memo(function NoteRow({
 
       {/* Бейдж категории */}
       <span
-        style={{
-          fontSize: 10,
-          padding: '1px 5px',
-          borderRadius: 3,
-          background: color,
-          color: '#111',
-          fontWeight: 600,
-          flexShrink: 0,
-          opacity: 0.85
-        }}
+        className="noteRowCategoryBadge"
+        style={{ background: color }}
       >
         {catLabel}
       </span>
@@ -232,17 +215,7 @@ const NoteRow = React.memo(function NoteRow({
       {note.nodeId && linkedName ? (
         <span
           onClick={handleSelect}
-          style={{
-            fontSize: 10,
-            color: 'var(--ev-c-accent, #4a9eff)',
-            flexShrink: 0,
-            cursor: 'pointer',
-            fontFamily: 'monospace',
-            maxWidth: 120,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}
+          className="noteRowLinkedNode"
           title={t('editor.focusNode', 'Focus node') + `: ${linkedName}`}
         >
           @ {linkedName}
@@ -250,91 +223,66 @@ const NoteRow = React.memo(function NoteRow({
       ) : (
         <span
           onClick={handleSelect}
-          style={{
-            fontSize: 10,
-            color: 'var(--ev-c-text-2)',
-            opacity: 0.7,
-            flexShrink: 0,
-            cursor: 'pointer',
-            fontFamily: 'monospace'
-          }}
+          className="noteRowCoords"
           title={t('editor.goToPosition', 'Go to position')}
         >
           {Math.round(note.x)}, {Math.round(note.y)}
         </span>
       )}
 
-      {/* Привязка к выделенной ноде */}
-      <button
-        type="button"
-        onClick={handleLink}
-        disabled={!note.nodeId && !selectedNode}
-        title={
-          note.nodeId
-            ? t('editor.unlinkNote', 'Unlink from node')
-            : selectedNode
-              ? t('editor.linkNote', 'Link to selected node') + `: ${selectedNode.name}`
-              : t('editor.linkNoteHint', 'Select a node first to link this note')
-        }
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: note.nodeId ? 'var(--ev-c-accent, #4a9eff)' : 'var(--ev-c-text-2)',
-          fontSize: 13,
-          cursor: !note.nodeId && !selectedNode ? 'not-allowed' : 'pointer',
-          padding: '0 2px',
-          lineHeight: 1,
-          flexShrink: 0,
-          opacity: !note.nodeId && !selectedNode ? 0.35 : 1
-        }}
-      >
-        {/* chain link icon */}
-        {'\u{1F517}'}
-      </button>
+      <div className="noteRowActions">
+        {/* Привязка к выделенной ноде */}
+        <button
+          type="button"
+          onClick={handleLink}
+          disabled={!note.nodeId && !selectedNode}
+          title={
+            note.nodeId
+              ? t('editor.unlinkNote', 'Unlink from node')
+              : selectedNode
+                ? t('editor.linkNote', 'Link to selected node') + `: ${selectedNode.name}`
+                : t('editor.linkNoteHint', 'Select a node first to link this note')
+          }
+          className="noteRowActionBtn noteRowLinkBtn"
+          style={{
+            color: note.nodeId ? 'var(--ev-c-accent, #4a9eff)' : 'var(--ev-c-text-2)',
+            cursor: !note.nodeId && !selectedNode ? 'not-allowed' : 'pointer',
+            opacity: !note.nodeId && !selectedNode ? 0.35 : 1
+          }}
+        >
+          {/* chain link icon */}
+          {'\u{1F517}'}
+        </button>
 
-      {/* Pin toggle */}
-      <button
-        type="button"
-        onClick={handleTogglePin}
-        title={note.pinned ? t('editor.unpinNote', 'Unpin') : t('editor.pinNote', 'Pin')}
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: note.pinned ? 'var(--ev-c-accent)' : 'var(--ev-c-text-2)',
-          fontSize: 13,
-          cursor: 'pointer',
-          padding: '0 2px',
-          lineHeight: 1,
-          flexShrink: 0
-        }}
-      >
-        {note.pinned ? '\uD83D\uDCCC' : '\uD83D\uDCCD'}
-      </button>
+        {/* Pin toggle */}
+        <button
+          type="button"
+          onClick={handleTogglePin}
+          title={note.pinned ? t('editor.unpinNote', 'Unpin') : t('editor.pinNote', 'Pin')}
+          className="noteRowActionBtn noteRowPinBtn"
+          style={{
+            color: note.pinned ? 'var(--ev-c-accent)' : 'var(--ev-c-text-2)'
+          }}
+        >
+          {note.pinned ? '\uD83D\uDCCC' : '\uD83D\uDCCD'}
+        </button>
 
-      {/* Удалить */}
-      <button
-        type="button"
-        onClick={handleDelete}
-        title={t('editor.deleteNote', 'Delete note')}
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: 'var(--ev-c-text-2)',
-          fontSize: 13,
-          cursor: 'pointer',
-          padding: '0 2px',
-          lineHeight: 1,
-          flexShrink: 0
-        }}
-        onMouseEnter={(e) => {
-          ;(e.currentTarget as HTMLButtonElement).style.color = 'hsl(0, 80%, 60%)'
-        }}
-        onMouseLeave={(e) => {
-          ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--ev-c-text-2)'
-        }}
-      >
-        {'\u00D7'}
-      </button>
+        {/* Удалить */}
+        <button
+          type="button"
+          onClick={handleDelete}
+          title={t('editor.deleteNote', 'Delete note')}
+          className="noteRowActionBtn noteRowDeleteBtn"
+          onMouseEnter={(e) => {
+            ;(e.currentTarget as HTMLButtonElement).style.color = 'hsl(0, 80%, 60%)'
+          }}
+          onMouseLeave={(e) => {
+            ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--ev-c-text-2)'
+          }}
+        >
+          {'\u00D7'}
+        </button>
+      </div>
     </li>
   )
 })
@@ -357,6 +305,10 @@ export const NotesPanel = React.memo(function NotesPanel({
     return notes.filter((n) => n.category === filter)
   }, [notes, filter])
 
+  const sortedNotes = useMemo(() => {
+    return [...filteredNotes].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
+  }, [filteredNotes])
+
   const handleAdd = useCallback(() => {
     const category = filter ?? 'todo'
     onAddNote({ text: t('editor.newNoteText', 'New note'), category })
@@ -373,28 +325,14 @@ export const NotesPanel = React.memo(function NotesPanel({
           type="button"
           onClick={handleAdd}
           title={t('editor.addNote', 'Add note')}
-          style={{
-            background: 'transparent',
-            border: '1px solid var(--ev-c-gray-3)',
-            color: 'var(--ev-c-text-1)',
-            borderRadius: 4,
-            width: 22,
-            height: 22,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            fontSize: 16,
-            lineHeight: 1,
-            padding: 0
-          }}
+          className="noteAddBtn"
         >
           +
         </button>
       </div>
 
       {/* Фильтр по категориям */}
-      <div style={{ display: 'flex', gap: 4, padding: '4px 4px 0', flexWrap: 'wrap' }}>
+      <div className="noteFilterChips">
         <FilterChip
           label={t('editor.all', 'All')}
           color="var(--ev-c-text-2)"
@@ -413,7 +351,7 @@ export const NotesPanel = React.memo(function NotesPanel({
       </div>
 
       {/* Список заметок */}
-      {filteredNotes.length === 0 ? (
+      {sortedNotes.length === 0 ? (
         <div className="runtimeHint" style={{ padding: '8px 4px' }}>
           {t('editor.noNotesYet', 'No notes yet. Click + to add.')}
         </div>
@@ -422,7 +360,7 @@ export const NotesPanel = React.memo(function NotesPanel({
           className="runtimeList"
           style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 0 0', margin: 0, listStyle: 'none' }}
         >
-          {filteredNotes.map((note) => (
+          {sortedNotes.map((note) => (
             <NoteRow
               key={note.id}
               note={note}
@@ -456,15 +394,11 @@ function FilterChip({
     <button
       type="button"
       onClick={onClick}
+      className="noteFilterChip"
       style={{
-        fontSize: 10,
-        padding: '2px 6px',
-        borderRadius: 3,
         border: `1px solid ${active ? color : 'transparent'}`,
         background: active ? `${color}22` : 'transparent',
-        color: active ? 'var(--ev-c-text-1)' : 'var(--ev-c-text-2)',
-        cursor: 'pointer',
-        lineHeight: 1.3
+        color: active ? 'var(--ev-c-text-1)' : 'var(--ev-c-text-2)'
       }}
       onMouseEnter={(e) => {
         if (!active) {

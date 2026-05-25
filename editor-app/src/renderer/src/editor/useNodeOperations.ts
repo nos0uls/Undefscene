@@ -22,7 +22,7 @@ export const createNodeStateUpdate = (
   position: { x: number; y: number },
   connectFromNodeId: string | null | undefined,
   prev: RuntimeState,
-  overrideParams?: Record<string, any>
+  overrideParams?: Record<string, unknown>
 ): RuntimeState => {
   const takenNames = new Set<string>(
     prev.nodes.map((n) => String(n.name ?? '').trim()).filter((v) => v.length > 0)

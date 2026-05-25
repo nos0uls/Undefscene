@@ -365,7 +365,9 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
                 value={displayValue}
                 onChange={(e) => {
                   // Для boolean значений конвертируем строки 'true'/'false'
-                  if (options.includes('true') && options.includes('false')) {
+                  if (field.key === 'wait' && options.some(o => o.includes('fire and forget'))) {
+                    handleChange(e.target.value.startsWith('true'))
+                  } else if (options.includes('true') && options.includes('false')) {
                     handleChange(e.target.value === 'true')
                   } else if (field.key === 'control_type') {
                     handleChange(Number(e.target.value))

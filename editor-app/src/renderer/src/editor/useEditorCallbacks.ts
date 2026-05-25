@@ -12,6 +12,13 @@ import type { HotkeyActionId } from './usePreferences'
 import { useToasts, pushSuccess, pushError, pushInfo } from './ToastHub'
 import { useConfirm } from './confirmContext'
 
+export interface TemplateCallbackRuntime {
+  nodes: RuntimeNode[]
+  selectedNodeIds: string[]
+  edges: RuntimeEdge[]
+  notes: RuntimeNote[]
+}
+
 export interface EditorCallbacksReturn {
   getPanelTitle: (panelId: string) => string
   handleSaveTemplate: (name: string) => void
@@ -50,7 +57,7 @@ export function useEditorCallbacks(
   setCollapsedDocks: (docks: CollapsedDocksState) => void,
   templates: CutsceneTemplateSnippet[],
   setTemplates: (templates: CutsceneTemplateSnippet[]) => void,
-  runtime: { nodes: { id: string; position?: { x: number; y: number } }[]; selectedNodeIds: string[]; edges: unknown[]; notes: RuntimeNote[] },
+  runtime: TemplateCallbackRuntime,
   setRuntime: (
     nextOrUpdater: RuntimeState | ((prev: RuntimeState) => RuntimeState),
     options?: { skipHistory?: boolean }
@@ -97,9 +104,9 @@ export function useEditorCallbacks(
     (name: string) => {
       const selectedNodes = runtime.nodes.filter((n) => runtime.selectedNodeIds.includes(n.id))
       const selectedEdges = runtime.edges.filter(
-        (e) => selectedNodes.some((n) => n.id === (e as { source: string; target: string }).source) && selectedNodes.some((n) => n.id === (e as { source: string; target: string }).target)
+        (e) => selectedNodes.some((n) => n.id === e.source) && selectedNodes.some((n) => n.id === e.target)
       )
-      const newTemplate = createTemplate(name, selectedNodes as any, selectedEdges as any)
+      const newTemplate = createTemplate(name, selectedNodes, selectedEdges)
       const nextTemplates = [...templates, newTemplate]
       setTemplates(nextTemplates)
       saveTemplates({ version: 1, templates: nextTemplates })
@@ -112,16 +119,27 @@ export function useEditorCallbacks(
       const template = templates.find((t) => t.id === templateId)
       if (!template) return
       const selectedNodes = runtime.nodes.filter((n) => runtime.selectedNodeIds.includes(n.id))
-      const refNode = selectedNodes[selectedNodes.length - 1] ?? runtime.nodes[0]
-      const offsetX = refNode?.position ? refNode.position.x + 80 : 100
-      const offsetY = refNode?.position ? refNode.position.y + 40 : 100
+      const bbox = selectedNodes.reduce(
+        (acc, n) => {
+          if (!n.position) return acc
+          return {
+            minX: Math.min(acc.minX, n.position.x),
+            minY: Math.min(acc.minY, n.position.y),
+            maxX: Math.max(acc.maxX, n.position.x),
+            maxY: Math.max(acc.maxY, n.position.y)
+          }
+        },
+        { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
+      )
+      const offsetX = bbox.maxX === -Infinity ? 100 : bbox.maxX + 40
+      const offsetY = bbox.minY === Infinity ? 100 : bbox.minY
       const { nodes: newNodes, edges: newEdges } = prepareTemplateForInsertion(template, offsetX, offsetY)
-      setRuntime((prev: any) => ({
+      setRuntime((prev: RuntimeState) => ({
         ...prev,
         nodes: [...prev.nodes, ...newNodes],
         edges: [...prev.edges, ...newEdges],
         selectedNodeId: null,
-        selectedNodeIds: newNodes.map((n: any) => n.id)
+        selectedNodeIds: newNodes.map((n) => n.id)
       }))
     },
     [templates, runtime.nodes, runtime.selectedNodeIds, setRuntime]
@@ -233,7 +251,7 @@ export function useEditorCallbacks(
 
   const handleLogsSelectNode = useCallback(
     (nodeId: string) => {
-      setRuntime((prev: any) => ({
+      setRuntime((prev: RuntimeState) => ({
         ...prev,
         selectedNodeId: nodeId,
         selectedNodeIds: [nodeId],
@@ -246,7 +264,7 @@ export function useEditorCallbacks(
 
   const handleLogsSelectEdge = useCallback(
     (edgeId: string) => {
-      setRuntime((prev: any) => ({
+      setRuntime((prev: RuntimeState) => ({
         ...prev,
         selectedNodeId: null,
         selectedNodeIds: [],
@@ -419,7 +437,7 @@ export function useEditorCallbacks(
   // Node selection
   const selectNode = useCallback(
     (nodeId: string) => {
-      setRuntime((prev: any) => ({
+      setRuntime((prev: RuntimeState) => ({
         ...prev,
         selectedNodeId: nodeId,
         selectedNodeIds: [nodeId],
@@ -441,7 +459,7 @@ export function useEditorCallbacks(
         y: note.y ?? 0,
         pinned: note.pinned ?? false
       }
-      setRuntime((prev: any) => ({
+      setRuntime((prev: RuntimeState) => ({
         ...prev,
         notes: [...prev.notes, fullNote]
       }))
@@ -451,7 +469,7 @@ export function useEditorCallbacks(
 
   const handleUpdateNote = useCallback(
     (id: string, patch: Partial<RuntimeNote>) => {
-      setRuntime((prev: any) => ({
+      setRuntime((prev: RuntimeState) => ({
         ...prev,
         notes: prev.notes.map((n: RuntimeNote) => (n.id === id ? { ...n, ...patch } : n))
       }))
@@ -461,7 +479,7 @@ export function useEditorCallbacks(
 
   const handleDeleteNote = useCallback(
     (id: string) => {
-      setRuntime((prev: any) => ({
+      setRuntime((prev: RuntimeState) => ({
         ...prev,
         notes: prev.notes.filter((n: RuntimeNote) => n.id !== id)
       }))

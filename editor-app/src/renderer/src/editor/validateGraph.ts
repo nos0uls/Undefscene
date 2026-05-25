@@ -112,8 +112,9 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   stop_boss_music: [],
   boss_music_phase: ['phases'],
   play_music_intro: ['intro', 'loop'],
-  play_music_intro_layered: ['intro', 'calm'],
+  play_music_intro_layered: ['intro', 'calm', 'battle'],
   crossfade_music: ['intensity'],
+  set_plot: ['value'],
   schedule_action: ['delay_seconds', 'action_type'],
   attach_to_target: ['target_ref', 'parent_ref'],
   detach: ['target_ref'],
@@ -686,13 +687,13 @@ export function validateGraph(
     // camera_shake / shake_object: проверяем seconds, frequency и magnitudes.
     if (node.type === 'camera_shake' || node.type === 'shake_object') {
       const seconds = Number(node.params?.seconds ?? 0)
-      if (seconds <= 0) {
+      if ((node.type === 'camera_shake' && seconds <= 0) || (node.type === 'shake_object' && seconds < 0)) {
         entries.push({
           severity: 'warn',
           defaultSeverity: 'warn',
-          ruleId: 'waitInvalidSeconds',
+          ruleId: node.type === 'camera_shake' ? 'waitInvalidSeconds' : 'shakeObjectNegativeSeconds',
           nodeId: node.id,
-          message: t('validation.cameraShakeSecondsInvalid', { name: nodeDisplayName })
+          message: t(node.type === 'camera_shake' ? 'validation.cameraShakeSecondsInvalid' : 'validation.shakeObjectNegativeSeconds', { name: nodeDisplayName })
         })
       }
       const frequency = Number(node.params?.frequency ?? 1)
@@ -811,6 +812,72 @@ export function validateGraph(
           ruleId: 'jumpTargetNotFound',
           nodeId: node.id,
           message: t('validation.jumpTargetNotFound', { name: nodeDisplayName, target: jumpTarget })
+        })
+      }
+      const jumpSeconds = Number(node.params?.seconds ?? 0)
+      if (jumpSeconds <= 0) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'jumpInvalidSeconds',
+          nodeId: node.id,
+          message: t('validation.jumpInvalidSeconds', { name: nodeDisplayName })
+        })
+      }
+    }
+
+    // restore_state: checkpoint_id не пустой
+    if (node.type === 'restore_state') {
+      const checkpointId = String(node.params?.checkpoint_id ?? '').trim()
+      if (!checkpointId) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'restoreStateMissingId',
+          nodeId: node.id,
+          message: t('validation.restoreStateMissingId', { name: nodeDisplayName })
+        })
+      }
+    }
+
+    // detach: target_ref не пустой
+    if (node.type === 'detach') {
+      const targetRef = String(node.params?.target_ref ?? '').trim()
+      if (!targetRef) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'detachMissingTarget',
+          nodeId: node.id,
+          message: t('validation.detachMissingTarget', { name: nodeDisplayName })
+        })
+      }
+    }
+
+    // spawn_entity: object не пустой
+    if (node.type === 'spawn_entity') {
+      const objectName = String(node.params?.object ?? '').trim()
+      if (!objectName) {
+        entries.push({
+          severity: 'warn',
+          defaultSeverity: 'warn',
+          ruleId: 'spawnEntityMissingObject',
+          nodeId: node.id,
+          message: t('validation.spawnEntityMissingObject', { name: nodeDisplayName })
+        })
+      }
+    }
+
+    // emote: sprite не пустой (tip)
+    if (node.type === 'emote') {
+      const sprite = String(node.params?.sprite ?? '').trim()
+      if (!sprite) {
+        entries.push({
+          severity: 'tip',
+          defaultSeverity: 'tip',
+          ruleId: 'emoteMissingSprite',
+          nodeId: node.id,
+          message: t('validation.emoteMissingSprite', { name: nodeDisplayName })
         })
       }
     }

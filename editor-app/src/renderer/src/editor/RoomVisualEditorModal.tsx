@@ -275,6 +275,20 @@ export function RoomVisualEditorModal({
 
   clearTransientInteractionStateRef.current = clearTransientInteractionState
 
+  // room change / refresh должны триггерить auto-fit при следующей загрузке bundle.
+  const wrappedHandleRoomChange = useCallback(
+    (room: string): void => {
+      shouldAutoFitRef.current = true
+      handleRoomChange(room)
+    },
+    [handleRoomChange]
+  )
+
+  const wrappedHandleRefresh = useCallback((): void => {
+    shouldAutoFitRef.current = true
+    handleRefresh()
+  }, [handleRefresh])
+
   // Управление viewport: zoom и pan offset.
   const viewportControls = useViewportControls({
     bundle,
@@ -408,6 +422,7 @@ export function RoomVisualEditorModal({
     }
 
     if (!selectedRoom || !availableRooms.includes(selectedRoom)) {
+      shouldAutoFitRef.current = true
       setSelectedRoom(availableRooms[0])
     }
   }, [availableRooms, open, selectedRoom])
@@ -700,6 +715,13 @@ export function RoomVisualEditorModal({
     const frame = window.requestAnimationFrame(() => fitToViewport())
     return () => window.cancelAnimationFrame(frame)
   }, [bundle, fitToViewport, open])
+
+  // Cleanup RAF loops on unmount, чтобы не оставлять бегущие анимации после закрытия.
+  useEffect(() => {
+    return () => {
+      stopPlayPreview()
+    }
+  }, [stopPlayPreview])
 
   // Stitch draw: собираем все тайлы на один canvas.
   // Тут renderer удобнее всего, потому что canvas API уже рядом с UI tool surface.
@@ -1381,8 +1403,8 @@ export function RoomVisualEditorModal({
         <RoomVisualEditorToolbar
           availableRooms={availableRooms}
           selectedRoom={selectedRoom}
-          onRoomChange={handleRoomChange}
-          onRefresh={handleRefresh}
+          onRoomChange={wrappedHandleRoomChange}
+          onRefresh={wrappedHandleRefresh}
           zoomIn={zoomIn}
           zoomOut={zoomOut}
           fitToViewport={fitToViewport}

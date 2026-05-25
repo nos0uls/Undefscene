@@ -184,11 +184,13 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(props: Docking
     (id) => layout.panels[id]?.mode === 'floating'
   )
 
+  const allDocksCollapsed = collapsedDocks.left && collapsedDocks.right && collapsedDocks.bottom
+
   return (
     <div
       ref={ctx.rootRef}
       tabIndex={-1}
-      className="editorRoot"
+      className={['editorRoot', allDocksCollapsed ? 'editorRoot--allCollapsed' : ''].filter(Boolean).join(' ')}
       style={
         {
           ['--leftDockWidth' as string]: `${collapsedDocks.left ? COLLAPSED_DOCK_SIZE : layout.dockSizes.leftWidth}px`,

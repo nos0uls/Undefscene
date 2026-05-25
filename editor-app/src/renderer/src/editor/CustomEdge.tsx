@@ -2,7 +2,7 @@
 // Добавляет: стрелку на конце, hover glow, timing badge с фоном.
 // Подключается через edgeTypes в FlowCanvas.
 
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -63,6 +63,8 @@ const CustomEdgeInner = memo(function CustomEdgeInner({
   style = {},
   markerEnd: _markerEnd  // игнорируем дефолтный, ставим свой
 }: EdgeProps): React.JSX.Element {
+  const [hovered, setHovered] = useState(false)
+
   const targetInset = 10
   const adjustedTargetX = targetPosition === Position.Left
     ? targetX - targetInset
@@ -87,25 +89,31 @@ const CustomEdgeInner = memo(function CustomEdgeInner({
   const isInternalPair = (data as Record<string, unknown> | undefined)?.isInternalPair === true
   const timingLabel = (data as Record<string, unknown> | undefined)?.timingLabel as string | undefined
 
-  // Цвета: акцентный если выбрано, стандартный иначе.
-  const strokeColor = selected
+  const isActive = selected || hovered
+
+  // Цвета: акцентный если выбрано или hover, стандартный иначе.
+  const strokeColor = isActive
     ? 'var(--ev-c-accent)'
     : 'var(--edge-default, hsl(220, 10%, 35%))'
 
-  const markerUrl = `url(#${CUSTOM_EDGE_MARKER_ID})`
+  const markerUrl = `url(#${isActive ? `${CUSTOM_EDGE_MARKER_ID}-accent` : CUSTOM_EDGE_MARKER_ID})`
 
   // Пунктир для internal pair-рёбер (parallel).
   const pairStyle: React.CSSProperties = isInternalPair
     ? { strokeDasharray: '6 4', opacity: 0.35 }
     : {}
 
-  // Hover glow через filter.
-  const glowFilter = selected
+  // Glow через filter при выделении или hover.
+  const glowFilter = isActive
     ? 'drop-shadow(0 0 3px var(--ev-c-accent))'
     : undefined
 
   return (
-    <>
+    <g
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ pointerEvents: isInternalPair ? 'none' : 'auto' }}
+    >
       <BaseEdge
         id={id}
         path={edgePath}
@@ -113,7 +121,7 @@ const CustomEdgeInner = memo(function CustomEdgeInner({
           ...style,
           ...pairStyle,
           stroke: strokeColor,
-          strokeWidth: selected ? 2.5 : 1.8,
+          strokeWidth: isActive ? 2.5 : 1.8,
           filter: glowFilter,
           transition: 'stroke 0.15s, stroke-width 0.15s, filter 0.15s'
         }}
@@ -135,7 +143,7 @@ const CustomEdgeInner = memo(function CustomEdgeInner({
           </div>
         </EdgeLabelRenderer>
       )}
-    </>
+    </g>
   )
 })
 

@@ -53,6 +53,7 @@ function DockPanelBase(props: DockPanelProps): React.JSX.Element {
     <section
       className={['dockPanel', collapsed ? 'isCollapsed' : '', className].filter(Boolean).join(' ')}
       style={style}
+      aria-expanded={!collapsed}
     >
       <header className="dockPanelHeader" onPointerDown={onHeaderPointerDown}>
         <div className="dockPanelTitle">{title}</div>

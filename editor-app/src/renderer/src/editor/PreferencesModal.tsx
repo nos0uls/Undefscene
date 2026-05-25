@@ -129,6 +129,59 @@ export function PreferencesModal({
     return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [applyKeybindingChange, capturingActionId, open])
 
+  // Focus trap: Tab cycles inside the modal; focus first element on open.
+  useEffect(() => {
+    if (!open) return
+    const modal = overlayRef.current?.querySelector('.prefsModal') as HTMLElement | null
+    if (!modal) return
+
+    const focusableSelector =
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    const getFocusable = (): HTMLElement[] =>
+      Array.from(modal.querySelectorAll<HTMLElement>(focusableSelector)).filter(
+        (el) => {
+          const isDisabled =
+            el instanceof HTMLButtonElement ||
+            el instanceof HTMLInputElement ||
+            el instanceof HTMLSelectElement ||
+            el instanceof HTMLTextAreaElement
+              ? el.disabled
+              : false
+          return !isDisabled && el.offsetParent !== null
+        }
+      )
+
+    // Auto-focus first focusable element when opened.
+    const focusable = getFocusable()
+    const firstFocusable = focusable[0]
+    if (firstFocusable) {
+      firstFocusable.focus()
+    }
+
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key !== 'Tab') return
+      const items = getFocusable()
+      if (items.length === 0) return
+      const first = items[0]
+      const last = items[items.length - 1]
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open])
+
   if (!open) return null
 
   return (

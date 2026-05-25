@@ -606,6 +606,25 @@ function actionToRuntimeNode(
       params[key] = value
       continue
     }
+    // Actor / movement / visual / camera / logic nodes with 1:1 field mapping.
+    if (
+      normalizedType === 'tween_camera' ||
+      normalizedType === 'detach' ||
+      normalizedType === 'spawn_entity' ||
+      normalizedType === 'destroy_entity' ||
+      normalizedType === 'set_plot' ||
+      normalizedType === 'wait_for_interact' ||
+      normalizedType === 'emote' ||
+      normalizedType === 'jump' ||
+      normalizedType === 'halt' ||
+      normalizedType === 'flip' ||
+      normalizedType === 'spin' ||
+      normalizedType === 'set_visible' ||
+      normalizedType === 'follow_path'
+    ) {
+      params[key] = value
+      continue
+    }
     params[key] = value
   }
 

@@ -49,7 +49,7 @@ export function useEditorValidation(
           const id = setTimeout(() => {
             setValidation(
               validateGraphFn(
-                runtime as RuntimeState,
+                runtime,
                 validationContext
               )
             )
@@ -64,7 +64,7 @@ export function useEditorValidation(
             setTimeout(() => {
               setValidation(
                 module.validateGraph(
-                  runtime as RuntimeState,
+                  runtime,
                   validationContext
                 )
               )

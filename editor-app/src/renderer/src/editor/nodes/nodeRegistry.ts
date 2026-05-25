@@ -66,7 +66,7 @@ const baseNodes: Record<string, NodeDefinition> = {
     { key: 'x', label: 'X', type: 'number', defaultValue: 0 },
     { key: 'y', label: 'Y', type: 'number', defaultValue: 0 },
     { key: 'speed_px_sec', label: 'Speed (px/sec)', type: 'number', placeholder: '60', defaultValue: 60 },
-    { key: 'collision', label: 'Collision', type: 'select', options: ['false', 'true'], defaultValue: false }
+    { key: 'collision', label: 'Collision', type: 'select', options: ['false', 'true'], defaultValue: 'false' }
   ], defaultParams: { target: 'player', x: 0, y: 0, speed_px_sec: 60, collision: 'false' } },
   set_position: { type: 'set_position', label: 'Set Position', category: 'movement', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
@@ -88,17 +88,17 @@ const baseNodes: Record<string, NodeDefinition> = {
     { key: 'parent_ref', label: 'Parent', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'offset_x', label: 'Offset X', type: 'number', defaultValue: 0 },
     { key: 'offset_y', label: 'Offset Y', type: 'number', defaultValue: 0 },
-    { key: 'follow_facing', label: 'Follow Facing', type: 'select', options: ['true', 'false'], defaultValue: true },
-    { key: 'follow_scale', label: 'Follow Scale', type: 'select', options: ['true', 'false'], defaultValue: true },
-    { key: 'follow_depth', label: 'Follow Depth', type: 'select', options: ['true', 'false'], defaultValue: true },
+    { key: 'follow_facing', label: 'Follow Facing', type: 'select', options: ['true', 'false'], defaultValue: 'true' },
+    { key: 'follow_scale', label: 'Follow Scale', type: 'select', options: ['true', 'false'], defaultValue: 'true' },
+    { key: 'follow_depth', label: 'Follow Depth', type: 'select', options: ['true', 'false'], defaultValue: 'true' },
     { key: 'duration_seconds', label: 'Duration (seconds, 0=instant)', type: 'number', step: 0.1, defaultValue: 0 },
-    { key: 'detach_on_cutscene_end', label: 'Detach On Cutscene End', type: 'select', options: ['true', 'false'], defaultValue: true }
-  ], defaultParams: { target_ref: 'player', parent_ref: '', offset_x: 0, offset_y: 0, follow_facing: true, follow_scale: true, follow_depth: true, duration_seconds: 0, detach_on_cutscene_end: true } },
+    { key: 'detach_on_cutscene_end', label: 'Detach On Cutscene End', type: 'select', options: ['true', 'false'], defaultValue: 'true' }
+  ], defaultParams: { target_ref: 'player', parent_ref: '', offset_x: 0, offset_y: 0, follow_facing: 'true', follow_scale: 'true', follow_depth: 'true', duration_seconds: 0, detach_on_cutscene_end: 'true' } },
   detach: { type: 'detach', label: 'Detach', category: 'actor', fields: [
     { key: 'target_ref', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
-    { key: 'keep_world_position', label: 'Keep World Position', type: 'select', options: ['true', 'false'], defaultValue: true },
-    { key: 'destroy_after_detach', label: 'Destroy After Detach', type: 'select', options: ['true', 'false'], defaultValue: false }
-  ], defaultParams: { target_ref: 'player', keep_world_position: true, destroy_after_detach: false } },
+    { key: 'keep_world_position', label: 'Keep World Position', type: 'select', options: ['true', 'false'], defaultValue: 'true' },
+    { key: 'destroy_after_detach', label: 'Destroy After Detach', type: 'select', options: ['true', 'false'], defaultValue: 'false' }
+  ], defaultParams: { target_ref: 'player', keep_world_position: 'true', destroy_after_detach: 'false' } },
   lerp: { type: 'lerp', label: 'Lerp Property', category: 'actor', fields: [
     { key: 'target', label: 'Target', type: 'searchable', options: [] },
     { key: 'property', label: 'Property', type: 'searchable', options: ['x', 'y', 'image_xscale', 'image_yscale', 'image_angle', 'image_alpha', 'depth'], defaultValue: 'x' },
@@ -120,8 +120,8 @@ const baseNodes: Record<string, NodeDefinition> = {
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'image_index', label: 'Image Index', type: 'number', placeholder: 'frame number', defaultValue: 0 },
     { key: 'image_speed', label: 'Image Speed', type: 'number', step: 0.1, placeholder: '1 = normal', defaultValue: 1 },
-    { key: 'pause', label: 'Pause', type: 'select', options: ['true', 'false'], defaultValue: false }
-  ], defaultParams: { target: 'player', image_index: 0, image_speed: 1, pause: false } },
+    { key: 'pause', label: 'Pause', type: 'select', options: ['true', 'false'], defaultValue: 'false' }
+  ], defaultParams: { target: 'player', image_index: 0, image_speed: 1, pause: 'false' } },
   dialogue: { type: 'dialogue', label: 'Dialogue', category: 'dialogue', fields: [
     { key: 'file', label: 'File', type: 'searchable', placeholder: 'dialogue', options: [] },
     { key: 'node', label: 'Node', type: 'searchable', placeholder: 'Intro', options: [] },
@@ -169,9 +169,9 @@ const cameraNodes: Record<string, NodeDefinition> = {
     { key: 'magnitude', label: 'Magnitude (px)', type: 'number', placeholder: '4', defaultValue: 4 },
     { key: 'magnitude_x', label: 'Magnitude X (px)', type: 'number', placeholder: '4', defaultValue: 4 },
     { key: 'magnitude_y', label: 'Magnitude Y (px)', type: 'number', placeholder: '4', defaultValue: 4 },
-    { key: 'decay', label: 'Decay', type: 'select', options: ['true', 'false'], defaultValue: false },
+    { key: 'decay', label: 'Decay', type: 'select', options: ['true', 'false'], defaultValue: 'false' },
     { key: 'frequency', label: 'Frequency', type: 'number', step: 1, placeholder: '1', defaultValue: 1 }
-  ], defaultParams: { seconds: 1, magnitude: 4, magnitude_x: 4, magnitude_y: 4, decay: false, frequency: 1 } }
+  ], defaultParams: { seconds: 1, magnitude: 4, magnitude_x: 4, magnitude_y: 4, decay: 'false', frequency: 1 } }
 }
 
 // Conditional ноды (tween, set_property).
@@ -181,7 +181,7 @@ const conditionalNodes: Record<string, NodeDefinition> = {
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [], condition: whenParamNotEquals('kind', 'camera') },
     { key: 'prop', label: 'Property', type: 'searchable', placeholder: 'x, y, image_alpha...', options: ['x', 'y', 'image_alpha', 'image_angle', 'image_xscale', 'image_yscale', 'image_blend', 'image_speed', 'depth'], defaultValue: '' },
     { key: 'end_value', label: 'To', type: 'number', defaultValue: 0 },
-    { key: 'start_value_override', label: 'From (optional)', type: 'number', defaultValue: '' },
+    { key: 'start_value_override', label: 'From (optional)', type: 'number', defaultValue: undefined },
     { key: 'duration_frames', label: 'Seconds', type: 'number', step: 0.1, defaultValue: 1 },
     { key: 'ease_name', label: 'Easing', type: 'select', options: ['linear', 'ease_in', 'ease_out', 'ease_in_out'], defaultValue: 'linear' }
   ], defaultParams: { kind: 'instance', target: 'player', prop: 'x', end_value: 0, duration_frames: 1, ease_name: 'linear' } },
@@ -205,12 +205,12 @@ const otherNodes: Record<string, NodeDefinition> = {
   ], defaultParams: { target: 'player', direction: 'right' } },
   auto_facing: { type: 'auto_facing', label: 'Auto Facing', category: 'visual', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
-    { key: 'enabled', label: 'Enabled', type: 'select', options: ['true', 'false'], defaultValue: true }
-  ], defaultParams: { target: 'player', enabled: true } },
+    { key: 'enabled', label: 'Enabled', type: 'select', options: ['true', 'false'], defaultValue: 'true' }
+  ], defaultParams: { target: 'player', enabled: 'true' } },
   auto_walk: { type: 'auto_walk', label: 'Auto Walk', category: 'visual', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
-    { key: 'enabled', label: 'Enabled', type: 'select', options: ['true', 'false'], defaultValue: true }
-  ], defaultParams: { target: 'player', enabled: true } },
+    { key: 'enabled', label: 'Enabled', type: 'select', options: ['true', 'false'], defaultValue: 'true' }
+  ], defaultParams: { target: 'player', enabled: 'true' } },
   fade_in: { type: 'fade_in', label: 'Fade In', category: 'camera', fields: [
     { key: 'seconds', label: 'Seconds', type: 'number', step: 0.1, defaultValue: 0.5 },
     { key: 'color', label: 'Color', type: 'text', defaultValue: 'black' }
@@ -283,8 +283,8 @@ const otherNodes: Record<string, NodeDefinition> = {
     { key: 'offset_x', label: 'Offset X', type: 'number', defaultValue: 0 },
     { key: 'offset_y', label: 'Offset Y', type: 'number', defaultValue: -24 },
     { key: 'scale', label: 'Scale', type: 'number', step: 0.1, defaultValue: 1 },
-    { key: 'wait', label: 'Wait', type: 'select', options: ['false (fire and forget)', 'true (wait for finish)'], defaultValue: false }
-  ], defaultParams: { target: 'player', sprite: '', seconds: 1, offset_x: 0, offset_y: -24, scale: 1, wait: false } },
+    { key: 'wait', label: 'Wait', type: 'select', options: ['false (fire and forget)', 'true (wait for finish)'], defaultValue: 'false (fire and forget)' }
+  ], defaultParams: { target: 'player', sprite: '', seconds: 1, offset_x: 0, offset_y: -24, scale: 1, wait: 'false (fire and forget)' } },
   jump: { type: 'jump', label: 'Jump', category: 'movement', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'x', label: 'X', type: 'number', defaultValue: 0 },
@@ -298,8 +298,8 @@ const otherNodes: Record<string, NodeDefinition> = {
   ], defaultParams: { target: 'player' } },
   flip: { type: 'flip', label: 'Flip', category: 'visual', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
-    { key: 'flipped', label: 'Flipped', type: 'select', options: ['true', 'false'], defaultValue: true }
-  ], defaultParams: { target: 'player', flipped: true } },
+    { key: 'flipped', label: 'Flipped', type: 'select', options: ['true', 'false'], defaultValue: 'true' }
+  ], defaultParams: { target: 'player', flipped: 'true' } },
   spin: { type: 'spin', label: 'Spin', category: 'visual', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'speed', label: 'Speed', type: 'number', defaultValue: 10 },
@@ -311,16 +311,16 @@ const otherNodes: Record<string, NodeDefinition> = {
     { key: 'magnitude', label: 'Magnitude', type: 'number', defaultValue: 4 },
     { key: 'magnitude_x', label: 'Magnitude X', type: 'number', placeholder: '4', defaultValue: 4 },
     { key: 'magnitude_y', label: 'Magnitude Y', type: 'number', placeholder: '4', defaultValue: 4 },
-    { key: 'decay', label: 'Decay', type: 'select', options: ['true', 'false'], defaultValue: false },
+    { key: 'decay', label: 'Decay', type: 'select', options: ['true', 'false'], defaultValue: 'false' },
     { key: 'frequency', label: 'Frequency', type: 'number', step: 1, placeholder: '1', defaultValue: 1 }
-  ], defaultParams: { target: 'player', seconds: 0.5, magnitude: 4, magnitude_x: 4, magnitude_y: 4, decay: false, frequency: 1 } },
+  ], defaultParams: { target: 'player', seconds: 0.5, magnitude: 4, magnitude_x: 4, magnitude_y: 4, decay: 'false', frequency: 1 } },
   set_visible: { type: 'set_visible', label: 'Set Visible', category: 'visual', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
-    { key: 'visible', label: 'Visible', type: 'select', options: ['true', 'false'], defaultValue: true }
-  ], defaultParams: { target: 'player', visible: true } },
+    { key: 'visible', label: 'Visible', type: 'select', options: ['true', 'false'], defaultValue: 'true' }
+  ], defaultParams: { target: 'player', visible: 'true' } },
   instant_mode: { type: 'instant_mode', label: 'Instant Mode', category: 'logic', fields: [
     { key: 'enabled', label: 'Enabled', type: 'select', options: ['true', 'false'], defaultValue: 'true' }
-  ], defaultParams: { enabled: true } },
+  ], defaultParams: { enabled: 'true' } },
   mark_node: { type: 'mark_node', label: 'Mark Node', category: 'logic', fields: [
     { key: 'name', label: 'Mark Name', type: 'searchable', placeholder: 'point_a', options: [], defaultValue: '' }
   ], defaultParams: { name: '' } },
@@ -390,8 +390,8 @@ const otherNodes: Record<string, NodeDefinition> = {
     { key: 'dx', label: 'dX', type: 'number', defaultValue: 0 },
     { key: 'dy', label: 'dY', type: 'number', defaultValue: 0 },
     { key: 'speed_px_sec', label: 'Speed (px/sec)', type: 'number', placeholder: '60', defaultValue: 60 },
-    { key: 'collision', label: 'Collision', type: 'select', options: ['false', 'true'], defaultValue: false }
-  ], defaultParams: { target: 'player', dx: 0, dy: 0, speed_px_sec: 60, collision: false } },
+    { key: 'collision', label: 'Collision', type: 'select', options: ['false', 'true'], defaultValue: 'false' }
+  ], defaultParams: { target: 'player', dx: 0, dy: 0, speed_px_sec: 60, collision: 'false' } },
   set_position_relative: { type: 'set_position_relative', label: 'Set Position Relative', category: 'movement', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'dx', label: 'dX', type: 'number', defaultValue: 0 },
@@ -400,9 +400,9 @@ const otherNodes: Record<string, NodeDefinition> = {
   follow_path: { type: 'follow_path', label: 'Follow Path', category: 'movement', fields: [
     { key: 'target', label: 'Target', type: 'searchable', placeholder: 'actor key / player', options: [] },
     { key: 'speed_px_sec', label: 'Speed (px/sec)', type: 'number', placeholder: '60', defaultValue: 60 },
-    { key: 'collision', label: 'Collision', type: 'select', options: ['false', 'true'], defaultValue: false },
-    { key: 'autofacing', label: 'Auto Facing', type: 'select', options: ['true', 'false'], defaultValue: true }
-  ], defaultParams: { target: 'player', points: [], speed_px_sec: 60, collision: false, autofacing: true } },
+    { key: 'collision', label: 'Collision', type: 'select', options: ['false', 'true'], defaultValue: 'false' },
+    { key: 'autofacing', label: 'Auto Facing', type: 'select', options: ['true', 'false'], defaultValue: 'true' }
+  ], defaultParams: { target: 'player', points: [], speed_px_sec: 60, collision: 'false', autofacing: 'true' } },
   // TODO: tween_camera - legacy node, may need special handling
   tween_camera: { type: 'tween_camera', label: 'Tween Camera', category: 'camera', fields: [
     { key: 'property', label: 'Property', type: 'text', defaultValue: '' },

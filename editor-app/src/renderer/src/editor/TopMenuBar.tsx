@@ -486,11 +486,12 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
                       const itemEl = dropdownItemRefs.current.get(e.id)
                       const itemRect = itemEl?.getBoundingClientRect()
                       const SUBMENU_WIDTH = 200
+                      const SUBMENU_ESTIMATED_HEIGHT = e.children?.length ? e.children.length * 32 + 8 : 0
                       const submenuStyle: React.CSSProperties | undefined = itemRect
                         ? {
                             position: 'fixed',
-                            top: itemRect.top - 4,
-                            left: Math.min(itemRect.right, window.innerWidth - SUBMENU_WIDTH)
+                            top: Math.min(itemRect.top - 4, window.innerHeight - SUBMENU_ESTIMATED_HEIGHT - 8),
+                            left: Math.min(itemRect.right, window.innerWidth - SUBMENU_WIDTH - 8)
                           }
                         : undefined
 
@@ -509,6 +510,7 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
                             .filter(Boolean)
                             .join(' ')}
                           role="menuitem"
+                          aria-haspopup={e.children ? 'menu' : undefined}
                           onMouseEnter={() => {
                             setFocusedItemId(e.id)
                             if (e.children?.length) {

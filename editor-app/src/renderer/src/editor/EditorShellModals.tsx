@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import React from 'react'
+import React, { useEffect } from 'react'
 
 import { PreferencesModal } from './PreferencesModal'
 import { WelcomeSetupModal } from './WelcomeSetupModal'
@@ -7,11 +7,13 @@ import { TutorialOverlay } from './TutorialOverlay'
 import { TUTORIAL_REGISTRY } from './tutorialConstants'
 import { AboutModal } from './AboutModal'
 import type { NameConflictModalState } from './inspectorTypes'
+import type { EditorPreferences } from './usePreferences'
+import type { RuntimeState } from './runtimeTypes'
 
 export interface EditorShellModalsProps {
   preferencesOpen: boolean
-  preferences: any
-  updatePreferences: (prefs: any) => void
+  preferences: EditorPreferences
+  updatePreferences: (prefs: Partial<EditorPreferences>) => void
   setPreferencesOpen: (open: boolean) => void
   welcomeOpen: boolean
   handleWelcomeComplete: () => void
@@ -33,8 +35,8 @@ export interface EditorShellModalsProps {
   setPendingNodeName: (name: string) => void
   setNameConflictModal: (state: NameConflictModalState | null) => void
   nameConflictOkRef: React.RefObject<HTMLButtonElement | null>
-  runtime: any
-  setRuntime: (updater: (prev: any) => any) => void
+  runtime: RuntimeState
+  setRuntime: (updater: (prev: RuntimeState) => RuntimeState) => void
   t: (key: string, fallback: string) => string
 }
 
@@ -62,10 +64,23 @@ export function EditorShellModals({
   setPendingNodeName,
   setNameConflictModal,
   nameConflictOkRef,
-  runtime,
   setRuntime,
   t
 }: EditorShellModalsProps) {
+  // Escape handler for NameConflictModal.
+  useEffect(() => {
+    if (!nameConflictModal) return
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setPendingNodeName(nameConflictModal.previousName)
+        setNameConflictModal(null)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [nameConflictModal, setPendingNodeName, setNameConflictModal])
+
   return (
     <>
       <PreferencesModal
@@ -178,12 +193,12 @@ export function EditorShellModals({
                   onClick={() => {
                     const v = nameConflictModal.value
                     setPendingNodeName(v)
-                    setRuntime({
-                      ...runtime,
-                      nodes: runtime.nodes.map((n: any) =>
+                    setRuntime((prev) => ({
+                      ...prev,
+                      nodes: prev.nodes.map((n) =>
                         n.id === nameConflictModal.nodeId ? { ...n, name: v.trim() } : n
                       )
-                    })
+                    }))
                     setNameConflictModal(null)
                   }}
                 >

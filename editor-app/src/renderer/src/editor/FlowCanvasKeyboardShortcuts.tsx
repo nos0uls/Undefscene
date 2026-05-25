@@ -4,26 +4,41 @@ type FlowCanvasKeyboardShortcutsProps = {
   fitView: (options?: { duration?: number; padding?: number }) => void | Promise<void | boolean>
 }
 
+function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null
+  if (!el) return false
+
+  const tag = el.tagName
+  if (tag === 'TEXTAREA' || tag === 'SELECT') {
+    return true
+  }
+
+  if (tag === 'INPUT') {
+    const inputType = (el as HTMLInputElement).type?.toLowerCase()
+    return !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(inputType)
+  }
+
+  return el.closest('[contenteditable="true"]') !== null
+}
+
 export const FlowCanvasKeyboardShortcuts = memo(function FlowCanvasKeyboardShortcuts({
   fitView
 }: FlowCanvasKeyboardShortcutsProps): React.JSX.Element | null {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl+0 (или Numpad0) — fitView.
+      if ((event.ctrlKey || event.metaKey) && (event.code === 'Digit0' || event.code === 'Numpad0')) {
+        event.preventDefault()
+        event.stopPropagation()
+        void fitView({ duration: 180, padding: 0.18 })
+        return
+      }
+
       if (event.code !== 'Space') return
       if (event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return
 
       // Не перехватываем Space если фокус в поле ввода.
-      const target = event.target as HTMLElement | null
-      if (!target) return
-      const tag = target.tagName
-      if (tag === 'TEXTAREA' || tag === 'SELECT') return
-      if (tag === 'INPUT') {
-        const inputType = (target as HTMLInputElement).type?.toLowerCase()
-        if (!['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(inputType)) {
-          return
-        }
-      }
-      if (target.closest('[contenteditable="true"]')) return
+      if (isTypingTarget(event.target)) return
 
       event.preventDefault()
       void fitView({ duration: 180, padding: 0.18 })

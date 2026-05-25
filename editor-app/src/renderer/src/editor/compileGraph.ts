@@ -889,6 +889,112 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       return action
     }
 
+    if (node.type === 'tween_camera') {
+      if (typeof node.params?.property === 'string' && node.params.property) action.property = node.params.property
+      if (typeof node.params?.to_value === 'number') action.to_value = node.params.to_value
+      if (typeof node.params?.from_value === 'number') action.from_value = node.params.from_value
+      if (typeof node.params?.seconds === 'number') action.seconds = node.params.seconds
+      if (typeof node.params?.easing === 'string' && node.params.easing) action.easing = node.params.easing
+      return action
+    }
+
+    if (node.type === 'detach') {
+      if (typeof node.params?.target_ref === 'string' && node.params.target_ref) action.target_ref = node.params.target_ref
+      if (typeof node.params?.keep_world_position === 'boolean') action.keep_world_position = node.params.keep_world_position
+      if (typeof node.params?.destroy_after_detach === 'boolean') action.destroy_after_detach = node.params.destroy_after_detach
+      return action
+    }
+
+    if (node.type === 'spawn_entity') {
+      if (typeof node.params?.object === 'string' && node.params.object) action.object = node.params.object
+      if (typeof node.params?.key === 'string' && node.params.key) action.key = node.params.key
+      if (typeof node.params?.x === 'number') action.x = node.params.x
+      if (typeof node.params?.y === 'number') action.y = node.params.y
+      if (typeof node.params?.depth === 'number') action.depth = node.params.depth
+      if (typeof node.params?.persistent === 'boolean') action.persistent = node.params.persistent
+      return action
+    }
+
+    if (node.type === 'destroy_entity') {
+      if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
+      return action
+    }
+
+    if (node.type === 'set_plot') {
+      if (typeof node.params?.value === 'string' && node.params.value) action.value = node.params.value
+      return action
+    }
+
+    if (node.type === 'wait_for_interact') {
+      if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
+      if (typeof node.params?.timeout === 'number') action.timeout = node.params.timeout
+      if (typeof node.params?.timeout_action === 'string' && node.params.timeout_action) action.timeout_action = node.params.timeout_action
+      return action
+    }
+
+    if (node.type === 'emote') {
+      if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
+      if (typeof node.params?.sprite === 'string' && node.params.sprite) action.sprite = node.params.sprite
+      if (typeof node.params?.seconds === 'number') action.seconds = node.params.seconds
+      if (typeof node.params?.offset_x === 'number') action.offset_x = node.params.offset_x
+      if (typeof node.params?.offset_y === 'number') action.offset_y = node.params.offset_y
+      if (typeof node.params?.scale === 'number') action.scale = node.params.scale
+      if (typeof node.params?.wait === 'boolean') action.wait = node.params.wait
+      return action
+    }
+
+    if (node.type === 'jump') {
+      if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
+      if (typeof node.params?.x === 'number') action.x = node.params.x
+      if (typeof node.params?.y === 'number') action.y = node.params.y
+      if (typeof node.params?.seconds === 'number') action.seconds = node.params.seconds
+      if (typeof node.params?.height === 'number') action.height = node.params.height
+      if (typeof node.params?.easing === 'string' && node.params.easing) action.easing = node.params.easing
+      return action
+    }
+
+    if (node.type === 'halt') {
+      if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
+      return action
+    }
+
+    if (node.type === 'flip') {
+      if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
+      if (typeof node.params?.flipped === 'boolean') action.flipped = node.params.flipped
+      return action
+    }
+
+    if (node.type === 'spin') {
+      if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
+      if (typeof node.params?.speed === 'number') action.speed = node.params.speed
+      if (typeof node.params?.seconds === 'number') action.seconds = node.params.seconds
+      return action
+    }
+
+    if (node.type === 'set_visible') {
+      if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
+      if (typeof node.params?.visible === 'boolean') action.visible = node.params.visible
+      return action
+    }
+
+    if (node.type === 'follow_path') {
+      if (typeof node.params?.target === 'string' && node.params.target) action.target = node.params.target
+      const rawPoints = node.params?.points
+      if (typeof rawPoints === 'string' && rawPoints.trim().length > 0) {
+        try {
+          action.points = JSON.parse(rawPoints) as unknown
+        } catch {
+          action.points = rawPoints
+        }
+      } else if (rawPoints !== undefined) {
+        action.points = rawPoints
+      }
+      if (typeof node.params?.speed_px_sec === 'number') action.speed_px_sec = node.params.speed_px_sec
+      if (typeof node.params?.collision === 'boolean') action.collision = node.params.collision
+      if (typeof node.params?.autofacing === 'boolean') action.autofacing = node.params.autofacing
+      return action
+    }
+
 // Копируем все параметры ноды (кроме editor-only полей).
     if (node.params) {
       for (const [key, value] of Object.entries(node.params)) {

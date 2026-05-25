@@ -23,6 +23,7 @@ type UseEditorShortcutsDeps = {
   saveRef: React.MutableRefObject<(() => void) | null>
   newRef: React.MutableRefObject<(() => void) | null>
   exportRef: React.MutableRefObject<(() => void) | null>
+  openRef: React.MutableRefObject<(() => void) | null>
   // Стабильный setter для preferences modal (useState setter — стабильная ссылка).
   setPreferencesOpen: (value: boolean) => void
   // Генератор уникального имени ноды (чистая функция, без состояния).
@@ -42,6 +43,7 @@ export function useEditorShortcuts(deps: UseEditorShortcutsDeps) {
     saveRef,
     newRef,
     exportRef,
+    openRef,
     setPreferencesOpen,
     suggestUniqueNodeName
   } = deps
@@ -52,17 +54,24 @@ export function useEditorShortcuts(deps: UseEditorShortcutsDeps) {
   // Счётчик вставок — нужен для сдвига позиций при повторных Ctrl+V.
   const pasteSerialRef = useRef(0)
 
+  const isTextInputElement = (el: HTMLElement | null): boolean => {
+    if (!el) return false
+    const tag = el.tagName
+    if (tag === 'TEXTAREA' || tag === 'SELECT') return true
+    if (tag === 'INPUT') {
+      const type = (el as HTMLInputElement).type.toLowerCase()
+      return !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(type)
+    }
+    if (el.closest('[contenteditable="true"]') !== null) return true
+    if (el.isContentEditable) return true
+    return false
+  }
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       // Не перехватываем горячие клавиши, если фокус в текстовом поле.
       const target = e.target as HTMLElement | null
-      const tag = target?.tagName ?? ''
-      const inputType = tag === 'INPUT' ? (((target as HTMLInputElement | null)?.type ?? '').toLowerCase()) : ''
-      const isInput =
-        tag === 'TEXTAREA' ||
-        tag === 'SELECT' ||
-        (tag === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(inputType)) ||
-        target?.closest('[contenteditable="true"]') !== null
+      const isInput = isTextInputElement(target) || isTextInputElement(document.activeElement as HTMLElement | null)
 
       // Используем e.code для букв/цифр, чтобы сочетания не зависели от раскладки клавиатуры.
       // На русской раскладке e.key возвращает 'я', 'с' и т.д., а e.code всегда 'KeyZ', 'KeyC'.
@@ -114,6 +123,13 @@ export function useEditorShortcuts(deps: UseEditorShortcutsDeps) {
       if ((e.ctrlKey || e.metaKey) && key === 'n') {
         e.preventDefault()
         newRef.current?.()
+        return
+      }
+
+      // Ctrl+O — Open Scene (открыть существующую сцену).
+      if ((e.ctrlKey || e.metaKey) && key === 'o') {
+        e.preventDefault()
+        openRef.current?.()
         return
       }
 

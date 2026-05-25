@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 
 import { parseYarnPreview } from './yarnPreview'
-import type { RuntimeNote } from './runtimeTypes'
+import type { RuntimeState } from './runtimeTypes'
 import type { ValidationContext } from './validateGraph'
 import { createTranslator, preloadLanguage } from '../i18n'
 import type { SupportedLanguage } from '../i18n'
@@ -82,7 +82,7 @@ export function useEditorState(
   resources: ProjectResources | null,
   engineSettings: { runFunctions?: unknown; branchConditions?: unknown } | null,
   yarnFiles: { file: string; nodes: unknown[] }[] | null,
-  runtime: { nodes: { id: string; type: string; params?: { file?: string; node?: string; actor_name?: string } }[]; selectedNodeId: string | null; selectedNodeIds: string[]; selectedEdgeId: string | null; notes: RuntimeNote[] }
+  runtime: Pick<RuntimeState, 'nodes' | 'selectedNodeId' | 'selectedNodeIds' | 'selectedEdgeId' | 'notes'>
 ): EditorStateReturn {
   const t = useMemo(() => createTranslator((preferences.language as SupportedLanguage) ?? 'en'), [preferences.language])
 

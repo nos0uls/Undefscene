@@ -14,3 +14,4 @@ last-project.json
 project-cache/
 canvas-backgrounds/
 room-screenshots/
+*.tsbuildinfo

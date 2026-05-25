@@ -724,9 +724,12 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
         // чтобы избежать React ре-рендеров на каждый кадр.
         // setLayout вызываем один раз на pointerup.
         if (resizeDrag.kind === 'dock-left') {
-          const maxLeft = Math.max(
-            MIN_LEFT_WIDTH,
-            rootRect.width - currentLayout.dockSizes.rightWidth - MIN_CENTER_WIDTH
+          const maxLeft = Math.min(
+            Math.max(
+              MIN_LEFT_WIDTH,
+              rootRect.width - currentLayout.dockSizes.rightWidth - MIN_CENTER_WIDTH
+            ),
+            rootRect.width * 0.8
           )
           const nextLeftWidth = clamp(
             resizeDrag.startDockSizes.leftWidth + dx,
@@ -743,9 +746,12 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
         }
 
         if (resizeDrag.kind === 'dock-right') {
-          const maxRight = Math.max(
-            MIN_RIGHT_WIDTH,
-            rootRect.width - currentLayout.dockSizes.leftWidth - MIN_CENTER_WIDTH
+          const maxRight = Math.min(
+            Math.max(
+              MIN_RIGHT_WIDTH,
+              rootRect.width - currentLayout.dockSizes.leftWidth - MIN_CENTER_WIDTH
+            ),
+            rootRect.width * 0.8
           )
           const nextRightWidth = clamp(
             resizeDrag.startDockSizes.rightWidth - dx,
@@ -763,9 +769,12 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
 
         if (resizeDrag.kind === 'dock-bottom') {
           const topBarHeight = 30
-          const maxBottom = Math.max(
-            MIN_BOTTOM_HEIGHT,
-            rootRect.height - topBarHeight - MIN_CENTER_HEIGHT
+          const maxBottom = Math.min(
+            Math.max(
+              MIN_BOTTOM_HEIGHT,
+              rootRect.height - topBarHeight - MIN_CENTER_HEIGHT
+            ),
+            rootRect.height * 0.8
           )
           const nextBottomHeight = clamp(
             resizeDrag.startDockSizes.bottomHeight - dy,

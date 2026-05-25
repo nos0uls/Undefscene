@@ -337,6 +337,13 @@ export function useActorEditorLogic({
     }
   }, [open, stopPlayPreview])
 
+  // Cleanup RAF loop on unmount.
+  useEffect(() => {
+    return () => {
+      stopPlayPreview()
+    }
+  }, [stopPlayPreview])
+
   const selectedActor = useMemo(
     () => draftActors.find((actor) => actor.id === selectedActorId) ?? null,
     [draftActors, selectedActorId]
