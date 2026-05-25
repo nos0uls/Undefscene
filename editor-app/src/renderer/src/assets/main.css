@@ -2112,10 +2112,11 @@ label.runtimeField:has(.searchable-select-open) {
   box-sizing: border-box;
 }
 
-/* Liquid Glass for Visual Editor Overlay */
+/* Liquid Glass is intentionally disabled on the Visual Editor overlay
+   because backdrop-filter blur makes the room background unreadable
+   during path editing and actor placement. */
 .roomVisualEditorOverlay.isLiquidGlass {
-  backdrop-filter: blur(var(--liquid-glass-blur, 4px));
-  -webkit-backdrop-filter: blur(var(--liquid-glass-blur, 4px));
+  /* blur removed — see comment above */
 }
 
 /* Рёбра на холсте. */
