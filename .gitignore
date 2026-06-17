@@ -8,3 +8,4 @@ out/
 .DS_Store
 /APP UI UX REFACTOR EXAMPLE
 /.audit
+editor-app/.playwright-cli/
