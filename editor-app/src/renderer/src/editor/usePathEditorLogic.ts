@@ -66,7 +66,9 @@ type PreparedPathSegment = {
 }
 
 // Собираем сегменты пути один раз на изменение draft path.
-export function buildPreparedPathSegments(points: Array<{ x: number; y: number }>): PreparedPathSegment[] {
+export function buildPreparedPathSegments(
+  points: Array<{ x: number; y: number }>
+): PreparedPathSegment[] {
   const segments: PreparedPathSegment[] = []
   let accumulatedDistance = 0
 

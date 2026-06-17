@@ -8,9 +8,7 @@ type RuntimeJsonPanelProps = {
 // JSON.stringify делается лениво — только когда панель смонтирована.
 // На больших графах stringify может занимать десятки мс,
 // поэтому не считаем его в EditorShell, если панель не открыта.
-export const RuntimeJsonPanel = React.memo(function RuntimeJsonPanel({
-  t
-}: RuntimeJsonPanelProps) {
+export const RuntimeJsonPanel = React.memo(function RuntimeJsonPanel({ t }: RuntimeJsonPanelProps) {
   const { runtime } = usePanelData()
 
   // Исключаем editor-only поля (selectedNodeId, selectedNodeIds, selectedEdgeId),

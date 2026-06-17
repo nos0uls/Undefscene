@@ -14,7 +14,11 @@ type AnimatedFieldProps = {
 
 // Компонент-обёртка для полей инспектора с плавной анимацией появления/исчезновения.
 // Использует Framer Motion для плавных переходов opacity и height.
-export const AnimatedField = ({ children, visible, fieldKey }: AnimatedFieldProps): React.JSX.Element => {
+export const AnimatedField = ({
+  children,
+  visible,
+  fieldKey
+}: AnimatedFieldProps): React.JSX.Element => {
   return (
     <AnimatePresence mode="wait" initial={false}>
       {visible && (

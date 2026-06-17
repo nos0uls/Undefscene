@@ -56,10 +56,7 @@ export function useViewportControls({
 
     const innerWidth = Math.max(120, viewport.clientWidth - 32)
     const innerHeight = Math.max(120, viewport.clientHeight - 32)
-    const nextZoom = Math.min(
-      innerWidth / meta.room_width,
-      innerHeight / meta.room_height
-    )
+    const nextZoom = Math.min(innerWidth / meta.room_width, innerHeight / meta.room_height)
     const clampedZoom = clamp(Number(nextZoom.toFixed(3)), MIN_ZOOM, MAX_ZOOM)
 
     setZoom(clampedZoom)

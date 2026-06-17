@@ -287,7 +287,8 @@ export const en = {
     position: 'Position',
     connectionsInOut: 'in / out',
     cleanupConfirm: 'Cleanup Data (Reset Editor)',
-    cleanupMessage: 'Are you sure you want to completely reset the editor preferences and cache? This will delete all local data (themes, tutorial status, resource cache). The application will close after cleanup.',
+    cleanupMessage:
+      'Are you sure you want to completely reset the editor preferences and cache? This will delete all local data (themes, tutorial status, resource cache). The application will close after cleanup.',
     cleanupConfirmButton: 'Reset and Close',
     cleanupCancelButton: 'Cancel',
     // Visual Editing sub-section
@@ -388,7 +389,8 @@ export const en = {
       checkpoint_state: 'Checkpoint State',
       restore_state: 'Restore State',
       attach_to_target: 'Attach To Target',
-      detach: 'Detach'
+      detach: 'Detach',
+      room_change: 'Room Change'
     },
     fields: {
       target: 'Target',
@@ -492,6 +494,10 @@ export const en = {
       dx: 'dX',
       dy: 'dY',
       autofacing: 'Auto Facing',
+      room: 'Room',
+      player_x: 'Player X',
+      player_y: 'Player Y',
+      actors: 'Actor Positions (JSON)',
       checkpoint_id: 'Checkpoint ID',
       include_actors: 'Include Actors',
       include_globals: 'Include Globals',
@@ -499,7 +505,7 @@ export const en = {
       include_plot: 'Include Plot',
       include_camera: 'Include Camera',
       custom_vars: 'Custom Vars (JSON)',
-      debug: 'Debug',
+      debug: 'Debug'
     },
     preview: {
       secondsSuffix: 's',
@@ -520,7 +526,7 @@ export const en = {
       magnitude: 'mag:',
       volume: 'vol',
       fade: 'fade'
-    },
+    }
   },
   // Tutorial / Interactive Tour
   tutorial: {
@@ -560,7 +566,8 @@ export const en = {
       steps: [
         {
           title: 'Inspector Panel',
-          content: 'Here you edit the selected node\'s parameters: coordinates, dialogue file, actor target, and more.'
+          content:
+            "Here you edit the selected node's parameters: coordinates, dialogue file, actor target, and more."
         },
         {
           title: 'Node Parameters',
@@ -641,16 +648,22 @@ export const en = {
     missingStartNode: 'Missing start node. Add a start node to define the entry point.',
     tooManyStartNodes: 'Only one start node allowed. Remove {count} extra start node(s).',
     missingEndNode: 'Missing end node. Add an end node to mark the cutscene completion.',
-    duplicateMarkerName: 'Marker name "{name}" is used by {count} nodes. jump targets will be ambiguous.',
-    startIncomingConnections: 'Start node has incoming connections. Remove them — start must be the entry point.',
+    duplicateMarkerName:
+      'Marker name "{name}" is used by {count} nodes. jump targets will be ambiguous.',
+    startIncomingConnections:
+      'Start node has incoming connections. Remove them — start must be the entry point.',
     startNoOutgoing: 'Start node has no outgoing connection. Link it to the first action.',
-    endOutgoingConnections: 'End node has outgoing connections. Remove them — end must be the final step.',
+    endOutgoingConnections:
+      'End node has outgoing connections. Remove them — end must be the final step.',
     nodeIsolated: '{name} is isolated. Connect it or delete if unused.',
     nodeUnreachable: '{name} is unreachable from start. Check connections.',
-    nodeMultipleOutputs: '{name} has multiple outputs. Only branch and parallel_start support this.',
+    nodeMultipleOutputs:
+      '{name} has multiple outputs. Only branch and parallel_start support this.',
     fieldEmpty: '{name}: field "{field}" is empty. Open the inspector to fill it.',
-    actorCreateNoSprite: '{name}: no actor_sprite or copy_target set. A default actor will be used.',
-    branchFalseEmpty: '{name}: false branch is empty. If the condition fails, execution stops. Connect the false output or change the condition.',
+    actorCreateNoSprite:
+      '{name}: no actor_sprite or copy_target set. A default actor will be used.',
+    branchFalseEmpty:
+      '{name}: false branch is empty. If the condition fails, execution stops. Connect the false output or change the condition.',
     tweenTargetRequired: '{name}: target is required when kind is not camera.',
     tweenNoProperty: '{name}: no tween property selected.',
     tweenEndValueMissing: '{name}: end value (To) is missing.',
@@ -659,7 +672,8 @@ export const en = {
     setPropertyValueEmpty: '{name}: value is empty.',
     playSfxNoSound: '{name}: no sound selected.',
     playMusicNoSound: '{name}: no music track selected.',
-    playMusicSoundNotFound: 'play_music: sound "{sound}" not found in project resources. Check the sound name or reload the project.',
+    playMusicSoundNotFound:
+      'play_music: sound "{sound}" not found in project resources. Check the sound name or reload the project.',
     playBossMusicNoCalm: '{name}: calm track not selected.',
     playBossMusicNoBattle: '{name}: battle track not selected.',
     playMusicIntroNoIntro: '{name}: intro track not selected.',
@@ -667,8 +681,10 @@ export const en = {
     crossfadeMusicIntensityInvalid: '{name}: intensity must be between 0 and 1.',
     runFunctionNameEmpty: '{name}: function name is empty.',
     runFunctionArgsInvalid: '{name}: args JSON is invalid. Check syntax in the inspector.',
-    scheduleActionInvalidParams: '{name}: action_params JSON is invalid. Check syntax in the inspector.',
-    scheduleActionParamsNotObject: '{name}: action_params should be a JSON object (e.g. {"target":"player"}).',
+    scheduleActionInvalidParams:
+      '{name}: action_params JSON is invalid. Check syntax in the inspector.',
+    scheduleActionParamsNotObject:
+      '{name}: action_params should be a JSON object (e.g. {"target":"player"}).',
     scheduleActionInvalidDelay: '{name}: delay_seconds must be a non-negative number.',
     dialogueFileNotSet: '{name}: dialogue file is not set. Select a .yarn file in the inspector.',
     cameraShakeSecondsInvalid: '{name}: seconds is zero or negative. Set a positive duration.',
@@ -679,33 +695,44 @@ export const en = {
     checkpointInvalidJson: '{name}: field "{field}" contains invalid JSON.',
     followPathEmpty: '{name}: path is empty. Draw or import a path in the inspector.',
     followPathOnePoint: '{name}: path has only 1 point. Consider using set_position instead.',
-    haltHasOutgoing: '{name}: halt blocks execution, yet it has outgoing connections. Remove them or use a different node.',
-    markNodeNameEmpty: '{name}: marker name is empty. Set a unique name so other nodes can reference it.',
+    haltHasOutgoing:
+      '{name}: halt blocks execution, yet it has outgoing connections. Remove them or use a different node.',
+    markNodeNameEmpty:
+      '{name}: marker name is empty. Set a unique name so other nodes can reference it.',
     setFacingInvalidDirection: '{name}: direction must be "left" or "right". Got "{direction}".',
     jumpTargetEmpty: '{name}: jump target is empty. Fill the Target field in the inspector.',
     jumpTargetNotFound: '{name}: jump target "{target}" does not match any mark_node in the graph.',
-    actorTargetNotCreated: '{name}: target "{target}" is not created by any actor_create node in this graph. Use "player" or create the actor first.',
+    actorTargetNotCreated:
+      '{name}: target "{target}" is not created by any actor_create node in this graph. Use "player" or create the actor first.',
     parallelStartMissingJoin: 'Parallel start node "{id}" is missing its join counterpart.',
     parallelStartJoinMissing: 'Parallel start node "{id}" references a missing join node.',
     parallelStartJoinNotJoin: 'Parallel start node "{id}": the paired node is not a join node.',
     parallelStartJoinMismatch: 'Parallel nodes "{id}" and "{joinId}" have mismatched pair IDs.',
-    parallelStartJoinBranchMismatch: 'Parallel nodes "{id}" and "{joinId}" have different branch configurations.',
+    parallelStartJoinBranchMismatch:
+      'Parallel nodes "{id}" and "{joinId}" have different branch configurations.',
     parallelStartDuplicateBranchIds: 'Node "{id}" has duplicate branch IDs.',
-    parallelStartEdgeNoSourceHandle: 'A branch connection is missing in node "{id}". Reconnect the branch.',
+    parallelStartEdgeNoSourceHandle:
+      'A branch connection is missing in node "{id}". Reconnect the branch.',
     parallelStartEdgeUnexpectedHandle: 'Invalid connection in node "{id}". Reconnect the branch.',
-    parallelStartEdgeBranchNotListed: 'Node "{id}" has a connection for a branch that is not in the parameters.',
-    parallelStartBranchMultipleEdges: 'Branch "{handle}" in node "{id}" is used by multiple connections. Only one is allowed.',
+    parallelStartEdgeBranchNotListed:
+      'Node "{id}" has a connection for a branch that is not in the parameters.',
+    parallelStartBranchMultipleEdges:
+      'Branch "{handle}" in node "{id}" is used by multiple connections. Only one is allowed.',
     parallelStartBranchNoOutgoing: 'Branch "{branchId}" in node "{id}" has no outgoing connection.',
     parallelJoinNoPair: 'Parallel join node "{id}" has no pair. Link it to a parallel_start.',
     parallelJoinPairMissing: 'Parallel join node "{id}" pairId references a missing node.',
     parallelJoinPairNotStart: 'Parallel join node "{id}" paired node is not a parallel_start.',
     parallelJoinPairMismatch: 'Parallel nodes "{id}" and "{pairId}" point to different partners.',
-    parallelJoinPairBranchMismatch: 'Join node "{id}" and its start node have different branch configurations.',
-    parallelJoinEdgeNoTargetHandle: 'A branch connection is missing in join node "{id}". Reconnect the branch.',
+    parallelJoinPairBranchMismatch:
+      'Join node "{id}" and its start node have different branch configurations.',
+    parallelJoinEdgeNoTargetHandle:
+      'A branch connection is missing in join node "{id}". Reconnect the branch.',
     parallelJoinEdgeUnexpectedHandle: 'Invalid connection in join node "{id}".',
     parallelJoinEdgeBranchNotListed: 'Join node "{id}" references a missing branch "{branchId}".',
-    parallelJoinBranchMultipleEdges: 'Branch "{handle}" in join node "{id}" has multiple connections.',
-    parallelJoinBranchNoIncoming: 'Branch "{branchId}" in join node "{id}" has no incoming connection.',
+    parallelJoinBranchMultipleEdges:
+      'Branch "{handle}" in join node "{id}" has multiple connections.',
+    parallelJoinBranchNoIncoming:
+      'Branch "{branchId}" in join node "{id}" has no incoming connection.',
     edgeMissingSource: 'Edge references a missing source node "{source}".',
     edgeMissingTarget: 'Edge references a missing target node "{target}".',
     edgeNegativeWait: 'Edge has negative wait time ({count}). Use 0 or a positive number.',
@@ -716,38 +743,54 @@ export const en = {
     edgeStopWaitingEndVarGlobalPrefix: 'Edge: remove "global." prefix from End Variable.',
     edgeStopWaitingEndEqualsEmpty: 'Edge: stop-waiting "global_var" set but End Equals is empty.',
     edgeStopWaitingNodeNameEmpty: 'Edge: stop-waiting "node_reached" set but Node name is empty.',
-    edgeStopWaitingNodeNotFound: 'Edge: stop-waiting node "{nodeName}" does not exist in the graph.',
+    edgeStopWaitingNodeNotFound:
+      'Edge: stop-waiting node "{nodeName}" does not exist in the graph.',
     edgeStopWaitingTimeoutEmpty: 'Edge: stop-waiting "timeout" set but Timeout is empty or zero.',
-    unreachableNodes: '{count} node(s) unreachable from start. Check connections or remove unused nodes.',
+    unreachableNodes:
+      '{count} node(s) unreachable from start. Check connections or remove unused nodes.',
     noEndNodeReachable: 'No end node is reachable from start. Add or connect an end node.',
-    actorCreateKeyNotFound: 'actor_create: key "{key}" not found in project resources. Check the object/sprite name or reload the project.',
-    dialogueFileNotFound: 'dialogue: file "{file}" not found in project yarn files. Check the file name or Dialogues folder.',
-    dialogueNodeNotFound: 'dialogue: node "{nodeName}" not found in "{file}". Check the node name in the Yarn editor.',
-    runFunctionNotWhitelisted: 'run_function: "{funcName}" is not in the whitelist. Add it to cutscene_engine_settings.json or check the spelling.',
-    branchConditionNotWhitelisted: 'branch: condition "{cond}" is not in the whitelist. Add it to cutscene_engine_settings.json or check the spelling.',
-    animateSpriteNotFound: 'animate: sprite "{sprite}" not found in project resources. Check the sprite name or reload the project.',
+    actorCreateKeyNotFound:
+      'actor_create: key "{key}" not found in project resources. Check the object/sprite name or reload the project.',
+    dialogueFileNotFound:
+      'dialogue: file "{file}" not found in project yarn files. Check the file name or Dialogues folder.',
+    dialogueNodeNotFound:
+      'dialogue: node "{nodeName}" not found in "{file}". Check the node name in the Yarn editor.',
+    runFunctionNotWhitelisted:
+      'run_function: "{funcName}" is not in the whitelist. Add it to cutscene_engine_settings.json or check the spelling.',
+    branchConditionNotWhitelisted:
+      'branch: condition "{cond}" is not in the whitelist. Add it to cutscene_engine_settings.json or check the spelling.',
+    animateSpriteNotFound:
+      'animate: sprite "{sprite}" not found in project resources. Check the sprite name or reload the project.',
     actorUsedBeforeCreate: 'Actor "{target}" is used before being created.',
     actorUsedAfterDestroy: 'Actor "{target}" is used after being destroyed.',
-    cameraOverrideNotReset: 'Camera override is active at end of scene but was not reset. Add a camera_center or tween_camera with return-to-default.',
+    cameraOverrideNotReset:
+      'Camera override is active at end of scene but was not reset. Add a camera_center or tween_camera with return-to-default.',
     emptyPath: 'follow_path: path is empty or has fewer than 2 points.',
-    unsafeWait: 'wait_until or edge condition has no timeout. Add timeout_seconds or endTimeoutSeconds to prevent infinite waits.',
+    unsafeWait:
+      'wait_until or edge condition has no timeout. Add timeout_seconds or endTimeoutSeconds to prevent infinite waits.',
     branchWithoutFalseConnection: 'Branch node has no false connection.',
     musicActionWithoutMusic: 'Music action without prior play_music.',
     musicPitchInvalid: '{name}: pitch must be greater than 0.',
     musicPitchExtreme: '{name}: pitch is {pitch}. Values outside 0.5–2.0 may sound unusual.',
-    playBossMusicCalmNotFound: 'play_boss_music: calm track "{sound}" not found in project resources.',
-    playBossMusicBattleNotFound: 'play_boss_music: battle track "{sound}" not found in project resources.',
-    playMusicIntroNotFound: 'play_music_intro: intro track "{sound}" not found in project resources.',
+    playBossMusicCalmNotFound:
+      'play_boss_music: calm track "{sound}" not found in project resources.',
+    playBossMusicBattleNotFound:
+      'play_boss_music: battle track "{sound}" not found in project resources.',
+    playMusicIntroNotFound:
+      'play_music_intro: intro track "{sound}" not found in project resources.',
     playMusicLoopNotFound: 'play_music_intro: loop track "{sound}" not found in project resources.',
     cameraTrackMissingTarget: 'Camera track has no target.',
-    emoteSpriteNotFound: 'emote: sprite "{sprite}" not found in project resources. Check the sprite name or reload the project.',
+    emoteSpriteNotFound:
+      'emote: sprite "{sprite}" not found in project resources. Check the sprite name or reload the project.',
     waitUntilConditionEmpty: '{name}: condition_var is empty. Set a condition or remove the node.',
     waitUntilTimeoutNegative: '{name}: timeout_seconds cannot be negative.',
     duplicateCheckpointId: 'Checkpoint ID "{cid}" is used by multiple checkpoint_state nodes.',
     restoreCheckpointNotFound: 'restore_state references checkpoint "{cid}" which does not exist.',
-    actorCreatedTwice: 'Actor "{key}" is created {count} times. Each actor should be created only once.',
+    actorCreatedTwice:
+      'Actor "{key}" is created {count} times. Each actor should be created only once.',
     actorDestroyedNotCreated: 'Actor "{target}" is destroyed but was never created.',
-    musicNotStopped: 'Music is still playing at the end of the scene. Add a stop_music node if needed.',
+    musicNotStopped:
+      'Music is still playing at the end of the scene. Add a stop_music node if needed.',
     restoreStateMissingId: '{name}: checkpoint_id is empty. Set a checkpoint ID to restore.',
     detachMissingTarget: '{name}: target_ref is empty. Set a target to detach.',
     spawnEntityMissingObject: '{name}: object is empty. Select an object to spawn.',
@@ -756,18 +799,21 @@ export const en = {
     shakeObjectNegativeSeconds: '{name}: seconds cannot be negative.',
     crossfadeIntensityInvalid: '{name}: intensity must be between 0 and 1.',
     playBossMusicMissingCalm: '{name}: calm track not selected.',
-    playBossMusicMissingBattle: '{name}: battle track not selected.',
+    playBossMusicMissingBattle: '{name}: battle track not selected.'
   },
   compileGraph: {
     noStartNode: 'No "start" node found in the graph.',
     noEndNode: 'No "end" node found in the graph.',
     cycleDetected: 'Cycle detected at node "{nodeId}". Cycles are not allowed.',
     nodeNotFound: 'Node "{nodeId}" not found.',
-    tooManyOutputs: 'Node "{nodeId}" has {count} outgoing edges. Only parallel_start and branch can have multiple outputs.',
+    tooManyOutputs:
+      'Node "{nodeId}" has {count} outgoing edges. Only parallel_start and branch can have multiple outputs.',
     cycleInParallel: 'Cycle detected at node "{nodeId}" inside parallel branch.',
     nodeNotFoundInParallel: 'Node "{nodeId}" not found in parallel branch.',
-    parallelDeadEnd: 'Parallel branch reached dead-end at node "{nodeId}" before join "{stopNodeId}".',
-    parallelSplit: 'Parallel branch has a split at node "{nodeId}" ({count} outgoing edges). Branches must be linear.'
+    parallelDeadEnd:
+      'Parallel branch reached dead-end at node "{nodeId}" before join "{stopNodeId}".',
+    parallelSplit:
+      'Parallel branch has a split at node "{nodeId}" ({count} outgoing edges). Branches must be linear.'
   },
   // Dock panel headers
   panels: {

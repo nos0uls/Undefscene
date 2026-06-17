@@ -139,7 +139,9 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
     () => ({
       new_scene: keybindings.new_scene ? formatComboForDisplay(keybindings.new_scene, '') : '',
       save: keybindings.save ? formatComboForDisplay(keybindings.save, '') : '',
-      export_scene: keybindings.export_scene ? formatComboForDisplay(keybindings.export_scene, '') : '',
+      export_scene: keybindings.export_scene
+        ? formatComboForDisplay(keybindings.export_scene, '')
+        : '',
       undo: keybindings.undo ? formatComboForDisplay(keybindings.undo, '') : '',
       redo: keybindings.redo ? formatComboForDisplay(keybindings.redo, '') : ''
     }),
@@ -168,7 +170,13 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
           ]
         : []),
       ...(onOpenDevTools
-        ? [{ id: 'openDevTools', label: t('menu.openDevTools', 'Open DevTools'), onSelect: onOpenDevTools }]
+        ? [
+            {
+              id: 'openDevTools',
+              label: t('menu.openDevTools', 'Open DevTools'),
+              onSelect: onOpenDevTools
+            }
+          ]
         : []),
       ...(onToggleHardwareAcceleration
         ? [
@@ -237,7 +245,12 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
         id: 'file',
         label: t('menu.file', 'File'),
         entries: [
-          { id: 'new', label: t('menu.newScene', 'New Scene'), shortcut: shortcutLabels.new_scene, onSelect: onNew },
+          {
+            id: 'new',
+            label: t('menu.newScene', 'New Scene'),
+            shortcut: shortcutLabels.new_scene,
+            onSelect: onNew
+          },
           {
             id: 'createExample',
             label: t('menu.createExample', 'Create Example'),
@@ -251,11 +264,25 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
             shortcut: 'Ctrl+O',
             onSelect: onOpenProject
           },
-          { id: 'save', label: t('menu.save', 'Save'), shortcut: shortcutLabels.save, onSelect: onSave },
+          {
+            id: 'save',
+            label: t('menu.save', 'Save'),
+            shortcut: shortcutLabels.save,
+            onSelect: onSave
+          },
           { id: 'saveAs', label: t('menu.saveAs', 'Save As...'), onSelect: onSaveAs },
           // Экспорт графа в JSON для движка.
-          { id: 'export', label: t('menu.export', 'Export to Game...'), shortcut: shortcutLabels.export_scene, onSelect: onExport },
-          { id: 'preferences', label: `${t('app.preferences', 'Preferences')}...`, onSelect: onPreferences },
+          {
+            id: 'export',
+            label: t('menu.export', 'Export to Game...'),
+            shortcut: shortcutLabels.export_scene,
+            onSelect: onExport
+          },
+          {
+            id: 'preferences',
+            label: `${t('app.preferences', 'Preferences')}...`,
+            onSelect: onPreferences
+          },
           { id: 'exit', label: t('menu.exit', 'Exit'), onSelect: onExit }
         ]
       },
@@ -263,15 +290,29 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
         id: 'edit',
         label: t('menu.edit', 'Edit'),
         entries: [
-          { id: 'undo', label: t('menu.undo', 'Undo'), shortcut: shortcutLabels.undo, onSelect: onUndo },
-          { id: 'redo', label: t('menu.redo', 'Redo'), shortcut: shortcutLabels.redo, onSelect: onRedo }
+          {
+            id: 'undo',
+            label: t('menu.undo', 'Undo'),
+            shortcut: shortcutLabels.undo,
+            onSelect: onUndo
+          },
+          {
+            id: 'redo',
+            label: t('menu.redo', 'Redo'),
+            shortcut: shortcutLabels.redo,
+            onSelect: onRedo
+          }
         ]
       },
       {
         id: 'view',
         label: t('menu.view', 'View'),
         entries: [
-          { id: 'resetLayout', label: t('menu.resetLayout', 'Reset Layout'), onSelect: onResetLayout },
+          {
+            id: 'resetLayout',
+            label: t('menu.resetLayout', 'Reset Layout'),
+            onSelect: onResetLayout
+          },
           {
             id: 'visualEditing',
             label: t('menu.visualEditing', 'Visual Editing'),
@@ -285,13 +326,25 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
         label: t('menu.help', 'Help'),
         entries: [
           ...(onCopyLogToClipboard
-            ? [{ id: 'copyLogToClipboard', label: t('menu.copyLogToClipboard', 'Copy Log to Clipboard'), onSelect: onCopyLogToClipboard }]
+            ? [
+                {
+                  id: 'copyLogToClipboard',
+                  label: t('menu.copyLogToClipboard', 'Copy Log to Clipboard'),
+                  onSelect: onCopyLogToClipboard
+                }
+              ]
             : []),
           ...(advancedEntries.length > 0
             ? [{ id: 'advanced', label: t('menu.advanced', 'Advanced'), children: advancedEntries }]
             : []),
           ...(onCheckUpdates
-            ? [{ id: 'checkUpdates', label: t('menu.checkForUpdates', 'Check for Updates...'), onSelect: onCheckUpdates }]
+            ? [
+                {
+                  id: 'checkUpdates',
+                  label: t('menu.checkForUpdates', 'Check for Updates...'),
+                  onSelect: onCheckUpdates
+                }
+              ]
             : []),
           { id: 'about', label: t('menu.aboutAction', 'About'), onSelect: onAbout },
           { id: 'tutorial', label: t('menu.tutorial', 'Tutorial'), onSelect: onTutorial }
@@ -474,7 +527,8 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
               tabIndex={0}
             >
               <span className="topMenuBarItemLabel">{m.label}</span>
-              {activeMenuId === m.id && rect &&
+              {activeMenuId === m.id &&
+                rect &&
                 createPortal(
                   <div
                     className="topMenuDropdown"
@@ -486,11 +540,16 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
                       const itemEl = dropdownItemRefs.current.get(e.id)
                       const itemRect = itemEl?.getBoundingClientRect()
                       const SUBMENU_WIDTH = 200
-                      const SUBMENU_ESTIMATED_HEIGHT = e.children?.length ? e.children.length * 32 + 8 : 0
+                      const SUBMENU_ESTIMATED_HEIGHT = e.children?.length
+                        ? e.children.length * 32 + 8
+                        : 0
                       const submenuStyle: React.CSSProperties | undefined = itemRect
                         ? {
                             position: 'fixed',
-                            top: Math.min(itemRect.top - 4, window.innerHeight - SUBMENU_ESTIMATED_HEIGHT - 8),
+                            top: Math.min(
+                              itemRect.top - 4,
+                              window.innerHeight - SUBMENU_ESTIMATED_HEIGHT - 8
+                            ),
                             left: Math.min(itemRect.right, window.innerWidth - SUBMENU_WIDTH - 8)
                           }
                         : undefined
@@ -560,7 +619,9 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
                                 >
                                   <span className="topMenuDropdownLabel">{child.label}</span>
                                   {child.shortcut ? (
-                                    <span className="topMenuDropdownShortcut">{child.shortcut}</span>
+                                    <span className="topMenuDropdownShortcut">
+                                      {child.shortcut}
+                                    </span>
                                   ) : null}
                                 </div>
                               ))}

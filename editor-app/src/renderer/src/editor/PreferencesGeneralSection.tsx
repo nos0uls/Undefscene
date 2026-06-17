@@ -31,7 +31,9 @@ export const PreferencesGeneralSection = React.memo(function PreferencesGeneralS
 }: PreferencesGeneralSectionProps): React.JSX.Element {
   return (
     <div className="prefsSection">
-      <div className="prefsSectionSep"><span className="prefsSectionTitle">{t('preferences.general', 'General')}</span></div>
+      <div className="prefsSectionSep">
+        <span className="prefsSectionTitle">{t('preferences.general', 'General')}</span>
+      </div>
       <label className="prefsField">
         <span>{t('preferences.language', 'Language')}</span>
         <select
@@ -57,7 +59,9 @@ export const PreferencesGeneralSection = React.memo(function PreferencesGeneralS
           ))}
         </select>
       </label>
-      <div className="prefsHint">{THEMES.find((theme) => theme.id === preferences.theme)?.description ?? ''}</div>
+      <div className="prefsHint">
+        {THEMES.find((theme) => theme.id === preferences.theme)?.description ?? ''}
+      </div>
 
       {/* Акцентный цвет — Grid 2×4 со свотчами */}
       <div className="prefsField" style={{ alignItems: 'flex-start' }}>
@@ -69,12 +73,16 @@ export const PreferencesGeneralSection = React.memo(function PreferencesGeneralS
               <button
                 key={preset.id}
                 type="button"
-                className={['prefsAccentSwatch', isActive ? 'isActive' : ''].filter(Boolean).join(' ')}
+                className={['prefsAccentSwatch', isActive ? 'isActive' : '']
+                  .filter(Boolean)
+                  .join(' ')}
                 onClick={() => updatePreferences({ accentColor: preset.id as AccentColorId })}
                 title={preset.label}
               >
                 <span
-                  className={['prefsAccentSwatchCircle', isActive ? 'isActive' : ''].filter(Boolean).join(' ')}
+                  className={['prefsAccentSwatchCircle', isActive ? 'isActive' : '']
+                    .filter(Boolean)
+                    .join(' ')}
                   style={{ backgroundColor: preset.hex }}
                 />
                 <span className="prefsAccentSwatchLabel">{preset.label}</span>
@@ -87,19 +95,32 @@ export const PreferencesGeneralSection = React.memo(function PreferencesGeneralS
             return (
               <button
                 type="button"
-                className={['prefsAccentSwatch prefsAccentSwatchCustom', isCustom ? 'isActive' : ''].filter(Boolean).join(' ')}
+                className={['prefsAccentSwatch prefsAccentSwatchCustom', isCustom ? 'isActive' : '']
+                  .filter(Boolean)
+                  .join(' ')}
                 title={t('preferences.custom', 'Custom...')}
               >
                 <span
-                  className={['prefsAccentSwatchCircle', isCustom ? 'isActive' : ''].filter(Boolean).join(' ')}
-                  style={isCustom && preferences.customAccentHex ? { backgroundColor: preferences.customAccentHex } : {}}
+                  className={['prefsAccentSwatchCircle', isCustom ? 'isActive' : '']
+                    .filter(Boolean)
+                    .join(' ')}
+                  style={
+                    isCustom && preferences.customAccentHex
+                      ? { backgroundColor: preferences.customAccentHex }
+                      : {}
+                  }
                 >
                   {!isCustom && <span>+</span>}
                   <input
                     className="prefsAccentHexInput"
                     type="color"
                     value={preferences.customAccentHex || '#ffffff'}
-                    onChange={(e) => updatePreferences({ accentColor: 'custom' as AccentColorId, customAccentHex: e.target.value })}
+                    onChange={(e) =>
+                      updatePreferences({
+                        accentColor: 'custom' as AccentColorId,
+                        customAccentHex: e.target.value
+                      })
+                    }
                   />
                 </span>
                 <span className="prefsAccentSwatchLabel">{t('preferences.custom', 'Custom')}</span>

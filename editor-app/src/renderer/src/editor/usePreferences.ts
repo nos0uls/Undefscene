@@ -225,7 +225,7 @@ export const DEFAULT_PREFERENCES: EditorPreferences = {
 
 // Проверяет, что объект похож на EditorPreferences.
 // Если данные некорректные — возвращает null.
-function parsePreferences(raw: unknown): EditorPreferences | null {
+export function parsePreferences(raw: unknown): EditorPreferences | null {
   if (!raw || typeof raw !== 'object') return null
   const c = raw as Record<string, unknown>
   if (c.schemaVersion !== 1) return null
@@ -234,9 +234,7 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
   return {
     schemaVersion: 1,
     theme:
-      typeof c.theme === 'string' && isValidTheme(c.theme)
-        ? c.theme
-        : DEFAULT_PREFERENCES.theme,
+      typeof c.theme === 'string' && isValidTheme(c.theme) ? c.theme : DEFAULT_PREFERENCES.theme,
     accentColor:
       typeof c.accentColor === 'string' && isValidAccentColor(c.accentColor)
         ? c.accentColor
@@ -296,8 +294,7 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
       typeof c.disableHardwareAcceleration === 'boolean'
         ? c.disableHardwareAcceleration
         : DEFAULT_PREFERENCES.disableHardwareAcceleration,
-    screenshotOutputDir:
-      typeof c.screenshotOutputDir === 'string' ? c.screenshotOutputDir : null,
+    screenshotOutputDir: typeof c.screenshotOutputDir === 'string' ? c.screenshotOutputDir : null,
     visualEditorTechMode:
       typeof c.visualEditorTechMode === 'boolean'
         ? c.visualEditorTechMode
@@ -315,23 +312,29 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
         ? c.visualEditorSnapToGrid
         : DEFAULT_PREFERENCES.visualEditorSnapToGrid,
     visualEditorGridOffsetX:
-      typeof c.visualEditorGridOffsetX === 'number' && c.visualEditorGridOffsetX >= -200 && c.visualEditorGridOffsetX <= 200
+      typeof c.visualEditorGridOffsetX === 'number' &&
+      c.visualEditorGridOffsetX >= -200 &&
+      c.visualEditorGridOffsetX <= 200
         ? Math.round(c.visualEditorGridOffsetX)
         : DEFAULT_PREFERENCES.visualEditorGridOffsetX,
     visualEditorGridOffsetY:
-      typeof c.visualEditorGridOffsetY === 'number' && c.visualEditorGridOffsetY >= -200 && c.visualEditorGridOffsetY <= 200
+      typeof c.visualEditorGridOffsetY === 'number' &&
+      c.visualEditorGridOffsetY >= -200 &&
+      c.visualEditorGridOffsetY <= 200
         ? Math.round(c.visualEditorGridOffsetY)
         : DEFAULT_PREFERENCES.visualEditorGridOffsetY,
     liquidGlassEnabled:
       typeof c.liquidGlassEnabled === 'boolean'
         ? c.liquidGlassEnabled
-        : (typeof c.visualEditorTrueRtx === 'boolean' ? c.visualEditorTrueRtx : DEFAULT_PREFERENCES.liquidGlassEnabled),
+        : typeof c.visualEditorTrueRtx === 'boolean'
+          ? c.visualEditorTrueRtx
+          : DEFAULT_PREFERENCES.liquidGlassEnabled,
     liquidGlassBlur:
-      typeof c.liquidGlassBlur === 'number' &&
-      c.liquidGlassBlur >= 0 &&
-      c.liquidGlassBlur <= 1
+      typeof c.liquidGlassBlur === 'number' && c.liquidGlassBlur >= 0 && c.liquidGlassBlur <= 1
         ? Number(c.liquidGlassBlur.toFixed(2))
-        : (typeof c.liquidGlassOpacity === 'number' ? 0.4 : DEFAULT_PREFERENCES.liquidGlassBlur),
+        : typeof c.liquidGlassOpacity === 'number'
+          ? 0.4
+          : DEFAULT_PREFERENCES.liquidGlassBlur,
     visualEditorPathSizeMultiplier:
       typeof c.visualEditorPathSizeMultiplier === 'number' &&
       c.visualEditorPathSizeMultiplier >= 0.5 &&
@@ -347,7 +350,8 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
       c.parallelBranchPortMode === 'shared' || c.parallelBranchPortMode === 'separate'
         ? c.parallelBranchPortMode
         : DEFAULT_PREFERENCES.parallelBranchPortMode,
-    language: c.language === 'en' || c.language === 'ru' ? c.language : DEFAULT_PREFERENCES.language,
+    language:
+      c.language === 'en' || c.language === 'ru' ? c.language : DEFAULT_PREFERENCES.language,
     hasCompletedInitialSetup:
       typeof c.hasCompletedInitialSetup === 'boolean'
         ? c.hasCompletedInitialSetup
@@ -369,16 +373,7 @@ function parsePreferences(raw: unknown): EditorPreferences | null {
 
 // Проверяет, что строка — валидный AccentColorId.
 function isValidAccentColor(value: string): value is AccentColorId {
-  return [
-    'purple',
-    'cyan',
-    'blue',
-    'green',
-    'orange',
-    'red',
-    'yellow',
-    'custom'
-  ].includes(value)
+  return ['purple', 'cyan', 'blue', 'green', 'orange', 'red', 'yellow', 'custom'].includes(value)
 }
 
 // Собираем keybindings с fallback на дефолтные значения.
@@ -394,8 +389,7 @@ function parseKeybindings(raw: unknown): EditorKeybindings {
     undo: typeof candidate.undo === 'string' ? candidate.undo : defaults.undo,
     redo: typeof candidate.redo === 'string' ? candidate.redo : defaults.redo,
     save: typeof candidate.save === 'string' ? candidate.save : defaults.save,
-    new_scene:
-      typeof candidate.new_scene === 'string' ? candidate.new_scene : defaults.new_scene,
+    new_scene: typeof candidate.new_scene === 'string' ? candidate.new_scene : defaults.new_scene,
     export_scene:
       typeof candidate.export_scene === 'string' ? candidate.export_scene : defaults.export_scene,
     toggle_inspector:
@@ -425,7 +419,9 @@ function parseKeybindings(raw: unknown): EditorKeybindings {
 
 // Возвращает реальный HEX акцентного цвета для CSS-переменных.
 // Этот helper нужен в одном месте, чтобы modal и shell не расходились по логике.
-export function getAccentColorHex(preferences: Pick<EditorPreferences, 'accentColor' | 'customAccentHex'>): string {
+export function getAccentColorHex(
+  preferences: Pick<EditorPreferences, 'accentColor' | 'customAccentHex'>
+): string {
   if (preferences.accentColor === 'custom') {
     return preferences.customAccentHex
   }
@@ -529,7 +525,7 @@ export function usePreferences(): UsePreferencesReturn {
   useEffect(() => {
     if (!window.api?.preferences?.onChanged) return
 
-    const cleanup = window.api.preferences.onChanged((next: any) => {
+    const cleanup = window.api.preferences.onChanged((next: unknown) => {
       const parsed = parsePreferences(next)
       if (parsed) {
         setPreferences((prev) => {

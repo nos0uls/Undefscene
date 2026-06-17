@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type {
-  VisualEditorActorPreview,
-  LoadedActorSpritePreview
-} from './RoomVisualEditorTypes'
+import type { VisualEditorActorPreview, LoadedActorSpritePreview } from './RoomVisualEditorTypes'
 
 export const ACTOR_MARKER_RADIUS = 8
 export const PLAY_PREVIEW_SPEED_PX_PER_SEC = 180

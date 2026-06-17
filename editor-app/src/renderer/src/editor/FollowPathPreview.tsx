@@ -214,7 +214,8 @@ function FollowPathPreviewComponent(props: FollowPathPreviewProps): React.JSX.El
       const deltaSeconds = Math.max(0, (time - lastTime) / 1000)
       lastTime = time
 
-      const nextDistance = (totalLength <= 0) ? 0 : (previewDistanceRef.current + speed * deltaSeconds) % totalLength
+      const nextDistance =
+        totalLength <= 0 ? 0 : (previewDistanceRef.current + speed * deltaSeconds) % totalLength
       previewDistanceRef.current = nextDistance
 
       const marker = markerPoint(nextDistance)

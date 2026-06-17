@@ -27,7 +27,10 @@ export const FlowCanvasKeyboardShortcuts = memo(function FlowCanvasKeyboardShort
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Ctrl+0 (или Numpad0) — fitView.
-      if ((event.ctrlKey || event.metaKey) && (event.code === 'Digit0' || event.code === 'Numpad0')) {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        (event.code === 'Digit0' || event.code === 'Numpad0')
+      ) {
         event.preventDefault()
         event.stopPropagation()
         void fitView({ duration: 180, padding: 0.18 })

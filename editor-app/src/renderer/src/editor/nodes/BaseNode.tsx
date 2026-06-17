@@ -61,9 +61,8 @@ export const BaseNode = memo(function BaseNode({
   // Теперь они глобальные (ставит FlowCanvas через document root), поэтому
   // здесь мы их НЕ вычисляем — экономим ~500 object allocations на mount.
   const needsMinHeight = nodeType === 'branch'
-  const rootStyle: CSSProperties | undefined = needsMinHeight || style
-    ? { minHeight: needsMinHeight ? 90 : undefined, ...style }
-    : undefined
+  const rootStyle: CSSProperties | undefined =
+    needsMinHeight || style ? { minHeight: needsMinHeight ? 90 : undefined, ...style } : undefined
 
   return (
     <div className={nodeClass} style={rootStyle} data-category={category}>
@@ -83,10 +82,14 @@ export const BaseNode = memo(function BaseNode({
       {children ? <div className="customNodeBody">{children}</div> : null}
 
       {/* Входной порт (слева) */}
-      {hasInput && <Handle type="target" position={Position.Left} id="in" className="customHandle" />}
+      {hasInput && (
+        <Handle type="target" position={Position.Left} id="in" className="customHandle" />
+      )}
 
       {/* Выходной порт (справа) */}
-      {hasOutput && <Handle type="source" position={Position.Right} id="out" className="customHandle" />}
+      {hasOutput && (
+        <Handle type="source" position={Position.Right} id="out" className="customHandle" />
+      )}
 
       {/* Дополнительные порты (для branch и т.д.) */}
       {extraHandles}

@@ -158,7 +158,10 @@ export function EditorShellModals({
                 {nameConflictModal.conflictingWithNodeId
                   ? ` (${nameConflictModal.conflictingWithNodeId})`
                   : ''}
-                {t('dialog.duplicateNodeNameHint', '. Duplicates are allowed, but it can be confusing.')}
+                {t(
+                  'dialog.duplicateNodeNameHint',
+                  '. Duplicates are allowed, but it can be confusing.'
+                )}
               </div>
 
               <label className="prefsField">

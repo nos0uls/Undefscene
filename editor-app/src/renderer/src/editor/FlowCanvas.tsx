@@ -51,8 +51,6 @@ const RF_EDGE_TYPES: EdgeTypes = { default: CustomEdge }
 const RF_PAN_ON_DRAG: number[] = [2]
 const RF_STYLE: React.CSSProperties = { background: 'transparent', position: 'relative', zIndex: 1 }
 
-
-
 // Helper для сравнения параметров нод (вынесен в utils.ts).
 
 // Пропсы для холста: узлы, связи, выбор и коллбеки для синхронизации с runtime.
@@ -128,6 +126,9 @@ type FlowCanvasProps = {
 
   // Коллбек: изменение центра вьюпорта (для canvas notes overlay).
   onViewportCenterChange?: (center: { x: number; y: number }) => void
+
+  // Коллбек при ошибке загрузки фонового изображения.
+  onBackgroundLoadError?: () => void
 }
 
 // Компонент для фона: размер точек масштабируется вместе с зумом холста.
@@ -135,7 +136,14 @@ type FlowCanvasProps = {
 const ScaledBackground = memo(function ScaledBackground() {
   const zoom = useStore((s) => s.transform[2])
   const { preferences: prefs } = usePreferencesContext()
-  return <Background color="var(--canvas-grid)" bgColor="var(--canvas-bg)" gap={prefs.gridSize} size={Math.max(0.8, zoom * 1.2)} />
+  return (
+    <Background
+      color="var(--canvas-grid)"
+      bgColor="var(--canvas-bg)"
+      gap={prefs.gridSize}
+      size={Math.max(0.8, zoom * 1.2)}
+    />
+  )
 })
 
 // LOD-контроллер: единственный компонент, который подписывается на zoom из store
@@ -240,15 +248,17 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   onEdgeDoubleClick,
   notes,
   onUpdateNote,
-  onFocusNode
+  onFocusNode,
+  onBackgroundLoadError
 }: FlowCanvasProps): React.JSX.Element {
   // Нужен для конвертации экранных координат в координаты холста.
-  const { screenToFlowPosition, getNodes, getViewport, setViewport, fitView, setCenter } = useReactFlow()
+  const { screenToFlowPosition, getNodes, getViewport, setViewport, fitView, setCenter } =
+    useReactFlow()
 
   // Читаем только те настройки, которые реально нужны холсту.
   // Деструктуризация не предотвращает ререндер при смене других полей,
   // но готовит почву для дальнейшей изоляции через refs / вынесение в sub-components.
-  const { preferences, updatePreferences: updatePreferencesFromContext } = usePreferencesContext()
+  const { preferences } = usePreferencesContext()
   const t = React.useMemo(() => createTranslator(preferences.language), [preferences.language])
   const {
     zoomSpeed,
@@ -273,6 +283,12 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   // Читаем его через main IPC, потому что прямой file:// доступ из renderer может блокироваться.
   const [canvasBackgroundUrl, setCanvasBackgroundUrl] = useState<string | null>(null)
 
+  // Ref для onBackgroundLoadError, чтобы избежать лишних перезапусков эффекта.
+  const onBackgroundLoadErrorRef = useRef(onBackgroundLoadError)
+  useEffect(() => {
+    onBackgroundLoadErrorRef.current = onBackgroundLoadError
+  }, [onBackgroundLoadError])
+
   useEffect(() => {
     setCanvasBackgroundUrl(null)
 
@@ -290,22 +306,20 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
           setCanvasBackgroundUrl(dataUrl)
         } else {
           setCanvasBackgroundUrl(null)
-          // Файл фона удалён или повреждён — сбрасываем путь в настройках.
-          updatePreferencesFromContext({ canvasBackgroundPath: null })
+          onBackgroundLoadErrorRef.current?.()
         }
       })
       .catch((err) => {
         if (cancelled) return
         console.warn('Failed to load canvas background image:', err)
         setCanvasBackgroundUrl(null)
-        // При ошибке чтения тоже сбрасываем путь, чтобы UI не показывал "битый" фон.
-        updatePreferencesFromContext({ canvasBackgroundPath: null })
+        onBackgroundLoadErrorRef.current?.()
       })
 
     return () => {
       cancelled = true
     }
-  }, [canvasBackgroundPath, updatePreferencesFromContext])
+  }, [canvasBackgroundPath])
 
   // Храним ref на DOM-обёртку canvas, чтобы повесить native non-passive wheel listener.
   // Это нужно для trackpad/pinch и чтобы браузер не ругался на preventDefault в passive listener.
@@ -423,25 +437,28 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   // viewport-слоёв или других внутренних DOM-обёрток React Flow.
   // Но сознательно исключаем overlay-элементы вроде minimap и controls,
   // чтобы drop там не создавал ноду в неожиданном месте.
-  const isCanvasDropTarget = useCallback((target: EventTarget | null, container: HTMLDivElement | null): boolean => {
-    const element = target instanceof Element ? target : null
-    if (!container) return false
+  const isCanvasDropTarget = useCallback(
+    (target: EventTarget | null, container: HTMLDivElement | null): boolean => {
+      const element = target instanceof Element ? target : null
+      if (!container) return false
 
-    // Если браузер отдаёт dragover/drop прямо на корневой canvas-контейнер,
-    // это всё равно валидная зона для создания ноды.
-    if (!element) {
-      return true
-    }
+      // Если браузер отдаёт dragover/drop прямо на корневой canvas-контейнер,
+      // это всё равно валидная зона для создания ноды.
+      if (!element) {
+        return true
+      }
 
-    if (element.closest('.react-flow__minimap, .react-flow__controls')) {
-      return false
-    }
+      if (element.closest('.react-flow__minimap, .react-flow__controls')) {
+        return false
+      }
 
-    // Достаточно того, что target живёт внутри нашего canvas-контейнера.
-    // Слишком узкая проверка по внутренним классам React Flow ломала DnD
-    // и давала пользователю запрещённый cursor почти на всей рабочей области.
-    return element === container || container.contains(element)
-  }, [])
+      // Достаточно того, что target живёт внутри нашего canvas-контейнера.
+      // Слишком узкая проверка по внутренним классам React Flow ломала DnD
+      // и давала пользователю запрещённый cursor почти на всей рабочей области.
+      return element === container || container.contains(element)
+    },
+    []
+  )
 
   // Строим узлы React Flow из runtime-данных.
   // ВАЖНО: НЕ включаем selected сюда — выделение синхронизируем отдельным эффектом.
@@ -794,7 +811,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
 
   // Обёртка над onNodesChange: ловим конец перетаскивания и сохраняем позицию.
   // Обработчик любых изменений узлов в React Flow (перетаскивание, выделение и т.д.).
-  // Здесь мы ловим момент, когда пользователь закончил тянуть узел, и сохраняем 
+  // Здесь мы ловим момент, когда пользователь закончил тянуть узел, и сохраняем
   // его новые координаты (X и Y) в наше основное состояние (runtime).
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -856,10 +873,20 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
 
       // Нормализуем handles: React Flow при null превращает его в строку "null".
       // undefined оставляем undefined — React Flow сам подставит дефолтные handles.
-      let sourceHandle = resolvedConnection.sourceHandle === 'null' || resolvedConnection.sourceHandle === null ? undefined : resolvedConnection.sourceHandle
-      let targetHandle = resolvedConnection.targetHandle === 'null' || resolvedConnection.targetHandle === null ? undefined : resolvedConnection.targetHandle
-      const sourceNode = runtimeNodesRef.current.find((node) => node.id === resolvedConnection.source)
-      const targetNode = runtimeNodesRef.current.find((node) => node.id === resolvedConnection.target)
+      let sourceHandle =
+        resolvedConnection.sourceHandle === 'null' || resolvedConnection.sourceHandle === null
+          ? undefined
+          : resolvedConnection.sourceHandle
+      let targetHandle =
+        resolvedConnection.targetHandle === 'null' || resolvedConnection.targetHandle === null
+          ? undefined
+          : resolvedConnection.targetHandle
+      const sourceNode = runtimeNodesRef.current.find(
+        (node) => node.id === resolvedConnection.source
+      )
+      const targetNode = runtimeNodesRef.current.find(
+        (node) => node.id === resolvedConnection.target
+      )
       if (!sourceHandle && sourceNode?.type === 'parallel_start') {
         sourceHandle = parallelBranchPortMode === 'shared' ? 'out_shared' : 'out_b0'
       }
@@ -900,7 +927,9 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
 
   // При удалении рёбер — сообщаем runtime.
   const handleEdgesChange = useCallback(
-    (changes: Parameters<NonNullable<React.ComponentProps<typeof ReactFlow>['onEdgesChange']>>[0]) => {
+    (
+      changes: Parameters<NonNullable<React.ComponentProps<typeof ReactFlow>['onEdgesChange']>>[0]
+    ) => {
       // В Uncontrolled Mode React Flow САМ удаляет ребро визуально.
       // Нам остаётся только уведомить runtimeState.
       for (const change of changes) {
@@ -923,7 +952,9 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   const handlePaneClick = useCallback((event: React.MouseEvent) => {
     // Проверяем, не кликнули ли мы по элементу управления (инспектору, кнопкам).
     const target = event.target as HTMLElement | null
-    const interactiveTarget = target?.closest('textarea, input, select, button, [contenteditable="true"]')
+    const interactiveTarget = target?.closest(
+      'textarea, input, select, button, [contenteditable="true"]'
+    )
     if (interactiveTarget) return
 
     // Если только что создали связь — игнорируем этот клик и сбрасываем флаг.
@@ -953,7 +984,9 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
       // Проверяем, не кликнули ли мы по UI-панелям.
       // Если клик пришел из инспектора или палитры, мы его полностью игнорируем здесь.
       const target = event.target as HTMLElement | null
-      const isUiClick = target?.closest('textarea, input, select, button, [contenteditable="true"], .editorLeftDock, .editorRightDock, .editorBottomDock, .prefsOverlay, .topMenuBar, .floatingLayer')
+      const isUiClick = target?.closest(
+        'textarea, input, select, button, [contenteditable="true"], .editorLeftDock, .editorRightDock, .editorBottomDock, .prefsOverlay, .topMenuBar, .floatingLayer'
+      )
       if (isUiClick) return
 
       // Разрешаем создание ноды только если клик пришёл по пустому месту (pane).
@@ -1067,7 +1100,11 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
           x: event.clientX,
           y: event.clientY
         })
-        onUpdateNoteRef.current?.(noteId, { x: flowPosition.x, y: flowPosition.y, nodeId: undefined })
+        onUpdateNoteRef.current?.(noteId, {
+          x: flowPosition.x,
+          y: flowPosition.y,
+          nodeId: undefined
+        })
         return
       }
 
@@ -1110,6 +1147,13 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
   // React Flow спамит onSelectionChange на каждый кадр. Мы не хотим перерисовывать
   // весь EditorShell 60 раз в секунду.
   const selectionTimeoutRef = useRef<number | null>(null)
+  useEffect(() => {
+    return () => {
+      if (selectionTimeoutRef.current !== null) {
+        window.clearTimeout(selectionTimeoutRef.current)
+      }
+    }
+  }, [])
   const handleSelectionChange = useCallback((sel: { nodes?: Array<{ id: string }> }) => {
     const ids = (sel?.nodes ?? []).map((n) => String(n.id))
 
@@ -1182,7 +1226,9 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
 
       // Если курсор сейчас над интерактивным HTML-элементом внутри canvas,
       // не ломаем его нативный scroll/number input/select.
-      const interactiveTarget = target?.closest('textarea, input, select, button, [contenteditable="true"]')
+      const interactiveTarget = target?.closest(
+        'textarea, input, select, button, [contenteditable="true"]'
+      )
       if (interactiveTarget) return
 
       // Для тачпада и мыши всегда используем один и тот же zoom path.
@@ -1232,10 +1278,6 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
       element.removeEventListener('wheel', listener, { capture: true })
     }
   }, [handleWheel])
-
-
-
-
 
   // Initial fitView после первого монтирования: раньше это делал boolean prop
   // `fitView` на <ReactFlow>, но он мог перестреливать на смену nodes-массива.
@@ -1302,7 +1344,9 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
               {dragPreview.flowX}, {dragPreview.flowY}
             </div>
           ) : (
-            <div className="flowCanvasDropPreviewMeta">Drop note</div>
+            <div className="flowCanvasDropPreviewMeta">
+              {t('editor.dropNotePreview', 'Drop note')}
+            </div>
           )}
         </div>
       ) : null}
@@ -1320,8 +1364,7 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
             backgroundImage: `url("${canvasBackgroundUrl}")`,
             backgroundRepeat: 'no-repeat',
             backgroundPosition: 'center',
-            backgroundSize:
-              canvasBackgroundMode === 'stretch' ? '100% 100%' : 'cover',
+            backgroundSize: canvasBackgroundMode === 'stretch' ? '100% 100%' : 'cover',
             // Прозрачность управляется из Preferences,
             // чтобы фон не мешал читать граф и сетку.
             opacity: canvasBackgroundOpacity
@@ -1339,76 +1382,76 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
           onConnect={onConnect}
           onNodeDragStart={onNodeDragStart}
           onNodeDragStop={onNodeDragStop}
-        // Initial fitView делаем через rAF после монтирования, чтобы xyflow успел
-        // замерить ноды и посчитать bounds. Убираем водяной знак React Flow.
-        proOptions={RF_PRO_OPTIONS}
-        // Панорамирование холста — только ПКМ (кнопка 2).
-        panOnDrag={RF_PAN_ON_DRAG}
-        // Явно разрешаем выделение элементов и рамочное выделение,
-        // чтобы xyflow не зависел от внутренних дефолтов между версиями.
-        elementsSelectable
-        selectNodesOnDrag={false}
-        // ЛКМ drag по пустому месту — рамка выделения (area select).
-        selectionOnDrag
-        // Режим выделения: достаточно задеть кусочек ноды, не нужно полное покрытие.
-        selectionMode={SelectionMode.Partial}
-        // Настройки зума: увеличенный диапазон.
-        minZoom={0.02}
-        maxZoom={4}
-        // Держим ноды смонтированными во время pan/fitView.
-        // Встроенная visible-elements виртуализация пересчитывала видимость на каждом движении viewport
-        // и могла давать дорогой mount/unmount + paint spike на больших графах.
-        // Отключаем встроенный wheel zoom и pinch, чтобы не было конфликта с нашим handler.
-        // Наш handleWheel учитывает zoomSpeed из Preferences для всех устройств.
-        zoomOnScroll={false}
-        zoomOnPinch={false}
-        // ПКМ по ноде — удаляем.
-        onNodeContextMenu={handleNodeContextMenu}
-        onEdgeClick={handleEdgeClick}
-        // ПКМ по связи — удаляем.
-        onEdgeContextMenu={handleEdgeContextMenu}
-        // Двойной клик по ребру — выбираем и фокусируем wait input.
-        onEdgeDoubleClick={handleEdgeDoubleClick}
-        // ЛКМ по холсту — создаём ноду.
-        onPaneClick={handlePaneClick}
-        // Когда пользователь выделяет рамкой — синхронизируем мультивыделение.
-        // Дополнительно защищаемся от бесконечного цикла: не вызываем onSelectNodes,
-        // если фактическое выделение не изменилось относительно пропсов.
-        onSelectionChange={handleSelectionChange}
-        // Отключаем встроенное удаление, потому что мы обрабатываем Backspace/Delete глобально
-        // в useEditorShortcuts и удаляем элементы из runtime state (Single Source of Truth).
-        deleteKeyCode={null}
-        style={RF_STYLE}
-      >
-        {/* SVG markers для стрелок на кастомных рёбрах. */}
-        <ArrowheadDefs />
-        <FlowCanvasKeyboardShortcuts fitView={fitView} />
-        {/* Размер сетки теперь реально читается из Preferences,
+          // Initial fitView делаем через rAF после монтирования, чтобы xyflow успел
+          // замерить ноды и посчитать bounds. Убираем водяной знак React Flow.
+          proOptions={RF_PRO_OPTIONS}
+          // Панорамирование холста — только ПКМ (кнопка 2).
+          panOnDrag={RF_PAN_ON_DRAG}
+          // Явно разрешаем выделение элементов и рамочное выделение,
+          // чтобы xyflow не зависел от внутренних дефолтов между версиями.
+          elementsSelectable
+          selectNodesOnDrag={false}
+          // ЛКМ drag по пустому месту — рамка выделения (area select).
+          selectionOnDrag
+          // Режим выделения: достаточно задеть кусочек ноды, не нужно полное покрытие.
+          selectionMode={SelectionMode.Partial}
+          // Настройки зума: увеличенный диапазон.
+          minZoom={0.02}
+          maxZoom={4}
+          // Держим ноды смонтированными во время pan/fitView.
+          // Встроенная visible-elements виртуализация пересчитывала видимость на каждом движении viewport
+          // и могла давать дорогой mount/unmount + paint spike на больших графах.
+          // Отключаем встроенный wheel zoom и pinch, чтобы не было конфликта с нашим handler.
+          // Наш handleWheel учитывает zoomSpeed из Preferences для всех устройств.
+          zoomOnScroll={false}
+          zoomOnPinch={false}
+          // ПКМ по ноде — удаляем.
+          onNodeContextMenu={handleNodeContextMenu}
+          onEdgeClick={handleEdgeClick}
+          // ПКМ по связи — удаляем.
+          onEdgeContextMenu={handleEdgeContextMenu}
+          // Двойной клик по ребру — выбираем и фокусируем wait input.
+          onEdgeDoubleClick={handleEdgeDoubleClick}
+          // ЛКМ по холсту — создаём ноду.
+          onPaneClick={handlePaneClick}
+          // Когда пользователь выделяет рамкой — синхронизируем мультивыделение.
+          // Дополнительно защищаемся от бесконечного цикла: не вызываем onSelectNodes,
+          // если фактическое выделение не изменилось относительно пропсов.
+          onSelectionChange={handleSelectionChange}
+          // Отключаем встроенное удаление, потому что мы обрабатываем Backspace/Delete глобально
+          // в useEditorShortcuts и удаляем элементы из runtime state (Single Source of Truth).
+          deleteKeyCode={null}
+          style={RF_STYLE}
+        >
+          {/* SVG markers для стрелок на кастомных рёбрах. */}
+          <ArrowheadDefs />
+          <FlowCanvasKeyboardShortcuts fitView={fitView} />
+          {/* Размер сетки теперь реально читается из Preferences,
             чтобы настройка grid size меняла canvas, а не висела мёртвым полем. */}
-        <ScaledBackground />
-        {/* LOD: переключает zoomLow/zoomVeryLow классы на корне .react-flow.
+          <ScaledBackground />
+          {/* LOD: переключает zoomLow/zoomVeryLow классы на корне .react-flow.
             Подписывается на zoom через useStore, не трогая ноды. */}
-        <ZoomLODController />
-        <EdgeLODController runtimeEdges={runtimeEdges} />
-        {/* MiniMap: порог отключения управляется настройкой.
+          <ZoomLODController />
+          <EdgeLODController runtimeEdges={runtimeEdges} />
+          {/* MiniMap: порог отключения управляется настройкой.
             0 = всегда скрыта, -1 = всегда показана, >0 = скрыть если нод > порога. */}
-      <FlowCanvasMiniMap
-          miniMapNodeThreshold={miniMapNodeThreshold}
-          nodeCount={runtimeNodes.length}
-        />
-        <FlowCanvasControls />
-        <FlowCanvasToolbar
-          onAddNode={handleFabAdd}
-          addButtonTitle={t('editor.addNodeButtonTitle', 'Add New Node (Middle Click)')}
-          addNodeAriaLabel={t('editor.addNodeAriaLabel', 'Add Node')}
-        />
-        {notes && notes.length > 0 && onUpdateNote && (
-          <CanvasNotesOverlay
-            notes={notes}
-            onUpdateNote={onUpdateNote}
-            onFocusNode={onFocusNode}
+          <FlowCanvasMiniMap
+            miniMapNodeThreshold={miniMapNodeThreshold}
+            nodeCount={runtimeNodes.length}
           />
-        )}
+          <FlowCanvasControls />
+          <FlowCanvasToolbar
+            onAddNode={handleFabAdd}
+            addButtonTitle={t('editor.addNodeButtonTitle', 'Add New Node (Middle Click)')}
+            addNodeAriaLabel={t('editor.addNodeAriaLabel', 'Add Node')}
+          />
+          {notes && notes.length > 0 && onUpdateNote && (
+            <CanvasNotesOverlay
+              notes={notes}
+              onUpdateNote={onUpdateNote}
+              onFocusNode={onFocusNode}
+            />
+          )}
         </ReactFlow>
       </NodeActionsProvider>
     </div>

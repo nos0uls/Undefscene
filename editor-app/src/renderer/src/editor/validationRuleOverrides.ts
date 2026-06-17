@@ -42,10 +42,10 @@ export function saveValidationOverrides(overrides: ValidationRuleOverrides): voi
  * - Если override === 'reset' или отсутствует, запись остаётся без изменений.
  */
 export function applyOverrides(
-  entries: import('./validateGraph').ValidationEntry[],
+  entries: import('./validators').ValidationEntry[],
   overrides: ValidationRuleOverrides
-): import('./validateGraph').ValidationEntry[] {
-  const result: import('./validateGraph').ValidationEntry[] = []
+): import('./validators').ValidationEntry[] {
+  const result: import('./validators').ValidationEntry[] = []
   for (const entry of entries) {
     if (!entry.ruleId) {
       result.push(entry)

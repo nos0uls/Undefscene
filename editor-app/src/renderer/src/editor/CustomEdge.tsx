@@ -3,13 +3,7 @@
 // Подключается через edgeTypes в FlowCanvas.
 
 import { memo, useState } from 'react'
-import {
-  BaseEdge,
-  EdgeLabelRenderer,
-  getBezierPath,
-  Position,
-  type EdgeProps
-} from '@xyflow/react'
+import { BaseEdge, EdgeLabelRenderer, getBezierPath, Position, type EdgeProps } from '@xyflow/react'
 
 // SVG marker id для стрелки — единый для всего приложения.
 export const CUSTOM_EDGE_MARKER_ID = 'undefscene-arrowhead'
@@ -61,21 +55,23 @@ const CustomEdgeInner = memo(function CustomEdgeInner({
   selected,
   data,
   style = {},
-  markerEnd: _markerEnd  // игнорируем дефолтный, ставим свой
+  markerEnd: _markerEnd // игнорируем дефолтный, ставим свой
 }: EdgeProps): React.JSX.Element {
   const [hovered, setHovered] = useState(false)
 
   const targetInset = 10
-  const adjustedTargetX = targetPosition === Position.Left
-    ? targetX - targetInset
-    : targetPosition === Position.Right
-      ? targetX + targetInset
-      : targetX
-  const adjustedTargetY = targetPosition === Position.Top
-    ? targetY - targetInset
-    : targetPosition === Position.Bottom
-      ? targetY + targetInset
-      : targetY
+  const adjustedTargetX =
+    targetPosition === Position.Left
+      ? targetX - targetInset
+      : targetPosition === Position.Right
+        ? targetX + targetInset
+        : targetX
+  const adjustedTargetY =
+    targetPosition === Position.Top
+      ? targetY - targetInset
+      : targetPosition === Position.Bottom
+        ? targetY + targetInset
+        : targetY
 
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -87,14 +83,14 @@ const CustomEdgeInner = memo(function CustomEdgeInner({
   })
 
   const isInternalPair = (data as Record<string, unknown> | undefined)?.isInternalPair === true
-  const timingLabel = (data as Record<string, unknown> | undefined)?.timingLabel as string | undefined
+  const timingLabel = (data as Record<string, unknown> | undefined)?.timingLabel as
+    | string
+    | undefined
 
   const isActive = selected || hovered
 
   // Цвета: акцентный если выбрано или hover, стандартный иначе.
-  const strokeColor = isActive
-    ? 'var(--ev-c-accent)'
-    : 'var(--edge-default, hsl(220, 10%, 35%))'
+  const strokeColor = isActive ? 'var(--ev-c-accent)' : 'var(--edge-default, hsl(220, 10%, 35%))'
 
   const markerUrl = `url(#${isActive ? `${CUSTOM_EDGE_MARKER_ID}-accent` : CUSTOM_EDGE_MARKER_ID})`
 
@@ -104,9 +100,7 @@ const CustomEdgeInner = memo(function CustomEdgeInner({
     : {}
 
   // Glow через filter при выделении или hover.
-  const glowFilter = isActive
-    ? 'drop-shadow(0 0 3px var(--ev-c-accent))'
-    : undefined
+  const glowFilter = isActive ? 'drop-shadow(0 0 3px var(--ev-c-accent))' : undefined
 
   return (
     <g

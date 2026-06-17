@@ -86,7 +86,12 @@ export function pushSuccess(
   message: string,
   opts?: { title?: string; duration?: number }
 ): string {
-  return ctx.push({ severity: 'success', message, title: opts?.title, duration: opts?.duration ?? 3000 })
+  return ctx.push({
+    severity: 'success',
+    message,
+    title: opts?.title,
+    duration: opts?.duration ?? 3000
+  })
 }
 
 export function pushError(
@@ -115,31 +120,36 @@ export function pushInfo(
   message: string,
   opts?: { title?: string; duration?: number }
 ): string {
-  return ctx.push({ severity: 'info', message, title: opts?.title, duration: opts?.duration ?? 4000 })
+  return ctx.push({
+    severity: 'info',
+    message,
+    title: opts?.title,
+    duration: opts?.duration ?? 4000
+  })
 }
 
 // --- Renderer ---
 
 const SEVERITY_STYLES: Record<ToastSeverity, { bg: string; border: string; text: string }> = {
   info: {
-    bg: 'rgba(88, 166, 255, 0.12)',
-    border: 'rgba(88, 166, 255, 0.25)',
-    text: '#58a6ff'
+    bg: 'var(--status-info-muted)',
+    border: 'var(--status-info)',
+    text: 'var(--status-info)'
   },
   success: {
-    bg: 'rgba(80, 200, 80, 0.12)',
-    border: 'rgba(80, 200, 80, 0.25)',
-    text: '#50c850'
+    bg: 'var(--status-success-muted)',
+    border: 'var(--status-success)',
+    text: 'var(--status-success)'
   },
   warning: {
-    bg: 'rgba(230, 180, 60, 0.12)',
-    border: 'rgba(230, 180, 60, 0.25)',
-    text: '#e6b43c'
+    bg: 'var(--status-warning-muted)',
+    border: 'var(--status-warning)',
+    text: 'var(--status-warning)'
   },
   error: {
-    bg: 'rgba(224, 80, 80, 0.12)',
-    border: 'rgba(224, 80, 80, 0.25)',
-    text: '#e05050'
+    bg: 'var(--status-error-muted)',
+    border: 'var(--status-error)',
+    text: 'var(--status-error)'
   }
 }
 

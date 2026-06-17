@@ -45,11 +45,20 @@ export const BookmarksPanel = React.memo(function BookmarksPanel({
     <div className="runtimeSection" style={{ height: '100%' }}>
       <div className="runtimeSectionTitle">{t('editor.nodes', 'Nodes')}</div>
       {nodes.length === 0 ? (
-        <div className="runtimeHint">{t('editor.noNodesYet', 'No nodes yet. Click “Add Node”.')}</div>
+        <div className="runtimeHint">
+          {t('editor.noNodesYet', 'No nodes yet. Click “Add Node”.')}
+        </div>
       ) : (
         <ul
           className="runtimeList"
-          style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 0, margin: 0, listStyle: 'none' }}
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            padding: 0,
+            margin: 0,
+            listStyle: 'none'
+          }}
         >
           {nodes.map((node) => (
             <BookmarkRow

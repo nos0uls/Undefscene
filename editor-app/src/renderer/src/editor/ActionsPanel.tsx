@@ -7,7 +7,17 @@ import { NODE_REGISTRY } from './nodes/nodeRegistry'
 const NODE_PALETTE_DRAG_MIME = 'application/x-undefscene-node-type'
 
 // Порядок отображения категорий в палитре.
-const CATEGORY_ORDER = ['flow', 'movement', 'actor', 'visual', 'camera', 'dialogue', 'logic', 'audio', 'wait']
+const CATEGORY_ORDER = [
+  'flow',
+  'movement',
+  'actor',
+  'visual',
+  'camera',
+  'dialogue',
+  'logic',
+  'audio',
+  'wait'
+]
 
 type ActionsPanelProps = {
   t: (key: string, fallback: string) => string
@@ -43,7 +53,7 @@ export const ActionsPanel = React.memo(function ActionsPanel({
     for (const [type, def] of Object.entries(NODE_REGISTRY)) {
       // Пытаемся получить перевод, иначе используем label из реестра или сам type.
       const label = t('nodes.types.' + type, def.label ?? type)
-      
+
       // Фильтрация по поисковому запросу.
       if (query && !type.includes(query) && !label.toLowerCase().includes(query)) continue
 
@@ -55,7 +65,9 @@ export const ActionsPanel = React.memo(function ActionsPanel({
     // Сортируем категории по заданному порядку, затем остальные алфавитно.
     const sortedKeys = [
       ...CATEGORY_ORDER.filter((c) => map[c]),
-      ...Object.keys(map).filter((c) => !CATEGORY_ORDER.includes(c)).sort()
+      ...Object.keys(map)
+        .filter((c) => !CATEGORY_ORDER.includes(c))
+        .sort()
     ]
 
     return sortedKeys.map((cat) => ({
@@ -129,33 +141,38 @@ export const ActionsPanel = React.memo(function ActionsPanel({
                 style={{ cursor: 'pointer' }}
               >
                 <span className="paletteCategoryIcon">
-                  {isCollapsed ? <ChevronRight size={14} strokeWidth={2.5} /> : <ChevronDown size={14} strokeWidth={2.5} />}
+                  {isCollapsed ? (
+                    <ChevronRight size={14} strokeWidth={2.5} />
+                  ) : (
+                    <ChevronDown size={14} strokeWidth={2.5} />
+                  )}
                 </span>
                 <span className="paletteCategoryDot" />
-                <span className="paletteCategoryLabel">
-                  {t('editor.categories.' + cat, cat)}
-                </span>
+                <span className="paletteCategoryLabel">{t('editor.categories.' + cat, cat)}</span>
               </div>
               {/* Список нод в категории */}
-              {!isCollapsed && nodes.map(({ type, label }) => (
-                <button
-                  key={type}
-                  className={`paletteNodeItem palette-cat-${cat}`}
-                  type="button"
-                  draggable
-                  onDragStart={(event) => handleDragStart(event, type)}
-                  onClick={handlePaletteClick(type)}
-                >
-                  <span className="paletteNodeDot" />
-                  <span className="paletteNodeLabel">{label}</span>
-                </button>
-              ))}
+              {!isCollapsed &&
+                nodes.map(({ type, label }) => (
+                  <button
+                    key={type}
+                    className={`paletteNodeItem palette-cat-${cat}`}
+                    type="button"
+                    draggable
+                    onDragStart={(event) => handleDragStart(event, type)}
+                    onClick={handlePaletteClick(type)}
+                  >
+                    <span className="paletteNodeDot" />
+                    <span className="paletteNodeLabel">{label}</span>
+                  </button>
+                ))}
             </div>
           )
         })}
       </div>
 
-      <div className="runtimeHint">{t('editor.actionsHint', 'New nodes appear to the right of the selected node.')}</div>
+      <div className="runtimeHint">
+        {t('editor.actionsHint', 'New nodes appear to the right of the selected node.')}
+      </div>
     </div>
   )
 })

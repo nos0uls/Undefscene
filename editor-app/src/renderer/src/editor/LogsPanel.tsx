@@ -84,8 +84,7 @@ const LogEntryRow = React.memo(function LogEntryRow({
       onClick={onClick}
       onContextMenu={onContextMenu}
     >
-      <span style={{ fontWeight: 600, color: style.color }}>{style.icon}</span>{' '}
-      {entry.message}
+      <span style={{ fontWeight: 600, color: style.color }}>{style.icon}</span> {entry.message}
     </div>
   )
 })
@@ -175,14 +174,17 @@ export const LogsPanel = React.memo(function LogsPanel({
   }, [])
 
   // Переход к ноде или ребру из меню.
-  const handleGoTo = useCallback((entry: LogsData['visibleEntries'][number]) => {
-    if (entry.nodeId) {
-      onSelectNode(entry.nodeId)
-    } else if (entry.edgeId) {
-      onSelectEdge(entry.edgeId)
-    }
-    setContextMenu(null)
-  }, [onSelectNode, onSelectEdge])
+  const handleGoTo = useCallback(
+    (entry: LogsData['visibleEntries'][number]) => {
+      if (entry.nodeId) {
+        onSelectNode(entry.nodeId)
+      } else if (entry.edgeId) {
+        onSelectEdge(entry.edgeId)
+      }
+      setContextMenu(null)
+    },
+    [onSelectNode, onSelectEdge]
+  )
 
   // Выбор переопределения серьёзности правила.
   const handleSeverityOverride = useCallback(
@@ -218,7 +220,9 @@ export const LogsPanel = React.memo(function LogsPanel({
                 color: isActive
                   ? btn.color
                   : `color-mix(in srgb, ${btn.color} 80%, var(--ev-c-text-2) 20%)`,
-                background: isActive ? `color-mix(in srgb, ${btn.color} 20%, transparent)` : 'transparent',
+                background: isActive
+                  ? `color-mix(in srgb, ${btn.color} 20%, transparent)`
+                  : 'transparent',
                 border: `1px solid ${isActive ? `color-mix(in srgb, ${btn.color} 40%, transparent)` : 'transparent'}`
               }}
             >
@@ -229,7 +233,7 @@ export const LogsPanel = React.memo(function LogsPanel({
       </div>
 
       {visibleEntries.length === 0 ? (
-        <div className="runtimeHint" style={{ color: '#6c6' }}>
+        <div className="runtimeHint" style={{ color: 'var(--status-success)' }}>
           {!logsFilters.errors && !logsFilters.warnings && !logsFilters.tips
             ? t('editor.logsEmptyFilters', 'Enable filters to see entries.')
             : t('editor.logsNoMatches', 'No matching entries.')}
@@ -239,7 +243,10 @@ export const LogsPanel = React.memo(function LogsPanel({
         // чтобы не тратить время на сотни DOM-элементов при большом числе логов.
         <div
           className="runtimeVirtualList"
-          style={{ height: Math.min(visibleEntries.length * ROW_HEIGHT, LIST_HEIGHT), overflowY: 'auto' }}
+          style={{
+            height: Math.min(visibleEntries.length * ROW_HEIGHT, LIST_HEIGHT),
+            overflowY: 'auto'
+          }}
           onScroll={onScroll}
         >
           <div style={{ height: visibleEntries.length * ROW_HEIGHT, position: 'relative' }}>
@@ -292,7 +299,12 @@ export const LogsPanel = React.memo(function LogsPanel({
         >
           {/* Копировать сообщение — доступно всегда. */}
           <div
-            style={{ padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap', color: 'var(--text-primary, #e6eaf0)' }}
+            style={{
+              padding: '6px 12px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              color: 'var(--text-primary, #e6eaf0)'
+            }}
             onClick={() => handleCopy(contextMenu.entry.message)}
             onMouseEnter={() => setSubmenuOpen(false)}
           >
@@ -302,7 +314,12 @@ export const LogsPanel = React.memo(function LogsPanel({
           {/* Перейти к ноде или ребру, если применимо. */}
           {(contextMenu.entry.nodeId || contextMenu.entry.edgeId) && (
             <div
-              style={{ padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap', color: 'var(--text-primary, #e6eaf0)' }}
+              style={{
+                padding: '6px 12px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                color: 'var(--text-primary, #e6eaf0)'
+              }}
               onClick={() => handleGoTo(contextMenu.entry)}
               onMouseEnter={() => setSubmenuOpen(false)}
             >
@@ -319,21 +336,34 @@ export const LogsPanel = React.memo(function LogsPanel({
               onMouseEnter={() => setSubmenuOpen(true)}
               onMouseLeave={() => setSubmenuOpen(false)}
             >
-              <div style={{ padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap', color: 'var(--text-primary, #e6eaf0)' }}>
-                {t('editor.logs.configureSeverity', { ruleId: contextMenu.entry.ruleId }, "Configure Severity")}
-                {' '}
+              <div
+                style={{
+                  padding: '6px 12px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  color: 'var(--text-primary, #e6eaf0)'
+                }}
+              >
+                {t(
+                  'editor.logs.configureSeverity',
+                  { ruleId: contextMenu.entry.ruleId },
+                  'Configure Severity'
+                )}{' '}
                 <span style={{ opacity: 0.6 }}>&rsaquo;</span>
               </div>
               {submenuOpen && (
                 <div
                   style={{
                     position: 'absolute',
-                    left: contextMenu.x + CONTEXT_MENU_WIDTH + SEVERITY_SUBMENU_WIDTH > window.innerWidth
-                      ? -SEVERITY_SUBMENU_WIDTH
-                      : CONTEXT_MENU_WIDTH,
-                    top: contextMenu.y + SEVERITY_SUBMENU_HEIGHT > window.innerHeight
-                      ? -SEVERITY_SUBMENU_HEIGHT + 28
-                      : 0,
+                    left:
+                      contextMenu.x + CONTEXT_MENU_WIDTH + SEVERITY_SUBMENU_WIDTH >
+                      window.innerWidth
+                        ? -SEVERITY_SUBMENU_WIDTH
+                        : CONTEXT_MENU_WIDTH,
+                    top:
+                      contextMenu.y + SEVERITY_SUBMENU_HEIGHT > window.innerHeight
+                        ? -SEVERITY_SUBMENU_HEIGHT + 28
+                        : 0,
                     background: 'var(--bg-elevated, #212631)',
                     border: '1px solid var(--border-default, #383d47)',
                     borderRadius: 4,
@@ -343,31 +373,52 @@ export const LogsPanel = React.memo(function LogsPanel({
                   }}
                 >
                   <div
-                    style={{ padding: '6px 12px', cursor: 'pointer', color: 'var(--text-primary, #e6eaf0)' }}
+                    style={{
+                      padding: '6px 12px',
+                      cursor: 'pointer',
+                      color: 'var(--text-primary, #e6eaf0)'
+                    }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'error')}
                   >
                     {t('editor.logs.error', 'Error')}
                   </div>
                   <div
-                    style={{ padding: '6px 12px', cursor: 'pointer', color: 'var(--text-primary, #e6eaf0)' }}
+                    style={{
+                      padding: '6px 12px',
+                      cursor: 'pointer',
+                      color: 'var(--text-primary, #e6eaf0)'
+                    }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'warn')}
                   >
                     {t('editor.logs.warn', 'Warn')}
                   </div>
                   <div
-                    style={{ padding: '6px 12px', cursor: 'pointer', color: 'var(--text-primary, #e6eaf0)' }}
+                    style={{
+                      padding: '6px 12px',
+                      cursor: 'pointer',
+                      color: 'var(--text-primary, #e6eaf0)'
+                    }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'tip')}
                   >
                     {t('editor.logs.suggestion', 'Suggestion')}
                   </div>
                   <div
-                    style={{ padding: '6px 12px', cursor: 'pointer', color: 'var(--text-primary, #e6eaf0)' }}
+                    style={{
+                      padding: '6px 12px',
+                      cursor: 'pointer',
+                      color: 'var(--text-primary, #e6eaf0)'
+                    }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'hidden')}
                   >
                     {t('editor.logs.ignore', 'Ignore')}
                   </div>
                   <div
-                    style={{ padding: '6px 12px', cursor: 'pointer', borderTop: '1px solid var(--border-subtle, #2d3139)', color: 'var(--text-primary, #e6eaf0)' }}
+                    style={{
+                      padding: '6px 12px',
+                      cursor: 'pointer',
+                      borderTop: '1px solid var(--border-subtle, #2d3139)',
+                      color: 'var(--text-primary, #e6eaf0)'
+                    }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'reset')}
                   >
                     {t('editor.logs.resetToDefault', 'Reset to Default')}

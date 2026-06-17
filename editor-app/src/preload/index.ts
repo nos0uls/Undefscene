@@ -31,7 +31,12 @@ const api = {
       roomNames: string[],
       roomScreenshotsDir?: string | null
     ): Promise<unknown> =>
-      ipcRenderer.invoke('project.availableScreenshotRooms', projectDir, roomNames, roomScreenshotsDir),
+      ipcRenderer.invoke(
+        'project.availableScreenshotRooms',
+        projectDir,
+        roomNames,
+        roomScreenshotsDir
+      ),
 
     // Читаем stitched room screenshot bundle для visual editing окна.
     // Main сам загружает meta.json и PNG tiles, а renderer получает уже безопасный payload.
@@ -40,7 +45,12 @@ const api = {
       roomName: string,
       roomScreenshotsDir?: string | null
     ): Promise<unknown> =>
-      ipcRenderer.invoke('project.readRoomScreenshotBundle', projectDir, roomName, roomScreenshotsDir),
+      ipcRenderer.invoke(
+        'project.readRoomScreenshotBundle',
+        projectDir,
+        roomName,
+        roomScreenshotsDir
+      ),
 
     // Читаем первый frame actor sprite preview.
     // Main сам резолвит object -> sprite и возвращает уже готовый data URL.
@@ -51,7 +61,11 @@ const api = {
   scene: {
     save: (filePath: string, jsonString: string): Promise<unknown> =>
       ipcRenderer.invoke('scene.save', filePath, jsonString),
-    autosave: (filePath: string | null, jsonString: string, backupCount: number): Promise<unknown> =>
+    autosave: (
+      filePath: string | null,
+      jsonString: string,
+      backupCount: number
+    ): Promise<unknown> =>
       ipcRenderer.invoke('scene.autosave', { filePath, jsonString, backupCount }),
     saveAs: (jsonString: string): Promise<unknown> =>
       ipcRenderer.invoke('scene.saveAs', jsonString),
@@ -139,8 +153,8 @@ const api = {
       ipcRenderer.invoke('preferences.chooseCanvasBackground'),
     readCanvasBackgroundDataUrl: (filePath: string): Promise<unknown> =>
       ipcRenderer.invoke('preferences.readCanvasBackgroundDataUrl', filePath),
-    onChanged: (cb: (next: any) => void): (() => void) => {
-      const listener = (_e: any, next: any): void => cb(next)
+    onChanged: (cb: (next: unknown) => void): (() => void) => {
+      const listener = (_e: Electron.IpcRendererEvent, next: unknown): void => cb(next)
       ipcRenderer.on('preferences.onChanged', listener)
       return (): void => {
         ipcRenderer.removeListener('preferences.onChanged', listener)
@@ -152,13 +166,16 @@ const api = {
     // Открываем отдельное native окно visual editor и передаём туда snapshot состояния.
     open: (next: unknown): Promise<unknown> => ipcRenderer.invoke('visualEditor.open', next),
     // Обновляем state snapshot без повторного открытия окна.
-    syncState: (next: unknown): Promise<unknown> => ipcRenderer.invoke('visualEditor.syncState', next),
+    syncState: (next: unknown): Promise<unknown> =>
+      ipcRenderer.invoke('visualEditor.syncState', next),
     // Отдаём последнюю bridge-state standalone renderer-окну.
     getState: (): Promise<unknown> => ipcRenderer.invoke('visualEditor.getState'),
     // Возвращаем path обратно в главное окно редактора.
-    importPath: (points: unknown): Promise<unknown> => ipcRenderer.invoke('visualEditor.importPath', points),
+    importPath: (points: unknown): Promise<unknown> =>
+      ipcRenderer.invoke('visualEditor.importPath', points),
     // Возвращаем actor marker positions обратно в главное окно редактора.
-    importActors: (actors: unknown): Promise<unknown> => ipcRenderer.invoke('visualEditor.importActors', actors),
+    importActors: (actors: unknown): Promise<unknown> =>
+      ipcRenderer.invoke('visualEditor.importActors', actors),
     // Закрываем отдельное окно по запросу renderer.
     close: (): Promise<unknown> => ipcRenderer.invoke('visualEditor.close'),
     // Подписка на обновление state snapshot из main процесса.

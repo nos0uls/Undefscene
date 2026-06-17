@@ -29,7 +29,10 @@ export type UseDockingParams = {
 
 export type UseDockingResult = {
   startPanelDrag: (panelId: string) => (event: React.PointerEvent<HTMLElement>) => void
-  startResizeDrag: (kind: ResizeKind, panelId?: string) => (event: React.PointerEvent<HTMLElement>) => void
+  startResizeDrag: (
+    kind: ResizeKind,
+    panelId?: string
+  ) => (event: React.PointerEvent<HTMLElement>) => void
   togglePanel: (panelId: string) => void
   togglePanelCollapse: (panelId: string) => void
   isPanelVisible: (panelId: string) => boolean
@@ -84,11 +87,7 @@ const enforceSlotCapacity = (
   let keepIds = list.slice(0, capacity)
   let overflowIds = list.slice(capacity)
 
-  if (
-    preferredPanelId &&
-    list.includes(preferredPanelId) &&
-    !keepIds.includes(preferredPanelId)
-  ) {
+  if (preferredPanelId && list.includes(preferredPanelId) && !keepIds.includes(preferredPanelId)) {
     keepIds = [...keepIds.slice(0, capacity - 1), preferredPanelId]
     overflowIds = list.filter((id) => !keepIds.includes(id))
   }
@@ -354,17 +353,17 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
     const nextPanelState =
       panel.mode === 'floating'
         ? {
-          ...panel,
-          collapsed: nextCollapsed,
-          size: nextCollapsed
-            ? { width: currentSize.width, height: COLLAPSED_HEADER_HEIGHT }
-            : (panel.lastFloatingSize ?? currentSize),
-          lastFloatingSize: nextCollapsed ? currentSize : panel.lastFloatingSize
-        }
+            ...panel,
+            collapsed: nextCollapsed,
+            size: nextCollapsed
+              ? { width: currentSize.width, height: COLLAPSED_HEADER_HEIGHT }
+              : (panel.lastFloatingSize ?? currentSize),
+            lastFloatingSize: nextCollapsed ? currentSize : panel.lastFloatingSize
+          }
         : {
-          ...panel,
-          collapsed: nextCollapsed
-        }
+            ...panel,
+            collapsed: nextCollapsed
+          }
 
     ctx.setLayout({
       ...ctx.layout,
@@ -514,9 +513,9 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
 
     const size: Size = panelRect
       ? {
-        width: Math.max(120, Math.round(panelRect.width)),
-        height: Math.max(80, Math.round(panelRect.height))
-      }
+          width: Math.max(120, Math.round(panelRect.width)),
+          height: Math.max(80, Math.round(panelRect.height))
+        }
       : { width: 320, height: 220 }
 
     const ghostPosition = getFloatingPositionAtPoint(event.clientX, event.clientY, grabOffset)
@@ -770,10 +769,7 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
         if (resizeDrag.kind === 'dock-bottom') {
           const topBarHeight = 30
           const maxBottom = Math.min(
-            Math.max(
-              MIN_BOTTOM_HEIGHT,
-              rootRect.height - topBarHeight - MIN_CENTER_HEIGHT
-            ),
+            Math.max(MIN_BOTTOM_HEIGHT, rootRect.height - topBarHeight - MIN_CENTER_HEIGHT),
             rootRect.height * 0.8
           )
           const nextBottomHeight = clamp(
@@ -984,8 +980,14 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
           MIN_LEFT_WIDTH + MIN_RIGHT_WIDTH,
           newWidth - MIN_CENTER_WIDTH
         )
-        const prevVerticalSpace = Math.max(MIN_BOTTOM_HEIGHT, prevHeight - topBarHeight - MIN_CENTER_HEIGHT)
-        const nextVerticalSpace = Math.max(MIN_BOTTOM_HEIGHT, newHeight - topBarHeight - MIN_CENTER_HEIGHT)
+        const prevVerticalSpace = Math.max(
+          MIN_BOTTOM_HEIGHT,
+          prevHeight - topBarHeight - MIN_CENTER_HEIGHT
+        )
+        const nextVerticalSpace = Math.max(
+          MIN_BOTTOM_HEIGHT,
+          newHeight - topBarHeight - MIN_CENTER_HEIGHT
+        )
 
         const leftRatio = currentLayout.dockSizes.leftWidth / prevHorizontalSpace
         const rightRatio = currentLayout.dockSizes.rightWidth / prevHorizontalSpace
@@ -994,17 +996,20 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
         let nextLeftWidth = isGrowingHorizontally
           ? currentLayout.dockSizes.leftWidth
           : clamp(
-            Math.round(nextHorizontalSpace * leftRatio),
-            MIN_LEFT_WIDTH,
-            Math.max(MIN_LEFT_WIDTH, newWidth - currentLayout.dockSizes.rightWidth - MIN_CENTER_WIDTH)
-          )
+              Math.round(nextHorizontalSpace * leftRatio),
+              MIN_LEFT_WIDTH,
+              Math.max(
+                MIN_LEFT_WIDTH,
+                newWidth - currentLayout.dockSizes.rightWidth - MIN_CENTER_WIDTH
+              )
+            )
         let nextRightWidth = isGrowingHorizontally
           ? currentLayout.dockSizes.rightWidth
           : clamp(
-            Math.round(nextHorizontalSpace * rightRatio),
-            MIN_RIGHT_WIDTH,
-            Math.max(MIN_RIGHT_WIDTH, newWidth - nextLeftWidth - MIN_CENTER_WIDTH)
-          )
+              Math.round(nextHorizontalSpace * rightRatio),
+              MIN_RIGHT_WIDTH,
+              Math.max(MIN_RIGHT_WIDTH, newWidth - nextLeftWidth - MIN_CENTER_WIDTH)
+            )
 
         nextLeftWidth = clamp(
           nextLeftWidth,
@@ -1014,15 +1019,15 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
 
         const nextBottomHeight = isGrowingVertically
           ? clamp(
-            currentLayout.dockSizes.bottomHeight,
-            MIN_BOTTOM_HEIGHT,
-            Math.max(MIN_BOTTOM_HEIGHT, newHeight - topBarHeight - MIN_CENTER_HEIGHT)
-          )
+              currentLayout.dockSizes.bottomHeight,
+              MIN_BOTTOM_HEIGHT,
+              Math.max(MIN_BOTTOM_HEIGHT, newHeight - topBarHeight - MIN_CENTER_HEIGHT)
+            )
           : clamp(
-            Math.round(nextVerticalSpace * bottomRatio),
-            MIN_BOTTOM_HEIGHT,
-            Math.max(MIN_BOTTOM_HEIGHT, newHeight - topBarHeight - MIN_CENTER_HEIGHT)
-          )
+              Math.round(nextVerticalSpace * bottomRatio),
+              MIN_BOTTOM_HEIGHT,
+              Math.max(MIN_BOTTOM_HEIGHT, newHeight - topBarHeight - MIN_CENTER_HEIGHT)
+            )
 
         let nextCollapsedLeft = currentCollapsedDocks.left
         let nextCollapsedRight = currentCollapsedDocks.right
@@ -1031,28 +1036,43 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
         let effectiveRightWidth = nextCollapsedRight ? COLLAPSED_DOCK_SIZE : nextRightWidth
         let effectiveBottomHeight = nextCollapsedBottom ? COLLAPSED_DOCK_SIZE : nextBottomHeight
 
-        let horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
-        if (horizontalShortage > 0 && leftDockCount > 0 && !nextCollapsedLeft && nextLeftWidth <= MIN_LEFT_WIDTH + 8) {
+        let horizontalShortage =
+          effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
+        if (
+          horizontalShortage > 0 &&
+          leftDockCount > 0 &&
+          !nextCollapsedLeft &&
+          nextLeftWidth <= MIN_LEFT_WIDTH + 8
+        ) {
           nextCollapsedLeft = true
           effectiveLeftWidth = COLLAPSED_DOCK_SIZE
-          horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
+          horizontalShortage =
+            effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
         }
-        if (horizontalShortage > 0 && rightDockCount > 0 && !nextCollapsedRight && nextRightWidth <= MIN_RIGHT_WIDTH + 8) {
+        if (
+          horizontalShortage > 0 &&
+          rightDockCount > 0 &&
+          !nextCollapsedRight &&
+          nextRightWidth <= MIN_RIGHT_WIDTH + 8
+        ) {
           nextCollapsedRight = true
           effectiveRightWidth = COLLAPSED_DOCK_SIZE
-          horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
+          horizontalShortage =
+            effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
         }
         if (horizontalShortage > 0 && leftDockCount > 0 && !nextCollapsedLeft) {
           nextCollapsedLeft = true
           effectiveLeftWidth = COLLAPSED_DOCK_SIZE
-          horizontalShortage = effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
+          horizontalShortage =
+            effectiveLeftWidth + effectiveRightWidth + MIN_CENTER_WIDTH - newWidth
         }
         if (horizontalShortage > 0 && rightDockCount > 0 && !nextCollapsedRight) {
           nextCollapsedRight = true
           effectiveRightWidth = COLLAPSED_DOCK_SIZE
         }
 
-        const verticalShortage = effectiveBottomHeight + topBarHeight + MIN_CENTER_HEIGHT - newHeight
+        const verticalShortage =
+          effectiveBottomHeight + topBarHeight + MIN_CENTER_HEIGHT - newHeight
         if (verticalShortage > 0 && bottomDockCount > 0 && !nextCollapsedBottom) {
           nextCollapsedBottom = true
           effectiveBottomHeight = COLLAPSED_DOCK_SIZE
@@ -1085,9 +1105,16 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
         }
 
         ctx.autoCollapsedDocksRef.current = {
-          left: nextCollapsedLeft && !currentCollapsedDocks.left ? true : shouldKeepLeftAutoCollapsed,
-          right: nextCollapsedRight && !currentCollapsedDocks.right ? true : shouldKeepRightAutoCollapsed,
-          bottom: nextCollapsedBottom && !currentCollapsedDocks.bottom ? true : shouldKeepBottomAutoCollapsed
+          left:
+            nextCollapsedLeft && !currentCollapsedDocks.left ? true : shouldKeepLeftAutoCollapsed,
+          right:
+            nextCollapsedRight && !currentCollapsedDocks.right
+              ? true
+              : shouldKeepRightAutoCollapsed,
+          bottom:
+            nextCollapsedBottom && !currentCollapsedDocks.bottom
+              ? true
+              : shouldKeepBottomAutoCollapsed
         }
 
         const leftChanged = Math.abs(nextLeftWidth - currentLayout.dockSizes.leftWidth) > 1
@@ -1105,7 +1132,11 @@ export function useDocking(params: UseDockingParams): UseDockingResult {
               return [panelId, panel]
             }
 
-            const clampedWidth = clamp(panel.size.width, MIN_FLOAT_WIDTH, Math.max(MIN_FLOAT_WIDTH, newWidth - 24))
+            const clampedWidth = clamp(
+              panel.size.width,
+              MIN_FLOAT_WIDTH,
+              Math.max(MIN_FLOAT_WIDTH, newWidth - 24)
+            )
             const clampedHeight = clamp(
               panel.size.height,
               MIN_FLOAT_HEIGHT,

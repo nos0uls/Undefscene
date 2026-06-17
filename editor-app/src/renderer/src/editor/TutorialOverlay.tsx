@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createTranslator, SupportedLanguage } from '../i18n'
-import {
-  type TutorialStep,
-  TUTORIAL_REGISTRY
-} from './tutorialConstants'
-
+import { type TutorialStep, TUTORIAL_REGISTRY } from './tutorialConstants'
 
 type TutorialOverlayProps = {
   active: boolean
@@ -14,7 +10,6 @@ type TutorialOverlayProps = {
   onComplete: () => void
   onSkip: () => void
 }
-
 
 // Рендерит текст, оборачивая http(s) URL в кликабельные ссылки.
 // Клик открывает ссылку через main процесс (shell.openExternal) безопасно.
@@ -99,7 +94,7 @@ export function TutorialOverlay({
 
     updateHighlight()
     window.addEventListener('resize', updateHighlight)
-    
+
     const interval = setInterval(updateHighlight, 500) // Defensive update for layout changes
 
     return () => {
@@ -140,8 +135,9 @@ export function TutorialOverlay({
 
   // Generate clip-path for highlighting
   // We use 8 points to create a "hole" in the dark overlay
-  const clipPathStyle = highlightRect ? {
-    clipPath: `polygon(
+  const clipPathStyle = highlightRect
+    ? {
+        clipPath: `polygon(
       0% 0%, 0% 100%, 100% 100%, 100% 0%, 0% 0%,
       ${highlightRect.left}px ${highlightRect.top}px,
       ${highlightRect.right}px ${highlightRect.top}px,
@@ -149,7 +145,8 @@ export function TutorialOverlay({
       ${highlightRect.left}px ${highlightRect.bottom}px,
       ${highlightRect.left}px ${highlightRect.top}px
     )`
-  } : {}
+      }
+    : {}
 
   const tooltipStyle = (): React.CSSProperties => {
     if (!highlightRect) {
@@ -174,7 +171,7 @@ export function TutorialOverlay({
     }
     if (pos === 'top') {
       return {
-        bottom: (window.innerHeight - highlightRect.top) + padding,
+        bottom: window.innerHeight - highlightRect.top + padding,
         left: highlightRect.left + highlightRect.width / 2,
         transform: 'translateX(-50%)',
         maxWidth: 400
@@ -191,7 +188,7 @@ export function TutorialOverlay({
     if (pos === 'left') {
       return {
         top: highlightRect.top + highlightRect.height / 2,
-        right: (window.innerWidth - highlightRect.left) + padding,
+        right: window.innerWidth - highlightRect.left + padding,
         transform: 'translateY(-50%)',
         maxWidth: 300
       }
@@ -245,9 +242,16 @@ export function TutorialOverlay({
         <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ev-c-text-2)' }}>
           {renderContentWithLinks(t(currentStep.content))}
         </div>
-        
+
         {/* Навигация: счётчик, стрелки назад/вперёд, пропуск. */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: 8
+          }}
+        >
           <div style={{ fontSize: 11, color: 'var(--ev-c-text-3)' }}>
             {t('tutorial.escToSkip', language === 'ru' ? 'Esc — пропустить' : 'Esc to skip')}
           </div>

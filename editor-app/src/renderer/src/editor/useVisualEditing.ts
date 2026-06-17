@@ -74,10 +74,12 @@ export function useVisualEditing(deps: UseVisualEditingDeps) {
     }
 
     return Array.isArray(selectedNodeForVisualEditing.params?.points)
-      ? (selectedNodeForVisualEditing.params?.points as Array<{ x: number; y: number }>).map((point) => ({
-        x: Number(point.x ?? 0),
-        y: Number(point.y ?? 0)
-      }))
+      ? (selectedNodeForVisualEditing.params?.points as Array<{ x: number; y: number }>).map(
+          (point) => ({
+            x: Number(point.x ?? 0),
+            y: Number(point.y ?? 0)
+          })
+        )
       : []
   }, [selectedNodeForVisualEditing])
 
@@ -127,7 +129,11 @@ export function useVisualEditing(deps: UseVisualEditingDeps) {
     let cancelled = false
 
     window.api.project
-      .availableScreenshotRooms(resources.projectDir, resources.rooms, resources.roomScreenshotsDir ?? null)
+      .availableScreenshotRooms(
+        resources.projectDir,
+        resources.rooms,
+        resources.roomScreenshotsDir ?? null
+      )
       .then((nextRooms) => {
         if (cancelled) return
         setScreenshotRooms(Array.isArray(nextRooms) ? nextRooms : [])
@@ -141,7 +147,12 @@ export function useVisualEditing(deps: UseVisualEditingDeps) {
     return () => {
       cancelled = true
     }
-  }, [preferences.screenshotOutputDir, resources?.projectDir, resources?.roomScreenshotsDir, resources?.rooms])
+  }, [
+    preferences.screenshotOutputDir,
+    resources?.projectDir,
+    resources?.roomScreenshotsDir,
+    resources?.rooms
+  ])
 
   // Собираем единый snapshot для native visual editor окна.
   const visualEditorBridgeState = useMemo(
@@ -153,11 +164,11 @@ export function useVisualEditing(deps: UseVisualEditingDeps) {
       visualEditorTechMode: preferences.visualEditorTechMode,
       selectedNode: selectedNodeForVisualEditing
         ? {
-          id: selectedNodeForVisualEditing.id,
-          type: selectedNodeForVisualEditing.type,
-          name: selectedNodeForVisualEditing.name,
-          params: selectedNodeForVisualEditing.params
-        }
+            id: selectedNodeForVisualEditing.id,
+            type: selectedNodeForVisualEditing.type,
+            name: selectedNodeForVisualEditing.name,
+            params: selectedNodeForVisualEditing.params
+          }
         : null,
       selectedActorTarget: selectedVisualActorTarget,
       selectedPathPoints: selectedVisualPathPoints,
@@ -196,14 +207,21 @@ export function useVisualEditing(deps: UseVisualEditingDeps) {
       }))
 
       if (normalizedPoints.length <= 0) {
-        pushWarning(toasts, 'Draw at least one path point before import.', { title: 'Visual Editing' })
+        pushWarning(toasts, 'Draw at least one path point before import.', {
+          title: 'Visual Editing'
+        })
         return
       }
 
       if (selectedNodeForVisualEditing) {
-        const nodeLabel = String(selectedNodeForVisualEditing.name ?? selectedNodeForVisualEditing.type)
+        const nodeLabel = String(
+          selectedNodeForVisualEditing.name ?? selectedNodeForVisualEditing.type
+        )
         const confirmed = await confirm({
-          message: t('dialog.replaceNodeMessage', 'Replace selected node "{name}" with imported path data?').replace('{name}', nodeLabel),
+          message: t(
+            'dialog.replaceNodeMessage',
+            'Replace selected node "{name}" with imported path data?'
+          ).replace('{name}', nodeLabel),
           title: t('dialog.replaceNodeTitle', 'Replace node')
         })
         if (!confirmed) return
@@ -214,17 +232,21 @@ export function useVisualEditing(deps: UseVisualEditingDeps) {
           nodes: prev.nodes.map((node) =>
             node.id === selectedNodeForVisualEditing.id
               ? {
-                ...node,
-                type: 'follow_path',
-                params: {
-                  target: typeof previousParams.target === 'string' ? previousParams.target : '',
-                  speed_px_sec:
-                    typeof previousParams.speed_px_sec === 'number' ? previousParams.speed_px_sec : 60,
-                  collision:
-                    typeof previousParams.collision === 'boolean' ? previousParams.collision : false,
-                  points: normalizedPoints
+                  ...node,
+                  type: 'follow_path',
+                  params: {
+                    target: typeof previousParams.target === 'string' ? previousParams.target : '',
+                    speed_px_sec:
+                      typeof previousParams.speed_px_sec === 'number'
+                        ? previousParams.speed_px_sec
+                        : 60,
+                    collision:
+                      typeof previousParams.collision === 'boolean'
+                        ? previousParams.collision
+                        : false,
+                    points: normalizedPoints
+                  }
                 }
-              }
               : node
           ),
           selectedNodeId: selectedNodeForVisualEditing.id,
@@ -235,7 +257,10 @@ export function useVisualEditing(deps: UseVisualEditingDeps) {
       }
 
       const confirmed = await confirm({
-        message: t('dialog.createNodeMessage', 'Create a new follow_path node from the imported path?'),
+        message: t(
+          'dialog.createNodeMessage',
+          'Create a new follow_path node from the imported path?'
+        ),
         title: t('dialog.createNodeTitle', 'Create node')
       })
       if (!confirmed) return
@@ -256,7 +281,6 @@ export function useVisualEditing(deps: UseVisualEditingDeps) {
           { points: normalizedPoints }
         )
       })
-
     },
     [selectedNodeForVisualEditing, setRuntime, confirm, toasts, t]
   )
@@ -313,7 +337,9 @@ export function useVisualEditing(deps: UseVisualEditingDeps) {
       }))
 
       if (updatedCount <= 0) {
-        pushWarning(toasts, 'Imported actor markers do not match any actor_create nodes.', { title: 'Visual Editing' })
+        pushWarning(toasts, 'Imported actor markers do not match any actor_create nodes.', {
+          title: 'Visual Editing'
+        })
       }
     },
     [setRuntime, toasts]
@@ -326,13 +352,11 @@ export function useVisualEditing(deps: UseVisualEditingDeps) {
     // Open уже передаёт snapshot в main.
     lastVisualEditorBridgeSyncKeyRef.current = visualEditorBridgeStateSyncKey
 
-    window.api.visualEditor
-      .open(visualEditorBridgeState)
-      .catch((error) => {
-        console.warn('Failed to open visual editor window:', error)
-        lastVisualEditorBridgeSyncKeyRef.current = null
-        setVisualEditingOpen(false)
-      })
+    window.api.visualEditor.open(visualEditorBridgeState).catch((error) => {
+      console.warn('Failed to open visual editor window:', error)
+      lastVisualEditorBridgeSyncKeyRef.current = null
+      setVisualEditingOpen(false)
+    })
   }, [visualEditorBridgeState, visualEditorBridgeStateSyncKey])
 
   // Пока visual editor окно открыто, держим его snapshot синхронным с main editor state.

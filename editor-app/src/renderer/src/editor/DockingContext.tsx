@@ -136,11 +136,14 @@ export function DockingProvider(props: DockingProviderProps): React.JSX.Element 
     return bottomDockPreviewRef.current
   }, [])
 
-  const isDockCollapsed = useCallback((slot: DockSlotId): boolean => {
-    if (slot === 'left') return collapsedDocks.left
-    if (slot === 'right') return collapsedDocks.right
-    return collapsedDocks.bottom
-  }, [collapsedDocks])
+  const isDockCollapsed = useCallback(
+    (slot: DockSlotId): boolean => {
+      if (slot === 'left') return collapsedDocks.left
+      if (slot === 'right') return collapsedDocks.right
+      return collapsedDocks.bottom
+    },
+    [collapsedDocks]
+  )
 
   // Memoized context value — не создаём новый объект каждый рендер Provider'а.
   const value = useMemo<DockingContextValue>(
@@ -193,11 +196,7 @@ export function DockingProvider(props: DockingProviderProps): React.JSX.Element 
     ]
   )
 
-  return (
-    <DockingContext.Provider value={value}>
-      {children}
-    </DockingContext.Provider>
-  )
+  return <DockingContext.Provider value={value}>{children}</DockingContext.Provider>
 }
 
 export function useDockingContext(): DockingContextValue {

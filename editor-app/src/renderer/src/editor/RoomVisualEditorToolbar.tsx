@@ -55,21 +55,35 @@ export const RoomVisualEditorToolbar = memo(
           >
             {t('editor.visualEditingRefresh', 'Refresh')}
           </button>
-          <button className="runtimeButton" type="button" onClick={zoomOut} disabled={!bundle?.meta}>
+          <button
+            className="runtimeButton"
+            type="button"
+            onClick={zoomOut}
+            disabled={!bundle?.meta}
+          >
             {t('editor.visualEditingZoomOut', 'Zoom -')}
           </button>
           <button className="runtimeButton" type="button" onClick={zoomIn} disabled={!bundle?.meta}>
             {t('editor.visualEditingZoomIn', 'Zoom +')}
           </button>
-          <button className="runtimeButton" type="button" onClick={fitToViewport} disabled={!bundle?.meta}>
+          <button
+            className="runtimeButton"
+            type="button"
+            onClick={fitToViewport}
+            disabled={!bundle?.meta}
+          >
             {t('editor.visualEditingFit', 'Fit')}
           </button>
-          <button className="runtimeButton" type="button" onClick={resetView} disabled={!bundle?.meta}>
+          <button
+            className="runtimeButton"
+            type="button"
+            onClick={resetView}
+            disabled={!bundle?.meta}
+          >
             {t('editor.visualEditingReset', 'Reset')}
           </button>
           {/* Индикатор скорости follow_path — показываем только когда выбрана нода с points. */}
-          {selectedNode?.type === 'follow_path' &&
-          Array.isArray(selectedNode.params?.points) ? (
+          {selectedNode?.type === 'follow_path' && Array.isArray(selectedNode.params?.points) ? (
             <div
               className="roomVisualEditorSpeedIndicator"
               style={{

@@ -99,9 +99,8 @@ const TemplateRow = React.memo(function TemplateRow({
           </div>
         )}
         <div className="templateRowMeta">
-          {template.nodes.length} {t('editor.nodesCount', 'nodes')} ·{' '}
-          {template.edges.length} {t('editor.edgesCount', 'edges')} ·{' '}
-          {new Date(template.createdAt).toLocaleDateString()}
+          {template.nodes.length} {t('editor.nodesCount', 'nodes')} · {template.edges.length}{' '}
+          {t('editor.edgesCount', 'edges')} · {new Date(template.createdAt).toLocaleDateString()}
         </div>
       </div>
 

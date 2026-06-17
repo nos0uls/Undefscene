@@ -38,16 +38,18 @@ type PathPointProps = {
   index: number
 }
 
-const PathPoint = memo(({ x, y, radius, showLabel, index }: PathPointProps): React.JSX.Element => (
-  <g key={`${x}-${y}-${index}`}>
-    <circle className="roomVisualEditorPathPoint" cx={x} cy={y} r={radius} />
-    {showLabel && (
-      <text className="roomVisualEditorPathPointLabel" x={x} y={y - 12}>
-        {index}
-      </text>
-    )}
-  </g>
-))
+const PathPoint = memo(
+  ({ x, y, radius, showLabel, index }: PathPointProps): React.JSX.Element => (
+    <g key={`${x}-${y}-${index}`}>
+      <circle className="roomVisualEditorPathPoint" cx={x} cy={y} r={radius} />
+      {showLabel && (
+        <text className="roomVisualEditorPathPointLabel" x={x} y={y - 12}>
+          {index}
+        </text>
+      )}
+    </g>
+  )
+)
 
 PathPoint.displayName = 'PathPoint'
 
@@ -61,7 +63,13 @@ type ActorMarkerProps = {
 }
 
 const ActorMarker = memo(
-  ({ actor, spritePreview, displayPoint, isSelected, markerRadius }: ActorMarkerProps): React.JSX.Element => (
+  ({
+    actor,
+    spritePreview,
+    displayPoint,
+    isSelected,
+    markerRadius
+  }: ActorMarkerProps): React.JSX.Element => (
     <g key={actor.id}>
       {spritePreview ? (
         <image
@@ -157,15 +165,14 @@ export const RoomVisualEditorOverlay = memo(
 
     return (
       <svg
-        className={[
-          'roomVisualEditorOverlay',
-          liquidGlassEnabled ? 'isLiquidGlass' : ''
-        ]
+        className={['roomVisualEditorOverlay', liquidGlassEnabled ? 'isLiquidGlass' : '']
           .filter(Boolean)
           .join(' ')}
-        style={{
-          '--liquid-glass-blur': liquidGlassEnabled ? `${liquidGlassBlur * 12}px` : '0px'
-        } as React.CSSProperties}
+        style={
+          {
+            '--liquid-glass-blur': liquidGlassEnabled ? `${liquidGlassBlur * 12}px` : '0px'
+          } as React.CSSProperties
+        }
         width={meta.room_width}
         height={meta.room_height}
         viewBox={`0 0 ${meta.room_width} ${meta.room_height}`}
@@ -247,7 +254,10 @@ export const RoomVisualEditorOverlay = memo(
             Для eraser радиус берём отдельный, чтобы зона удаления читалась сразу. */}
         {pathPreviewPoint ? (
           <circle
-            className={['roomVisualEditorPathPreviewPoint', activeTool === 'eraser' ? 'isEraser' : '']
+            className={[
+              'roomVisualEditorPathPreviewPoint',
+              activeTool === 'eraser' ? 'isEraser' : ''
+            ]
               .filter(Boolean)
               .join(' ')}
             cx={pathPreviewPoint.x}
@@ -260,7 +270,9 @@ export const RoomVisualEditorOverlay = memo(
             Select tool по-прежнему работает только по actor markers в основном modal logic. */}
         {draftActors.map((actor) => {
           const displayPoint =
-            playPreviewPoint && actor.id === selectedActorId ? playPreviewPoint : { x: actor.x, y: actor.y }
+            playPreviewPoint && actor.id === selectedActorId
+              ? playPreviewPoint
+              : { x: actor.x, y: actor.y }
           const spritePreview = getActorSpritePreview(actor)
 
           return (

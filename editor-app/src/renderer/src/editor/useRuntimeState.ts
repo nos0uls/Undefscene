@@ -18,7 +18,8 @@ function hasMeaningfulSceneChange(prev: RuntimeState, next: RuntimeState): boole
     prev.schemaVersion !== next.schemaVersion ||
     prev.title !== next.title ||
     prev.nodes !== next.nodes ||
-    prev.edges !== next.edges
+    prev.edges !== next.edges ||
+    prev.notes !== next.notes
   )
 }
 

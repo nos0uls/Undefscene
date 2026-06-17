@@ -4,7 +4,7 @@ import type { Dispatch, SetStateAction } from 'react'
 
 import { parseYarnPreview } from './yarnPreview'
 import type { RuntimeState } from './runtimeTypes'
-import type { ValidationContext } from './validateGraph'
+import type { ValidationContext } from './validators'
 import { createTranslator, preloadLanguage } from '../i18n'
 import type { SupportedLanguage } from '../i18n'
 import type { ProjectResources } from './useProjectResources'
@@ -51,7 +51,9 @@ export interface EditorStateReturn {
   focusNodeRequest: { nodeId: string; nonce: number } | null
   setFocusNodeRequest: (request: { nodeId: string; nonce: number } | null) => void
   focusPositionRequest: { x: number; y: number; zoom: number; nonce: number } | null
-  setFocusPositionRequest: (request: { x: number; y: number; zoom: number; nonce: number } | null) => void
+  setFocusPositionRequest: (
+    request: { x: number; y: number; zoom: number; nonce: number } | null
+  ) => void
   logsFilters: { errors: boolean; warnings: boolean; tips: boolean }
   setLogsFilters: Dispatch<SetStateAction<{ errors: boolean; warnings: boolean; tips: boolean }>>
 
@@ -76,15 +78,34 @@ export interface EditorStateReturn {
 }
 
 export function useEditorState(
-  preferences: { language: string | null; hasCompletedInitialSetup: boolean; hasCompletedTutorial: boolean; hasCompletedInspectorTutorial: boolean; hasCompletedVisualEditingTutorial: boolean },
+  preferences: {
+    language: string | null
+    hasCompletedInitialSetup: boolean
+    hasCompletedTutorial: boolean
+    hasCompletedInspectorTutorial: boolean
+    hasCompletedVisualEditingTutorial: boolean
+  },
   preferencesLoaded: boolean,
-  updatePreferences: (prefs: Partial<{ hasCompletedInitialSetup: boolean; hasCompletedTutorial: boolean; hasCompletedInspectorTutorial: boolean; hasCompletedVisualEditingTutorial: boolean }>) => void,
+  updatePreferences: (
+    prefs: Partial<{
+      hasCompletedInitialSetup: boolean
+      hasCompletedTutorial: boolean
+      hasCompletedInspectorTutorial: boolean
+      hasCompletedVisualEditingTutorial: boolean
+    }>
+  ) => void,
   resources: ProjectResources | null,
   engineSettings: { runFunctions?: unknown; branchConditions?: unknown } | null,
   yarnFiles: { file: string; nodes: unknown[] }[] | null,
-  runtime: Pick<RuntimeState, 'nodes' | 'selectedNodeId' | 'selectedNodeIds' | 'selectedEdgeId' | 'notes'>
+  runtime: Pick<
+    RuntimeState,
+    'nodes' | 'selectedNodeId' | 'selectedNodeIds' | 'selectedEdgeId' | 'notes'
+  >
 ): EditorStateReturn {
-  const t = useMemo(() => createTranslator((preferences.language as SupportedLanguage) ?? 'en'), [preferences.language])
+  const t = useMemo(
+    () => createTranslator((preferences.language as SupportedLanguage) ?? 'en'),
+    [preferences.language]
+  )
 
   // Local state
   const [sceneFilePath, setSceneFilePath] = useState<string | null>(null)
@@ -113,8 +134,16 @@ export function useEditorState(
 
   const [showSavedIndicator, setShowSavedIndicator] = useState(false)
 
-  const [focusNodeRequest, setFocusNodeRequest] = useState<{ nodeId: string; nonce: number } | null>(null)
-  const [focusPositionRequest, setFocusPositionRequest] = useState<{ x: number; y: number; zoom: number; nonce: number } | null>(null)
+  const [focusNodeRequest, setFocusNodeRequest] = useState<{
+    nodeId: string
+    nonce: number
+  } | null>(null)
+  const [focusPositionRequest, setFocusPositionRequest] = useState<{
+    x: number
+    y: number
+    zoom: number
+    nonce: number
+  } | null>(null)
 
   const [logsFilters, setLogsFilters] = useState({ errors: true, warnings: true, tips: true })
 
@@ -142,12 +171,12 @@ export function useEditorState(
   // Отложенная загрузка templates и validation overrides
   useEffect(() => {
     if (!preferencesLoaded) return
-    
+
     const stored = loadTemplates()
     if (stored?.templates) {
       setTemplates(stored.templates)
     }
-    
+
     const overrides = loadValidationOverrides()
     setRuleOverrides(overrides)
   }, [preferencesLoaded])
@@ -175,7 +204,12 @@ export function useEditorState(
     if (runtime.selectedNodeId) {
       setInspectorTutorialActive(true)
     }
-  }, [preferencesLoaded, preferences.hasCompletedInspectorTutorial, preferences.hasCompletedTutorial, runtime.selectedNodeId])
+  }, [
+    preferencesLoaded,
+    preferences.hasCompletedInspectorTutorial,
+    preferences.hasCompletedTutorial,
+    runtime.selectedNodeId
+  ])
 
   const handleInspectorTutorialComplete = useCallback(() => {
     updatePreferences({ hasCompletedInspectorTutorial: true })
@@ -236,7 +270,9 @@ export function useEditorState(
 
         const selectedNodeTitle = String(selectedNode.params?.node ?? '').trim()
         const parsedPreviewNodes = normalizedRaw ? parseYarnPreview(normalizedRaw) : []
-        const hasRequestedTitle = parsedPreviewNodes.some((entry) => entry.title === selectedNodeTitle)
+        const hasRequestedTitle = parsedPreviewNodes.some(
+          (entry) => entry.title === selectedNodeTitle
+        )
 
         setSelectedYarnPreviewTitle(
           hasRequestedTitle
@@ -299,7 +335,9 @@ export function useEditorState(
       language: (preferences.language as SupportedLanguage) ?? 'en',
       objects: resources?.objects,
       sprites: resources?.sprites,
-      yarnFiles: yarnFiles ? new Map(yarnFiles.map((y) => [y.file, y.nodes as string[]])) : undefined,
+      yarnFiles: yarnFiles
+        ? new Map(yarnFiles.map((y) => [y.file, y.nodes as string[]]))
+        : undefined,
       runFunctions: engineSettings?.runFunctions as string[] | undefined,
       branchConditions: engineSettings?.branchConditions as string[] | undefined
     }

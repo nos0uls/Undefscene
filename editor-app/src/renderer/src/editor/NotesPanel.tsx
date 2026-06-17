@@ -7,7 +7,12 @@ export type NotesPanelProps = {
   // Имя выделенной ноды (для кнопки Link to selected).
   // Передаём `null`, если ничего не выделено.
   selectedNode: { id: string; name: string } | null
-  onAddNote: (note: { text: string; category: RuntimeNote['category']; x?: number; y?: number }) => void
+  onAddNote: (note: {
+    text: string
+    category: RuntimeNote['category']
+    x?: number
+    y?: number
+  }) => void
   onUpdateNote: (id: string, patch: Partial<Omit<RuntimeNote, 'id'>>) => void
   onDeleteNote: (id: string) => void
   // Центрировать канвас на координатах (для заметок без привязки к ноде).
@@ -20,11 +25,11 @@ export type NotesPanelProps = {
 }
 
 const CATEGORY_COLORS: Record<RuntimeNote['category'], string> = {
-  acting: 'hsl(200, 70%, 60%)',
-  camera: 'hsl(280, 70%, 60%)',
-  sound: 'hsl(150, 70%, 60%)',
-  todo: 'hsl(45, 90%, 55%)',
-  warning: 'hsl(0, 80%, 60%)'
+  acting: 'var(--note-acting-border)',
+  camera: 'var(--note-camera-border)',
+  sound: 'var(--note-sound-border)',
+  todo: 'var(--note-todo-border)',
+  warning: 'var(--note-warning-border)'
 }
 
 const ALL_CATEGORIES: RuntimeNote['category'][] = ['acting', 'camera', 'sound', 'todo', 'warning']
@@ -204,10 +209,7 @@ const NoteRow = React.memo(function NoteRow({
       </div>
 
       {/* Бейдж категории */}
-      <span
-        className="noteRowCategoryBadge"
-        style={{ background: color }}
-      >
+      <span className="noteRowCategoryBadge" style={{ background: color }}>
         {catLabel}
       </span>
 
@@ -274,7 +276,7 @@ const NoteRow = React.memo(function NoteRow({
           title={t('editor.deleteNote', 'Delete note')}
           className="noteRowActionBtn noteRowDeleteBtn"
           onMouseEnter={(e) => {
-            ;(e.currentTarget as HTMLButtonElement).style.color = 'hsl(0, 80%, 60%)'
+            ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--status-error)'
           }}
           onMouseLeave={(e) => {
             ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--ev-c-text-2)'
@@ -315,12 +317,20 @@ export const NotesPanel = React.memo(function NotesPanel({
   }, [onAddNote, t, filter])
 
   return (
-    <div className="runtimeSection" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div
+      className="runtimeSection"
+      style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+    >
       {/* Заголовок с кнопкой добавления */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
-        <div className="runtimeSectionTitle">
-          {t('editor.notesTitle', 'Director Notes')}
-        </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 4px'
+        }}
+      >
+        <div className="runtimeSectionTitle">{t('editor.notesTitle', 'Director Notes')}</div>
         <button
           type="button"
           onClick={handleAdd}
@@ -358,7 +368,14 @@ export const NotesPanel = React.memo(function NotesPanel({
       ) : (
         <ul
           className="runtimeList"
-          style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 0 0', margin: 0, listStyle: 'none' }}
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            padding: '4px 0 0',
+            margin: 0,
+            listStyle: 'none'
+          }}
         >
           {sortedNotes.map((note) => (
             <NoteRow

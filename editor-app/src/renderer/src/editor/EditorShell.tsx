@@ -46,7 +46,11 @@ type EditorShellInnerProps = {
   rootRef: React.RefObject<HTMLDivElement | null>
 }
 
-const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayout, rootRef }: EditorShellInnerProps): React.JSX.Element {
+const EditorShellInner = React.memo(function EditorShellInner({
+  layout,
+  setLayout,
+  rootRef
+}: EditorShellInnerProps): React.JSX.Element {
   const { preferences, updatePreferences, loaded: preferencesLoaded } = usePreferencesContext()
   const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
 
@@ -59,7 +63,13 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
   const toasts = useToasts()
   const confirm = useConfirm()
 
-  const { resources, engineSettings, yarnFiles, isLoading: isProjectLoading, openProject } = useProjectResources()
+  const {
+    resources,
+    engineSettings,
+    yarnFiles,
+    isLoading: isProjectLoading,
+    openProject
+  } = useProjectResources()
 
   const { collapsedDocks, setCollapsedDocks } = useDockingContext()
 
@@ -88,71 +98,74 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
   useEffect(() => {
     if (!preferencesLoaded) return
 
-    setRuntime((prev) => {
-      const portMode = preferences.parallelBranchPortMode
-      const nodeTypes = new Map(prev.nodes.map((n) => [n.id, n.type]))
+    setRuntime(
+      (prev) => {
+        const portMode = preferences.parallelBranchPortMode
+        const nodeTypes = new Map(prev.nodes.map((n) => [n.id, n.type]))
 
-      const edgesBySource = new Map<string, RuntimeEdge[]>()
-      const edgesByTarget = new Map<string, RuntimeEdge[]>()
+        const edgesBySource = new Map<string, RuntimeEdge[]>()
+        const edgesByTarget = new Map<string, RuntimeEdge[]>()
 
-      for (const edge of prev.edges) {
-        const sourceType = nodeTypes.get(edge.source)
-        const targetType = nodeTypes.get(edge.target)
+        for (const edge of prev.edges) {
+          const sourceType = nodeTypes.get(edge.source)
+          const targetType = nodeTypes.get(edge.target)
 
-        if (sourceType === 'parallel_start' && edge.sourceHandle !== '__pair') {
-          const list = edgesBySource.get(edge.source) ?? []
-          list.push(edge)
-          edgesBySource.set(edge.source, list)
-        }
-        if (targetType === 'parallel_join' && edge.targetHandle !== '__pair') {
-          const list = edgesByTarget.get(edge.target) ?? []
-          list.push(edge)
-          edgesByTarget.set(edge.target, list)
-        }
-      }
-
-      let changed = false
-      const nextEdges = prev.edges.map((edge) => {
-        const nextEdge = { ...edge }
-        const sourceType = nodeTypes.get(edge.source)
-        const targetType = nodeTypes.get(edge.target)
-
-        if (sourceType === 'parallel_start' && edge.sourceHandle !== '__pair') {
-          const list = edgesBySource.get(edge.source)!
-          const idx = list.indexOf(edge)
-          let nextHandle = portMode === 'shared' ? 'out_shared' : `out_b${idx}`
-
-          if (portMode === 'separate' && edge.sourceHandle?.startsWith('out_b')) {
-            nextHandle = edge.sourceHandle
+          if (sourceType === 'parallel_start' && edge.sourceHandle !== '__pair') {
+            const list = edgesBySource.get(edge.source) ?? []
+            list.push(edge)
+            edgesBySource.set(edge.source, list)
           }
-
-          if (edge.sourceHandle !== nextHandle) {
-            nextEdge.sourceHandle = nextHandle
-            changed = true
+          if (targetType === 'parallel_join' && edge.targetHandle !== '__pair') {
+            const list = edgesByTarget.get(edge.target) ?? []
+            list.push(edge)
+            edgesByTarget.set(edge.target, list)
           }
         }
 
-        if (targetType === 'parallel_join' && edge.targetHandle !== '__pair') {
-          const list = edgesByTarget.get(edge.target)!
-          const idx = list.indexOf(edge)
-          let nextHandle = portMode === 'shared' ? 'in_shared' : `in_b${idx}`
+        let changed = false
+        const nextEdges = prev.edges.map((edge) => {
+          const nextEdge = { ...edge }
+          const sourceType = nodeTypes.get(edge.source)
+          const targetType = nodeTypes.get(edge.target)
 
-          if (portMode === 'separate' && edge.targetHandle?.startsWith('in_b')) {
-            nextHandle = edge.targetHandle
+          if (sourceType === 'parallel_start' && edge.sourceHandle !== '__pair') {
+            const list = edgesBySource.get(edge.source)!
+            const idx = list.indexOf(edge)
+            let nextHandle = portMode === 'shared' ? 'out_shared' : `out_b${idx}`
+
+            if (portMode === 'separate' && edge.sourceHandle?.startsWith('out_b')) {
+              nextHandle = edge.sourceHandle
+            }
+
+            if (edge.sourceHandle !== nextHandle) {
+              nextEdge.sourceHandle = nextHandle
+              changed = true
+            }
           }
 
-          if (edge.targetHandle !== nextHandle) {
-            nextEdge.targetHandle = nextHandle
-            changed = true
+          if (targetType === 'parallel_join' && edge.targetHandle !== '__pair') {
+            const list = edgesByTarget.get(edge.target)!
+            const idx = list.indexOf(edge)
+            let nextHandle = portMode === 'shared' ? 'in_shared' : `in_b${idx}`
+
+            if (portMode === 'separate' && edge.targetHandle?.startsWith('in_b')) {
+              nextHandle = edge.targetHandle
+            }
+
+            if (edge.targetHandle !== nextHandle) {
+              nextEdge.targetHandle = nextHandle
+              changed = true
+            }
           }
-        }
 
-        return nextEdge
-      })
+          return nextEdge
+        })
 
-      if (!changed) return prev
-      return { ...prev, edges: nextEdges }
-    }, { skipHistory: true })
+        if (!changed) return prev
+        return { ...prev, edges: nextEdges }
+      },
+      { skipHistory: true }
+    )
   }, [preferences.parallelBranchPortMode, preferencesLoaded, setRuntime])
 
   const handleOpenDocs = useCallback(() => {
@@ -186,10 +199,7 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
   })
 
   // useVisualEditing
-  const {
-    openVisualEditorWindow,
-    visualEditingOpen
-  } = useVisualEditing({
+  const { openVisualEditorWindow, visualEditingOpen } = useVisualEditing({
     runtime,
     setRuntime,
     resources,
@@ -239,6 +249,10 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
       editorState.setShowSavedIndicator(false)
     }, 3000)
   }, [editorState.setShowSavedIndicator])
+
+  const handleBackgroundLoadError = useCallback(() => {
+    updatePreferences({ canvasBackgroundPath: null })
+  }, [updatePreferences])
 
   const exportRef = useRef<(() => void) | null>(null)
 
@@ -399,7 +413,9 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
             selectedEdgeId={runtime.selectedEdgeId}
             focusNodeRequest={editorState.focusNodeRequest}
             focusPositionRequest={editorState.focusPositionRequest}
-            onViewportCenterChange={(center) => { editorState.canvasCenterRef.current = center }}
+            onViewportCenterChange={(center) => {
+              editorState.canvasCenterRef.current = center
+            }}
             onSelectNodes={handleSelectNodes}
             onSelectEdge={handleSelectEdge}
             onNodePositionChange={handleNodePositionChange}
@@ -415,6 +431,7 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
             notes={runtime.notes}
             onUpdateNote={editorCallbacks.handleUpdateNote}
             onFocusNode={editorCallbacks.selectNode}
+            onBackgroundLoadError={handleBackgroundLoadError}
           />
         </div>
       </>
@@ -443,50 +460,79 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
       runtime.notes,
       editorCallbacks.handleUpdateNote,
       editorCallbacks.handleDeleteNote,
-      editorCallbacks.selectNode
+      editorCallbacks.selectNode,
+      handleBackgroundLoadError
     ]
   )
 
   // Panel badge
-  const getPanelBadge = useCallback((panelId: string): React.ReactNode | null => {
-    if (panelId === 'panel.logs') {
-      const total = editorValidation.logsData.errorCount + editorValidation.logsData.warnCount
-      if (total === 0) return null
-      const color = editorValidation.logsData.errorCount > 0 ? '#e05050' : '#d4a017'
-      return (
-        <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700, color, background: 'rgba(255,255,255,0.08)', borderRadius: 3, padding: '0 3px', lineHeight: 1 }}>
-          {total}
-        </span>
-      )
-    }
-    if (panelId === 'panel.templates') {
-      if (editorState.templates.length === 0) return null
-      return (
-        <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700, color: '#4a9eff', background: 'rgba(255,255,255,0.08)', borderRadius: 3, padding: '0 3px', lineHeight: 1 }}>
-          {editorState.templates.length}
-        </span>
-      )
-    }
-    return null
-  }, [editorValidation.logsData.errorCount, editorValidation.logsData.warnCount, editorState.templates.length])
+  const getPanelBadge = useCallback(
+    (panelId: string): React.ReactNode | null => {
+      if (panelId === 'panel.logs') {
+        const total = editorValidation.logsData.errorCount + editorValidation.logsData.warnCount
+        if (total === 0) return null
+        const color = editorValidation.logsData.errorCount > 0 ? 'var(--status-error)' : 'var(--status-warning)'
+        return (
+          <span
+            style={{
+              marginLeft: 4,
+              fontSize: 10,
+              fontWeight: 700,
+              color,
+              background: 'rgba(255,255,255,0.08)',
+              borderRadius: 3,
+              padding: '0 3px',
+              lineHeight: 1
+            }}
+          >
+            {total}
+          </span>
+        )
+      }
+      if (panelId === 'panel.templates') {
+        if (editorState.templates.length === 0) return null
+        return (
+          <span
+            style={{
+              marginLeft: 4,
+              fontSize: 10,
+              fontWeight: 700,
+              color: 'var(--status-info)',
+              background: 'rgba(255,255,255,0.08)',
+              borderRadius: 3,
+              padding: '0 3px',
+              lineHeight: 1
+            }}
+          >
+            {editorState.templates.length}
+          </span>
+        )
+      }
+      return null
+    },
+    [
+      editorValidation.logsData.errorCount,
+      editorValidation.logsData.warnCount,
+      editorState.templates.length
+    ]
+  )
 
   // Top bar content
-  const topBarContent = useMemo(
-    () => {
-      const panels = [
-        { id: 'panel.actions', label: editorCallbacks.getPanelTitle('panel.actions') },
-        { id: 'panel.bookmarks', label: editorCallbacks.getPanelTitle('panel.bookmarks') },
-        { id: 'panel.notes', label: editorCallbacks.getPanelTitle('panel.notes') },
-        { id: 'panel.text', label: editorCallbacks.getPanelTitle('panel.text') },
-        { id: 'panel.inspector', label: editorCallbacks.getPanelTitle('panel.inspector') },
-        { id: 'panel.logs', label: editorCallbacks.getPanelTitle('panel.logs') },
-        { id: 'panel.templates', label: editorCallbacks.getPanelTitle('panel.templates') }
-      ]
-      return (
-        <TopMenuBar
-          panels={panels}
-          isPanelVisible={isPanelVisible}
-          togglePanel={togglePanel}
+  const topBarContent = useMemo(() => {
+    const panels = [
+      { id: 'panel.actions', label: editorCallbacks.getPanelTitle('panel.actions') },
+      { id: 'panel.bookmarks', label: editorCallbacks.getPanelTitle('panel.bookmarks') },
+      { id: 'panel.notes', label: editorCallbacks.getPanelTitle('panel.notes') },
+      { id: 'panel.text', label: editorCallbacks.getPanelTitle('panel.text') },
+      { id: 'panel.inspector', label: editorCallbacks.getPanelTitle('panel.inspector') },
+      { id: 'panel.logs', label: editorCallbacks.getPanelTitle('panel.logs') },
+      { id: 'panel.templates', label: editorCallbacks.getPanelTitle('panel.templates') }
+    ]
+    return (
+      <TopMenuBar
+        panels={panels}
+        isPanelVisible={isPanelVisible}
+        togglePanel={togglePanel}
         onOpenProject={openProject}
         onExport={handleExport}
         onNew={handleNew}
@@ -517,44 +563,42 @@ const EditorShellInner = React.memo(function EditorShellInner({ layout, setLayou
         language={preferences.language}
         keybindings={preferences.keybindings}
         showSavedIndicator={editorState.showSavedIndicator}
-        />
-      )
-    },
-    [
-      editorCallbacks.getPanelTitle,
-      isPanelVisible,
-      togglePanel,
-      openProject,
-      handleExport,
-      handleNew,
-      handleCreateExample,
-      handleOpenScene,
-      handleSave,
-      handleSaveAs,
-      undo,
-      redo,
-      editorCallbacks.handleResetLayout,
-      editorCallbacks.handleCheckUpdates,
-      editorCallbacks.handleToggleRuntimeJson,
-      editorCallbacks.handleCopyLogToClipboard,
-      editorCallbacks.handleOpenDevTools,
-      editorCallbacks.handleToggleHardwareAcceleration,
-      editorCallbacks.handleChooseScreenshotOutputDir,
-      editorCallbacks.handleToggleVisualEditorTechMode,
-      editorCallbacks.handleCleanupDevData,
-      preferences.visualEditorTechMode,
-      preferences.disableHardwareAcceleration,
-      preferences.language,
-      preferences.keybindings,
-      openVisualEditorWindow,
-      editorCallbacks.handleAbout,
-      editorCallbacks.handleTutorial,
-      editorCallbacks.handleExit,
-      editorCallbacks.handlePreferences,
-      editorState.showSavedIndicator,
-      editorValidation.handleResetAllOverrides
-    ]
-  )
+      />
+    )
+  }, [
+    editorCallbacks.getPanelTitle,
+    isPanelVisible,
+    togglePanel,
+    openProject,
+    handleExport,
+    handleNew,
+    handleCreateExample,
+    handleOpenScene,
+    handleSave,
+    handleSaveAs,
+    undo,
+    redo,
+    editorCallbacks.handleResetLayout,
+    editorCallbacks.handleCheckUpdates,
+    editorCallbacks.handleToggleRuntimeJson,
+    editorCallbacks.handleCopyLogToClipboard,
+    editorCallbacks.handleOpenDevTools,
+    editorCallbacks.handleToggleHardwareAcceleration,
+    editorCallbacks.handleChooseScreenshotOutputDir,
+    editorCallbacks.handleToggleVisualEditorTechMode,
+    editorCallbacks.handleCleanupDevData,
+    preferences.visualEditorTechMode,
+    preferences.disableHardwareAcceleration,
+    preferences.language,
+    preferences.keybindings,
+    openVisualEditorWindow,
+    editorCallbacks.handleAbout,
+    editorCallbacks.handleTutorial,
+    editorCallbacks.handleExit,
+    editorCallbacks.handlePreferences,
+    editorState.showSavedIndicator,
+    editorValidation.handleResetAllOverrides
+  ])
 
   const collapsePanelLabel = t('editor.collapsePanel', 'Collapse panel')
   const closePanelLabel = t('editor.closePanel', 'Close panel')

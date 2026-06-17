@@ -53,11 +53,20 @@ ipcMain.handle('updater:check', async () => {
 
     // Сравниваем semver: только если релиз действительно новее.
     if (!isNewerVersion(nextVersion, currentVersion)) {
-      console.log('[updater] No newer version:', nextVersion, '<=', currentVersion)
+      if (!app.isPackaged) {
+        console.log('[updater] No newer version:', nextVersion, '<=', currentVersion)
+      }
       return { status: 'none' as const }
     }
 
-    console.log('[updater] New version available:', nextVersion, '(current:', currentVersion + ')')
+    if (!app.isPackaged) {
+      console.log(
+        '[updater] New version available:',
+        nextVersion,
+        '(current:',
+        currentVersion + ')'
+      )
+    }
     return { status: 'available' as const, version: nextVersion }
   } catch (err) {
     return {
@@ -103,7 +112,14 @@ export function initAutoUpdater(mainWindow: BrowserWindow, portable: boolean): v
   autoUpdater.on('update-available', (info) => {
     const currentVersion = app.getVersion()
     if (!isNewerVersion(info.version, currentVersion)) {
-      console.log('[updater] Ignoring update-available for older/equal version:', info.version, 'vs', currentVersion)
+      if (!app.isPackaged) {
+        console.log(
+          '[updater] Ignoring update-available for older/equal version:',
+          info.version,
+          'vs',
+          currentVersion
+        )
+      }
       return
     }
     sendToRenderer('updater:update-available', {

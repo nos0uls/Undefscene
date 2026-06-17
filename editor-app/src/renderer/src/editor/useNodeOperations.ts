@@ -36,7 +36,9 @@ export const createNodeStateUpdate = (
     const joinName = suggestUniqueNodeName('Node', takenNames)
 
     const startNode: RuntimeNode = {
-      id: startId, type: 'parallel_start', name: startName,
+      id: startId,
+      type: 'parallel_start',
+      name: startName,
       position: { x: position.x, y: position.y },
       params: {
         joinId,
@@ -45,14 +47,18 @@ export const createNodeStateUpdate = (
       }
     }
     const joinNode: RuntimeNode = {
-      id: joinId, type: 'parallel_join', name: joinName,
+      id: joinId,
+      type: 'parallel_join',
+      name: joinName,
       position: { x: position.x + 300, y: position.y },
       params: { pairId: startId, branches: ['b0'] }
     }
     const pairEdge: RuntimeEdge = {
       id: `edge-pair-${startId}-${joinId}`,
-      source: startId, sourceHandle: '__pair',
-      target: joinId, targetHandle: '__pair'
+      source: startId,
+      sourceHandle: '__pair',
+      target: joinId,
+      targetHandle: '__pair'
     }
     const sourceNode = connectFromNodeId ? prev.nodes.find((n) => n.id === connectFromNodeId) : null
     let sourceHandle: string | undefined = undefined
@@ -83,7 +89,8 @@ export const createNodeStateUpdate = (
 
   const newId = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`
   const newNode: RuntimeNode = {
-    id: newId, type,
+    id: newId,
+    type,
     name: suggestUniqueNodeName('Node', takenNames),
     text: '',
     position: { x: position.x, y: position.y },
@@ -302,7 +309,12 @@ export function useNodeOperations(deps: UseNodeOperationsDeps) {
           prev.nodes[prev.nodes.length - 1] ??
           null
         const anchorPos = anchor?.position ?? { x: 100, y: 150 }
-        return createNodeStateUpdate(type, { x: anchorPos.x + 250, y: anchorPos.y }, anchor?.id ?? null, prev)
+        return createNodeStateUpdate(
+          type,
+          { x: anchorPos.x + 250, y: anchorPos.y },
+          anchor?.id ?? null,
+          prev
+        )
       })
     },
     [setRuntime]

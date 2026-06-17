@@ -7,9 +7,9 @@ import {
   parseRuntimeState
 } from './runtimeTypes'
 import { reverseCompileCutscene } from './reverseCompile'
-import { compileGraph, stripExport } from './compileGraph'
-import type { Translator } from './compileGraph'
-import type { ValidationResult } from './validateGraph'
+import { compileGraph, stripExport } from './compiler'
+import type { Translator } from './compiler'
+import type { ValidationResult } from './validators'
 import { pushSuccess, pushError, pushWarning } from './ToastHub'
 import type { ToastContextValue } from './ToastHub'
 import type { ConfirmOptions } from './confirmContext'
@@ -85,16 +85,27 @@ export function useSceneIO(deps: UseSceneIODeps) {
     const val = validation
     if (val.hasErrors) {
       const errorCount = val.entries.filter((e) => e.severity === 'error').length
-      pushError(toasts, t('dialog.exportBlockedMessage', { count: errorCount }, 'Fix {count} error(s) before exporting.'), {
-        title: t('dialog.exportBlockedTitle', 'Export blocked'),
-        duration: 0
-      })
+      pushError(
+        toasts,
+        t(
+          'dialog.exportBlockedMessage',
+          { count: errorCount },
+          'Fix {count} error(s) before exporting.'
+        ),
+        {
+          title: t('dialog.exportBlockedTitle', 'Export blocked'),
+          duration: 0
+        }
+      )
       return
     }
 
     const result = compileGraph(runtime, t)
     if (!result.ok) {
-      pushError(toasts, result.error, { title: t('dialog.exportFailedTitle', 'Export failed'), duration: 0 })
+      pushError(toasts, result.error, {
+        title: t('dialog.exportFailedTitle', 'Export failed'),
+        duration: 0
+      })
       return
     }
     const exported = stripExport(runtime, result.actions)
@@ -176,12 +187,7 @@ export function useSceneIO(deps: UseSceneIODeps) {
     return () => {
       window.clearInterval(timer)
     }
-  }, [
-    autoSaveEnabled,
-    autoSaveIntervalMinutes,
-    preferencesLoaded,
-    sceneFilePath
-  ])
+  }, [autoSaveEnabled, autoSaveIntervalMinutes, preferencesLoaded, sceneFilePath])
 
   // Open Scene: открываем .usc.json / .json файл и загружаем в runtime.
   const handleOpenScene = useCallback(async () => {
@@ -199,8 +205,18 @@ export function useSceneIO(deps: UseSceneIODeps) {
 
     const result = (await window.api.scene.open()) as { filePath: string; content: string } | null
     if (!result) return
+    let parsed: any
     try {
-      const parsed = JSON.parse(result.content)
+      parsed = JSON.parse(result.content)
+    } catch {
+      pushError(toasts, t('alerts.openSceneInvalidJson', 'File corrupted (invalid JSON).'), {
+        title: t('alerts.openFailedTitle', 'Open failed'),
+        duration: 0
+      })
+      return
+    }
+
+    try {
       const state = parseRuntimeState(parsed)
       if (state) {
         setRuntime(state)
@@ -209,7 +225,10 @@ export function useSceneIO(deps: UseSceneIODeps) {
       } else {
         const imported = reverseCompileCutscene(parsed)
         if (!imported.ok) {
-          pushError(toasts, imported.error, { title: t('alerts.openSceneInvalidFormat', 'Open failed'), duration: 0 })
+          pushError(toasts, imported.error, {
+            title: t('alerts.openSceneInvalidFormat', 'Open failed'),
+            duration: 0
+          })
           return
         }
         setRuntime(imported.state)
@@ -219,8 +238,11 @@ export function useSceneIO(deps: UseSceneIODeps) {
           imported.warnings.forEach((w) => pushWarning(toasts, w))
         }
       }
-    } catch {
-      pushError(toasts, t('alerts.openSceneInvalidJson', 'File corrupted (invalid JSON).'), { title: t('alerts.openFailedTitle', 'Open failed'), duration: 0 })
+    } catch (err: any) {
+      pushError(toasts, err?.message || String(err), {
+        title: t('alerts.openFailedTitle', 'Open failed'),
+        duration: 0
+      })
     }
   }, [setRuntime, setSceneFilePath, confirm, t, toasts])
 

@@ -1,20 +1,25 @@
 // Регистрация всех кастомных нод для React Flow.
 // Этот объект передаётся в <ReactFlow nodeTypes={...} />.
+
 import {
   StartNode,
   EndNode,
   WaitNode,
+  HaltNode
+} from './flow'
+
+import {
   MoveNode,
   FollowPathNode,
   SetPositionNode,
   MoveRelativeNode,
   SetPositionRelativeNode,
-  ActorCreateNode,
-  ActorDestroyNode,
-  AnimateNode,
-  SetAnimationFrameNode,
-  SetFacingNode,
-  SetDepthNode,
+  JumpNode,
+  MoveDirectNode,
+  MoveRelativeDirectionNode
+} from './movement'
+
+import {
   DialogueNode,
   WaitForDialogueNode,
   SetDialogueSpeedNode,
@@ -22,24 +27,21 @@ import {
   DialogueControlNode,
   SetPortraitNextNode,
   SetPortraitNowNode,
-  ClearDialogueNode,
+  ClearDialogueNode
+} from './dialogue'
+
+import {
   CameraTrackNode,
   CameraTrackUntilStopNode,
   CameraPanNode,
   CameraPanObjNode,
   CameraCenterNode,
-  ParallelStartNode,
-  ParallelJoinNode,
-  BranchNode,
-  RunFunctionNode,
   CameraShakeNode,
-  AutoFacingNode,
-  AutoWalkNode,
-  TweenNode,
   TweenCameraNode,
-  SetPropertyNode,
-  FadeInNode,
-  FadeOutNode,
+  CameraPanSpeedNode
+} from './camera'
+
+import {
   PlaySFXNode,
   PlayMusicNode,
   StopMusicNode,
@@ -54,16 +56,35 @@ import {
   BossMusicPhaseNode,
   PlayMusicIntroNode,
   PlayMusicIntroLayeredNode,
-  CrossfadeMusicNode,
+  CrossfadeMusicNode
+} from './audio'
+
+import {
+  ActorCreateNode,
+  ActorDestroyNode,
+  AnimateNode,
+  SetAnimationFrameNode,
+  SetFacingNode,
+  SetDepthNode,
+  AutoFacingNode,
+  AutoWalkNode,
+  FadeInNode,
+  FadeOutNode,
   EmoteNode,
-  JumpNode,
-  HaltNode,
   FlipNode,
   SpinNode,
   ShakeObjectNode,
   SetVisibleNode,
   InstantModeNode,
-  MarkNodeNode,
+  SetEmotionNode,
+  LerpNode
+} from './visual'
+
+import {
+  BranchNode,
+  RunFunctionNode,
+  ParallelStartNode,
+  ParallelJoinNode,
   PartialControlNode,
   WaitInteractNode,
   WaitUntilNode,
@@ -75,8 +96,11 @@ import {
   AttachToTargetNode,
   CheckpointStateNode,
   RestoreStateNode,
-  DetachNode
-} from './CutsceneNodes'
+  DetachNode,
+  RoomChangeNode,
+  SetPropertyNode,
+  TweenNode
+} from './logic'
 
 // Маппинг: тип ноды → React-компонент.
 // React Flow использует этот объект, чтобы рендерить правильный компонент для каждого типа.
@@ -84,17 +108,17 @@ export const cutsceneNodeTypes = {
   start: StartNode,
   end: EndNode,
   wait: WaitNode,
+  halt: HaltNode,
+
   move: MoveNode,
   follow_path: FollowPathNode,
   set_position: SetPositionNode,
   move_relative: MoveRelativeNode,
   set_position_relative: SetPositionRelativeNode,
-  actor_create: ActorCreateNode,
-  actor_destroy: ActorDestroyNode,
-  animate: AnimateNode,
-  set_animation_frame: SetAnimationFrameNode,
-  set_facing: SetFacingNode,
-  set_depth: SetDepthNode,
+  jump: JumpNode,
+  move_direct: MoveDirectNode,
+  move_relative_direction: MoveRelativeDirectionNode,
+
   dialogue: DialogueNode,
   wait_for_dialogue: WaitForDialogueNode,
   set_dialogue_speed: SetDialogueSpeedNode,
@@ -103,24 +127,16 @@ export const cutsceneNodeTypes = {
   set_portrait_next: SetPortraitNextNode,
   set_portrait_now: SetPortraitNowNode,
   clear_dialogue: ClearDialogueNode,
+
   camera_track: CameraTrackNode,
   camera_track_until_stop: CameraTrackUntilStopNode,
   camera_pan: CameraPanNode,
   camera_pan_obj: CameraPanObjNode,
   camera_center: CameraCenterNode,
-  // Parallel делаем как пару нод: fork + join.
-  parallel_start: ParallelStartNode,
-  parallel_join: ParallelJoinNode,
-  branch: BranchNode,
-  run_function: RunFunctionNode,
   camera_shake: CameraShakeNode,
-  auto_facing: AutoFacingNode,
-  auto_walk: AutoWalkNode,
-  tween: TweenNode,
   tween_camera: TweenCameraNode,
-  set_property: SetPropertyNode,
-  fade_in: FadeInNode,
-  fade_out: FadeOutNode,
+  camera_pan_speed: CameraPanSpeedNode,
+
   play_sfx: PlaySFXNode,
   play_music: PlayMusicNode,
   stop_music: StopMusicNode,
@@ -136,15 +152,30 @@ export const cutsceneNodeTypes = {
   play_music_intro: PlayMusicIntroNode,
   play_music_intro_layered: PlayMusicIntroLayeredNode,
   crossfade_music: CrossfadeMusicNode,
+
+  actor_create: ActorCreateNode,
+  actor_destroy: ActorDestroyNode,
+  animate: AnimateNode,
+  set_animation_frame: SetAnimationFrameNode,
+  set_facing: SetFacingNode,
+  set_depth: SetDepthNode,
+  auto_facing: AutoFacingNode,
+  auto_walk: AutoWalkNode,
+  fade_in: FadeInNode,
+  fade_out: FadeOutNode,
   emote: EmoteNode,
-  jump: JumpNode,
-  halt: HaltNode,
   flip: FlipNode,
   spin: SpinNode,
   shake_object: ShakeObjectNode,
   set_visible: SetVisibleNode,
   instant_mode: InstantModeNode,
-  mark_node: MarkNodeNode,
+  set_emotion: SetEmotionNode,
+  lerp: LerpNode,
+
+  branch: BranchNode,
+  run_function: RunFunctionNode,
+  parallel_start: ParallelStartNode,
+  parallel_join: ParallelJoinNode,
   partial_control: PartialControlNode,
   wait_for_interact: WaitInteractNode,
   wait_until: WaitUntilNode,
@@ -156,5 +187,8 @@ export const cutsceneNodeTypes = {
   attach_to_target: AttachToTargetNode,
   checkpoint_state: CheckpointStateNode,
   restore_state: RestoreStateNode,
-  detach: DetachNode
+  detach: DetachNode,
+  room_change: RoomChangeNode,
+  set_property: SetPropertyNode,
+  tween: TweenNode
 } as const

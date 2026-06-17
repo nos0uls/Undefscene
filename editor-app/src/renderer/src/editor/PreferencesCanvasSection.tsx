@@ -18,7 +18,9 @@ export const PreferencesCanvasSection = React.memo(function PreferencesCanvasSec
 }: PreferencesCanvasSectionProps): React.JSX.Element {
   return (
     <div className="prefsSection">
-      <div className="prefsSectionSep"><span className="prefsSectionTitle">{t('preferences.canvas', 'Canvas')}</span></div>
+      <div className="prefsSectionSep">
+        <span className="prefsSectionTitle">{t('preferences.canvas', 'Canvas')}</span>
+      </div>
       <label className="prefsField">
         <span>{t('preferences.gridSize', 'Grid Size')}</span>
         <input
@@ -90,7 +92,9 @@ export const PreferencesCanvasSection = React.memo(function PreferencesCanvasSec
           }
         >
           <option value="shared">{t('preferences.sharedSinglePort', 'Shared single port')}</option>
-          <option value="separate">{t('preferences.separatePortsPerBranch', 'Separate ports per branch')}</option>
+          <option value="separate">
+            {t('preferences.separatePortsPerBranch', 'Separate ports per branch')}
+          </option>
         </select>
       </label>
       <label className="prefsField prefsCheckbox">
@@ -148,7 +152,7 @@ export const PreferencesCanvasSection = React.memo(function PreferencesCanvasSec
               width: 10,
               height: 10,
               borderRadius: '50%',
-              background: '#5e6ad2',
+              background: 'var(--accent-default)',
               flexShrink: 0
             }}
           />
@@ -201,9 +205,8 @@ export const PreferencesCanvasSection = React.memo(function PreferencesCanvasSec
           а не визуальной помехой поверх сетки и нод. */}
       <label className="prefsField">
         <span>
-          {t('preferences.backgroundOpacity', 'Background Opacity')} ({Math.round(
-            preferences.canvasBackgroundOpacity * 100
-          )}%)
+          {t('preferences.backgroundOpacity', 'Background Opacity')} (
+          {Math.round(preferences.canvasBackgroundOpacity * 100)}%)
         </span>
         <input
           className="prefsInput"

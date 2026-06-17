@@ -11,7 +11,6 @@ type ConfirmState = ConfirmOptions & {
   reject: (reason?: unknown) => void
 }
 
-
 export function ConfirmProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const { preferences } = usePreferencesContext()
   const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
@@ -82,9 +81,15 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }): Re
             if (e.target === overlayRef.current) handleResolve(false)
           }}
         >
-          <div className="prefsModal" onClick={(e) => e.stopPropagation()} style={{ minWidth: 320, maxWidth: 480 }}>
+          <div
+            className="prefsModal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ minWidth: 320, maxWidth: 480 }}
+          >
             <div className="prefsHeader">
-              <span className="prefsTitle">{state.title ?? t('dialog.confirmTitle', 'Confirm')}</span>
+              <span className="prefsTitle">
+                {state.title ?? t('dialog.confirmTitle', 'Confirm')}
+              </span>
               <button className="prefsCloseBtn" onClick={() => handleResolve(false)}>
                 ✕
               </button>
@@ -129,4 +134,3 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }): Re
     </ConfirmContext.Provider>
   )
 }
-

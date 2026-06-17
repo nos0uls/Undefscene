@@ -47,10 +47,7 @@ export function VisualEditorWindowApp(): React.JSX.Element {
   const [isLoading, setIsLoading] = useState(true)
 
   // Переводчик нужен для fallback-сообщений этого wrapper-компонента.
-  const t = useMemo(
-    () => createTranslator(preferences.language),
-    [preferences.language]
-  )
+  const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
 
   // Импорт path идёт обратно в главное окно редактора через main bridge.
   // Так логика replace/create follow_path остаётся централизованной в EditorShell.

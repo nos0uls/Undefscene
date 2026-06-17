@@ -116,9 +116,7 @@ export const RoomVisualEditorCanvas = ({
     void draw().catch((error) => {
       console.warn('Failed to stitch room screenshot tiles:', error)
       if (!cancelled) {
-        onStitchError?.(
-          t('editor.visualEditingFailedToStitch', 'Failed to stitch room preview.')
-        )
+        onStitchError?.(t('editor.visualEditingFailedToStitch', 'Failed to stitch room preview.'))
       }
     })
 

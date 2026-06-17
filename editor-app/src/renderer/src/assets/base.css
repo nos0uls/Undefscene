@@ -6,12 +6,12 @@
 
 :root {
   /* --- Typography Scale (Desktop-optimized) --- */
-  --font-xs: 11px;   /* метки, timestamps, badges */
-  --font-sm: 12px;   /* подписи, secondary info */
+  --font-xs: 11px; /* метки, timestamps, badges */
+  --font-sm: 12px; /* подписи, secondary info */
   --font-base: 13px; /* основной текст (стандарт для плотных UI) */
-  --font-md: 14px;   /* заголовки секций, кнопки */
-  --font-lg: 16px;   /* заголовки панелей */
-  --font-xl: 20px;   /* заголовки страниц/модалок */
+  --font-md: 14px; /* заголовки секций, кнопки */
+  --font-lg: 16px; /* заголовки панелей */
+  --font-xl: 20px; /* заголовки страниц/модалок */
 
   /* --- Spacing (4px grid) --- */
   --space-1: 4px;
@@ -30,6 +30,18 @@
   /* --- Transitions --- */
   --transition-fast: 0.1s ease;
   --transition-normal: 0.15s ease;
+
+  /* --- Note Categories --- */
+  --note-acting-bg: hsl(200, 90%, 88%);
+  --note-acting-border: hsl(200, 70%, 55%);
+  --note-camera-bg: hsl(280, 90%, 88%);
+  --note-camera-border: hsl(280, 70%, 55%);
+  --note-sound-bg: hsl(150, 90%, 88%);
+  --note-sound-border: hsl(150, 70%, 55%);
+  --note-todo-bg: hsl(50, 100%, 82%);
+  --note-todo-border: hsl(45, 90%, 50%);
+  --note-warning-bg: hsl(0, 100%, 88%);
+  --note-warning-border: hsl(0, 80%, 55%);
 }
 
 /* ==========================================================================
@@ -39,50 +51,50 @@
 :root,
 [data-theme='dark'] {
   /* --- Background Layers --- */
-  --bg-base: hsl(220, 13%, 8%);        /* #111318 — самый тёмный, фон окна */
-  --bg-surface: hsl(220, 13%, 11%);    /* #171a1f — поверхность панелей */
-  --bg-elevated: hsl(220, 12%, 15%);   /* #212631 — карточки, дропдауны */
-  --bg-overlay: hsl(220, 11%, 18%);    /* #282d38 — модалки, тултипы */
+  --bg-base: hsl(220, 13%, 8%); /* #111318 — самый тёмный, фон окна */
+  --bg-surface: hsl(220, 13%, 11%); /* #171a1f — поверхность панелей */
+  --bg-elevated: hsl(220, 12%, 15%); /* #212631 — карточки, дропдауны */
+  --bg-overlay: hsl(220, 11%, 18%); /* #282d38 — модалки, тултипы */
 
   /* --- Content (Text) --- */
-  --text-primary: hsl(210, 20%, 92%);   /* #e6eaf0 — основной текст */
+  --text-primary: hsl(210, 20%, 92%); /* #e6eaf0 — основной текст */
   --text-secondary: hsl(215, 12%, 58%); /* #8b949e — подписи, метки */
-  --text-muted: hsl(215, 10%, 42%);     /* #5c6370 — placeholder, disabled */
-  --text-inverse: hsl(220, 13%, 8%);    /* текст на акцентном фоне */
+  --text-muted: hsl(215, 10%, 42%); /* #5c6370 — placeholder, disabled */
+  --text-inverse: hsl(220, 13%, 8%); /* текст на акцентном фоне */
 
   /* --- Border --- */
-  --border-subtle: hsl(220, 10%, 20%);  /* #2d3139 — разделители */
+  --border-subtle: hsl(220, 10%, 20%); /* #2d3139 — разделители */
   --border-default: hsl(220, 10%, 25%); /* #383d47 — обводки компонентов */
-  --border-strong: hsl(220, 10%, 35%);  /* #4f5562 — фокус, активное */
+  --border-strong: hsl(220, 10%, 35%); /* #4f5562 — фокус, активное */
 
   /* --- Accent (фиолетовый, Linear-style) --- */
   --accent-default: hsl(235, 60%, 60%); /* #5e6ad2 */
-  --accent-hover: hsl(235, 65%, 68%);   /* #727ee6 */
+  --accent-hover: hsl(235, 65%, 68%); /* #727ee6 */
   --accent-pressed: hsl(235, 55%, 52%); /* #4a55b8 */
   --accent-muted: hsla(235, 60%, 60%, 0.15);
 
   /* --- Status Colors (с пониженной насыщенностью для тёмной темы) --- */
-  --status-error: hsl(4, 70%, 58%);      /* #d9534f */
+  --status-error: hsl(4, 70%, 58%); /* #d9534f */
   --status-error-muted: hsla(4, 70%, 58%, 0.12);
-  --status-warning: hsl(45, 85%, 55%);   /* #e6b422 */
+  --status-warning: hsl(45, 85%, 55%); /* #e6b422 */
   --status-warning-muted: hsla(45, 85%, 55%, 0.12);
-  --status-success: hsl(145, 55%, 48%);  /* #3cb371 */
+  --status-success: hsl(145, 55%, 48%); /* #3cb371 */
   --status-success-muted: hsla(145, 55%, 48%, 0.12);
-  --status-info: hsl(210, 70%, 55%);     /* #4a9ede */
+  --status-info: hsl(210, 70%, 55%); /* #4a9ede */
   --status-info-muted: hsla(210, 70%, 55%, 0.12);
 
   /* --- Node Semantic Colors (saturation 60-70% для тёмной темы) --- */
-  --node-start: hsl(210, 65%, 55%);      /* #4a90d9 — синий */
-  --node-dialogue: hsl(345, 65%, 55%);   /* #d94a6a — розовый */
-  --node-animate: hsl(270, 55%, 58%);    /* #9b59b6 — фиолетовый */
-  --node-logic: hsl(35, 75%, 55%);       /* #d9952a — оранжевый */
-  --node-camera: hsl(145, 50%, 45%);     /* #3d9960 — зелёный */
-  --node-audio: hsl(190, 60%, 50%);      /* #33a3b3 — бирюзовый */
-  --node-wait: hsl(220, 25%, 50%);       /* #6b7a99 — серо-синий */
-  --node-meta: hsl(45, 90%, 55%);        /* #f2c744 — жёлтый/амбар */
+  --node-start: hsl(210, 65%, 55%); /* #4a90d9 — синий */
+  --node-dialogue: hsl(345, 65%, 55%); /* #d94a6a — розовый */
+  --node-animate: hsl(270, 55%, 58%); /* #9b59b6 — фиолетовый */
+  --node-logic: hsl(35, 75%, 55%); /* #d9952a — оранжевый */
+  --node-camera: hsl(145, 50%, 45%); /* #3d9960 — зелёный */
+  --node-audio: hsl(190, 60%, 50%); /* #33a3b3 — бирюзовый */
+  --node-wait: hsl(220, 25%, 50%); /* #6b7a99 — серо-синий */
+  --node-meta: hsl(45, 90%, 55%); /* #f2c744 — жёлтый/амбар */
 
   /* --- Canvas --- */
-  --canvas-bg: hsl(220, 20%, 6%);        /* #0a0e14 */
+  --canvas-bg: hsl(220, 20%, 6%); /* #0a0e14 */
   --canvas-grid: hsla(220, 15%, 40%, 0.08);
   --edge-default: hsl(220, 10%, 35%);
   --edge-selected: var(--accent-default);
@@ -128,26 +140,26 @@
    ========================================================================== */
 [data-theme='dark-cyan'] {
   /* --- Background Layers (чуть более холодные) --- */
-  --bg-base: hsl(200, 15%, 7%);         /* #0d1114 */
-  --bg-surface: hsl(200, 14%, 10%);     /* #141a1d */
-  --bg-elevated: hsl(200, 12%, 14%);    /* #1d2428 */
-  --bg-overlay: hsl(200, 10%, 18%);     /* #272e33 */
+  --bg-base: hsl(200, 15%, 7%); /* #0d1114 */
+  --bg-surface: hsl(200, 14%, 10%); /* #141a1d */
+  --bg-elevated: hsl(200, 12%, 14%); /* #1d2428 */
+  --bg-overlay: hsl(200, 10%, 18%); /* #272e33 */
 
   /* --- Content (Text) --- */
-  --text-primary: hsl(195, 25%, 90%);   /* #dce8ed */
+  --text-primary: hsl(195, 25%, 90%); /* #dce8ed */
   --text-secondary: hsl(200, 15%, 55%); /* #7a9199 */
-  --text-muted: hsl(200, 10%, 40%);     /* #5a6a70 */
+  --text-muted: hsl(200, 10%, 40%); /* #5a6a70 */
   --text-inverse: hsl(200, 15%, 7%);
 
   /* --- Border --- */
-  --border-subtle: hsl(200, 12%, 18%);  /* #262e33 */
+  --border-subtle: hsl(200, 12%, 18%); /* #262e33 */
   --border-default: hsl(200, 10%, 24%); /* #353e44 */
-  --border-strong: hsl(200, 8%, 32%);   /* #485055 */
+  --border-strong: hsl(200, 8%, 32%); /* #485055 */
 
   /* --- Accent (бирюзово-голубой, Persona 3 Reload style) --- */
   --accent-default: hsl(190, 100%, 50%); /* #00c8ff — яркий циан */
-  --accent-hover: hsl(190, 100%, 60%);   /* #33d4ff */
-  --accent-pressed: hsl(190, 90%, 42%);  /* #0aa8d6 */
+  --accent-hover: hsl(190, 100%, 60%); /* #33d4ff */
+  --accent-pressed: hsl(190, 90%, 42%); /* #0aa8d6 */
   --accent-muted: hsla(190, 100%, 50%, 0.15);
 
   /* --- Status Colors --- */
@@ -206,25 +218,25 @@
    ========================================================================== */
 [data-theme='gray'] {
   /* --- Background Layers (нейтральный серый) --- */
-  --bg-base: hsl(0, 0%, 10%);           /* #1a1a1a */
-  --bg-surface: hsl(0, 0%, 13%);        /* #212121 */
-  --bg-elevated: hsl(0, 0%, 17%);       /* #2b2b2b */
-  --bg-overlay: hsl(0, 0%, 21%);        /* #363636 */
+  --bg-base: hsl(0, 0%, 10%); /* #1a1a1a */
+  --bg-surface: hsl(0, 0%, 13%); /* #212121 */
+  --bg-elevated: hsl(0, 0%, 17%); /* #2b2b2b */
+  --bg-overlay: hsl(0, 0%, 21%); /* #363636 */
 
   /* --- Content (Text) --- */
-  --text-primary: hsl(0, 0%, 90%);      /* #e6e6e6 */
-  --text-secondary: hsl(0, 0%, 60%);    /* #999999 */
-  --text-muted: hsl(0, 0%, 45%);        /* #737373 */
+  --text-primary: hsl(0, 0%, 90%); /* #e6e6e6 */
+  --text-secondary: hsl(0, 0%, 60%); /* #999999 */
+  --text-muted: hsl(0, 0%, 45%); /* #737373 */
   --text-inverse: hsl(0, 0%, 10%);
 
   /* --- Border --- */
-  --border-subtle: hsl(0, 0%, 20%);     /* #333333 */
-  --border-default: hsl(0, 0%, 26%);    /* #424242 */
-  --border-strong: hsl(0, 0%, 35%);     /* #595959 */
+  --border-subtle: hsl(0, 0%, 20%); /* #333333 */
+  --border-default: hsl(0, 0%, 26%); /* #424242 */
+  --border-strong: hsl(0, 0%, 35%); /* #595959 */
 
   /* --- Accent (классический синий) --- */
   --accent-default: hsl(215, 70%, 55%); /* #4a8fd9 */
-  --accent-hover: hsl(215, 75%, 62%);   /* #5da0e6 */
+  --accent-hover: hsl(215, 75%, 62%); /* #5da0e6 */
   --accent-pressed: hsl(215, 65%, 48%); /* #3a7cc2 */
   --accent-muted: hsla(215, 70%, 55%, 0.15);
 
@@ -284,25 +296,25 @@
    ========================================================================== */
 [data-theme='light'] {
   /* --- Background Layers --- */
-  --bg-base: hsl(220, 15%, 97%);        /* #f5f6f8 */
-  --bg-surface: hsl(220, 20%, 100%);    /* #ffffff */
-  --bg-elevated: hsl(220, 15%, 96%);    /* #f2f4f7 */
-  --bg-overlay: hsl(220, 20%, 100%);    /* #ffffff */
+  --bg-base: hsl(220, 15%, 97%); /* #f5f6f8 */
+  --bg-surface: hsl(220, 20%, 100%); /* #ffffff */
+  --bg-elevated: hsl(220, 15%, 96%); /* #f2f4f7 */
+  --bg-overlay: hsl(220, 20%, 100%); /* #ffffff */
 
   /* --- Content (Text) — НЕ чисто чёрный для комфорта глаз --- */
-  --text-primary: hsl(220, 15%, 18%);   /* #272b33 */
+  --text-primary: hsl(220, 15%, 18%); /* #272b33 */
   --text-secondary: hsl(220, 10%, 45%); /* #6b7280 */
-  --text-muted: hsl(220, 8%, 60%);      /* #9199a3 */
+  --text-muted: hsl(220, 8%, 60%); /* #9199a3 */
   --text-inverse: hsl(220, 15%, 97%);
 
   /* --- Border --- */
-  --border-subtle: hsl(220, 12%, 90%);  /* #e2e5ea */
+  --border-subtle: hsl(220, 12%, 90%); /* #e2e5ea */
   --border-default: hsl(220, 10%, 82%); /* #cdd1d9 */
-  --border-strong: hsl(220, 8%, 70%);   /* #adb3bd */
+  --border-strong: hsl(220, 8%, 70%); /* #adb3bd */
 
   /* --- Accent (синий, хорошо читается на светлом) --- */
   --accent-default: hsl(220, 75%, 50%); /* #2563eb */
-  --accent-hover: hsl(220, 80%, 58%);   /* #3b7cf5 */
+  --accent-hover: hsl(220, 80%, 58%); /* #3b7cf5 */
   --accent-pressed: hsl(220, 70%, 42%); /* #1d4ed8 */
   --accent-muted: hsla(220, 75%, 50%, 0.1);
 

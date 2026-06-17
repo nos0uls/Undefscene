@@ -71,14 +71,17 @@ export function useEditorShortcuts(deps: UseEditorShortcutsDeps) {
     const onKeyDown = (e: KeyboardEvent) => {
       // Не перехватываем горячие клавиши, если фокус в текстовом поле.
       const target = e.target as HTMLElement | null
-      const isInput = isTextInputElement(target) || isTextInputElement(document.activeElement as HTMLElement | null)
+      const isInput =
+        isTextInputElement(target) ||
+        isTextInputElement(document.activeElement as HTMLElement | null)
 
       // Используем e.code для букв/цифр, чтобы сочетания не зависели от раскладки клавиатуры.
       // На русской раскладке e.key возвращает 'я', 'с' и т.д., а e.code всегда 'KeyZ', 'KeyC'.
-      const key =
-        e.code.startsWith('Key') ? e.code.slice(3).toLowerCase() :
-        e.code.startsWith('Digit') ? e.code.slice(5).toLowerCase() :
-        e.key.toLowerCase()
+      const key = e.code.startsWith('Key')
+        ? e.code.slice(3).toLowerCase()
+        : e.code.startsWith('Digit')
+          ? e.code.slice(5).toLowerCase()
+          : e.key.toLowerCase()
 
       // Ctrl+A — выделить все ноды на холсте.
       if ((e.ctrlKey || e.metaKey) && key === 'a') {
@@ -105,7 +108,10 @@ export function useEditorShortcuts(deps: UseEditorShortcutsDeps) {
       }
 
       // Ctrl+Y или Ctrl+Shift+Z — Redo (повтор отменённого действия).
-      if (((e.ctrlKey || e.metaKey) && key === 'y') || ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 'z')) {
+      if (
+        ((e.ctrlKey || e.metaKey) && key === 'y') ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 'z')
+      ) {
         if (isInput) return
         e.preventDefault()
         redoRef.current()

@@ -110,7 +110,14 @@ export function reverseCompileCutscene(raw: unknown): ReverseCompileResult {
     serial: 0
   }
 
-  const importResult = importSequence(raw.actions, context, [{ nodeId: startNode.id }], 360, 200, null)
+  const importResult = importSequence(
+    raw.actions,
+    context,
+    [{ nodeId: startNode.id }],
+    360,
+    200,
+    null
+  )
   if (!importResult.ok) {
     return importResult
   }
@@ -181,7 +188,6 @@ function importSequence(
       continue
     }
 
-
     // wait_until — синтаксический сахар для guard_global с if_false: 'wait_until_true' и пустыми actions.
     if (action.type === 'guard_global' && action.if_false === 'wait_until_true') {
       const nested = Array.isArray(action.actions) ? (action.actions as ImportedAction[]) : null
@@ -218,7 +224,11 @@ function importSequence(
         return { ok: false, error: 'guard_global action is missing nested actions.' }
       }
 
-      const nestedSources = applyEdgePatchToSources(sources, pendingEdgePatch, guardToEdgePatch(action))
+      const nestedSources = applyEdgePatchToSources(
+        sources,
+        pendingEdgePatch,
+        guardToEdgePatch(action)
+      )
       pendingEdgePatch = {}
 
       const nestedResult = importSequence(
@@ -299,9 +309,7 @@ function importSequence(
         : []
 
       const branchIds =
-        branchEntries.length > 0
-          ? branchEntries.map((_entry, index) => `b${index}`)
-          : ['b0']
+        branchEntries.length > 0 ? branchEntries.map((_entry, index) => `b${index}`) : ['b0']
 
       const joinId = nextNodeId(context, 'parallel_join')
       const startNode = createNode(
@@ -318,7 +326,9 @@ function importSequence(
       let branchMaxX = nextX + 280
       const branchTails: Array<{ sources: SourceEndpoint[]; branchId: string }> = []
 
-      branchIds.forEach((branchId, index) => {
+      let errorResult: SequenceImportResult | null = null
+      for (let index = 0; index < branchIds.length; index++) {
+        const branchId = branchIds[index]
         const entry = branchEntries[index]
         const branchActions = Array.isArray(entry)
           ? (entry as ImportedAction[])
@@ -337,12 +347,17 @@ function importSequence(
         )
 
         if (!branchResult.ok) {
-          throw new Error(branchResult.error)
+          errorResult = branchResult
+          break
         }
 
         branchMaxX = Math.max(branchMaxX, branchResult.nextX)
         branchTails.push({ sources: branchResult.sources, branchId })
-      })
+      }
+
+      if (errorResult) {
+        return errorResult
+      }
 
       const joinNode: RuntimeNode = {
         id: joinId,
@@ -456,18 +471,12 @@ function actionToRuntimeNode(
       continue
     }
     // Relative movement nodes require no special normalization — pass params through as-is.
-    if (
-      normalizedType === 'move_relative' ||
-      normalizedType === 'set_position_relative'
-    ) {
+    if (normalizedType === 'move_relative' || normalizedType === 'set_position_relative') {
       params[key] = value
       continue
     }
     // Shake nodes: pass new fields through as-is (backward compatible with old `magnitude`).
-    if (
-      normalizedType === 'camera_shake' ||
-      normalizedType === 'shake_object'
-    ) {
+    if (normalizedType === 'camera_shake' || normalizedType === 'shake_object') {
       params[key] = value
       continue
     }
@@ -562,10 +571,7 @@ function actionToRuntimeNode(
     }
     // checkpoint_state / restore_state: pass-through, но массивы include_globals / include_instances
     // сериализуем обратно в JSON-строку, т.к. редактор хранит их в text-полях.
-    if (
-      normalizedType === 'checkpoint_state' ||
-      normalizedType === 'restore_state'
-    ) {
+    if (normalizedType === 'checkpoint_state' || normalizedType === 'restore_state') {
       if (key === 'include_globals' || key === 'include_instances') {
         if (Array.isArray(value)) {
           params[key] = JSON.stringify(value)
@@ -706,7 +712,9 @@ function mergeEdgePatches(...patches: Array<PendingEdgePatch | undefined>): Pend
 
 // Генерируем id ноды по типу, чтобы imported graph было легче читать в raw JSON.
 function nextNodeId(context: ImportContext, type: string): string {
-  const normalizedType = String(type || 'node').replace(/[^a-z0-9_]+/gi, '_').toLowerCase()
+  const normalizedType = String(type || 'node')
+    .replace(/[^a-z0-9_]+/gi, '_')
+    .toLowerCase()
   return `import-${normalizedType}-${context.serial++}`
 }
 
@@ -745,7 +753,9 @@ function nextEdgeId(context: ImportContext): string {
 
 // Дефолтное имя ноды, если mark_node отсутствовал.
 function defaultNodeName(type: string, serial: number): string {
-  const normalized = String(type || 'node').replace(/[_-]+/g, ' ').trim()
+  const normalized = String(type || 'node')
+    .replace(/[_-]+/g, ' ')
+    .trim()
   const label = normalized.length > 0 ? normalized : 'Node'
   return `${label} ${serial}`
 }

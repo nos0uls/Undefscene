@@ -108,7 +108,7 @@ export function SearchableSelect({
     if (highlightIndex < 0 || !listRef.current) return
     const items = listRef.current.children
     if (items[highlightIndex]) {
-      ; (items[highlightIndex] as HTMLElement).scrollIntoView({ block: 'nearest' })
+      ;(items[highlightIndex] as HTMLElement).scrollIntoView({ block: 'nearest' })
     }
   }, [highlightIndex])
 
@@ -168,11 +168,16 @@ export function SearchableSelect({
     } else if (e.key === 'Tab') {
       if (suggestedOption) {
         e.preventDefault()
-        selectOption(highlightIndex >= 0 && highlightIndex < filtered.length ? filtered[highlightIndex] : suggestedOption)
+        selectOption(
+          highlightIndex >= 0 && highlightIndex < filtered.length
+            ? filtered[highlightIndex]
+            : suggestedOption
+        )
       }
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (highlightIndex >= 0 && highlightIndex < filtered.length) selectOption(filtered[highlightIndex])
+      if (highlightIndex >= 0 && highlightIndex < filtered.length)
+        selectOption(filtered[highlightIndex])
       else if (suggestedOption && !hasExactMatch && query.length > 0) selectOption(suggestedOption)
       else {
         onChange(query)

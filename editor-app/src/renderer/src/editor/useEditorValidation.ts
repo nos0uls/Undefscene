@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 
-import type { ValidationResult, ValidationContext } from './validateGraph'
+import type { ValidationResult, ValidationContext } from './validators'
 import type { RuntimeState } from './runtimeTypes'
 import type { ValidationSeverityOverride, ValidationRuleOverrides } from './validationRuleOverrides'
 import { applyOverrides } from './validationRuleOverrides'
@@ -16,7 +16,12 @@ export interface EditorValidationReturn {
     tipEntries: ValidationResult['entries']
     visibleEntries: ValidationResult['entries']
     severityStyle: Record<string, { color: string; bg: string; icon: string }>
-    toggleButtons: Array<{ key: 'errors' | 'warnings' | 'tips'; label: string; count: number; color: string }>
+    toggleButtons: Array<{
+      key: 'errors' | 'warnings' | 'tips'
+      label: string
+      count: number
+      color: string
+    }>
     errorCount: number
     warnCount: number
     tipCount: number
@@ -37,50 +42,42 @@ export function useEditorValidation(
   const [validation, setValidation] = useState<ValidationResult>({ entries: [], hasErrors: false })
 
   // Lazy-loaded validateGraph function (68KB module)
-  const [validateGraphFn, setValidateGraphFn] = useState<((state: RuntimeState, context?: ValidationContext) => ValidationResult) | null>(null)
+  const [validateGraphFn, setValidateGraphFn] = useState<
+    ((state: RuntimeState, context?: ValidationContext) => ValidationResult) | null
+  >(null)
 
   // Валидация графа — дорогая операция на больших графах
   useEffect(() => {
     let cancelled = false
-    
+    let timerId: ReturnType<typeof setTimeout> | undefined
+
     const loadAndValidate = async () => {
       if (validateGraphFn) {
         if (!cancelled) {
-          const id = setTimeout(() => {
-            setValidation(
-              validateGraphFn(
-                runtime,
-                validationContext
-              )
-            )
+          timerId = setTimeout(() => {
+            setValidation(validateGraphFn(runtime, validationContext))
           }, 0)
-          return () => clearTimeout(id)
         }
       } else {
         try {
-          const module = await import('./validateGraph')
+          const module = await import('./validators')
           if (!cancelled) {
             setValidateGraphFn(() => module.validateGraph)
-            setTimeout(() => {
-              setValidation(
-                module.validateGraph(
-                  runtime,
-                  validationContext
-                )
-              )
+            timerId = setTimeout(() => {
+              setValidation(module.validateGraph(runtime, validationContext))
             }, 0)
           }
         } catch (error) {
           console.error('Failed to load validateGraph module:', error)
         }
       }
-      return undefined
     }
 
     loadAndValidate()
 
     return () => {
       cancelled = true
+      if (timerId) clearTimeout(timerId)
     }
   }, [
     runtime?.nodes,
@@ -126,9 +123,9 @@ export function useEditorValidation(
     }
 
     const severityStyle: Record<string, { color: string; bg: string; icon: string }> = {
-      error: { color: '#e05050', bg: 'rgba(224,80,80,0.08)', icon: '\u25CF' },
-      warn: { color: '#d4a017', bg: 'rgba(212,160,23,0.08)', icon: '\u25CF' },
-      tip: { color: '#58a6ff', bg: 'rgba(88,166,255,0.06)', icon: '\u25CF' }
+      error: { color: 'var(--status-error)', bg: 'var(--status-error-muted)', icon: '\u25CF' },
+      warn: { color: 'var(--status-warning)', bg: 'var(--status-warning-muted)', icon: '\u25CF' },
+      tip: { color: 'var(--status-info)', bg: 'var(--status-info-muted)', icon: '\u25CF' }
     }
 
     const toggleButtons = [
@@ -136,24 +133,41 @@ export function useEditorValidation(
         key: 'errors' as const,
         label: t('logs.errors', 'Errors'),
         count: errorCount,
-        color: '#e05050'
+        color: 'var(--status-error)'
       },
       {
         key: 'warnings' as const,
         label: t('logs.warnings', 'Warnings'),
         count: warnCount,
-        color: '#d4a017'
+        color: 'var(--status-warning)'
       },
       {
         key: 'tips' as const,
         label: t('logs.tips', 'Tips'),
         count: tipCount,
-        color: '#58a6ff'
+        color: 'var(--status-info)'
       }
     ]
 
-    return { errorEntries, warnEntries, tipEntries, visibleEntries, severityStyle, toggleButtons, errorCount, warnCount, tipCount }
-  }, [overriddenEntries, logsFilters.errors, logsFilters.warnings, logsFilters.tips, preferencesLanguage, t])
+    return {
+      errorEntries,
+      warnEntries,
+      tipEntries,
+      visibleEntries,
+      severityStyle,
+      toggleButtons,
+      errorCount,
+      warnCount,
+      tipCount
+    }
+  }, [
+    overriddenEntries,
+    logsFilters.errors,
+    logsFilters.warnings,
+    logsFilters.tips,
+    preferencesLanguage,
+    t
+  ])
 
   const handleSetRuleOverride = useCallback(
     (ruleId: string, severity: ValidationSeverityOverride | 'reset') => {

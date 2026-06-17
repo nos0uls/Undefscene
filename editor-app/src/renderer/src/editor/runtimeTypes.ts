@@ -170,11 +170,32 @@ export const createDefaultRuntimeState = (): RuntimeState => {
     edges: [
       // Пауза хранится на ребре, а не отдельной нодой.
       { id: 'e-start-parallel', source: 'n-start', target: 'n-parallel-start', waitSeconds: 1.5 },
-      { id: 'e-parallel-dialogue', source: 'n-parallel-start', sourceHandle: 'out_b0', target: 'n-dialogue' },
-      { id: 'e-parallel-move', source: 'n-parallel-start', sourceHandle: 'out_b1', target: 'n-move' },
-      { id: 'e-dialogue-join', source: 'n-dialogue', target: 'n-parallel-join', targetHandle: 'in_b0' },
+      {
+        id: 'e-parallel-dialogue',
+        source: 'n-parallel-start',
+        sourceHandle: 'out_b0',
+        target: 'n-dialogue'
+      },
+      {
+        id: 'e-parallel-move',
+        source: 'n-parallel-start',
+        sourceHandle: 'out_b1',
+        target: 'n-move'
+      },
+      {
+        id: 'e-dialogue-join',
+        source: 'n-dialogue',
+        target: 'n-parallel-join',
+        targetHandle: 'in_b0'
+      },
       { id: 'e-move-join', source: 'n-move', target: 'n-parallel-join', targetHandle: 'in_b1' },
-      { id: 'e-pair-parallel', source: 'n-parallel-start', sourceHandle: '__pair', target: 'n-parallel-join', targetHandle: '__pair' },
+      {
+        id: 'e-pair-parallel',
+        source: 'n-parallel-start',
+        sourceHandle: '__pair',
+        target: 'n-parallel-join',
+        targetHandle: '__pair'
+      },
       { id: 'e-join-end', source: 'n-parallel-join', target: 'n-end' }
     ],
     selectedNodeId: null,

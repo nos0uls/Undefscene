@@ -31,11 +31,7 @@ export function NodeActionsProvider({
 
   const value = useMemo(() => ({ addBranchRef, removeBranchRef }), [])
 
-  return (
-    <NodeActionsContext.Provider value={value}>
-      {children}
-    </NodeActionsContext.Provider>
-  )
+  return <NodeActionsContext.Provider value={value}>{children}</NodeActionsContext.Provider>
 }
 
 export function useNodeActionsRef(): NodeActionsValue {

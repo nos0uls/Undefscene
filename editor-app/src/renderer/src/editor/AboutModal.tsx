@@ -63,7 +63,9 @@ export function AboutModal({
     >
       <div className="prefsModal">
         <div className="prefsHeader">
-          <span className="prefsTitle">{t('app.about', 'About')} {t('app.appName', 'Undefscene Editor')}</span>
+          <span className="prefsTitle">
+            {t('app.about', 'About')} {t('app.appName', 'Undefscene Editor')}
+          </span>
           <button className="prefsCloseBtn" type="button" onClick={onClose}>
             ✕
           </button>

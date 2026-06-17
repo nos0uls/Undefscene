@@ -6,19 +6,19 @@ import { createTranslator } from '../i18n'
 import { usePreferencesContext } from './PreferencesContext'
 
 const CATEGORY_BG: Record<RuntimeNote['category'], string> = {
-  acting: 'hsl(200, 90%, 88%)',
-  camera: 'hsl(280, 90%, 88%)',
-  sound: 'hsl(150, 90%, 88%)',
-  todo: 'hsl(50, 100%, 82%)',
-  warning: 'hsl(0, 100%, 88%)'
+  acting: 'var(--note-acting-bg)',
+  camera: 'var(--note-camera-bg)',
+  sound: 'var(--note-sound-bg)',
+  todo: 'var(--note-todo-bg)',
+  warning: 'var(--note-warning-bg)'
 }
 
 const CATEGORY_BORDER: Record<RuntimeNote['category'], string> = {
-  acting: 'hsl(200, 70%, 55%)',
-  camera: 'hsl(280, 70%, 55%)',
-  sound: 'hsl(150, 70%, 55%)',
-  todo: 'hsl(45, 90%, 50%)',
-  warning: 'hsl(0, 80%, 55%)'
+  acting: 'var(--note-acting-border)',
+  camera: 'var(--note-camera-border)',
+  sound: 'var(--note-sound-border)',
+  todo: 'var(--note-todo-border)',
+  warning: 'var(--note-warning-border)'
 }
 
 const CATEGORY_ICON: Record<RuntimeNote['category'], React.ElementType> = {
@@ -51,7 +51,10 @@ type CanvasNoteStickerProps = {
 
 const ALL_CATEGORIES: RuntimeNote['category'][] = ['acting', 'camera', 'sound', 'todo', 'warning']
 
-function categoryLabel(cat: RuntimeNote['category'], t: (path: string, fallback?: string) => string): string {
+function categoryLabel(
+  cat: RuntimeNote['category'],
+  t: (path: string, fallback?: string) => string
+): string {
   switch (cat) {
     case 'acting':
       return t('editor.noteCategories.acting', 'Acting')
@@ -74,8 +77,13 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
   onFocusNode,
   registerSticker
 }: CanvasNoteStickerProps) {
-  const nodes = useStore((s) => s.nodes)
-  const transform = useStore((s) => s.transform)
+  const storeApi = useStoreApi()
+  const nodeSelector = useCallback(
+    (s) => (note.nodeId ? s.nodes.find((n) => n.id === note.nodeId) : undefined),
+    [note.nodeId]
+  )
+  const node = useStore(nodeSelector)
+  const transform = storeApi.getState().transform
   const { screenToFlowPosition, getNodes } = useReactFlow()
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -95,7 +103,6 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
   const renderPosRef = useRef({ x: 0, y: 0 })
 
   // Compute render position (snapped to node or free)
-  const node = note.nodeId ? nodes.find((n) => n.id === note.nodeId) : undefined
   const renderX = node ? node.position.x + SNAP_OFFSET_X : note.x
   const renderY = node ? node.position.y + SNAP_OFFSET_Y : note.y
 
@@ -168,12 +175,7 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
         const ny = n.position.y
         const nw = n.width ?? DEFAULT_NODE_WIDTH
         const nh = n.height ?? DEFAULT_NODE_HEIGHT
-        if (
-          flowPos.x >= nx &&
-          flowPos.x <= nx + nw &&
-          flowPos.y >= ny &&
-          flowPos.y <= ny + nh
-        ) {
+        if (flowPos.x >= nx && flowPos.x <= nx + nw && flowPos.y >= ny && flowPos.y <= ny + nh) {
           found = n.id
           break
         }
@@ -254,14 +256,11 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
     [note.nodeId, onFocusNode]
   )
 
-  const handleCloseTooltip = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation()
-      setPinnedOpen(false)
-      setHovered(false)
-    },
-    []
-  )
+  const handleCloseTooltip = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    setPinnedOpen(false)
+    setHovered(false)
+  }, [])
 
   const handleCategoryChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -317,9 +316,7 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
           background: CATEGORY_BG[note.category],
           border: `2px solid ${dragging && snapTargetId ? glowColor : CATEGORY_BORDER[note.category]}`,
           boxShadow:
-            dragging && snapTargetId
-              ? `0 0 10px ${glowColor}`
-              : '0 2px 6px rgba(0,0,0,0.15)',
+            dragging && snapTargetId ? `0 0 10px ${glowColor}` : '0 2px 6px rgba(0,0,0,0.15)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -446,9 +443,7 @@ export const CanvasNotesOverlay = React.memo(function CanvasNotesOverlay({
     for (const note of notesRef.current) {
       const el = map.get(note.id)
       if (!el) continue
-      const node = note.nodeId
-        ? state.nodes.find((n) => n.id === note.nodeId)
-        : undefined
+      const node = note.nodeId ? state.nodes.find((n) => n.id === note.nodeId) : undefined
       const renderX = node ? node.position.x + SNAP_OFFSET_X : note.x
       const renderY = node ? node.position.y + SNAP_OFFSET_Y : note.y
       const screenX = renderX * zoom + x

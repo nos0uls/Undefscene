@@ -44,7 +44,14 @@ export interface EditorCallbacksReturn {
   handleExit: () => void
   handlePreferences: () => void
   selectNode: (nodeId: string) => void
-  handleAddNote: (note: Omit<RuntimeNote, 'id' | 'pinned' | 'x' | 'y'> & { id?: string; pinned?: boolean; x?: number; y?: number }) => void
+  handleAddNote: (
+    note: Omit<RuntimeNote, 'id' | 'pinned' | 'x' | 'y'> & {
+      id?: string
+      pinned?: boolean
+      x?: number
+      y?: number
+    }
+  ) => void
   handleUpdateNote: (id: string, patch: Partial<RuntimeNote>) => void
   handleDeleteNote: (id: string) => void
   handleSelectNote: (x: number, y: number) => void
@@ -63,12 +70,28 @@ export function useEditorCallbacks(
     options?: { skipHistory?: boolean }
   ) => void,
   setFocusNodeRequest: (request: { nodeId: string; nonce: number } | null) => void,
-  setFocusPositionRequest: (request: { x: number; y: number; zoom: number; nonce: number } | null) => void,
+  setFocusPositionRequest: (
+    request: { x: number; y: number; zoom: number; nonce: number } | null
+  ) => void,
   setLogsFilters: Dispatch<SetStateAction<{ errors: boolean; warnings: boolean; tips: boolean }>>,
   _setShowSavedIndicator: (show: boolean) => void,
   togglePanel: (panelId: string) => void,
-  preferences: { showDockDropPreview: boolean; autoSaveEnabled: boolean; autoSaveIntervalMinutes: number; visualEditorTechMode: boolean; disableHardwareAcceleration: boolean; language: string | null; keybindings: unknown },
-  updatePreferences: (prefs: Partial<{ visualEditorTechMode: boolean; disableHardwareAcceleration: boolean; screenshotOutputDir: string | null }>) => void,
+  preferences: {
+    showDockDropPreview: boolean
+    autoSaveEnabled: boolean
+    autoSaveIntervalMinutes: number
+    visualEditorTechMode: boolean
+    disableHardwareAcceleration: boolean
+    language: string | null
+    keybindings: unknown
+  },
+  updatePreferences: (
+    prefs: Partial<{
+      visualEditorTechMode: boolean
+      disableHardwareAcceleration: boolean
+      screenshotOutputDir: string | null
+    }>
+  ) => void,
   toasts: ReturnType<typeof useToasts>,
   confirm: ReturnType<typeof useConfirm>,
   t: (key: string, fallback: string) => string,
@@ -104,7 +127,9 @@ export function useEditorCallbacks(
     (name: string) => {
       const selectedNodes = runtime.nodes.filter((n) => runtime.selectedNodeIds.includes(n.id))
       const selectedEdges = runtime.edges.filter(
-        (e) => selectedNodes.some((n) => n.id === e.source) && selectedNodes.some((n) => n.id === e.target)
+        (e) =>
+          selectedNodes.some((n) => n.id === e.source) &&
+          selectedNodes.some((n) => n.id === e.target)
       )
       const newTemplate = createTemplate(name, selectedNodes, selectedEdges)
       const nextTemplates = [...templates, newTemplate]
@@ -133,7 +158,11 @@ export function useEditorCallbacks(
       )
       const offsetX = bbox.maxX === -Infinity ? 100 : bbox.maxX + 40
       const offsetY = bbox.minY === Infinity ? 100 : bbox.minY
-      const { nodes: newNodes, edges: newEdges } = prepareTemplateForInsertion(template, offsetX, offsetY)
+      const { nodes: newNodes, edges: newEdges } = prepareTemplateForInsertion(
+        template,
+        offsetX,
+        offsetY
+      )
       setRuntime((prev: RuntimeState) => ({
         ...prev,
         nodes: [...prev.nodes, ...newNodes],
@@ -291,7 +320,9 @@ export function useEditorCallbacks(
       .check()
       .then((res) => {
         if (res.status === 'available') {
-          pushInfo(toasts, `v${res.version}`, { title: t('toasts.updateAvailable', 'Update available') })
+          pushInfo(toasts, `v${res.version}`, {
+            title: t('toasts.updateAvailable', 'Update available')
+          })
           return
         }
 
@@ -300,7 +331,9 @@ export function useEditorCallbacks(
           return
         }
 
-        pushError(toasts, res.message, { title: t('toasts.updateCheckFailed', 'Update check failed') })
+        pushError(toasts, res.message, {
+          title: t('toasts.updateCheckFailed', 'Update check failed')
+        })
       })
       .catch((err) => {
         const msg = err instanceof Error ? err.message : String(err)
@@ -350,7 +383,10 @@ export function useEditorCallbacks(
     })
     pushInfo(
       toasts,
-      t('preferences.hardwareAccelerationApplied', 'Hardware acceleration setting will be applied on the next start.'),
+      t(
+        'preferences.hardwareAccelerationApplied',
+        'Hardware acceleration setting will be applied on the next start.'
+      ),
       { title: t('app.preferences', 'Preferences'), duration: 0 }
     )
   }, [preferences, updatePreferences, toasts, t])
@@ -371,7 +407,9 @@ export function useEditorCallbacks(
       })
       .catch((err) => {
         const msg = err instanceof Error ? err.message : String(err)
-        pushError(toasts, msg, { title: t('toasts.screenshotDirUpdateFailed', 'Failed to update screenshot directory') })
+        pushError(toasts, msg, {
+          title: t('toasts.screenshotDirUpdateFailed', 'Failed to update screenshot directory')
+        })
       })
   }, [updatePreferences, toasts, t])
 
@@ -389,7 +427,10 @@ export function useEditorCallbacks(
 
     const confirmed = await confirm({
       title: t('dialog.cleanupDevDataTitle', 'Cleanup development data'),
-      message: t('dialog.cleanupDevDataMessage', 'This will delete all temporary development data. Are you sure?')
+      message: t(
+        'dialog.cleanupDevDataMessage',
+        'This will delete all temporary development data. Are you sure?'
+      )
     })
     if (!confirmed) return
 
@@ -398,7 +439,9 @@ export function useEditorCallbacks(
       pushSuccess(toasts, t('toasts.devDataCleaned', 'Development data cleaned'))
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      pushError(toasts, msg, { title: t('toasts.devDataCleanupFailed', 'Failed to cleanup development data') })
+      pushError(toasts, msg, {
+        title: t('toasts.devDataCleanupFailed', 'Failed to cleanup development data')
+      })
     }
   }, [confirm, toasts, t])
 
@@ -450,7 +493,14 @@ export function useEditorCallbacks(
 
   // Notes callbacks
   const handleAddNote = useCallback(
-    (note: Omit<RuntimeNote, 'id' | 'pinned' | 'x' | 'y'> & { id?: string; pinned?: boolean; x?: number; y?: number }) => {
+    (
+      note: Omit<RuntimeNote, 'id' | 'pinned' | 'x' | 'y'> & {
+        id?: string
+        pinned?: boolean
+        x?: number
+        y?: number
+      }
+    ) => {
       const fullNote: RuntimeNote = {
         id: note.id ?? `note_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         text: note.text,

@@ -4,11 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { EditorPreferences, HotkeyActionId } from './usePreferences'
 import { DEFAULT_KEYBINDINGS, HOTKEY_ACTION_IDS } from './usePreferences'
-import {
-  comboFromEvent,
-  isModifierOnlyEvent,
-  normalizeCombo
-} from './useHotkeys'
+import { comboFromEvent, isModifierOnlyEvent, normalizeCombo } from './useHotkeys'
 import { createTranslator } from '../i18n'
 import { PreferencesGeneralSection } from './PreferencesGeneralSection'
 import { PreferencesCanvasSection } from './PreferencesCanvasSection'
@@ -138,18 +134,16 @@ export function PreferencesModal({
     const focusableSelector =
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     const getFocusable = (): HTMLElement[] =>
-      Array.from(modal.querySelectorAll<HTMLElement>(focusableSelector)).filter(
-        (el) => {
-          const isDisabled =
-            el instanceof HTMLButtonElement ||
-            el instanceof HTMLInputElement ||
-            el instanceof HTMLSelectElement ||
-            el instanceof HTMLTextAreaElement
-              ? el.disabled
-              : false
-          return !isDisabled && el.offsetParent !== null
-        }
-      )
+      Array.from(modal.querySelectorAll<HTMLElement>(focusableSelector)).filter((el) => {
+        const isDisabled =
+          el instanceof HTMLButtonElement ||
+          el instanceof HTMLInputElement ||
+          el instanceof HTMLSelectElement ||
+          el instanceof HTMLTextAreaElement
+            ? el.disabled
+            : false
+        return !isDisabled && el.offsetParent !== null
+      })
 
     // Auto-focus first focusable element when opened.
     const focusable = getFocusable()
@@ -204,11 +198,21 @@ export function PreferencesModal({
 
         {/* Содержимое */}
         <div className="prefsBody">
-          <PreferencesGeneralSection preferences={preferences} updatePreferences={updatePreferences} t={t} />
-          <PreferencesCanvasSection preferences={preferences} updatePreferences={updatePreferences} t={t} />
+          <PreferencesGeneralSection
+            preferences={preferences}
+            updatePreferences={updatePreferences}
+            t={t}
+          />
+          <PreferencesCanvasSection
+            preferences={preferences}
+            updatePreferences={updatePreferences}
+            t={t}
+          />
           {/* --- Секция Editor --- */}
           <div className="prefsSection">
-            <div className="prefsSectionSep"><span className="prefsSectionTitle">{t('preferences.editor', 'Editor')}</span></div>
+            <div className="prefsSectionSep">
+              <span className="prefsSectionTitle">{t('preferences.editor', 'Editor')}</span>
+            </div>
             <label className="prefsField prefsCheckbox">
               <input
                 type="checkbox"
@@ -243,9 +247,8 @@ export function PreferencesModal({
             {preferences.liquidGlassEnabled && (
               <label className="prefsField">
                 <span>
-                  {t('preferences.liquidGlassBlur', 'Blur Intensity')} ({Math.round(
-                    preferences.liquidGlassBlur * 100
-                  )}%)
+                  {t('preferences.liquidGlassBlur', 'Blur Intensity')} (
+                  {Math.round(preferences.liquidGlassBlur * 100)}%)
                 </span>
                 <input
                   className="prefsInput"
@@ -266,12 +269,17 @@ export function PreferencesModal({
               <input
                 type="checkbox"
                 checked={preferences.visualEditorShowPathLabels}
-                onChange={(e) => updatePreferences({ visualEditorShowPathLabels: e.target.checked })}
+                onChange={(e) =>
+                  updatePreferences({ visualEditorShowPathLabels: e.target.checked })
+                }
               />
               <span>{t('preferences.visualEditorShowPathLabels', 'Show path point labels')}</span>
             </label>
             <div className="prefsHint">
-              {t('editor.liquidGlassHint', 'Dynamic transparency and blurring for nodes and paths.')}
+              {t(
+                'editor.liquidGlassHint',
+                'Dynamic transparency and blurring for nodes and paths.'
+              )}
             </div>
 
             {/* Папка screenshot output помогает явно связать editor и внешний runner.

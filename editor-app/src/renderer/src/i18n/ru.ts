@@ -287,7 +287,8 @@ export const ru = {
     position: 'Позиция',
     connectionsInOut: 'вход / выход',
     cleanupConfirm: 'Сброс данных',
-    cleanupMessage: 'Вы уверены, что хотите полностью сбросить настройки и кэш? Это удалит все локальные данные (темы, статус обучения, кэш ресурсов). Приложение закроется после очистки.',
+    cleanupMessage:
+      'Вы уверены, что хотите полностью сбросить настройки и кэш? Это удалит все локальные данные (темы, статус обучения, кэш ресурсов). Приложение закроется после очистки.',
     cleanupConfirmButton: 'Сбросить и закрыть',
     cleanupCancelButton: 'Отмена',
     // Секция визуального редактора
@@ -388,7 +389,8 @@ export const ru = {
       checkpoint_state: 'Checkpoint State',
       restore_state: 'Restore State',
       attach_to_target: 'Attach To Target',
-      detach: 'Detach'
+      detach: 'Detach',
+      room_change: 'Room Change'
     },
     fields: {
       target: 'Target',
@@ -492,6 +494,10 @@ export const ru = {
       dx: 'dX',
       dy: 'dY',
       autofacing: 'Авто-разворот',
+      room: 'Комната',
+      player_x: 'Игрок X',
+      player_y: 'Игрок Y',
+      actors: 'Позиции актёров (JSON)',
       checkpoint_id: 'ID чекпоинта',
       include_actors: 'Включить актёров',
       include_globals: 'Включить глобальные',
@@ -499,7 +505,7 @@ export const ru = {
       include_plot: 'Включить сюжет',
       include_camera: 'Включить камеру',
       custom_vars: 'Пользовательские переменные (JSON)',
-      debug: 'Отладка',
+      debug: 'Отладка'
     },
     preview: {
       secondsSuffix: 'с',
@@ -520,7 +526,7 @@ export const ru = {
       magnitude: 'маг:',
       volume: 'громк',
       fade: 'fade'
-    },
+    }
   },
   // Обучение / Интерактивный тур
   tutorial: {
@@ -528,7 +534,8 @@ export const ru = {
       steps: [
         {
           title: 'Добро пожаловать!',
-          content: 'Краткий тур по редактору. Используйте Enter для навигации или Esc, чтобы начать работу.'
+          content:
+            'Краткий тур по редактору. Используйте Enter для навигации или Esc, чтобы начать работу.'
         },
         {
           title: 'Меню',
@@ -540,7 +547,8 @@ export const ru = {
         },
         {
           title: 'Холст',
-          content: 'Здесь вы соединяете ноды. Используйте колесо мыши для зума и левую кнопку для перемещения.'
+          content:
+            'Здесь вы соединяете ноды. Используйте колесо мыши для зума и левую кнопку для перемещения.'
         },
         {
           title: 'Инспектор',
@@ -552,7 +560,8 @@ export const ru = {
         },
         {
           title: 'Всё готово!',
-          content: 'Теперь вы можете создавать свои катсцены. Заглядывайте в документацию за подробностями.'
+          content:
+            'Теперь вы можете создавать свои катсцены. Заглядывайте в документацию за подробностями.'
         }
       ]
     },
@@ -560,11 +569,13 @@ export const ru = {
       steps: [
         {
           title: 'Панель инспектора',
-          content: 'Здесь редактируются параметры выбранной ноды: координаты, файл диалога, цель актёра и другое.'
+          content:
+            'Здесь редактируются параметры выбранной ноды: координаты, файл диалога, цель актёра и другое.'
         },
         {
           title: 'Параметры ноды',
-          content: 'Каждое поле соответствует action в GameMaker. Наведите на название поля — появится подсказка.'
+          content:
+            'Каждое поле соответствует action в GameMaker. Наведите на название поля — появится подсказка.'
         }
       ]
     }
@@ -637,20 +648,27 @@ export const ru = {
   validation: {
     unnamedNode: 'Нода ({type})',
     nodeNoName: 'Нода {id} ({type}) не имеет имени. Дважды кликните по ней, чтобы задать имя.',
-    duplicateName: 'Имя «{name}» используется {count} нодами. Переименуйте их, чтобы избежать путаницы.',
+    duplicateName:
+      'Имя «{name}» используется {count} нодами. Переименуйте их, чтобы избежать путаницы.',
     missingStartNode: 'Отсутствует нода Start. Добавьте её, чтобы определить начало катсцены.',
     tooManyStartNodes: 'Разрешена только одна нода Start. Удалите лишние ({count}).',
     missingEndNode: 'Отсутствует нода End. Добавьте её, чтобы пометить завершение катсцены.',
-    duplicateMarkerName: 'Маркер «{name}» используется {count} нодами. Цели jump будут неоднозначными.',
-    startIncomingConnections: 'У ноды Start есть входящие связи. Удалите их — Start должен быть точкой входа.',
+    duplicateMarkerName:
+      'Маркер «{name}» используется {count} нодами. Цели jump будут неоднозначными.',
+    startIncomingConnections:
+      'У ноды Start есть входящие связи. Удалите их — Start должен быть точкой входа.',
     startNoOutgoing: 'У ноды Start нет исходящих связей. Соедините её с первым действием.',
-    endOutgoingConnections: 'У ноды End есть исходящие связи. Удалите их — End должен быть финальным шагом.',
+    endOutgoingConnections:
+      'У ноды End есть исходящие связи. Удалите их — End должен быть финальным шагом.',
     nodeIsolated: 'Нода «{name}» изолирована. Соедините её или удалите.',
     nodeUnreachable: 'Нода «{name}» недостижима от начала. Проверьте связи.',
-    nodeMultipleOutputs: 'У ноды «{name}» несколько выходов. Это поддерживают только branch и parallel_start.',
+    nodeMultipleOutputs:
+      'У ноды «{name}» несколько выходов. Это поддерживают только branch и parallel_start.',
     fieldEmpty: '{name}: поле «{field}» не заполнено. Откройте инспектор, чтобы заполнить его.',
-    actorCreateNoSprite: '{name}: не задан спрайт или цель для копирования. Будет использован актёр по умолчанию.',
-    branchFalseEmpty: '{name}: ветка false пуста. Если условие не выполнится, выполнение остановится. Соедините выход false или измените условие.',
+    actorCreateNoSprite:
+      '{name}: не задан спрайт или цель для копирования. Будет использован актёр по умолчанию.',
+    branchFalseEmpty:
+      '{name}: ветка false пуста. Если условие не выполнится, выполнение остановится. Соедините выход false или измените условие.',
     tweenTargetRequired: '{name}: цель (Target) обязательна, если тип не camera.',
     tweenNoProperty: '{name}: не выбрано свойство для tween.',
     tweenEndValueMissing: '{name}: отсутствует конечное значение (To).',
@@ -666,25 +684,33 @@ export const ru = {
     playMusicIntroNoLoop: '{name}: не выбран loop-трек.',
     crossfadeMusicIntensityInvalid: '{name}: интенсивность должна быть от 0 до 1.',
     runFunctionNameEmpty: '{name}: имя функции не заполнено.',
-    runFunctionArgsInvalid: '{name}: некорректный JSON в аргументах. Проверьте синтаксис в инспекторе.',
-    scheduleActionInvalidParams: '{name}: некорректный JSON в action_params. Проверьте синтаксис в инспекторе.',
-    scheduleActionParamsNotObject: '{name}: action_params должен быть JSON-объектом (например, {"target":"player"}).',
+    runFunctionArgsInvalid:
+      '{name}: некорректный JSON в аргументах. Проверьте синтаксис в инспекторе.',
+    scheduleActionInvalidParams:
+      '{name}: некорректный JSON в action_params. Проверьте синтаксис в инспекторе.',
+    scheduleActionParamsNotObject:
+      '{name}: action_params должен быть JSON-объектом (например, {"target":"player"}).',
     scheduleActionInvalidDelay: '{name}: delay_seconds должен быть неотрицательным числом.',
     dialogueFileNotSet: '{name}: файл диалога не выбран. Выберите .yarn файл в инспекторе.',
-    cameraShakeSecondsInvalid: '{name}: длительность меньше или равна нулю. Укажите положительное число.',
+    cameraShakeSecondsInvalid:
+      '{name}: длительность меньше или равна нулю. Укажите положительное число.',
     shakeFrequencyTooLow: '{name}: частота тряски должна быть не меньше 1.',
     shakeMagnitudeXNegative: '{name}: сила тряски по X не может быть отрицательной.',
     shakeMagnitudeYNegative: '{name}: сила тряски по Y не может быть отрицательной.',
-    checkpointInvalidArray: '{name}: поле «{field}» должно быть JSON-массивом (например, ["var1", "var2"]).',
+    checkpointInvalidArray:
+      '{name}: поле «{field}» должно быть JSON-массивом (например, ["var1", "var2"]).',
     checkpointInvalidJson: '{name}: поле «{field}» содержит невалидный JSON.',
     followPathEmpty: '{name}: путь пуст. Нарисуйте или импортируйте его в инспекторе.',
     followPathOnePoint: '{name}: в пути всего 1 точка. Возможно, стоит использовать set_position.',
-    haltHasOutgoing: '{name}: нода halt блокирует выполнение, но имеет исходящие связи. Удалите их.',
+    haltHasOutgoing:
+      '{name}: нода halt блокирует выполнение, но имеет исходящие связи. Удалите их.',
     markNodeNameEmpty: '{name}: имя маркера не заполнено. Задайте уникальное имя для переходов.',
-    setFacingInvalidDirection: '{name}: направление должно быть «left» или «right». Получено: «{direction}».',
+    setFacingInvalidDirection:
+      '{name}: направление должно быть «left» или «right». Получено: «{direction}».',
     jumpTargetEmpty: '{name}: цель перехода пуста. Заполните поле Target в инспекторе.',
     jumpTargetNotFound: '{name}: цель «{target}» не найдена среди mark_node в графе.',
-    actorTargetNotCreated: '{name}: актёр «{target}» не создаётся ни одной нодой actor_create. Используйте «player» или создайте актёра.',
+    actorTargetNotCreated:
+      '{name}: актёр «{target}» не создаётся ни одной нодой actor_create. Используйте «player» или создайте актёра.',
     parallelStartMissingJoin: 'У параллельной ноды «{id}» нет пары (join).',
     parallelStartJoinMissing: 'Параллельная нода «{id}» ссылается на отсутствующую ноду.',
     parallelStartJoinNotJoin: 'Параллельная нода «{id}»: связанная нода не является join-нодой.',
@@ -693,8 +719,10 @@ export const ru = {
     parallelStartDuplicateBranchIds: 'У ноды «{id}» дублируются ID веток.',
     parallelStartEdgeNoSourceHandle: 'У ноды «{id}» отсутствует порт для связи.',
     parallelStartEdgeUnexpectedHandle: 'У ноды «{id}» неверный порт «{handle}».',
-    parallelStartEdgeBranchNotListed: 'У ноды «{id}» есть связь для ветки «{branchId}», которой нет в списке.',
-    parallelStartBranchMultipleEdges: 'Ветка «{handle}» в ноде «{id}» используется дважды. Допустима только одна связь.',
+    parallelStartEdgeBranchNotListed:
+      'У ноды «{id}» есть связь для ветки «{branchId}», которой нет в списке.',
+    parallelStartBranchMultipleEdges:
+      'Ветка «{handle}» в ноде «{id}» используется дважды. Допустима только одна связь.',
     parallelStartBranchNoOutgoing: 'Ветка «{branchId}» в ноде «{id}» никуда не ведёт.',
     parallelJoinNoPair: 'У join-ноды «{id}» нет пары. Соедините её с parallel_start.',
     parallelJoinPairMissing: 'Join-нода «{id}» ссылается на несуществующую ноду.',
@@ -703,8 +731,10 @@ export const ru = {
     parallelJoinPairBranchMismatch: 'Join-нода «{id}» и start-нода имеют разные списки веток.',
     parallelJoinEdgeNoTargetHandle: 'У join-ноды «{id}» отсутствует порт для входящей связи.',
     parallelJoinEdgeUnexpectedHandle: 'У join-ноды «{id}» неверный входящий порт.',
-    parallelJoinEdgeBranchNotListed: 'Join-нода «{id}» ссылается на несуществующую ветку «{branchId}».',
-    parallelJoinBranchMultipleEdges: 'Ветка «{handle}» в join-ноде «{id}» имеет несколько входящих связей.',
+    parallelJoinEdgeBranchNotListed:
+      'Join-нода «{id}» ссылается на несуществующую ветку «{branchId}».',
+    parallelJoinBranchMultipleEdges:
+      'Ветка «{handle}» в join-ноде «{id}» имеет несколько входящих связей.',
     parallelJoinBranchNoIncoming: 'Ветка «{branchId}» в join-ноде «{id}» не имеет входящей связи.',
     edgeMissingSource: 'Связь ссылается на несуществующую ноду «{source}».',
     edgeMissingTarget: 'Связь ссылается на несуществующую ноду «{target}».',
@@ -729,15 +759,19 @@ export const ru = {
     emoteSpriteNotFound: 'emote: спрайт «{sprite}» не найден.',
     actorUsedBeforeCreate: 'Актёр «{target}» используется до создания.',
     actorUsedAfterDestroy: 'Актёр «{target}» используется после уничтожения.',
-    cameraOverrideNotReset: 'Переопределение камеры активно в конце сцены, но не сброшено. Добавьте camera_center или tween_camera с return-to-default.',
+    cameraOverrideNotReset:
+      'Переопределение камеры активно в конце сцены, но не сброшено. Добавьте camera_center или tween_camera с return-to-default.',
     emptyPath: 'follow_path: путь пуст или содержит менее 2 точек.',
-    unsafeWait: 'wait_until или условие на ребре не имеет таймаута. Добавьте timeout_seconds или endTimeoutSeconds, чтобы избежать бесконечного ожидания.',
+    unsafeWait:
+      'wait_until или условие на ребре не имеет таймаута. Добавьте timeout_seconds или endTimeoutSeconds, чтобы избежать бесконечного ожидания.',
     branchWithoutFalseConnection: 'У ноды branch нет false-соединения.',
     musicActionWithoutMusic: 'Действие с музыкой без предварительного play_music.',
     musicPitchInvalid: '{name}: pitch должен быть больше 0.',
-    musicPitchExtreme: '{name}: pitch = {pitch}. Значения вне диапазона 0.5–2.0 могут звучать необычно.',
+    musicPitchExtreme:
+      '{name}: pitch = {pitch}. Значения вне диапазона 0.5–2.0 могут звучать необычно.',
     playBossMusicCalmNotFound: 'play_boss_music: calm-трек «{sound}» не найден в ресурсах проекта.',
-    playBossMusicBattleNotFound: 'play_boss_music: battle-трек «{sound}» не найден в ресурсах проекта.',
+    playBossMusicBattleNotFound:
+      'play_boss_music: battle-трек «{sound}» не найден в ресурсах проекта.',
     playMusicIntroNotFound: 'play_music_intro: intro-трек «{sound}» не найден в ресурсах проекта.',
     playMusicLoopNotFound: 'play_music_intro: loop-трек «{sound}» не найден в ресурсах проекта.',
     restoreStateMissingId: '{name}: checkpoint_id не задан. Укажите идентификатор чекпоинта.',
@@ -750,24 +784,27 @@ export const ru = {
     waitUntilTimeoutNegative: '{name}: timeout_seconds не может быть отрицательным.',
     duplicateCheckpointId: 'ID чекпоинта "{cid}" используется несколькими нодами checkpoint_state.',
     restoreCheckpointNotFound: 'restore_state ссылается на несуществующий чекпоинт "{cid}".',
-    actorCreatedTwice: 'Актёр "{key}" создан {count} раз. Каждый актёр должен создаваться только один раз.',
+    actorCreatedTwice:
+      'Актёр "{key}" создан {count} раз. Каждый актёр должен создаваться только один раз.',
     actorDestroyedNotCreated: 'Актёр "{target}" уничтожен, но никогда не создавался.',
     musicNotStopped: 'Музыка всё ещё играет в конце сцены. Добавьте stop_music, если нужно.',
     crossfadeIntensityInvalid: '{name}: intensity должна быть от 0 до 1.',
     playBossMusicMissingCalm: '{name}: calm-трек не выбран.',
     playBossMusicMissingBattle: '{name}: battle-трек не выбран.',
-    cameraTrackMissingTarget: 'У camera_track не задана цель (target).',
+    cameraTrackMissingTarget: 'У camera_track не задана цель (target).'
   },
   compileGraph: {
     noStartNode: 'В графе не найдена нода "start".',
     noEndNode: 'В графе не найдена нода "end".',
     cycleDetected: 'Обнаружен цикл в ноде "{nodeId}". Циклы запрещены.',
     nodeNotFound: 'Нода "{nodeId}" не найдена.',
-    tooManyOutputs: 'У ноды "{nodeId}" {count} исходящих связей. Только parallel_start и branch могут иметь несколько выходов.',
+    tooManyOutputs:
+      'У ноды "{nodeId}" {count} исходящих связей. Только parallel_start и branch могут иметь несколько выходов.',
     cycleInParallel: 'Обнаружен цикл в ноде "{nodeId}" внутри параллельной ветки.',
     nodeNotFoundInParallel: 'Нода "{nodeId}" не найдена в параллельной ветке.',
     parallelDeadEnd: 'Параллельная ветка зашла в тупик в ноде "{nodeId}" до join "{stopNodeId}".',
-    parallelSplit: 'Параллельная ветка разветвляется в ноде "{nodeId}" ({count} исходящих). Ветки должны быть линейными.'
+    parallelSplit:
+      'Параллельная ветка разветвляется в ноде "{nodeId}" ({count} исходящих). Ветки должны быть линейными.'
   },
   // Заголовки панелей докинга
   panels: {

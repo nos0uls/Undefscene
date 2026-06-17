@@ -24,7 +24,9 @@ type DockingLayoutProps = React.PropsWithChildren<{
   showDockDropPreview?: boolean
 }>
 
-const DockingLayoutInner = React.memo(function DockingLayoutInner(props: DockingLayoutProps): React.JSX.Element {
+const DockingLayoutInner = React.memo(function DockingLayoutInner(
+  props: DockingLayoutProps
+): React.JSX.Element {
   const {
     renderPanelContents,
     getPanelTitle,
@@ -101,12 +103,9 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(props: Docking
   )
 
   // Обработчик для bottom tab selection
-  const handleSetActiveBottomTab = useCallback(
-    (panelId: string) => {
-      setActiveBottomTabId(panelId)
-    },
-    []
-  )
+  const handleSetActiveBottomTab = useCallback((panelId: string) => {
+    setActiveBottomTabId(panelId)
+  }, [])
 
   // Обработчик для preventing double-click on tab buttons
   const handleTabPointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
@@ -125,58 +124,64 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(props: Docking
   const leftDockRenderState = getVerticalDockRenderState([
     leftDockedIds[0]
       ? {
-        id: leftDockedIds[0],
-        className: ['dockPanelActions', drag?.panelId === leftDockedIds[0] ? 'isDragSource' : '']
-          .filter(Boolean)
-          .join(' '),
-        baseStyle: {
-          flexGrow: leftDockedIds.length >= 2 ? leftTopGrow : 1,
-          flexBasis: 0,
-          minHeight: 0
+          id: leftDockedIds[0],
+          className: ['dockPanelActions', drag?.panelId === leftDockedIds[0] ? 'isDragSource' : '']
+            .filter(Boolean)
+            .join(' '),
+          baseStyle: {
+            flexGrow: leftDockedIds.length >= 2 ? leftTopGrow : 1,
+            flexBasis: 0,
+            minHeight: 0
+          }
         }
-      }
       : null,
     leftDockedIds[1]
       ? {
-        id: leftDockedIds[1],
-        className: ['dockPanelBookmarks', drag?.panelId === leftDockedIds[1] ? 'isDragSource' : '']
-          .filter(Boolean)
-          .join(' '),
-        baseStyle: {
-          flexGrow: leftDockedIds.length >= 2 ? leftBottomGrow : 1,
-          flexBasis: 0,
-          minHeight: 0
+          id: leftDockedIds[1],
+          className: [
+            'dockPanelBookmarks',
+            drag?.panelId === leftDockedIds[1] ? 'isDragSource' : ''
+          ]
+            .filter(Boolean)
+            .join(' '),
+          baseStyle: {
+            flexGrow: leftDockedIds.length >= 2 ? leftBottomGrow : 1,
+            flexBasis: 0,
+            minHeight: 0
+          }
         }
-      }
       : null
   ])
 
   const rightDockRenderState = getVerticalDockRenderState([
     rightDockedIds[0]
       ? {
-        id: rightDockedIds[0],
-        className: ['dockPanelText', drag?.panelId === rightDockedIds[0] ? 'isDragSource' : '']
-          .filter(Boolean)
-          .join(' '),
-        baseStyle: {
-          flexGrow: rightDockedIds.length >= 2 ? rightTopGrow : 1,
-          flexBasis: 0,
-          minHeight: 0
+          id: rightDockedIds[0],
+          className: ['dockPanelText', drag?.panelId === rightDockedIds[0] ? 'isDragSource' : '']
+            .filter(Boolean)
+            .join(' '),
+          baseStyle: {
+            flexGrow: rightDockedIds.length >= 2 ? rightTopGrow : 1,
+            flexBasis: 0,
+            minHeight: 0
+          }
         }
-      }
       : null,
     rightDockedIds[1]
       ? {
-        id: rightDockedIds[1],
-        className: ['dockPanelInspector', drag?.panelId === rightDockedIds[1] ? 'isDragSource' : '']
-          .filter(Boolean)
-          .join(' '),
-        baseStyle: {
-          flexGrow: rightDockedIds.length >= 2 ? rightBottomGrow : 1,
-          flexBasis: 0,
-          minHeight: 0
+          id: rightDockedIds[1],
+          className: [
+            'dockPanelInspector',
+            drag?.panelId === rightDockedIds[1] ? 'isDragSource' : ''
+          ]
+            .filter(Boolean)
+            .join(' '),
+          baseStyle: {
+            flexGrow: rightDockedIds.length >= 2 ? rightBottomGrow : 1,
+            flexBasis: 0,
+            minHeight: 0
+          }
         }
-      }
       : null
   ])
 
@@ -190,7 +195,9 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(props: Docking
     <div
       ref={ctx.rootRef}
       tabIndex={-1}
-      className={['editorRoot', allDocksCollapsed ? 'editorRoot--allCollapsed' : ''].filter(Boolean).join(' ')}
+      className={['editorRoot', allDocksCollapsed ? 'editorRoot--allCollapsed' : '']
+        .filter(Boolean)
+        .join(' ')}
       style={
         {
           ['--leftDockWidth' as string]: `${collapsedDocks.left ? COLLAPSED_DOCK_SIZE : layout.dockSizes.leftWidth}px`,
@@ -235,9 +242,7 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(props: Docking
         </div>
       )}
 
-      <header className="editorTopBar">
-        {topBarContent}
-      </header>
+      <header className="editorTopBar">{topBarContent}</header>
 
       <aside
         ref={ctx.leftDockRef}
@@ -247,12 +252,20 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(props: Docking
           .join(' ')}
       >
         {!collapsedDocks.left && (
-          <div ref={ctx.leftDockHitboxRef} className="dockDropHitbox dockDropHitboxLeft" aria-hidden="true" />
+          <div
+            ref={ctx.leftDockHitboxRef}
+            className="dockDropHitbox dockDropHitboxLeft"
+            aria-hidden="true"
+          />
         )}
         <div
           className="dockCollapseBar dockCollapseBarLeft"
           onClick={handleToggleLeftDock}
-          title={collapsedDocks.left ? t('editor.expandLeftDock', 'Expand left dock') : t('editor.collapseLeftDock', 'Collapse left dock')}
+          title={
+            collapsedDocks.left
+              ? t('editor.expandLeftDock', 'Expand left dock')
+              : t('editor.collapseLeftDock', 'Collapse left dock')
+          }
         >
           <span>{collapsedDocks.left ? '\u203A' : '\u2039'}</span>
         </div>
@@ -289,9 +302,7 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(props: Docking
         </div>
       </aside>
 
-      <main className="editorCenter">
-        {centerContent}
-      </main>
+      <main className="editorCenter">{centerContent}</main>
 
       <aside
         ref={ctx.rightDockRef}
@@ -302,12 +313,20 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(props: Docking
         onMouseDown={(e) => e.stopPropagation()}
       >
         {!collapsedDocks.right && (
-          <div ref={ctx.rightDockHitboxRef} className="dockDropHitbox dockDropHitboxRight" aria-hidden="true" />
+          <div
+            ref={ctx.rightDockHitboxRef}
+            className="dockDropHitbox dockDropHitboxRight"
+            aria-hidden="true"
+          />
         )}
         <div
           className="dockCollapseBar dockCollapseBarRight"
           onClick={handleToggleRightDock}
-          title={collapsedDocks.right ? t('editor.expandRightDock', 'Expand right dock') : t('editor.collapseRightDock', 'Collapse right dock')}
+          title={
+            collapsedDocks.right
+              ? t('editor.expandRightDock', 'Expand right dock')
+              : t('editor.collapseRightDock', 'Collapse right dock')
+          }
         >
           <span>{collapsedDocks.right ? '\u2039' : '\u203A'}</span>
         </div>
@@ -347,22 +366,27 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(props: Docking
       <section
         ref={ctx.bottomDockRef}
         tabIndex={-1}
-        className={[
-          'editorBottomDock',
-          collapsedDocks.bottom ? 'isDockVisuallyCollapsed' : ''
-        ]
+        className={['editorBottomDock', collapsedDocks.bottom ? 'isDockVisuallyCollapsed' : '']
           .filter(Boolean)
           .join(' ')}
         onMouseDown={(e) => e.stopPropagation()}
       >
         {!collapsedDocks.bottom && (
-          <div ref={ctx.bottomDockHitboxRef} className="dockDropHitbox dockDropHitboxBottom" aria-hidden="true" />
+          <div
+            ref={ctx.bottomDockHitboxRef}
+            className="dockDropHitbox dockDropHitboxBottom"
+            aria-hidden="true"
+          />
         )}
         {bottomDockedIds.length > 0 ? (
           <div
             className="dockCollapseBar dockCollapseBarBottom"
             onClick={handleToggleBottomDock}
-            title={collapsedDocks.bottom ? t('editor.expandBottomDock', 'Expand bottom dock') : t('editor.collapseBottomDock', 'Collapse bottom dock')}
+            title={
+              collapsedDocks.bottom
+                ? t('editor.expandBottomDock', 'Expand bottom dock')
+                : t('editor.collapseBottomDock', 'Collapse bottom dock')
+            }
           >
             <span>{collapsedDocks.bottom ? '\u25B4' : '\u25BE'}</span>
           </div>
@@ -371,100 +395,104 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(props: Docking
         <div className="dockCollapseContent">
           {bottomDockedIds.length > 0
             ? (() => {
-              const activeId =
-                activeBottomTabId && bottomDockedIds.includes(activeBottomTabId)
-                  ? activeBottomTabId
-                  : bottomDockedIds[0]
+                const activeId =
+                  activeBottomTabId && bottomDockedIds.includes(activeBottomTabId)
+                    ? activeBottomTabId
+                    : bottomDockedIds[0]
 
-              return (
-                <>
-                  {bottomDockedIds.length > 1 && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        gap: 0,
-                        borderBottom: '1px solid var(--ev-c-gray-3)',
-                        background: 'var(--color-background-soft)',
-                        flexShrink: 0
-                      }}
-                    >
-                      {bottomDockedIds.map((panelId) => (
-                        <div
-                          key={panelId}
-                          style={{
-                            flex: 1,
-                            minWidth: 0,
-                            display: 'flex',
-                            alignItems: 'stretch',
-                            background:
-                              panelId === activeId ? 'var(--color-background)' : 'var(--color-background-soft)',
-                            borderBottom:
-                              panelId === activeId
-                                ? '2px solid var(--ev-c-accent)'
-                                : '2px solid transparent'
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleSetActiveBottomTab(panelId)}
-                            onPointerDown={handleTabPointerDown}
+                return (
+                  <>
+                    {bottomDockedIds.length > 1 && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: 0,
+                          borderBottom: '1px solid var(--ev-c-gray-3)',
+                          background: 'var(--color-background-soft)',
+                          flexShrink: 0
+                        }}
+                      >
+                        {bottomDockedIds.map((panelId) => (
+                          <div
+                            key={panelId}
                             style={{
                               flex: 1,
                               minWidth: 0,
-                              padding: '4px 8px',
-                              fontSize: 11,
-                              fontWeight: panelId === activeId ? 700 : 400,
-                              color:
-                                panelId === activeId ? 'var(--ev-c-text-1)' : 'var(--ev-c-text-2)',
-                              background: 'transparent',
-                              border: 'none',
-                              cursor: 'pointer',
-                              transition: 'color 0.12s, background 0.12s',
-                              textAlign: 'left'
+                              display: 'flex',
+                              alignItems: 'stretch',
+                              background:
+                                panelId === activeId
+                                  ? 'var(--color-background)'
+                                  : 'var(--color-background-soft)',
+                              borderBottom:
+                                panelId === activeId
+                                  ? '2px solid var(--ev-c-accent)'
+                                  : '2px solid transparent'
                             }}
                           >
-                            {getPanelTitle(panelId)}
-                            {getPanelBadge?.(panelId)}
-                          </button>
-                          <button
-                            type="button"
-                            aria-label={closePanelLabel}
-                            title={closePanelLabel}
-                            onClick={() => handleClosePanel(panelId)}
-                            style={{
-                              width: 28,
-                              border: 'none',
-                              borderLeft: '1px solid var(--ev-c-gray-3)',
-                              background: 'transparent',
-                              color: 'var(--ev-c-text-2)',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {'\u2715'}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                            <button
+                              type="button"
+                              onClick={() => handleSetActiveBottomTab(panelId)}
+                              onPointerDown={handleTabPointerDown}
+                              style={{
+                                flex: 1,
+                                minWidth: 0,
+                                padding: '4px 8px',
+                                fontSize: 11,
+                                fontWeight: panelId === activeId ? 700 : 400,
+                                color:
+                                  panelId === activeId
+                                    ? 'var(--ev-c-text-1)'
+                                    : 'var(--ev-c-text-2)',
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                transition: 'color 0.12s, background 0.12s',
+                                textAlign: 'left'
+                              }}
+                            >
+                              {getPanelTitle(panelId)}
+                              {getPanelBadge?.(panelId)}
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={closePanelLabel}
+                              title={closePanelLabel}
+                              onClick={() => handleClosePanel(panelId)}
+                              style={{
+                                width: 28,
+                                border: 'none',
+                                borderLeft: '1px solid var(--ev-c-gray-3)',
+                                background: 'transparent',
+                                color: 'var(--ev-c-text-2)',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {'\u2715'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
-                  <DockPanel
-                    title={getPanelTitle(activeId)}
-                    className={['dockPanelLogs', drag?.panelId === activeId ? 'isDragSource' : '']
-                      .filter(Boolean)
-                      .join(' ')}
-                    style={getDockedPanelStyle(activeId, { flex: 1, minHeight: 0 })}
-                    onHeaderPointerDown={startPanelDrag(activeId)}
-                    collapsed={layout.panels[activeId]?.collapsed}
-                    onToggleCollapse={() => togglePanelCollapse(activeId)}
-                    collapseLabel={collapsePanelLabel}
-                    closeLabel={closePanelLabel}
-                    onClose={() => togglePanel(activeId)}
-                  >
-                    {renderPanelContents(activeId)}
-                  </DockPanel>
-                </>
-              )
-            })()
+                    <DockPanel
+                      title={getPanelTitle(activeId)}
+                      className={['dockPanelLogs', drag?.panelId === activeId ? 'isDragSource' : '']
+                        .filter(Boolean)
+                        .join(' ')}
+                      style={getDockedPanelStyle(activeId, { flex: 1, minHeight: 0 })}
+                      onHeaderPointerDown={startPanelDrag(activeId)}
+                      collapsed={layout.panels[activeId]?.collapsed}
+                      onToggleCollapse={() => togglePanelCollapse(activeId)}
+                      collapseLabel={collapsePanelLabel}
+                      closeLabel={closePanelLabel}
+                      onClose={() => togglePanel(activeId)}
+                    >
+                      {renderPanelContents(activeId)}
+                    </DockPanel>
+                  </>
+                )
+              })()
             : null}
         </div>
       </section>
@@ -500,42 +528,42 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(props: Docking
               >
                 {renderPanelContents(panelId)}
               </DockPanel>
-                {!p.collapsed && (
-                  <>
-                    <div
-                      className="floatingResizeZone resize-n"
-                      onPointerDown={startResizeDrag('float-n', panelId)}
-                    />
-                    <div
-                      className="floatingResizeZone resize-s"
-                      onPointerDown={startResizeDrag('float-s', panelId)}
-                    />
-                    <div
-                      className="floatingResizeZone resize-e"
-                      onPointerDown={startResizeDrag('float-e', panelId)}
-                    />
-                    <div
-                      className="floatingResizeZone resize-w"
-                      onPointerDown={startResizeDrag('float-w', panelId)}
-                    />
-                    <div
-                      className="floatingResizeZone resize-ne"
-                      onPointerDown={startResizeDrag('float-ne', panelId)}
-                    />
-                    <div
-                      className="floatingResizeZone resize-nw"
-                      onPointerDown={startResizeDrag('float-nw', panelId)}
-                    />
-                    <div
-                      className="floatingResizeZone resize-se"
-                      onPointerDown={startResizeDrag('float-se', panelId)}
-                    />
-                    <div
-                      className="floatingResizeZone resize-sw"
-                      onPointerDown={startResizeDrag('float-sw', panelId)}
-                    />
-                  </>
-                )}
+              {!p.collapsed && (
+                <>
+                  <div
+                    className="floatingResizeZone resize-n"
+                    onPointerDown={startResizeDrag('float-n', panelId)}
+                  />
+                  <div
+                    className="floatingResizeZone resize-s"
+                    onPointerDown={startResizeDrag('float-s', panelId)}
+                  />
+                  <div
+                    className="floatingResizeZone resize-e"
+                    onPointerDown={startResizeDrag('float-e', panelId)}
+                  />
+                  <div
+                    className="floatingResizeZone resize-w"
+                    onPointerDown={startResizeDrag('float-w', panelId)}
+                  />
+                  <div
+                    className="floatingResizeZone resize-ne"
+                    onPointerDown={startResizeDrag('float-ne', panelId)}
+                  />
+                  <div
+                    className="floatingResizeZone resize-nw"
+                    onPointerDown={startResizeDrag('float-nw', panelId)}
+                  />
+                  <div
+                    className="floatingResizeZone resize-se"
+                    onPointerDown={startResizeDrag('float-se', panelId)}
+                  />
+                  <div
+                    className="floatingResizeZone resize-sw"
+                    onPointerDown={startResizeDrag('float-sw', panelId)}
+                  />
+                </>
+              )}
             </div>
           )
         })}
@@ -549,9 +577,7 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(props: Docking
             height: drag ? `${drag.size.height}px` : undefined
           }}
         >
-          <div className="dragGhostHeader">
-            {drag ? getPanelTitle(drag.panelId) : ''}
-          </div>
+          <div className="dragGhostHeader">{drag ? getPanelTitle(drag.panelId) : ''}</div>
         </div>
       </div>
 
@@ -580,4 +606,3 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(props: Docking
 })
 
 export const DockingLayout = memo(DockingLayoutInner)
-

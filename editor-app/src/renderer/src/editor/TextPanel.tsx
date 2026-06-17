@@ -39,15 +39,21 @@ export const TextPanel = React.memo(function TextPanel({
     <div className="runtimeSection">
       <div className="runtimeSectionTitle">{t('editor.yarnPreview', 'Yarn Preview')}</div>
       {!selectedNode ? (
-        <div className="runtimeHint">{t('editor.selectDialogueNode', 'Select a dialogue node.')}</div>
+        <div className="runtimeHint">
+          {t('editor.selectDialogueNode', 'Select a dialogue node.')}
+        </div>
       ) : selectedNode.type !== 'dialogue' ? (
         <div className="runtimeHint">{t('editor.textPanelReserved', 'Dialogue preview only.')}</div>
       ) : !projectDir ? (
         <div className="runtimeHint">{t('editor.openProjectForYarn', 'Open a project.')}</div>
       ) : !selectedYarnFile ? (
-        <div className="runtimeHint">{t('editor.setDialogueFile', 'Set the dialogue File field.')}</div>
+        <div className="runtimeHint">
+          {t('editor.setDialogueFile', 'Set the dialogue File field.')}
+        </div>
       ) : yarnPreviewLoading ? (
-        <div className="runtimeHint">{t('editor.loadingYarnPreview', 'Loading Yarn preview...')}</div>
+        <div className="runtimeHint">
+          {t('editor.loadingYarnPreview', 'Loading Yarn preview...')}
+        </div>
       ) : yarnPreviewNodes.length === 0 ? (
         <div className="runtimeHint">
           {t('editor.noYarnNodes', 'No previewable Yarn nodes found in this file.')}
@@ -88,7 +94,8 @@ export const TextPanel = React.memo(function TextPanel({
 
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="runtimeHint" style={{ marginBottom: 6 }}>
-                {t('editor.node', 'Node')}: {activePreviewNode?.title ?? t('editor.unknown', 'Unknown')}
+                {t('editor.node', 'Node')}:{' '}
+                {activePreviewNode?.title ?? t('editor.unknown', 'Unknown')}
               </div>
               <pre className="runtimeCode" style={{ minHeight: 220, margin: 0 }}>
                 {activePreviewNode?.body || t('editor.emptyNodeBody', '(Empty node body)')}

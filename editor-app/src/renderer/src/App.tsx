@@ -5,6 +5,7 @@ import { usePreferences, getAccentCssVariables } from './editor/usePreferences'
 import { PreferencesProvider } from './editor/PreferencesContext'
 import { ToastProvider } from './editor/ToastHub'
 import { ConfirmProvider } from './editor/ConfirmDialog'
+import { ErrorBoundary } from './editor/ErrorBoundary'
 import { useCallback, useEffect, useRef, useMemo } from 'react'
 
 // Главный React-компонент приложения.
@@ -79,6 +80,10 @@ function App(): React.JSX.Element {
 
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
+        const target = e.target as HTMLElement | null
+        if (target && target.closest('textarea, input, select, [contenteditable]')) {
+          return
+        }
         // Запрещаем дефолтный scale страницы в браузере
         e.preventDefault()
         const delta = e.deltaY > 0 ? -0.1 : 0.1
@@ -97,10 +102,7 @@ function App(): React.JSX.Element {
 
   // Второе native окно visual editor приходит с query-параметром,
   // чтобы один renderer bundle мог обслуживать оба сценария.
-  const windowKind = useMemo(
-    () => new URLSearchParams(window.location.search).get('window'),
-    []
-  )
+  const windowKind = useMemo(() => new URLSearchParams(window.location.search).get('window'), [])
 
   const content = useMemo(() => {
     if (windowKind === 'visual-editor') {
@@ -113,7 +115,7 @@ function App(): React.JSX.Element {
     <ToastProvider>
       <PreferencesProvider value={{ preferences, updatePreferences, loaded: preferencesLoaded }}>
         <ConfirmProvider>
-          {content}
+          <ErrorBoundary>{content}</ErrorBoundary>
         </ConfirmProvider>
       </PreferencesProvider>
     </ToastProvider>

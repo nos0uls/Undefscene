@@ -590,7 +590,8 @@ async function readActorSpritePreview(
       sequence?: { xorigin?: unknown; yorigin?: unknown }
     }
 
-    const firstFrameName = typeof spriteData.frames?.[0]?.name === 'string' ? spriteData.frames[0].name : ''
+    const firstFrameName =
+      typeof spriteData.frames?.[0]?.name === 'string' ? spriteData.frames[0].name : ''
     if (!firstFrameName) {
       return null
     }
@@ -609,10 +610,8 @@ async function readActorSpritePreview(
       dataUrl: image.toDataURL(),
       width: typeof spriteData.width === 'number' ? spriteData.width : image.getSize().width,
       height: typeof spriteData.height === 'number' ? spriteData.height : image.getSize().height,
-      xorigin:
-        typeof spriteData.sequence?.xorigin === 'number' ? spriteData.sequence.xorigin : 0,
-      yorigin:
-        typeof spriteData.sequence?.yorigin === 'number' ? spriteData.sequence.yorigin : 0,
+      xorigin: typeof spriteData.sequence?.xorigin === 'number' ? spriteData.sequence.xorigin : 0,
+      yorigin: typeof spriteData.sequence?.yorigin === 'number' ? spriteData.sequence.yorigin : 0,
       resourceName,
       resourceKind
     }
@@ -754,7 +753,7 @@ type ScreenshotPreferencesSnapshot = {
 
 // Нормализуем имя room, чтобы оно не могло увести чтение в произвольный путь.
 // GameMaker room names нам не нужно расширенно экранировать — достаточно запретить path separators и control chars.
-function sanitizeRoomNameToken(roomName: string): string {
+export function sanitizeRoomNameToken(roomName: string): string {
   const raw = String(roomName || '').trim()
   if (!raw) return ''
   if (raw.includes('..')) return ''
@@ -768,7 +767,7 @@ function padCaptureIndex(value: number): string {
 }
 
 // Проверяем, что JSON действительно похож на наш минимальный screenshot meta contract.
-function parseRoomScreenshotMeta(raw: string): RoomScreenshotMeta | null {
+export function parseRoomScreenshotMeta(raw: string): RoomScreenshotMeta | null {
   try {
     const parsed = JSON.parse(raw) as Partial<RoomScreenshotMeta>
     if (typeof parsed.room_name !== 'string' || !parsed.room_name.trim()) return null
@@ -816,7 +815,10 @@ function parseRoomScreenshotMeta(raw: string): RoomScreenshotMeta | null {
 // Собираем все допустимые директории, где editor может искать screenshot output.
 // Сначала пробуем явный user override, затем project cache, потом project-local screenshots,
 // а в конце fallback на LocalAppData/<project>/screenshots для GameMaker runner'а.
-async function getRoomScreenshotSearchDirs(projectDir: string, roomScreenshotsDir?: string | null): Promise<string[]> {
+async function getRoomScreenshotSearchDirs(
+  projectDir: string,
+  roomScreenshotsDir?: string | null
+): Promise<string[]> {
   const result: string[] = []
   const pushUnique = (dirPath: string | null | undefined): void => {
     const normalized = String(dirPath || '').trim()
@@ -875,7 +877,11 @@ async function getAvailableScreenshotRooms(
     const safeRoomName = sanitizeRoomNameToken(roomName)
     if (!safeRoomName) continue
 
-    const metaLocation = await findRoomScreenshotMetaLocation(projectDir, safeRoomName, roomScreenshotsDir)
+    const metaLocation = await findRoomScreenshotMetaLocation(
+      projectDir,
+      safeRoomName,
+      roomScreenshotsDir
+    )
     if (metaLocation) {
       result.push(safeRoomName)
     }
@@ -930,7 +936,11 @@ async function readRoomScreenshotBundle(
     })
   }
 
-  const metaLocation = await findRoomScreenshotMetaLocation(projectDir, safeRoomName, roomScreenshotsDir)
+  const metaLocation = await findRoomScreenshotMetaLocation(
+    projectDir,
+    safeRoomName,
+    roomScreenshotsDir
+  )
   if (!metaLocation) {
     return createRoomScreenshotWarningBundle({
       roomName: safeRoomName,
@@ -1075,7 +1085,10 @@ function getRendererUrlForWindow(windowKind: 'main' | 'visual-editor'): string |
 
 // Общий loader renderer для всех окон.
 // В dev повторяем загрузку, если electron-vite сервер ещё не успел подняться.
-function loadRendererWindow(targetWindow: BrowserWindow, windowKind: 'main' | 'visual-editor'): void {
+function loadRendererWindow(
+  targetWindow: BrowserWindow,
+  windowKind: 'main' | 'visual-editor'
+): void {
   const devUrl = isDev ? getRendererUrlForWindow(windowKind) : undefined
   if (devUrl) {
     let retryLeft = 20
@@ -1122,9 +1135,7 @@ function createVisualEditorWindow(): BrowserWindow {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      // TODO: Consider enabling sandbox: true for production security.
-      // Preload only uses electron APIs (contextBridge, ipcRenderer, webFrame),
-      // so sandbox should be safe once verified across all builds.
+      // TODO: sandbox should be true, but it fails to load the preload script under sandbox because the imported '@electron-toolkit/preload' module fails to resolve (Module not found: @electron-toolkit/preload) inside the sandboxed renderer environment.
       sandbox: false
     }
   })
@@ -1171,9 +1182,7 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      // TODO: Consider enabling sandbox: true for production security.
-      // Preload only uses electron APIs (contextBridge, ipcRenderer, webFrame),
-      // so sandbox should be safe once verified across all builds.
+      // TODO: sandbox should be true, but it fails to load the preload script under sandbox because the imported '@electron-toolkit/preload' module fails to resolve (Module not found: @electron-toolkit/preload) inside the sandboxed renderer environment.
       sandbox: false
     }
   })
@@ -1281,7 +1290,10 @@ app.whenReady().then(() => {
         return []
       }
       if (typeof roomScreenshotsDir === 'string' && roomScreenshotsDir.includes('..')) {
-        console.warn('Blocked project.availableScreenshotRooms with suspicious roomScreenshotsDir:', roomScreenshotsDir)
+        console.warn(
+          'Blocked project.availableScreenshotRooms with suspicious roomScreenshotsDir:',
+          roomScreenshotsDir
+        )
         return []
       }
 
@@ -1290,7 +1302,11 @@ app.whenReady().then(() => {
         : []
 
       try {
-        return await getAvailableScreenshotRooms(normalizedProjectDir, normalizedRoomNames, roomScreenshotsDir)
+        return await getAvailableScreenshotRooms(
+          normalizedProjectDir,
+          normalizedRoomNames,
+          roomScreenshotsDir
+        )
       } catch (err) {
         console.warn('Failed to collect screenshot rooms:', err)
         return []
@@ -1313,7 +1329,10 @@ app.whenReady().then(() => {
         })
       }
       if (typeof roomScreenshotsDir === 'string' && roomScreenshotsDir.includes('..')) {
-        console.warn('Blocked project.readRoomScreenshotBundle with suspicious roomScreenshotsDir:', roomScreenshotsDir)
+        console.warn(
+          'Blocked project.readRoomScreenshotBundle with suspicious roomScreenshotsDir:',
+          roomScreenshotsDir
+        )
         return createRoomScreenshotWarningBundle({
           roomName: String(roomName || '').trim(),
           searchedDirs: [],
@@ -1365,13 +1384,16 @@ app.whenReady().then(() => {
   })
 
   // IPC: Обновить snapshot visual editor без повторного открытия окна.
-  ipcMain.handle('visualEditor.syncState', async (_event, nextState: VisualEditorBridgeState | null) => {
-    latestVisualEditorState = nextState
-    if (visualEditorWindowRef && !visualEditorWindowRef.isDestroyed() && nextState) {
-      visualEditorWindowRef.webContents.send('visualEditor.stateUpdated', nextState)
+  ipcMain.handle(
+    'visualEditor.syncState',
+    async (_event, nextState: VisualEditorBridgeState | null) => {
+      latestVisualEditorState = nextState
+      if (visualEditorWindowRef && !visualEditorWindowRef.isDestroyed() && nextState) {
+        visualEditorWindowRef.webContents.send('visualEditor.stateUpdated', nextState)
+      }
+      return { synced: true }
     }
-    return { synced: true }
-  })
+  )
 
   // IPC: Отдать последнюю bridge-state для standalone visual editor renderer.
   ipcMain.handle('visualEditor.getState', async () => {
@@ -1622,10 +1644,7 @@ app.whenReady().then(() => {
     try {
       const resolved = resolve(filePath)
       const backgroundsDir = resolve(app.getPath('userData'), 'canvas-backgrounds')
-      if (
-        !resolved.startsWith(`${backgroundsDir}${sep}`) &&
-        resolved !== backgroundsDir
-      ) {
+      if (!resolved.startsWith(`${backgroundsDir}${sep}`) && resolved !== backgroundsDir) {
         console.warn('Blocked canvas background read outside userData:', filePath)
         return null
       }
@@ -1699,7 +1718,9 @@ app.whenReady().then(() => {
       console.warn('Blocked yarn.readFile with suspicious projectDir:', projectDir)
       return null
     }
-    const rawName = String(fileName || '').trim().replace(/\\/g, '/')
+    const rawName = String(fileName || '')
+      .trim()
+      .replace(/\\/g, '/')
     if (!rawName) return null
     if (rawName.includes('..')) return null
 
@@ -1821,7 +1842,11 @@ app.whenReady().then(() => {
       }
 
       // Для несохранённой сцены создаём timestamp-based autosave в userData.
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').replace('Z', '')
+      const stamp = new Date()
+        .toISOString()
+        .replace(/[:.]/g, '-')
+        .replace('T', '_')
+        .replace('Z', '')
       const draftPath = join(app.getPath('userData'), `autosave-${stamp}.usc.json`)
       await writeFile(draftPath, jsonString, 'utf-8')
       return { saved: true, filePath: draftPath }
@@ -1859,7 +1884,8 @@ app.whenReady().then(() => {
 
   // IPC: Открыть DevTools для активного окна по запросу из Help menu.
   ipcMain.handle('app.openDevTools', async () => {
-    const focusedWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null
+    const focusedWindow =
+      BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null
     if (!focusedWindow) return
     focusedWindow.webContents.openDevTools({ mode: 'undocked' })
   })
@@ -1893,11 +1919,7 @@ app.whenReady().then(() => {
       'undefscene.log.2'
     ]
 
-    const dirsToRemove = [
-      'project-cache',
-      'canvas-backgrounds',
-      'room-screenshots'
-    ]
+    const dirsToRemove = ['project-cache', 'canvas-backgrounds', 'room-screenshots']
 
     try {
       // Удаляем файлы.
@@ -1907,7 +1929,9 @@ app.whenReady().then(() => {
 
       // Удаляем директории рекурсивно.
       for (const dirName of dirsToRemove) {
-        await rm(join(userDataPath, dirName), { recursive: true, force: true }).catch(() => undefined)
+        await rm(join(userDataPath, dirName), { recursive: true, force: true }).catch(
+          () => undefined
+        )
       }
 
       return { success: true }
@@ -1918,13 +1942,19 @@ app.whenReady().then(() => {
   })
 
   // IPC: Заглушки для меню About, Tutorial, Exit, Preferences.
-  ipcMain.handle('app.openAbout', async () => { })
-  ipcMain.handle('app.openTutorial', async () => { })
-  ipcMain.handle('app.exit', async () => { app.quit() })
-  ipcMain.handle('app.openPreferences', async () => { })
+  ipcMain.handle('app.openAbout', async () => {})
+  ipcMain.handle('app.openTutorial', async () => {})
+  ipcMain.handle('app.exit', async () => {
+    app.quit()
+  })
+  ipcMain.handle('app.openPreferences', async () => {})
 
   // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+  ipcMain.on('ping', () => {
+    if (!app.isPackaged) {
+      console.log('pong')
+    }
+  })
 
   createWindow()
 

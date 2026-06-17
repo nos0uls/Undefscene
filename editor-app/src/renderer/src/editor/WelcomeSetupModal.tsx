@@ -63,7 +63,10 @@ export function WelcomeSetupModal({
         padding: 24
       }}
     >
-      <div className="prefsModal" style={{ maxWidth: 450, width: '100%', maxHeight: '90vh', overflow: 'auto' }}>
+      <div
+        className="prefsModal"
+        style={{ maxWidth: 450, width: '100%', maxHeight: '90vh', overflow: 'auto' }}
+      >
         <div className="prefsHeader">
           <span className="prefsTitle" style={{ fontSize: 20 }}>
             {t('welcome.title', 'Welcome!')}
@@ -72,7 +75,7 @@ export function WelcomeSetupModal({
 
         <div className="prefsBody" style={{ padding: '20px 24px' }}>
           <p style={{ marginBottom: 24, color: 'var(--ev-c-text-2)', lineHeight: '1.5' }}>
-            {t('welcome.description', 'Let\'s customize Undefscene for you before we get started.')}
+            {t('welcome.description', "Let's customize Undefscene for you before we get started.")}
           </p>
 
           <div className="prefsSection" style={{ border: 'none', padding: 0 }}>
@@ -108,7 +111,9 @@ export function WelcomeSetupModal({
               <select
                 className="prefsInput"
                 value={preferences.accentColor}
-                onChange={(e) => updatePreferences({ accentColor: e.target.value as AccentColorId })}
+                onChange={(e) =>
+                  updatePreferences({ accentColor: e.target.value as AccentColorId })
+                }
               >
                 {ACCENT_PRESETS.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -132,11 +137,11 @@ export function WelcomeSetupModal({
           </div>
 
           <div style={{ marginTop: 32, display: 'flex', justifyContent: 'center' }}>
-            <button 
-              className="runtimeButton" 
-              style={{ 
-                padding: '10px 32px', 
-                fontSize: 15, 
+            <button
+              className="runtimeButton"
+              style={{
+                padding: '10px 32px',
+                fontSize: 15,
                 backgroundColor: 'var(--accent-default)',
                 color: 'white',
                 border: 'none'

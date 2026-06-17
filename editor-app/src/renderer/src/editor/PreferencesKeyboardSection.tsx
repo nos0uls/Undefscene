@@ -25,7 +25,11 @@ export const PreferencesKeyboardSection = React.memo(function PreferencesKeyboar
 }: PreferencesKeyboardSectionProps): React.JSX.Element {
   return (
     <div className="prefsSection">
-      <div className="prefsSectionSep"><span className="prefsSectionTitle">{t('preferences.keyboardShortcuts', 'Keyboard Shortcuts')}</span></div>
+      <div className="prefsSectionSep">
+        <span className="prefsSectionTitle">
+          {t('preferences.keyboardShortcuts', 'Keyboard Shortcuts')}
+        </span>
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {HOTKEY_ACTION_IDS.map((actionId) => (
           <div

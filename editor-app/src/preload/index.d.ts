@@ -167,9 +167,7 @@ export type UpdaterCheckResult =
   | { status: 'error'; message: string }
 
 // Результат установки обновления.
-export type UpdaterInstallResult =
-  | { status: 'ok' }
-  | { status: 'error'; message: string }
+export type UpdaterInstallResult = { status: 'ok' } | { status: 'error'; message: string }
 
 // Настройки движка катсцен (из cutscene_engine_settings.json).
 export type EngineSettings = {

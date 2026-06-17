@@ -23,16 +23,8 @@ function UpdateNotificationInner(): React.JSX.Element | null {
 
   // Подписываемся на события обновления из main процесса (один раз).
   useEffect(() => {
-    // Храним функции отписки, если API их возвращает (в нашем случае preload не возвращает,
-    // но мы можем обернуть это в removeListener, если бы API позволял).
-    // Поскольку preload использует ipcRenderer.on, нам нужно иметь способ сделать removeListener.
-    // В текущем preload.ts мы просто делаем .on(...).
-    // Хорошей практикой было бы возвращать unsubscribe функцию из preload.
-
-    // В текущей реализации preload (см. ниже) мы просто вешаем слушатели.
-    // Чтобы сделать cleanup честно, нужно доработать preload.
-    // Пока что оставим как есть, так как UpdateNotification монтируется один раз в Layout.
-    // Но для чистоты добавим пустой return, или переделаем API.
+    // Храним функции отписки, которые API автообновления из preload возвращает
+    // для правильной отмены подписки при размонтировании компонента.
 
     // Проверяем, что мы в Electron-контексте (window.api доступен).
     // В обычном браузере (IDE preview) API недоступен — просто выходим.
@@ -41,27 +33,27 @@ function UpdateNotificationInner(): React.JSX.Element | null {
     // Подписываемся на события обновления из main процесса (один раз).
     const cleanups: Array<() => void> = []
 
-    // В preload.ts мы добавили возврат функций отписки.
+    // В preload.ts возвращаются функции отписки.
     // Собираем их, чтобы вызвать при размонтировании.
     cleanups.push(
       window.api.updater.onUpdateAvailable((info) => {
         setStatus({ kind: 'available', version: info.version })
-      }) as unknown as () => void
+      })
     )
     cleanups.push(
       window.api.updater.onDownloadProgress((progress) => {
         setStatus({ kind: 'downloading', percent: progress.percent })
-      }) as unknown as () => void
+      })
     )
     cleanups.push(
       window.api.updater.onUpdateDownloaded(() => {
         setStatus({ kind: 'ready' })
-      }) as unknown as () => void
+      })
     )
     cleanups.push(
       window.api.updater.onError((msg) => {
         setStatus({ kind: 'error', message: msg })
-      }) as unknown as () => void
+      })
     )
 
     return () => {
@@ -75,10 +67,10 @@ function UpdateNotificationInner(): React.JSX.Element | null {
   // Цвет полоски зависит от состояния.
   const bgColor =
     status.kind === 'error'
-      ? 'rgba(224, 80, 80, 0.15)'
+      ? 'var(--status-error-muted)'
       : status.kind === 'ready'
-        ? 'rgba(80, 200, 80, 0.15)'
-        : 'rgba(88, 166, 255, 0.12)'
+        ? 'var(--status-success-muted)'
+        : 'var(--status-info-muted)'
 
   return (
     <div
@@ -96,7 +88,8 @@ function UpdateNotificationInner(): React.JSX.Element | null {
       {/* Текст уведомления. */}
       {status.kind === 'available' && (
         <span>
-          {t('updateNotification.updateAvailable', 'Update available:')} <strong>v{status.version}</strong>
+          {t('updateNotification.updateAvailable', 'Update available:')}{' '}
+          <strong>v{status.version}</strong>
         </span>
       )}
       {status.kind === 'downloading' && (
@@ -105,12 +98,10 @@ function UpdateNotificationInner(): React.JSX.Element | null {
         </span>
       )}
       {status.kind === 'ready' && (
-        <span>
-          {t('updateNotification.ready', 'Update ready. Restart to install.')}
-        </span>
+        <span>{t('updateNotification.ready', 'Update ready. Restart to install.')}</span>
       )}
       {status.kind === 'error' && (
-        <span style={{ color: '#e05050' }}>
+        <span style={{ color: 'var(--status-error)' }}>
           {t('updateNotification.error', 'Update error:')} {status.message}
         </span>
       )}
@@ -125,7 +116,7 @@ function UpdateNotificationInner(): React.JSX.Element | null {
             padding: '2px 10px',
             fontSize: 11,
             fontWeight: 600,
-            background: 'var(--ev-c-accent, #58a6ff)',
+            background: 'var(--accent-default, #58a6ff)',
             color: '#000',
             border: 'none',
             borderRadius: 4,

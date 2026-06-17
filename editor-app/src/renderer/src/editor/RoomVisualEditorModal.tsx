@@ -27,13 +27,13 @@ import {
   PATH_ERASE_RADIUS,
   PATH_POINT_RADIUS,
   PATH_PREVIEW_POINT_RADIUS,
-  simplifyPathPoints,
+  simplifyPathPoints
 } from './usePathEditorLogic'
 import {
   ACTOR_MARKER_RADIUS,
   getActorPreviewsSyncKey,
   PLAY_PREVIEW_SPEED_PX_PER_SEC,
-  getPointAtDistanceOnPreparedPath,
+  getPointAtDistanceOnPreparedPath
 } from './useActorEditorLogic'
 import { useViewportControls, clamp } from './useViewportControls'
 
@@ -1504,18 +1504,17 @@ export function RoomVisualEditorModal({
     return <div className="roomVisualEditorWindowRoot">{content}</div>
   }
 
-  const handleOverlayClick = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (event.target === overlayRef.current) {
-      onClose()
-    }
-  }, [onClose])
+  const handleOverlayClick = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>): void => {
+      if (event.target === overlayRef.current) {
+        onClose()
+      }
+    },
+    [onClose]
+  )
 
   return (
-    <div
-      ref={overlayRef}
-      className="prefsOverlay"
-      onClick={handleOverlayClick}
-    >
+    <div ref={overlayRef} className="prefsOverlay" onClick={handleOverlayClick}>
       {content}
     </div>
   )

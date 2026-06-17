@@ -1,7 +1,11 @@
 import { memo } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { RoomVisualEditorOverlay } from './RoomVisualEditorOverlay'
-import type { VisualEditorActorPreview, LoadedActorSpritePreview, RoomScreenshotBundle } from './RoomVisualEditorTypes'
+import type {
+  VisualEditorActorPreview,
+  LoadedActorSpritePreview,
+  RoomScreenshotBundle
+} from './RoomVisualEditorTypes'
 
 type RoomVisualEditorViewportProps = {
   viewportRef: React.RefObject<HTMLDivElement | null>

@@ -1,6 +1,10 @@
 import { memo } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import type { VisualEditorActorPreview, VisualEditorSelectedNode, RoomScreenshotBundle } from './RoomVisualEditorTypes'
+import type {
+  VisualEditorActorPreview,
+  VisualEditorSelectedNode,
+  RoomScreenshotBundle
+} from './RoomVisualEditorTypes'
 
 type RoomVisualEditorSidebarProps = {
   techMode: boolean
@@ -102,7 +106,9 @@ export const RoomVisualEditorSidebar = memo(
         ) : null}
 
         {isLoading ? (
-          <div className="runtimeHint">{t('editor.visualEditingLoading', 'Loading screenshots...')}</div>
+          <div className="runtimeHint">
+            {t('editor.visualEditingLoading', 'Loading screenshots...')}
+          </div>
         ) : null}
 
         {errorMessage ? <div className="runtimeHint">{errorMessage}</div> : null}
@@ -288,7 +294,9 @@ export const RoomVisualEditorSidebar = memo(
         </label>
 
         {draftActors.length <= 0 ? (
-          <div className="runtimeHint">{t('editor.visualEditingNoActors', 'No actors available.')}</div>
+          <div className="runtimeHint">
+            {t('editor.visualEditingNoActors', 'No actors available.')}
+          </div>
         ) : null}
 
         {selectedActor ? (

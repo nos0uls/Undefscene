@@ -380,7 +380,7 @@ code {
 
 /* Панели внутри split-контейнера должны корректно растягиваться,
    чтобы не оставлять белые/пустые зоны при одной панели. */
-.dockSlotSplit>.dockPanel {
+.dockSlotSplit > .dockPanel {
   min-height: 0;
   min-width: 0;
 }
@@ -436,8 +436,6 @@ code {
   background: var(--color-background);
   overflow: hidden;
 }
-
-
 
 .dockPanelHeader {
   height: 32px;
@@ -580,9 +578,10 @@ code {
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
 }
-
 
 .dockPanel.isFloating .dockPanelHeader {
   background: var(--ev-c-black-mute);
@@ -798,7 +797,9 @@ code {
   font-size: 12px;
   padding: 6px 10px;
   outline: none;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
   margin-bottom: 8px;
 }
 
@@ -914,16 +915,32 @@ code {
 }
 
 /* Palette items inherit the same --node-color system as canvas nodes */
-.palette-cat-flow      { --node-color: var(--node-start); }
+.palette-cat-flow {
+  --node-color: var(--node-start);
+}
 .palette-cat-movement,
 .palette-cat-actor,
-.palette-cat-visual    { --node-color: var(--node-animate); }
-.palette-cat-dialogue  { --node-color: var(--node-dialogue); }
-.palette-cat-camera    { --node-color: var(--node-camera); }
-.palette-cat-logic     { --node-color: var(--node-logic); }
-.palette-cat-audio     { --node-color: var(--node-audio); }
-.palette-cat-wait      { --node-color: var(--node-wait); }
-.palette-cat-meta      { --node-color: var(--node-meta); }
+.palette-cat-visual {
+  --node-color: var(--node-animate);
+}
+.palette-cat-dialogue {
+  --node-color: var(--node-dialogue);
+}
+.palette-cat-camera {
+  --node-color: var(--node-camera);
+}
+.palette-cat-logic {
+  --node-color: var(--node-logic);
+}
+.palette-cat-audio {
+  --node-color: var(--node-audio);
+}
+.palette-cat-wait {
+  --node-color: var(--node-wait);
+}
+.palette-cat-meta {
+  --node-color: var(--node-meta);
+}
 
 .runtimeSectionTitle {
   font-size: 12px;
@@ -1275,7 +1292,10 @@ code {
   padding: 8px;
   font-size: 12px;
   line-height: 1.4;
-  transition: border-color var(--transition-fast, 0.15s), background-color var(--transition-fast, 0.15s), box-shadow var(--transition-fast, 0.15s);
+  transition:
+    border-color var(--transition-fast, 0.15s),
+    background-color var(--transition-fast, 0.15s),
+    box-shadow var(--transition-fast, 0.15s);
   outline: none;
 }
 
@@ -1298,7 +1318,10 @@ code {
   box-sizing: border-box;
   padding: 6px 8px;
   font-size: 12px;
-  transition: border-color var(--transition-fast, 0.15s), background-color var(--transition-fast, 0.15s), box-shadow var(--transition-fast, 0.15s);
+  transition:
+    border-color var(--transition-fast, 0.15s),
+    background-color var(--transition-fast, 0.15s),
+    box-shadow var(--transition-fast, 0.15s);
   outline: none;
 }
 
@@ -1326,21 +1349,21 @@ select.runtimeInput:focus {
   background-image: url('data:image/svg+xml;utf8,<svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="%235e6ad2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>');
 }
 
-input[type="checkbox"] {
+input[type='checkbox'] {
   accent-color: var(--accent-default, var(--ev-c-accent));
   cursor: pointer;
   background-color: transparent;
   color-scheme: dark;
 }
 
-input.runtimeInput[type="number"]::-webkit-inner-spin-button,
-input.runtimeInput[type="number"]::-webkit-outer-spin-button {
+input.runtimeInput[type='number']::-webkit-inner-spin-button,
+input.runtimeInput[type='number']::-webkit-outer-spin-button {
   filter: invert(1) hue-rotate(180deg);
   opacity: 0.7;
 }
 
-[data-theme='light'] input.runtimeInput[type="number"]::-webkit-inner-spin-button,
-[data-theme='light'] input.runtimeInput[type="number"]::-webkit-outer-spin-button {
+[data-theme='light'] input.runtimeInput[type='number']::-webkit-inner-spin-button,
+[data-theme='light'] input.runtimeInput[type='number']::-webkit-outer-spin-button {
   filter: none;
 }
 
@@ -1400,7 +1423,10 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
   height: 24px;
   border-radius: 4px;
   cursor: pointer;
-  transition: background 0.1s, color 0.1s, opacity 0.1s;
+  transition:
+    background 0.1s,
+    color 0.1s,
+    opacity 0.1s;
 }
 
 .topMenuBarIconButton:hover {
@@ -1631,7 +1657,8 @@ input.runtimeInput[type="number"]::-webkit-outer-spin-button {
 }
 
 /* ========== React Flow Selection Overrides ========== */
-.react-flow__nodesselection-rect, .react-flow__nodesselection {
+.react-flow__nodesselection-rect,
+.react-flow__nodesselection {
   display: none !important; /* Hide the ugly blue bounding box around selected nodes */
   opacity: 0 !important;
   visibility: hidden !important;
@@ -1747,16 +1774,32 @@ label.runtimeField:has(.searchable-select-open) {
 /* Цвет категории ноды: задаётся на root .customNode через data-category,
    dot и title наследуют его через var(--node-color). Это позволяет не писать
    inline style на каждой из 500 нод (экономия ~77ms setValueForStyle на mount). */
-.customNode[data-category='flow'] { --node-color: var(--node-start); }
+.customNode[data-category='flow'] {
+  --node-color: var(--node-start);
+}
 .customNode[data-category='movement'],
 .customNode[data-category='actor'],
-.customNode[data-category='visual'] { --node-color: var(--node-animate); }
-.customNode[data-category='dialogue'] { --node-color: var(--node-dialogue); }
-.customNode[data-category='camera'] { --node-color: var(--node-camera); }
-.customNode[data-category='logic'] { --node-color: var(--node-logic); }
-.customNode[data-category='audio'] { --node-color: var(--node-audio); }
-.customNode[data-category='wait'] { --node-color: var(--node-wait); }
-.customNode[data-category='meta'] { --node-color: var(--node-meta); }
+.customNode[data-category='visual'] {
+  --node-color: var(--node-animate);
+}
+.customNode[data-category='dialogue'] {
+  --node-color: var(--node-dialogue);
+}
+.customNode[data-category='camera'] {
+  --node-color: var(--node-camera);
+}
+.customNode[data-category='logic'] {
+  --node-color: var(--node-logic);
+}
+.customNode[data-category='audio'] {
+  --node-color: var(--node-audio);
+}
+.customNode[data-category='wait'] {
+  --node-color: var(--node-wait);
+}
+.customNode[data-category='meta'] {
+  --node-color: var(--node-meta);
+}
 
 .customNodeDot {
   display: inline-block;
@@ -2047,7 +2090,6 @@ label.runtimeField:has(.searchable-select-open) {
 /* ========== /Кастомные ноды ========== */
 
 @media (max-width: 350px) {
-
   .tip,
   .actions {
     display: none;
@@ -2123,7 +2165,9 @@ label.runtimeField:has(.searchable-select-open) {
 .react-flow__edge-path {
   stroke: var(--ev-c-gray-1) !important;
   stroke-width: 2 !important;
-  transition: stroke 0.15s, stroke-width 0.15s !important;
+  transition:
+    stroke 0.15s,
+    stroke-width 0.15s !important;
 }
 
 .react-flow__edge:hover .react-flow__edge-path {
@@ -2464,7 +2508,9 @@ label.runtimeField:has(.searchable-select-open) {
   border: 1px solid var(--ev-c-gray-2);
   background: var(--color-background-mute);
   color: var(--ev-c-text-1);
-  transition: background 0.12s, border-color 0.12s;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
 }
 
 .prefsFooterClose:hover {
@@ -2702,8 +2748,6 @@ label.runtimeField:has(.searchable-select-open) {
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
   background: transparent;
 }
-
-
 
 /* SVG overlay живёт поверх stitched canvas и не мешает base PNG слою. */
 .roomVisualEditorOverlay {
