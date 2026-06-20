@@ -1,10 +1,9 @@
 import type { RuntimeNode } from '../../runtimeTypes'
 import type { CompiledAction } from '../types'
-import { compileBaseNode } from '../utils'
+import { compileBaseNode, normalizeGlobalVarName } from '../utils'
 
 export function compileWaitUntil(node: RuntimeNode): CompiledAction {
-  const rawVar = String(node.params?.condition_var ?? '').trim()
-  const varName = rawVar.startsWith('global.') ? rawVar.slice('global.'.length) : rawVar
+  const varName = normalizeGlobalVarName(node.params?.condition_var)
   const equals = String(node.params?.condition_equals ?? '')
   const timeoutSeconds = Number(node.params?.timeout_seconds ?? 0)
 
@@ -97,6 +96,9 @@ export function compilePartialControl(node: RuntimeNode): CompiledAction {
   const action = compileBaseNode(node)
   if (typeof node.params?.control_type === 'number') {
     action.control_type = node.params.control_type
+  } else if (typeof node.params?.control_type === 'string') {
+    const parsed = parseInt(node.params.control_type, 10)
+    if (!isNaN(parsed)) action.control_type = parsed
   }
   const rawWhitelist = node.params?.whitelist
   if (typeof rawWhitelist === 'string') {
@@ -174,10 +176,11 @@ export function compileTween(node: RuntimeNode): CompiledAction {
     action.start_value_override = node.params.from
   }
 
-  if (typeof node.params?.duration_frames === 'number') {
-    action.duration_frames = node.params.duration_frames
-  } else if (typeof node.params?.seconds === 'number') {
-    action.duration_frames = node.params.seconds
+  if (typeof node.params?.seconds === 'number') {
+    action.seconds = node.params.seconds
+  } else if (typeof node.params?.duration_frames === 'number') {
+    // Legacy exported files may still use duration_frames; treat it as seconds.
+    action.seconds = node.params.duration_frames
   }
 
   if (typeof node.params?.ease_name === 'string' && node.params.ease_name) {
@@ -190,11 +193,8 @@ export function compileTween(node: RuntimeNode): CompiledAction {
 
 export function compileDetach(node: RuntimeNode): CompiledAction {
   const action = compileBaseNode(node)
-  if (typeof node.params?.target_ref === 'string' && node.params.target_ref) {
-    action.target_ref = node.params.target_ref
-  }
-  if (typeof node.params?.keep_world_position === 'boolean') {
-    action.keep_world_position = node.params.keep_world_position
+  if (typeof node.params?.target === 'string' && node.params.target) {
+    action.target = node.params.target
   }
   if (typeof node.params?.destroy_after_detach === 'boolean') {
     action.destroy_after_detach = node.params.destroy_after_detach
@@ -210,6 +210,9 @@ export function compileWaitForInteract(node: RuntimeNode): CompiledAction {
   if (typeof node.params?.timeout === 'number') action.timeout = node.params.timeout
   if (typeof node.params?.timeout_action === 'string' && node.params.timeout_action) {
     action.timeout_action = node.params.timeout_action
+  }
+  if (typeof node.params?.interact_action === 'string' && node.params.interact_action) {
+    action.interact_action = node.params.interact_action
   }
   return action
 }

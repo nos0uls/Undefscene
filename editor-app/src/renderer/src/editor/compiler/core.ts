@@ -1,6 +1,6 @@
 import type { RuntimeEdge, RuntimeNode, RuntimeState } from '../runtimeTypes'
 import type { Translator, CompiledAction, CompileResult } from './types'
-import { filterRegularEdges, getNormalizedNodeName, compileBaseNode } from './utils'
+import { filterRegularEdges, getNormalizedNodeName, compileBaseNode, normalizeGlobalVarName } from './utils'
 import * as compilers from './compilers'
 
 const COMPILERS: Record<string, (node: RuntimeNode) => CompiledAction> = {
@@ -131,12 +131,11 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
   function wrapWithEdgeCondition(edge: RuntimeEdge, inner: CompiledAction[]): CompiledAction[] {
     if (!edge.conditionEnabled) return inner
 
-    const rawVar = String(edge.conditionVar ?? '').trim()
+    const varName = normalizeGlobalVarName(edge.conditionVar)
     const equals = String(edge.conditionEquals ?? '')
 
-    if (!rawVar) return inner
+    if (!varName) return inner
 
-    const varName = rawVar.startsWith('global.') ? rawVar.slice('global.'.length) : rawVar
     const ifFalse = edge.conditionIfFalse ?? 'skip'
 
     const guard: CompiledAction = {
@@ -152,10 +151,9 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       guard.stop_when = stopWhen
 
       if (stopWhen === 'global_var') {
-        const endVar = String(edge.endConditionVar ?? '').trim()
-        const endVarClean = endVar.startsWith('global.') ? endVar.slice('global.'.length) : endVar
-        if (endVarClean) {
-          guard.end_var = endVarClean
+        const endVar = normalizeGlobalVarName(edge.endConditionVar)
+        if (endVar) {
+          guard.end_var = endVar
           guard.end_equals = String(edge.endConditionEquals ?? '')
         }
       } else if (stopWhen === 'node_reached') {
@@ -171,6 +169,23 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
     }
 
     return [guard]
+  }
+
+  // Собираем actions для ребра: [wait + condition] + innerActions, или оборачиваем innerActions в condition.
+  function buildEdgeActions(edge: RuntimeEdge, innerActions: CompiledAction[]): CompiledAction[] {
+    const edgeActions: CompiledAction[] = []
+    if (typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0) {
+      const waitAction: CompiledAction = { type: 'wait', seconds: edge.waitSeconds }
+      edgeActions.push(...wrapWithEdgeCondition(edge, [waitAction]))
+    }
+    if (edge.conditionEnabled && !(typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0)) {
+      if (innerActions.length > 0) {
+        edgeActions.push(...wrapWithEdgeCondition(edge, innerActions))
+      }
+    } else {
+      edgeActions.push(...innerActions)
+    }
+    return edgeActions
   }
 
   // Рекурсивный обход: собираем actions начиная с nodeId.
@@ -265,17 +280,9 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
 
     if (regularOuts.length === 1) {
       const edge = regularOuts[0]
-      const actions: CompiledAction[] = []
-
-      if (typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0) {
-        const waitAction: CompiledAction = { type: 'wait', seconds: edge.waitSeconds }
-        actions.push(...wrapWithEdgeCondition(edge, [waitAction]))
-      }
-
       const next = walkFrom(edge.target)
       if (!next.ok) return next
-      actions.push(...next.actions)
-      return { ok: true, actions }
+      return { ok: true, actions: buildEdgeActions(edge, next.actions) }
     }
 
     return {
@@ -307,23 +314,8 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       const branchResult = walkBranchUntil(edge.target, joinId)
       if (!branchResult.ok) return branchResult
 
-      const seq: CompiledAction[] = []
-      if (typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0) {
-        const waitAction: CompiledAction = { type: 'wait', seconds: edge.waitSeconds }
-        seq.push(...wrapWithEdgeCondition(edge, [waitAction]))
-      }
-
-      seq.push(...branchResult.actions)
-
-      const shouldGateWholeBranch =
-        edge.conditionEnabled && !(typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0)
-
+      const seq = buildEdgeActions(edge, branchResult.actions)
       if (seq.length === 0) {
-        continue
-      }
-
-      if (shouldGateWholeBranch) {
-        parallelBranches.push(...wrapWithEdgeCondition(edge, seq))
         continue
       }
 
@@ -410,28 +402,10 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
       }
 
       const edge = outs[0]
-      const edgeActions: CompiledAction[] = []
-
-      if (typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0) {
-        const waitAction: CompiledAction = { type: 'wait', seconds: edge.waitSeconds }
-        edgeActions.push(...wrapWithEdgeCondition(edge, [waitAction]))
-      }
-
       const next = walkBranchUntil(edge.target, stopNodeId)
       if (!next.ok) return next
 
-      const shouldGateRemainingBranch =
-        edge.conditionEnabled && !(typeof edge.waitSeconds === 'number' && edge.waitSeconds > 0)
-
-      if (shouldGateRemainingBranch) {
-        if (next.actions.length > 0) {
-          edgeActions.push(...wrapWithEdgeCondition(edge, next.actions))
-        }
-      } else {
-        edgeActions.push(...next.actions)
-      }
-
-      actions.push(...edgeActions)
+      actions.push(...buildEdgeActions(edge, next.actions))
 
       return { ok: true, actions }
     })()
@@ -451,55 +425,15 @@ export function compileGraph(state: RuntimeState, t?: Translator): CompileResult
     const falseActions: CompiledAction[] = []
 
     if (trueEdge) {
-      const edgeActions: CompiledAction[] = []
-
-      if (typeof trueEdge.waitSeconds === 'number' && trueEdge.waitSeconds > 0) {
-        const waitAction: CompiledAction = { type: 'wait', seconds: trueEdge.waitSeconds }
-        edgeActions.push(...wrapWithEdgeCondition(trueEdge, [waitAction]))
-      }
-
       const result = walkFrom(trueEdge.target)
       if (!result.ok) return result
-
-      const shouldGateWholeTrueBranch =
-        trueEdge.conditionEnabled &&
-        !(typeof trueEdge.waitSeconds === 'number' && trueEdge.waitSeconds > 0)
-
-      if (shouldGateWholeTrueBranch) {
-        if (result.actions.length > 0) {
-          edgeActions.push(...wrapWithEdgeCondition(trueEdge, result.actions))
-        }
-      } else {
-        edgeActions.push(...result.actions)
-      }
-
-      trueActions.push(...edgeActions)
+      trueActions.push(...buildEdgeActions(trueEdge, result.actions))
     }
 
     if (falseEdge) {
-      const edgeActions: CompiledAction[] = []
-
-      if (typeof falseEdge.waitSeconds === 'number' && falseEdge.waitSeconds > 0) {
-        const waitAction: CompiledAction = { type: 'wait', seconds: falseEdge.waitSeconds }
-        edgeActions.push(...wrapWithEdgeCondition(falseEdge, [waitAction]))
-      }
-
       const result = walkFrom(falseEdge.target)
       if (!result.ok) return result
-
-      const shouldGateWholeFalseBranch =
-        falseEdge.conditionEnabled &&
-        !(typeof falseEdge.waitSeconds === 'number' && falseEdge.waitSeconds > 0)
-
-      if (shouldGateWholeFalseBranch) {
-        if (result.actions.length > 0) {
-          edgeActions.push(...wrapWithEdgeCondition(falseEdge, result.actions))
-        }
-      } else {
-        edgeActions.push(...result.actions)
-      }
-
-      falseActions.push(...edgeActions)
+      falseActions.push(...buildEdgeActions(falseEdge, result.actions))
     }
 
     const branchAction: CompiledAction = {

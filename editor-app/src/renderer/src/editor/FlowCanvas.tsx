@@ -570,6 +570,10 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
         const prevNode = prevById.get(node.id)
         const selected = prevNode?.selected ?? false
 
+        // Shallow compare для params — React Flow может клонировать data-объекты,
+        // поэтому строгого === на params ломается. Сравниваем по ключам.
+        const prevParams = prevNode?.data?.params as Record<string, unknown> | undefined
+        const nextParams = node.data?.params as Record<string, unknown> | undefined
         if (
           prevNode &&
           prevNode.type === node.type &&
@@ -578,25 +582,10 @@ const FlowCanvasInner = memo(function FlowCanvasInner({
           prevNode.targetPosition === node.targetPosition &&
           prevNode.sourcePosition === node.sourcePosition &&
           prevNode.data?.label === node.data.label &&
-          prevNode.selected === selected
+          prevNode.selected === selected &&
+          isEqualParams(prevParams, nextParams)
         ) {
-          // Shallow compare для params — React Flow может клонировать data-объекты,
-          // поэтому строгое === на params ломается. Сравниваем по ключам.
-          const prevParams = prevNode.data?.params as Record<string, unknown> | undefined
-          const nextParams = node.data?.params as Record<string, unknown> | undefined
-          if (
-            prevNode &&
-            prevNode.type === node.type &&
-            prevNode.position.x === node.position.x &&
-            prevNode.position.y === node.position.y &&
-            prevNode.targetPosition === node.targetPosition &&
-            prevNode.sourcePosition === node.sourcePosition &&
-            prevNode.data?.label === node.data.label &&
-            prevNode.selected === selected &&
-            isEqualParams(prevParams, nextParams)
-          ) {
-            return prevNode
-          }
+          return prevNode
         }
 
         changed = true

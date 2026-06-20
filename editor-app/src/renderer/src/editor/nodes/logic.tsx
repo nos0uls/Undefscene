@@ -484,7 +484,7 @@ export const AttachToTargetNode = memo(function AttachToTargetNode({
 }: CutsceneNodeProps): React.JSX.Element {
   const { preferences } = usePreferencesContext()
   const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
-  const target = data.params?.target_ref ?? ''
+  const target = data.params?.target ?? ''
   const parent = data.params?.parent_ref ?? ''
   const offsetX = data.params?.offset_x ?? 0
   const offsetY = data.params?.offset_y ?? 0
@@ -492,7 +492,7 @@ export const AttachToTargetNode = memo(function AttachToTargetNode({
   return (
     <BaseNode nodeType="attach_to_target" selected={selected}>
       <div className="customNodeParam">
-        <span className="customNodeParamKey">{t('nodes.fields.target_ref', 'Target')}</span>
+        <span className="customNodeParamKey">{t('nodes.fields.target', 'Target')}</span>
         <span className="customNodeParamValue">{String(target)}</span>
       </div>
       <div className="customNodeParam">
@@ -527,12 +527,12 @@ export const DetachNode = memo(function DetachNode({
 }: CutsceneNodeProps): React.JSX.Element {
   const { preferences } = usePreferencesContext()
   const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
-  const target = data.params?.target_ref ?? ''
+  const target = data.params?.target ?? ''
   const destroy = data.params?.destroy_after_detach ?? false
   return (
     <BaseNode nodeType="detach" selected={selected}>
       <div className="customNodeParam">
-        <span className="customNodeParamKey">{t('nodes.fields.target_ref', 'Target')}</span>
+        <span className="customNodeParamKey">{t('nodes.fields.target', 'Target')}</span>
         <span className="customNodeParamValue">{String(target)}</span>
       </div>
       {destroy && <div className="customNodeParam">{t('nodes.preview.destroy', 'destroy')}</div>}

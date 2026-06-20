@@ -34,6 +34,43 @@ type UseEditorShortcutsDeps = {
 // Ctrl+Z/Y (undo/redo), Ctrl+S/N/E/P (save/new/export/prefs),
 // Delete (удаление нод), Ctrl+A (выделить все),
 // Ctrl+C/X/V (clipboard с поддержкой parallel пар).
+type ClipboardCollection = {
+  payload: ClipboardPayload
+  selectedSet: Set<string>
+}
+
+function collectClipboardPayload(
+  rt: RuntimeState,
+  selectedIds: string[]
+): ClipboardCollection {
+  // Собираем множество выбранных нод.
+  // Для parallel добавляем пару (start+join), чтобы вставка не ломала граф.
+  const selectedSet = new Set<string>(selectedIds)
+  for (const id of [...selectedSet]) {
+    const n = rt.nodes.find((x) => x.id === id)
+    if (!n) continue
+    if (n.type === 'parallel_start') {
+      const joinId = typeof n.params?.joinId === 'string' ? (n.params.joinId as string) : ''
+      if (joinId) selectedSet.add(joinId)
+    }
+    if (n.type === 'parallel_join') {
+      const pairId = typeof n.params?.pairId === 'string' ? (n.params.pairId as string) : ''
+      if (pairId) selectedSet.add(pairId)
+    }
+  }
+
+  const nodes = rt.nodes
+    .filter((n) => selectedSet.has(n.id))
+    .map((n) => JSON.parse(JSON.stringify(n)) as RuntimeNode)
+
+  const edges = rt.edges
+    // Копируем только внутренние рёбра (обе стороны внутри выделения).
+    .filter((ed) => selectedSet.has(ed.source) && selectedSet.has(ed.target))
+    .map((ed) => JSON.parse(JSON.stringify(ed)) as RuntimeEdge)
+
+  return { payload: { nodes, edges }, selectedSet }
+}
+
 export function useEditorShortcuts(deps: UseEditorShortcutsDeps) {
   const {
     runtimeRef,
@@ -190,32 +227,8 @@ export function useEditorShortcuts(deps: UseEditorShortcutsDeps) {
         if (selected.length === 0) return
         e.preventDefault()
 
-        // Собираем множество выбранных нод.
-        // Для parallel добавляем пару (start+join), чтобы вставка не ломала граф.
-        const selectedSet = new Set<string>(selected)
-        for (const id of [...selectedSet]) {
-          const n = rt.nodes.find((x) => x.id === id)
-          if (!n) continue
-          if (n.type === 'parallel_start') {
-            const joinId = typeof n.params?.joinId === 'string' ? (n.params.joinId as string) : ''
-            if (joinId) selectedSet.add(joinId)
-          }
-          if (n.type === 'parallel_join') {
-            const pairId = typeof n.params?.pairId === 'string' ? (n.params.pairId as string) : ''
-            if (pairId) selectedSet.add(pairId)
-          }
-        }
-
-        const nodes = rt.nodes
-          .filter((n) => selectedSet.has(n.id))
-          .map((n) => JSON.parse(JSON.stringify(n)) as RuntimeNode)
-
-        const edges = rt.edges
-          // Копируем только внутренние рёбра (обе стороны внутри выделения).
-          .filter((ed) => selectedSet.has(ed.source) && selectedSet.has(ed.target))
-          .map((ed) => JSON.parse(JSON.stringify(ed)) as RuntimeEdge)
-
-        clipboardRef.current = { nodes, edges }
+        const { payload } = collectClipboardPayload(rt, selected)
+        clipboardRef.current = payload
         pasteSerialRef.current = 0
         return
       }
@@ -232,30 +245,8 @@ export function useEditorShortcuts(deps: UseEditorShortcutsDeps) {
         if (selected.length === 0) return
         e.preventDefault()
 
-        // Сначала делаем копию (логика как в Ctrl+C).
-        const selectedSet = new Set<string>(selected)
-        for (const id of [...selectedSet]) {
-          const n = rt.nodes.find((x) => x.id === id)
-          if (!n) continue
-          if (n.type === 'parallel_start') {
-            const joinId = typeof n.params?.joinId === 'string' ? (n.params.joinId as string) : ''
-            if (joinId) selectedSet.add(joinId)
-          }
-          if (n.type === 'parallel_join') {
-            const pairId = typeof n.params?.pairId === 'string' ? (n.params.pairId as string) : ''
-            if (pairId) selectedSet.add(pairId)
-          }
-        }
-
-        const nodes = rt.nodes
-          .filter((n) => selectedSet.has(n.id))
-          .map((n) => JSON.parse(JSON.stringify(n)) as RuntimeNode)
-
-        const edges = rt.edges
-          .filter((ed) => selectedSet.has(ed.source) && selectedSet.has(ed.target))
-          .map((ed) => JSON.parse(JSON.stringify(ed)) as RuntimeEdge)
-
-        clipboardRef.current = { nodes, edges }
+        const { payload, selectedSet } = collectClipboardPayload(rt, selected)
+        clipboardRef.current = payload
         pasteSerialRef.current = 0
 
         // Потом удаляем выделенные ноды из графа.

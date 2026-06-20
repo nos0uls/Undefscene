@@ -9,8 +9,21 @@ export const suggestUniqueNodeName = (baseName: string, takenNames: Set<string>)
   const trimmed = baseName.trim()
   if (!trimmed) return ''
   if (!takenNames.has(trimmed)) return trimmed
+
+  const usedIndices = new Set<number>()
+  const prefix = `${trimmed} (`
+  for (const name of takenNames) {
+    if (name.startsWith(prefix) && name.endsWith(')')) {
+      const suffix = name.slice(prefix.length, -1)
+      const num = parseInt(suffix, 10)
+      if (!isNaN(num) && String(num) === suffix) {
+        usedIndices.add(num)
+      }
+    }
+  }
+
   let i = 0
-  while (takenNames.has(`${trimmed} (${i})`)) i++
+  while (usedIndices.has(i)) i++
   return `${trimmed} (${i})`
 }
 

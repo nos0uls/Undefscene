@@ -21,21 +21,11 @@ export function compileCheckpointState(node: RuntimeNode): CompiledAction {
   }
   const rawGlobals = node.params?.include_globals
   if (typeof rawGlobals === 'string' && rawGlobals.trim().length > 0) {
-    try {
-      const parsed = JSON.parse(rawGlobals)
-      if (Array.isArray(parsed)) action.include_globals = rawGlobals
-    } catch {
-      // Invalid JSON ignored
-    }
+    action.include_globals = rawGlobals
   }
   const rawInstances = node.params?.include_instances
   if (typeof rawInstances === 'string' && rawInstances.trim().length > 0) {
-    try {
-      const parsed = JSON.parse(rawInstances)
-      if (Array.isArray(parsed)) action.include_instances = rawInstances
-    } catch {
-      // Invalid JSON ignored
-    }
+    action.include_instances = rawInstances
   }
   return action
 }
@@ -105,9 +95,5 @@ export function compileDestroyEntity(node: RuntimeNode): CompiledAction {
 }
 
 export function compileSetPlot(node: RuntimeNode): CompiledAction {
-  const action = compileBaseNode(node)
-  if (typeof node.params?.value === 'string' && node.params.value) {
-    action.value = node.params.value
-  }
-  return action
+  return compileBaseNode(node)
 }

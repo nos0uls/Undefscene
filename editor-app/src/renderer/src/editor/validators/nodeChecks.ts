@@ -65,8 +65,8 @@ const REQUIRED_PARAMS: Record<string, string[]> = {
   crossfade_music: ['intensity'],
   set_plot: ['value'],
   schedule_action: ['delay_seconds', 'action_type'],
-  attach_to_target: ['target_ref', 'parent_ref'],
-  detach: ['target_ref'],
+  attach_to_target: ['target', 'parent_ref'],
+  detach: ['target'],
   checkpoint_state: ['checkpoint_id'],
   restore_state: ['checkpoint_id'],
   room_change: ['room']
@@ -653,7 +653,7 @@ export function checkNodeParams(
 
     // detach
     if (node.type === 'detach') {
-      const targetRef = String(node.params?.target_ref ?? '').trim()
+      const targetRef = String(node.params?.target ?? '').trim()
       if (!targetRef) {
         entries.push({
           severity: 'warn',
@@ -728,7 +728,7 @@ export function checkNodeParams(
     }
 
     if (node.type === 'attach_to_target' || node.type === 'detach') {
-      const target = String(node.params?.target_ref ?? '').trim()
+      const target = String(node.params?.target ?? '').trim()
       if (target && target !== 'player' && !actorKeys.has(target)) {
         entries.push({
           severity: 'warn',

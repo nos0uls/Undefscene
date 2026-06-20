@@ -5,7 +5,9 @@ import type { CSSProperties } from 'react'
 import { DockPanel } from './DockPanel'
 import { UpdateNotification } from './UpdateNotification'
 import { useDockingContext } from './DockingContext'
-import { useDocking } from './useDocking'
+import { usePanelDrag } from './usePanelDrag'
+import { usePanelResize } from './usePanelResize'
+import { useDockLayout } from './useDockLayout'
 import { COLLAPSED_DOCK_SIZE } from './dockingConstants'
 import { usePreferencesContext } from './PreferencesContext'
 import { createTranslator } from '../i18n'
@@ -44,14 +46,12 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(
   const ctx = useDockingContext()
   const { preferences } = usePreferencesContext()
   const t = React.useMemo(() => createTranslator(preferences.language), [preferences.language])
-  const {
-    startPanelDrag,
-    startResizeDrag,
-    togglePanel,
-    togglePanelCollapse,
-    getVerticalDockRenderState,
-    getDockedPanelStyle
-  } = useDocking({ showDockDropPreview: showDockDropPreview ?? true })
+  const { startPanelDrag } = usePanelDrag({
+    showDockDropPreview: showDockDropPreview ?? true
+  })
+  const { startResizeDrag } = usePanelResize()
+  const { togglePanel, togglePanelCollapse, getVerticalDockRenderState, getDockedPanelStyle } =
+    useDockLayout()
 
   const [activeBottomTabId, setActiveBottomTabId] = useState<string | null>(null)
 

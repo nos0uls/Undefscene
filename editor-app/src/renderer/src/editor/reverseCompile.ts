@@ -521,14 +521,8 @@ function actionToRuntimeNode(
       params.from = value // Для обратной совместимости
       continue
     }
-    if (normalizedType === 'tween' && key === 'duration_frames') {
-      params.duration_frames = value
-      params.seconds = value // Для обратной совместимости
-      continue
-    }
-    if (normalizedType === 'tween' && key === 'seconds') {
-      params.duration_frames = value
-      params.seconds = value
+    if (normalizedType === 'tween' && (key === 'duration_frames' || key === 'seconds')) {
+      params.seconds = value // duration_frames is legacy; editor now uses seconds
       continue
     }
     if (normalizedType === 'tween' && key === 'ease_name') {
@@ -612,6 +606,15 @@ function actionToRuntimeNode(
       params[key] = value
       continue
     }
+    // Legacy attach/detach exported target_ref as the actor reference; editor now uses target.
+    if (
+      (normalizedType === 'attach_to_target' || normalizedType === 'detach') &&
+      key === 'target_ref'
+    ) {
+      params.target = value
+      continue
+    }
+
     // Actor / movement / visual / camera / logic nodes with 1:1 field mapping.
     if (
       normalizedType === 'tween_camera' ||

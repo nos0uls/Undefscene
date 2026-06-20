@@ -49,7 +49,7 @@ export const NodeInspector = React.memo(function NodeInspector({
       const displayValue = currentValue !== undefined ? String(currentValue) : ''
 
       // Обработчик изменения значения.
-      const handleChange = (value: unknown) => {
+      const handleChange = (value: unknown): void => {
         updateNodeParam(nodeId, field.key, value)
       }
 
@@ -117,14 +117,20 @@ export const NodeInspector = React.memo(function NodeInspector({
                 style={field.style}
               />
             )
-          case 'checkbox':
+          case 'checkbox': {
+            // Legacy select fields with 'true'/'false' options may still be saved as strings.
+            const checkedValue =
+              typeof currentValue === 'string'
+                ? currentValue.toLowerCase() === 'true'
+                : !!currentValue
             return (
               <input
                 type="checkbox"
-                checked={!!currentValue}
+                checked={checkedValue}
                 onChange={(e) => handleChange(e.target.checked)}
               />
             )
+          }
           default:
             return null
         }
@@ -255,7 +261,7 @@ export const NodeInspector = React.memo(function NodeInspector({
             )
               ? (selectedNode.params.points as { x: number; y: number }[])
               : []
-            const setPoints = (next: { x: number; y: number }[]) => {
+            const setPoints = (next: { x: number; y: number }[]): void => {
               updateNodeParam(selectedNode.id, 'points', next)
             }
             return (

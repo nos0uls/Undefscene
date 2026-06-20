@@ -86,9 +86,6 @@ export function checkContinuity(
 
     if (ACTOR_REF_TYPES.has(node.type)) {
       let target = String(node.params?.target ?? '').trim()
-      if (node.type === 'attach_to_target' || node.type === 'detach') {
-        target = String(node.params?.target_ref ?? '').trim()
-      }
       if (node.type === 'tween') {
         const kind = String(node.params?.kind ?? 'instance').trim()
         if (kind === 'camera') target = ''
@@ -213,9 +210,6 @@ export function checkContinuity(
 
     if (ACTOR_REF_TYPES.has(node.type)) {
       let target = String(node.params?.target ?? '').trim()
-      if (node.type === 'attach_to_target' || node.type === 'detach') {
-        target = String(node.params?.target_ref ?? '').trim()
-      }
       if (node.type === 'tween') {
         const kind = String(node.params?.kind ?? 'instance').trim()
         if (kind === 'camera') target = ''

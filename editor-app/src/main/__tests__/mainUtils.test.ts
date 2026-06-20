@@ -52,7 +52,7 @@ vi.mock('../../resources/icon.png?asset', () => ({
 }))
 
 // Import the functions we want to test
-import { sanitizeRoomNameToken, parseRoomScreenshotMeta } from '../index'
+import { sanitizeRoomNameToken, parseRoomScreenshotMeta } from '../ipc'
 
 describe('main process utils', () => {
   describe('sanitizeRoomNameToken', () => {

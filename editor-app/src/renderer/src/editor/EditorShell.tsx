@@ -4,7 +4,7 @@ import type { RuntimeEdge } from './runtimeTypes'
 
 import { FlowCanvas } from './FlowCanvas'
 import { TopMenuBar } from './TopMenuBar'
-import { useLayoutState, type LayoutState } from './useLayoutState'
+import { useLayoutState } from './useLayoutState'
 import { useProjectResources } from './useProjectResources'
 import { useRuntimeState } from './useRuntimeState'
 import { PanelDataProvider } from './PanelDataContext'
@@ -12,7 +12,7 @@ import { usePreferencesContext } from './PreferencesContext'
 import { useHotkeys } from './useHotkeys'
 import { DockingProvider, useDockingContext } from './DockingContext'
 import { DockingLayout } from './DockingLayout'
-import { useDocking } from './useDocking'
+import { useDockLayout } from './useDockLayout'
 import { createTranslator } from '../i18n'
 import { useNodeOperations, suggestUniqueNodeName } from './useNodeOperations'
 import { useVisualEditing } from './useVisualEditing'
@@ -34,23 +34,14 @@ export function EditorShell(): React.JSX.Element {
 
   return (
     <DockingProvider layout={layout} setLayout={setLayout} rootRef={rootRef}>
-      <EditorShellInner layout={layout} setLayout={setLayout} rootRef={rootRef} />
+      <EditorShellInner />
     </DockingProvider>
   )
 }
 
 // Внутренний компонент: имеет доступ к DockingContext через DockingProvider выше.
-type EditorShellInnerProps = {
-  layout: LayoutState
-  setLayout: (l: LayoutState) => void
-  rootRef: React.RefObject<HTMLDivElement | null>
-}
-
-const EditorShellInner = React.memo(function EditorShellInner({
-  layout,
-  setLayout,
-  rootRef
-}: EditorShellInnerProps): React.JSX.Element {
+const EditorShellInner = React.memo(function EditorShellInner(): React.JSX.Element {
+  const { layout, setLayout, rootRef } = useDockingContext()
   const { preferences, updatePreferences, loaded: preferencesLoaded } = usePreferencesContext()
   const t = useMemo(() => createTranslator(preferences.language), [preferences.language])
 
@@ -226,10 +217,8 @@ const EditorShellInner = React.memo(function EditorShellInner({
     editorState.setVisualEditingTutorialActive
   ])
 
-  // useDocking
-  const { togglePanel, isPanelVisible } = useDocking({
-    showDockDropPreview: preferences.showDockDropPreview
-  })
+  // useDockLayout
+  const { togglePanel, isPanelVisible } = useDockLayout()
 
   // Refs for shortcuts
   const runtimeRef = useRef(runtime)

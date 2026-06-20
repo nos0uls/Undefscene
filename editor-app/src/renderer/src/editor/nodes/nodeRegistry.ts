@@ -164,7 +164,7 @@ const baseNodes: Record<string, NodeDefinition> = {
     category: 'actor',
     fields: [
       {
-        key: 'target_ref',
+        key: 'target',
         label: 'Target',
         type: 'searchable',
         placeholder: 'actor key / player',
@@ -182,23 +182,20 @@ const baseNodes: Record<string, NodeDefinition> = {
       {
         key: 'follow_facing',
         label: 'Follow Facing',
-        type: 'select',
-        options: ['true', 'false'],
-        defaultValue: 'true'
+        type: 'checkbox',
+        defaultValue: true
       },
       {
         key: 'follow_scale',
         label: 'Follow Scale',
-        type: 'select',
-        options: ['true', 'false'],
-        defaultValue: 'true'
+        type: 'checkbox',
+        defaultValue: true
       },
       {
         key: 'follow_depth',
         label: 'Follow Depth',
-        type: 'select',
-        options: ['true', 'false'],
-        defaultValue: 'true'
+        type: 'checkbox',
+        defaultValue: true
       },
       {
         key: 'duration_seconds',
@@ -210,21 +207,20 @@ const baseNodes: Record<string, NodeDefinition> = {
       {
         key: 'detach_on_cutscene_end',
         label: 'Detach On Cutscene End',
-        type: 'select',
-        options: ['true', 'false'],
-        defaultValue: 'true'
+        type: 'checkbox',
+        defaultValue: true
       }
     ],
     defaultParams: {
-      target_ref: 'player',
+      target: 'player',
       parent_ref: '',
       offset_x: 0,
       offset_y: 0,
-      follow_facing: 'true',
-      follow_scale: 'true',
-      follow_depth: 'true',
+      follow_facing: true,
+      follow_scale: true,
+      follow_depth: true,
       duration_seconds: 0,
-      detach_on_cutscene_end: 'true'
+      detach_on_cutscene_end: true
     }
   },
   detach: {
@@ -233,7 +229,7 @@ const baseNodes: Record<string, NodeDefinition> = {
     category: 'actor',
     fields: [
       {
-        key: 'target_ref',
+        key: 'target',
         label: 'Target',
         type: 'searchable',
         placeholder: 'actor key / player',
@@ -242,12 +238,11 @@ const baseNodes: Record<string, NodeDefinition> = {
       {
         key: 'destroy_after_detach',
         label: 'Destroy After Detach',
-        type: 'select',
-        options: ['true', 'false'],
-        defaultValue: 'false'
+        type: 'checkbox',
+        defaultValue: false
       }
     ],
-    defaultParams: { target_ref: 'player', destroy_after_detach: 'false' }
+    defaultParams: { target: 'player', destroy_after_detach: false }
   },
   lerp: {
     type: 'lerp',
@@ -351,12 +346,11 @@ const baseNodes: Record<string, NodeDefinition> = {
       {
         key: 'pause',
         label: 'Pause',
-        type: 'select',
-        options: ['true', 'false'],
-        defaultValue: 'false'
+        type: 'checkbox',
+        defaultValue: false
       }
     ],
-    defaultParams: { target: 'player', image_index: 0, image_speed: 1, pause: 'false' }
+    defaultParams: { target: 'player', image_index: 0, image_speed: 1, pause: false }
   },
   dialogue: {
     type: 'dialogue',
@@ -545,9 +539,8 @@ const cameraNodes: Record<string, NodeDefinition> = {
       {
         key: 'decay',
         label: 'Decay',
-        type: 'select',
-        options: ['true', 'false'],
-        defaultValue: 'false'
+        type: 'checkbox',
+        defaultValue: false
       },
       {
         key: 'frequency',
@@ -563,7 +556,7 @@ const cameraNodes: Record<string, NodeDefinition> = {
       magnitude: 4,
       magnitude_x: 4,
       magnitude_y: 4,
-      decay: 'false',
+      decay: false,
       frequency: 1
     }
   }
@@ -616,7 +609,7 @@ const conditionalNodes: Record<string, NodeDefinition> = {
         type: 'number',
         defaultValue: undefined
       },
-      { key: 'duration_frames', label: 'Seconds', type: 'number', step: 0.1, defaultValue: 1 },
+      { key: 'seconds', label: 'Seconds', type: 'number', step: 0.1, defaultValue: 1 },
       {
         key: 'ease_name',
         label: 'Easing',
@@ -630,7 +623,7 @@ const conditionalNodes: Record<string, NodeDefinition> = {
       target: 'player',
       prop: 'x',
       end_value: 0,
-      duration_frames: 1,
+      seconds: 1,
       ease_name: 'linear'
     }
   },
@@ -734,12 +727,11 @@ const otherNodes: Record<string, NodeDefinition> = {
       {
         key: 'enabled',
         label: 'Enabled',
-        type: 'select',
-        options: ['true', 'false'],
-        defaultValue: 'true'
+        type: 'checkbox',
+        defaultValue: true
       }
     ],
-    defaultParams: { target: 'player', enabled: 'true' }
+    defaultParams: { target: 'player', enabled: true }
   },
   auto_walk: {
     type: 'auto_walk',
@@ -756,12 +748,11 @@ const otherNodes: Record<string, NodeDefinition> = {
       {
         key: 'enabled',
         label: 'Enabled',
-        type: 'select',
-        options: ['true', 'false'],
-        defaultValue: 'true'
+        type: 'checkbox',
+        defaultValue: true
       }
     ],
-    defaultParams: { target: 'player', enabled: 'true' }
+    defaultParams: { target: 'player', enabled: true }
   },
   fade_in: {
     type: 'fade_in',
@@ -1038,10 +1029,9 @@ const otherNodes: Record<string, NodeDefinition> = {
       { key: 'scale', label: 'Scale', type: 'number', step: 0.1, defaultValue: 1 },
       {
         key: 'wait',
-        label: 'Wait',
-        type: 'select',
-        options: ['false (fire and forget)', 'true (wait for finish)'],
-        defaultValue: 'false (fire and forget)'
+        label: 'Wait for finish',
+        type: 'checkbox',
+        defaultValue: false
       }
     ],
     defaultParams: {
@@ -1051,7 +1041,7 @@ const otherNodes: Record<string, NodeDefinition> = {
       offset_x: 0,
       offset_y: -24,
       scale: 1,
-      wait: 'false (fire and forget)'
+      wait: false
     }
   },
   jump: {
@@ -1110,12 +1100,11 @@ const otherNodes: Record<string, NodeDefinition> = {
       {
         key: 'flipped',
         label: 'Flipped',
-        type: 'select',
-        options: ['true', 'false'],
-        defaultValue: 'true'
+        type: 'checkbox',
+        defaultValue: true
       }
     ],
-    defaultParams: { target: 'player', flipped: 'true' }
+    defaultParams: { target: 'player', flipped: true }
   },
   spin: {
     type: 'spin',
@@ -1165,9 +1154,8 @@ const otherNodes: Record<string, NodeDefinition> = {
       {
         key: 'decay',
         label: 'Decay',
-        type: 'select',
-        options: ['true', 'false'],
-        defaultValue: 'false'
+        type: 'checkbox',
+        defaultValue: false
       },
       {
         key: 'frequency',
@@ -1184,7 +1172,7 @@ const otherNodes: Record<string, NodeDefinition> = {
       magnitude: 4,
       magnitude_x: 4,
       magnitude_y: 4,
-      decay: 'false',
+      decay: false,
       frequency: 1
     }
   },
@@ -1203,12 +1191,11 @@ const otherNodes: Record<string, NodeDefinition> = {
       {
         key: 'visible',
         label: 'Visible',
-        type: 'select',
-        options: ['true', 'false'],
-        defaultValue: 'true'
+        type: 'checkbox',
+        defaultValue: true
       }
     ],
-    defaultParams: { target: 'player', visible: 'true' }
+    defaultParams: { target: 'player', visible: true }
   },
   instant_mode: {
     type: 'instant_mode',
@@ -1218,12 +1205,11 @@ const otherNodes: Record<string, NodeDefinition> = {
       {
         key: 'enabled',
         label: 'Enabled',
-        type: 'select',
-        options: ['true', 'false'],
-        defaultValue: 'true'
+        type: 'checkbox',
+        defaultValue: true
       }
     ],
-    defaultParams: { enabled: 'true' }
+    defaultParams: { enabled: true }
   },
   mark_node: {
     type: 'mark_node',
@@ -1448,7 +1434,7 @@ const otherNodes: Record<string, NodeDefinition> = {
         key: 'stop_when',
         label: 'Stop When',
         type: 'select',
-        options: ['none', 'timeout', 'var_equals', 'node_reached'],
+        options: ['none', 'timeout', 'global_var', 'node_reached'],
         defaultValue: 'none'
       },
       { key: 'end_var', label: 'End Var', type: 'text', defaultValue: '' },
@@ -1709,9 +1695,8 @@ const otherNodes: Record<string, NodeDefinition> = {
       {
         key: 'autofacing',
         label: 'Auto Facing',
-        type: 'select',
-        options: ['true', 'false'],
-        defaultValue: 'true'
+        type: 'checkbox',
+        defaultValue: true
       }
     ],
     defaultParams: {
@@ -1719,7 +1704,7 @@ const otherNodes: Record<string, NodeDefinition> = {
       points: [],
       speed_px_sec: 60,
       collision: 'false',
-      autofacing: 'true'
+      autofacing: true
     }
   },
   // NOTE: tween_camera is a legacy node type, but it compiles 1:1 and reverse-compiles correctly.
