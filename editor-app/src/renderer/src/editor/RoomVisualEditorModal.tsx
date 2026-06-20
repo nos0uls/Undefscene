@@ -1389,6 +1389,9 @@ export function RoomVisualEditorModal({
       ]
         .filter(Boolean)
         .join(' ')}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('editor.visualEditingTitle', 'Visual Editing')}
       style={accentCssVariables}
       onClick={handleStopPropagation}
     >

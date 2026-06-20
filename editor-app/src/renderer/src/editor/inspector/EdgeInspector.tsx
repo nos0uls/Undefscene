@@ -15,7 +15,7 @@ export const EdgeInspector = React.memo(function EdgeInspector({
 
   return (
     <>
-      <div className="runtimeSectionTitle" style={{ marginTop: 8 }}>
+      <div className="runtimeSectionTitle runtimeSectionTitle--spaced">
         {t('editor.selectedEdge', 'Selected Edge')}
       </div>
       <label className="runtimeField">
@@ -46,8 +46,7 @@ export const EdgeInspector = React.memo(function EdgeInspector({
         />
       </label>
       <label
-        className="runtimeField"
-        style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+        className="runtimeField runtimeField--row"
       >
         <input
           type="checkbox"

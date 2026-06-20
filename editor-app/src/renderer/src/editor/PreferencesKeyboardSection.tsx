@@ -40,7 +40,7 @@ export const PreferencesKeyboardSection = React.memo(function PreferencesKeyboar
               justifyContent: 'space-between',
               gap: 12,
               fontSize: 12,
-              color: 'var(--ev-c-text-2)'
+              color: 'var(--text-secondary)'
             }}
           >
             <span>{getHotkeyLabel(actionId)}</span>

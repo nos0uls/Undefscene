@@ -199,7 +199,7 @@ export const LogsPanel = React.memo(function LogsPanel({
   const [submenuOpen, setSubmenuOpen] = useState(false)
 
   return (
-    <div className="runtimeSection" style={{ position: 'relative' }}>
+    <div className="runtimeSection" role="log" aria-label="Validation logs" style={{ position: 'relative' }}>
       <div
         style={{
           display: 'flex',
@@ -219,7 +219,7 @@ export const LogsPanel = React.memo(function LogsPanel({
               style={{
                 color: isActive
                   ? btn.color
-                  : `color-mix(in srgb, ${btn.color} 80%, var(--ev-c-text-2) 20%)`,
+                  : `color-mix(in srgb, ${btn.color} 80%, var(--text-secondary) 20%)`,
                 background: isActive
                   ? `color-mix(in srgb, ${btn.color} 20%, transparent)`
                   : 'transparent',
@@ -287,9 +287,9 @@ export const LogsPanel = React.memo(function LogsPanel({
             position: 'fixed',
             left: contextMenu.x,
             top: contextMenu.y,
-            zIndex: 1000,
-            background: 'var(--bg-elevated, #212631)',
-            border: '1px solid var(--border-default, #383d47)',
+            zIndex: 'var(--z-dropdown)',
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border-default)',
             borderRadius: 4,
             boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
             padding: '4px 0',
@@ -364,8 +364,8 @@ export const LogsPanel = React.memo(function LogsPanel({
                       contextMenu.y + SEVERITY_SUBMENU_HEIGHT > window.innerHeight
                         ? -SEVERITY_SUBMENU_HEIGHT + 28
                         : 0,
-                    background: 'var(--bg-elevated, #212631)',
-                    border: '1px solid var(--border-default, #383d47)',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-default)',
                     borderRadius: 4,
                     boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
                     padding: '4px 0',

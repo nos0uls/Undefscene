@@ -91,8 +91,8 @@ export const RoomVisualEditorToolbar = memo(
                 alignItems: 'center',
                 padding: '2px 8px',
                 borderRadius: '6px',
-                background: 'var(--ev-c-gray-3)',
-                color: 'var(--ev-c-text-2)',
+                background: 'var(--border-subtle)',
+                color: 'var(--text-secondary)',
                 fontSize: '12px',
                 marginLeft: '4px',
                 whiteSpace: 'nowrap'

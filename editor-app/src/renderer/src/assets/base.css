@@ -59,7 +59,7 @@
   /* --- Content (Text) --- */
   --text-primary: hsl(210, 20%, 92%); /* #e6eaf0 — основной текст */
   --text-secondary: hsl(215, 12%, 58%); /* #8b949e — подписи, метки */
-  --text-muted: hsl(215, 10%, 42%); /* #5c6370 — placeholder, disabled */
+  --text-muted: hsl(215, 10%, 50%); /* #737b87 — placeholder, disabled (WCAG AA) */
   --text-inverse: hsl(220, 13%, 8%); /* текст на акцентном фоне */
 
   /* --- Border --- */
@@ -103,35 +103,28 @@
   --focus-ring: var(--accent-default);
   --focus-ring-offset: 2px;
 
-  /* --- Legacy aliases (для обратной совместимости) --- */
-  --ev-c-black: var(--bg-base);
-  --ev-c-black-soft: var(--bg-surface);
-  --ev-c-black-mute: var(--bg-elevated);
-  --ev-c-gray-1: var(--border-strong);
-  --ev-c-gray-2: var(--border-default);
-  --ev-c-gray-3: var(--border-subtle);
-  --ev-c-text-1: var(--text-primary);
-  --ev-c-text-2: var(--text-secondary);
-  --ev-c-text-3: var(--text-muted);
-  --ev-c-accent: var(--accent-default);
-  --ev-c-accent-soft: var(--accent-muted);
-  --ev-c-accent-hover: var(--accent-hover);
-  --ev-c-error: var(--status-error);
-  --ev-c-warning: var(--status-warning);
-  --ev-c-success: var(--status-success);
-  --ev-c-info: var(--status-info);
-  --color-background: var(--bg-base);
-  --color-background-soft: var(--bg-surface);
-  --color-background-mute: var(--bg-elevated);
-  --color-text: var(--text-primary);
+  /* --- Typography Scale --- */
+  --font-xs: 10px;
+  --font-sm: 11px;
+  --font-base: 12px;
+  --font-md: 13px;
+  --font-lg: 14px;
+  --font-xl: 16px;
+  --font-2xl: 18px;
+  --font-display: 20px;
 
-  /* --- Buttons --- */
-  --ev-button-alt-border: transparent;
-  --ev-button-alt-text: var(--text-primary);
-  --ev-button-alt-bg: var(--bg-elevated);
-  --ev-button-alt-hover-border: transparent;
-  --ev-button-alt-hover-text: var(--text-primary);
-  --ev-button-alt-hover-bg: var(--bg-overlay);
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --leading-tight: 1.2;
+  --leading-normal: 1.4;
+  --leading-relaxed: 1.6;
+
+  --tracking-tight: 0.02em;
+  --tracking-normal: 0.04em;
+  --tracking-wide: 0.07em;
 }
 
 /* ==========================================================================
@@ -186,30 +179,6 @@
   --canvas-grid: hsla(190, 50%, 40%, 0.08);
   --edge-default: hsl(200, 10%, 32%);
   --edge-selected: var(--accent-default);
-
-  /* --- Legacy aliases --- */
-  --ev-c-black: var(--bg-base);
-  --ev-c-black-soft: var(--bg-surface);
-  --ev-c-black-mute: var(--bg-elevated);
-  --ev-c-gray-1: var(--border-strong);
-  --ev-c-gray-2: var(--border-default);
-  --ev-c-gray-3: var(--border-subtle);
-  --ev-c-text-1: var(--text-primary);
-  --ev-c-text-2: var(--text-secondary);
-  --ev-c-text-3: var(--text-muted);
-  --ev-c-accent: var(--accent-default);
-  --ev-c-accent-soft: var(--accent-muted);
-  --ev-c-accent-hover: var(--accent-hover);
-  --ev-c-error: var(--status-error);
-  --ev-c-warning: var(--status-warning);
-  --ev-c-success: var(--status-success);
-  --ev-c-info: var(--status-info);
-  --color-background: var(--bg-base);
-  --color-background-soft: var(--bg-surface);
-  --color-background-mute: var(--bg-elevated);
-  --color-text: var(--text-primary);
-  --ev-button-alt-bg: var(--bg-elevated);
-  --ev-button-alt-hover-bg: var(--bg-overlay);
 }
 
 /* ==========================================================================
@@ -264,30 +233,6 @@
   --canvas-grid: hsla(0, 0%, 50%, 0.06);
   --edge-default: hsl(0, 0%, 35%);
   --edge-selected: var(--accent-default);
-
-  /* --- Legacy aliases --- */
-  --ev-c-black: var(--bg-base);
-  --ev-c-black-soft: var(--bg-surface);
-  --ev-c-black-mute: var(--bg-elevated);
-  --ev-c-gray-1: var(--border-strong);
-  --ev-c-gray-2: var(--border-default);
-  --ev-c-gray-3: var(--border-subtle);
-  --ev-c-text-1: var(--text-primary);
-  --ev-c-text-2: var(--text-secondary);
-  --ev-c-text-3: var(--text-muted);
-  --ev-c-accent: var(--accent-default);
-  --ev-c-accent-soft: var(--accent-muted);
-  --ev-c-accent-hover: var(--accent-hover);
-  --ev-c-error: var(--status-error);
-  --ev-c-warning: var(--status-warning);
-  --ev-c-success: var(--status-success);
-  --ev-c-info: var(--status-info);
-  --color-background: var(--bg-base);
-  --color-background-soft: var(--bg-surface);
-  --color-background-mute: var(--bg-elevated);
-  --color-text: var(--text-primary);
-  --ev-button-alt-bg: var(--bg-elevated);
-  --ev-button-alt-hover-bg: var(--bg-overlay);
 }
 
 /* ==========================================================================
@@ -343,32 +288,6 @@
   --canvas-grid: hsla(220, 20%, 50%, 0.1);
   --edge-default: hsl(220, 10%, 70%);
   --edge-selected: var(--accent-default);
-
-  /* --- Legacy aliases --- */
-  --ev-c-black: var(--bg-base);
-  --ev-c-black-soft: var(--bg-surface);
-  --ev-c-black-mute: var(--bg-elevated);
-  --ev-c-gray-1: var(--border-strong);
-  --ev-c-gray-2: var(--border-default);
-  --ev-c-gray-3: var(--border-subtle);
-  --ev-c-text-1: var(--text-primary);
-  --ev-c-text-2: var(--text-secondary);
-  --ev-c-text-3: var(--text-muted);
-  --ev-c-accent: var(--accent-default);
-  --ev-c-accent-soft: var(--accent-muted);
-  --ev-c-accent-hover: var(--accent-hover);
-  --ev-c-error: var(--status-error);
-  --ev-c-warning: var(--status-warning);
-  --ev-c-success: var(--status-success);
-  --ev-c-info: var(--status-info);
-  --color-background: var(--bg-base);
-  --color-background-soft: var(--bg-surface);
-  --color-background-mute: var(--bg-elevated);
-  --color-text: var(--text-primary);
-  --ev-button-alt-bg: var(--bg-elevated);
-  --ev-button-alt-hover-bg: hsl(220, 12%, 92%);
-  --ev-button-alt-border: var(--border-subtle);
-  --ev-button-alt-hover-border: var(--border-default);
 }
 
 *,
@@ -385,8 +304,8 @@ ul {
 
 body {
   min-height: 100vh;
-  color: var(--color-text);
-  background: var(--color-background);
+  color: var(--text-primary);
+  background: var(--bg-base);
   line-height: 1.6;
   font-family:
     Inter,
@@ -404,4 +323,33 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* === Focus Rings (3.2) === */
+:focus-visible {
+  outline: 2px solid var(--accent-default);
+  outline-offset: 1px;
+}
+
+button:focus-visible,
+.runtimeButton:focus-visible,
+.topMenuBarIconButton:focus-visible,
+.prefsCloseBtn:focus-visible,
+.toastDismissBtn:focus-visible,
+.pathPointBtn:focus-visible,
+.pathPointAddBtn:focus-visible {
+  outline: 2px solid var(--accent-default);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+.paletteSearch:focus-visible,
+.runtimeInput:focus-visible,
+.runtimeTextarea:focus-visible,
+.prefsInput:focus-visible {
+  outline: 2px solid var(--accent-default);
+  outline-offset: -1px;
 }

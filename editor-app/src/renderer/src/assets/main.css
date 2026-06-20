@@ -15,9 +15,9 @@
   --z-dock-splitter: 1500;
   --z-floating-panel: 5000;
   --z-modal-overlay: 10000;
-  --z-modal: 10000;
-  --z-menu: 10000;
-  --z-toast: 10000;
+  --z-modal: 10001;
+  --z-menu: 10002;
+  --z-toast: 10100;
 }
 
 /*
@@ -36,7 +36,7 @@ code {
   font-weight: 600;
   padding: 3px 5px;
   border-radius: 2px;
-  background-color: var(--color-background-mute);
+  background-color: var(--bg-elevated);
   font-family:
     'JetBrains Mono',
     ui-monospace,
@@ -73,7 +73,7 @@ code {
     'left bottom right';
   height: 100vh;
   width: 100vw;
-  background: var(--color-background);
+  background: var(--bg-base);
   position: relative;
 }
 
@@ -81,13 +81,13 @@ code {
   grid-area: top;
   position: relative;
   z-index: var(--z-top-bar);
-  background: var(--color-background-soft);
-  border-bottom: 1px solid var(--ev-c-gray-3);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .editorLeftDock {
   grid-area: left;
-  border-right: 1px solid var(--ev-c-gray-3);
+  border-right: 1px solid var(--border-subtle);
   overflow: visible;
   display: flex;
   flex-direction: column;
@@ -95,12 +95,12 @@ code {
   z-index: var(--z-dock);
   min-width: 0;
   min-height: 0;
-  background: var(--color-background);
+  background: var(--bg-base);
 }
 
 .editorRightDock {
   grid-area: right;
-  border-left: 1px solid var(--ev-c-gray-3);
+  border-left: 1px solid var(--border-subtle);
   overflow: visible;
   display: flex;
   flex-direction: column;
@@ -108,7 +108,7 @@ code {
   z-index: var(--z-dock);
   min-width: 0;
   min-height: 0;
-  background: var(--color-background);
+  background: var(--bg-base);
 }
 
 .editorCenter {
@@ -118,19 +118,19 @@ code {
   flex-direction: column;
   position: relative;
   z-index: 0;
-  background: var(--color-background);
+  background: var(--bg-base);
 }
 
 .editorBottomDock {
   grid-area: bottom;
-  border-top: 1px solid var(--ev-c-gray-3);
+  border-top: 1px solid var(--border-subtle);
   overflow: visible;
   display: flex;
   flex-direction: column;
   position: relative;
   min-width: 0;
   min-height: 0;
-  background: var(--color-background);
+  background: var(--bg-base);
 }
 
 /* Невидимый расширенный hitbox для collapsed dock.
@@ -195,7 +195,7 @@ code {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-background-soft);
+  background: var(--bg-surface);
   cursor: pointer;
   z-index: var(--z-panel-header);
   transition: background 0.15s;
@@ -203,12 +203,12 @@ code {
 }
 
 .dockCollapseBar:hover {
-  background: var(--ev-c-gray-2);
+  background: var(--border-default);
 }
 
 .dockCollapseBar span {
   font-size: 10px;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   line-height: 1;
 }
 
@@ -221,7 +221,7 @@ code {
   display: flex;
   overflow: hidden;
   position: relative;
-  background: var(--color-background);
+  background: var(--bg-base);
 }
 
 .editorLeftDock .dockCollapseContent,
@@ -271,7 +271,7 @@ code {
   top: 0;
   bottom: 0;
   width: 12px;
-  border-right: 1px solid var(--ev-c-gray-3);
+  border-right: 1px solid var(--border-subtle);
 }
 
 /* Правый док: collapse bar у правого края экрана. */
@@ -280,7 +280,7 @@ code {
   top: 0;
   bottom: 0;
   width: 12px;
-  border-left: 1px solid var(--ev-c-gray-3);
+  border-left: 1px solid var(--border-subtle);
 }
 
 /* Нижний док: collapse bar снизу по всей ширине.
@@ -290,7 +290,7 @@ code {
   right: 0;
   bottom: 0;
   height: 12px;
-  border-top: 1px solid var(--ev-c-gray-3);
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* Оставляем место под полоски, чтобы они были на своей стороне,
@@ -308,7 +308,7 @@ code {
   top: 0;
   bottom: 0;
   width: 2px;
-  background: var(--color-background);
+  background: var(--bg-base);
   pointer-events: none;
   z-index: 1;
 }
@@ -320,7 +320,7 @@ code {
   right: 0;
   bottom: 0;
   height: 2px;
-  background: var(--color-background);
+  background: var(--bg-base);
   pointer-events: none;
   z-index: 1;
 }
@@ -340,29 +340,29 @@ code {
   align-items: center;
   justify-content: space-between;
   padding: 0 8px;
-  background: var(--color-background-soft);
-  border-bottom: 1px solid var(--ev-c-gray-3);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .dockSlotTitle {
   font-size: 12px;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   font-weight: 500;
   letter-spacing: 0.02em;
 }
 
 .dockSlotMenuButton {
   font-size: 12px;
-  color: var(--ev-c-text-1);
+  color: var(--text-primary);
   background: transparent;
-  border: 1px solid var(--ev-c-gray-3);
+  border: 1px solid var(--border-subtle);
   border-radius: 6px;
   padding: 2px 8px;
   cursor: pointer;
 }
 
 .dockSlotMenuButton:hover {
-  background: var(--color-background-mute);
+  background: var(--bg-elevated);
 }
 
 /*
@@ -375,7 +375,7 @@ code {
   min-height: 0;
   min-width: 0;
   flex: 1;
-  background: var(--color-background);
+  background: var(--bg-base);
 }
 
 /* Панели внутри split-контейнера должны корректно растягиваться,
@@ -387,7 +387,7 @@ code {
 
 .internalSplitter {
   height: 4px;
-  background: var(--ev-c-gray-3);
+  background: var(--border-subtle);
   cursor: row-resize;
 }
 
@@ -433,21 +433,22 @@ code {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: var(--color-background);
+  background: var(--bg-base);
   overflow: hidden;
 }
 
 .dockPanelHeader {
-  height: 32px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 10px 0 12px;
-  background: var(--color-background-soft);
-  border-bottom: 1px solid var(--ev-c-gray-3);
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-default);
   cursor: grab;
   /* Акцент-бар слева — визуальный анкор панели. */
-  border-left: 2px solid var(--ev-c-accent);
+  border-left: 2px solid var(--accent-default);
+  flex-shrink: 0;
 }
 
 .dockPanel.isCollapsed .dockPanelHeader {
@@ -496,7 +497,7 @@ code {
 
 /* Заполняем фон внутри тела, чтобы он тянулся при ресайзе. */
 .floatingPanel .dockPanelBody {
-  background: var(--color-background);
+  background: var(--bg-base);
 }
 
 /*
@@ -575,16 +576,16 @@ code {
 
 /* Чуть более заметная рамка у плавающих панелей. */
 .dockPanel.isFloating {
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 5%, transparent);
   border-radius: 8px;
   overflow: hidden;
   box-shadow:
     0 12px 32px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
+    0 0 0 1px color-mix(in srgb, var(--text-primary) 5%, transparent);
 }
 
 .dockPanel.isFloating .dockPanelHeader {
-  background: var(--ev-c-black-mute);
+  background: var(--bg-elevated);
 }
 
 /* У свёрнутой панели оставляем только header,
@@ -601,8 +602,8 @@ code {
 .dragGhost {
   position: absolute;
   pointer-events: none;
-  border: 1px dashed rgba(200, 220, 255, 0.8);
-  background: rgba(80, 100, 140, 0.18);
+  border: 1px dashed color-mix(in srgb, var(--accent-default) 80%, transparent);
+  background: color-mix(in srgb, var(--accent-default) 18%, transparent);
   border-radius: 10px;
   overflow: hidden;
 }
@@ -614,16 +615,16 @@ code {
   padding: 0 8px;
   font-size: 12px;
   font-weight: 600;
-  color: rgba(235, 240, 255, 0.95);
-  background: rgba(60, 70, 90, 0.25);
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
 }
 
 .dockPanelTitle {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--font-sm);
+  font-weight: var(--font-weight-bold);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ev-c-text-3);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-secondary);
   user-select: none;
 }
 
@@ -634,19 +635,19 @@ code {
   align-items: center;
   gap: 10px;
   padding: 28px 16px 20px;
-  opacity: 0.45;
+  opacity: 0.7;
 }
 
 .inspectorEmptyIcon {
   width: 32px;
   height: 32px;
-  color: var(--ev-c-text-3);
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
 .inspectorEmptyText {
-  font-size: 12px;
-  color: var(--ev-c-text-3);
+  font-size: var(--font-base);
+  color: var(--text-secondary);
   text-align: center;
   line-height: 1.4;
 }
@@ -661,15 +662,15 @@ code {
   width: 24px;
   height: 22px;
   background: transparent;
-  border: 1px solid var(--ev-c-gray-3);
+  border: 1px solid var(--border-subtle);
   border-radius: 6px;
-  color: var(--ev-c-text-1);
+  color: var(--text-primary);
   cursor: pointer;
   flex: 0 0 auto;
 }
 
 .dockPanelHeaderButton:hover {
-  background: var(--color-background-mute);
+  background: var(--bg-elevated);
 }
 
 .dockPanelBody {
@@ -677,7 +678,7 @@ code {
   flex: 1;
   overflow: auto;
   padding: 4px;
-  background: var(--color-background);
+  background: var(--bg-base);
 }
 
 .centerCanvasHeader {
@@ -687,8 +688,8 @@ code {
   padding: 0 10px;
   position: relative;
   z-index: 1;
-  background: var(--color-background-soft);
-  border-bottom: 1px solid var(--ev-c-gray-3);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
   font-size: 12px;
   font-weight: 600;
 }
@@ -701,7 +702,7 @@ code {
   padding: 0;
   position: relative;
   z-index: 0;
-  background: var(--color-background);
+  background: var(--bg-base);
 }
 
 /* Контейнер холста React Flow, чтобы он занимал всю центральную область. */
@@ -734,21 +735,21 @@ code {
   gap: 4px;
   min-width: 120px;
   padding: 8px 10px;
-  border: 1px solid var(--ev-c-accent);
+  border: 1px solid var(--accent-default);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--color-background) 84%, var(--ev-c-accent) 16%);
+  background: color-mix(in srgb, var(--bg-base) 84%, var(--accent-default) 16%);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
 }
 
 .flowCanvasDropPreviewLabel {
   font-size: 12px;
   font-weight: 700;
-  color: var(--ev-c-text-1);
+  color: var(--text-primary);
 }
 
 .flowCanvasDropPreviewMeta {
   font-size: 11px;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
 }
 
 .flowCanvas .react-flow {
@@ -765,7 +766,7 @@ code {
 
 .placeholderText {
   font-size: 13px;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   line-height: 1.4;
 }
 
@@ -790,11 +791,11 @@ code {
 .paletteSearch {
   width: 100%;
   box-sizing: border-box;
-  background: rgba(0, 0, 0, 0.2);
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
-  color: var(--ev-c-text-1);
-  font-size: 12px;
+  color: var(--text-primary);
+  font-size: var(--font-base);
   padding: 6px 10px;
   outline: none;
   transition:
@@ -804,12 +805,12 @@ code {
 }
 
 .paletteSearch:focus {
-  border-color: var(--ev-c-accent);
-  background: rgba(0, 0, 0, 0.3);
+  border-color: var(--accent-default);
+  background: color-mix(in srgb, var(--text-primary) 12%, transparent);
 }
 
 .paletteSearch::placeholder {
-  color: var(--ev-c-text-3);
+  color: var(--text-muted);
   opacity: 0.5;
 }
 
@@ -841,12 +842,11 @@ code {
 }
 
 .paletteCategoryLabel {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-size: var(--font-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-normal);
   text-transform: uppercase;
-  color: var(--node-color, var(--ev-c-text-3));
-  opacity: 0.75;
+  color: var(--node-color, var(--text-secondary));
 }
 
 .paletteCategoryDot {
@@ -867,7 +867,7 @@ code {
   text-align: left;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   font-size: 12px;
   padding: 5px 8px;
   border-radius: 4px;
@@ -879,9 +879,9 @@ code {
 }
 
 .paletteNodeItem:hover {
-  background: color-mix(in srgb, var(--node-color, var(--ev-c-accent)) 8%, var(--bg-surface));
-  border-color: color-mix(in srgb, var(--node-color, var(--ev-c-accent)) 30%, transparent);
-  color: var(--ev-c-text-1);
+  background: color-mix(in srgb, var(--node-color, var(--accent-default)) 8%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--node-color, var(--accent-default)) 30%, transparent);
+  color: var(--text-primary);
 }
 
 .paletteNodeDot {
@@ -908,8 +908,8 @@ code {
 
 .paletteEmpty {
   font-size: 12px;
-  color: var(--ev-c-text-3);
-  opacity: 0.6;
+  color: var(--text-secondary);
+  opacity: 0.8;
   padding: 6px 8px;
   text-align: center;
 }
@@ -943,10 +943,14 @@ code {
 }
 
 .runtimeSectionTitle {
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  color: var(--ev-c-text-2);
+  font-size: var(--font-base);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-secondary);
+}
+
+.runtimeSectionTitle--spaced {
+  margin-top: 8px;
 }
 
 .runtimeRow {
@@ -956,10 +960,10 @@ code {
 }
 
 .runtimeButton {
-  background: var(--color-background-mute);
-  border: 1px solid var(--ev-c-gray-2);
-  color: var(--ev-c-text-1);
-  font-size: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-size: var(--font-base);
   padding: 6px 12px;
   border-radius: 6px;
   cursor: pointer;
@@ -969,20 +973,20 @@ code {
 }
 
 .runtimeButton:hover {
-  background: var(--ev-c-gray-2);
-  border-color: var(--ev-c-gray-1);
+  background: var(--border-default);
+  border-color: var(--border-strong);
 }
 
 .runtimeButton.isActive {
-  background: var(--ev-c-accent-soft);
-  border-color: var(--ev-c-accent);
-  color: var(--ev-c-text-1);
-  box-shadow: inset 0 0 0 1px var(--ev-c-accent);
+  background: var(--accent-muted);
+  border-color: var(--accent-default);
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--accent-default);
 }
 
 .runtimeButton.isActive:hover {
-  background: var(--ev-c-accent-soft);
-  border-color: var(--ev-c-accent);
+  background: var(--accent-muted);
+  border-color: var(--accent-default);
 }
 
 .runtimeButton:disabled {
@@ -991,16 +995,74 @@ code {
 }
 
 .runtimeButton:disabled:hover {
-  background: var(--color-background-mute);
-  border-color: var(--ev-c-gray-2);
+  background: var(--bg-elevated);
+  border-color: var(--border-default);
+}
+
+/* --- Button variations (2.4) --- */
+.runtimeButton--primary {
+  background: var(--accent-default);
+  border-color: var(--accent-default);
+  color: var(--text-inverse);
+}
+
+.runtimeButton--primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.runtimeButton--danger {
+  background: var(--status-error);
+  border-color: var(--status-error);
+  color: var(--text-inverse);
+}
+
+.runtimeButton--danger:hover {
+  background: color-mix(in srgb, var(--status-error) 85%, var(--bg-base));
+  border-color: var(--status-error);
+}
+
+.runtimeButton--ghost {
+  background: transparent;
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+.runtimeButton--ghost:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+/* --- ConfirmDialog (1.2) --- */
+.confirmDialog {
+  min-width: 320px;
+  max-width: 480px;
+}
+
+.confirmDialogMessage {
+  font-style: normal;
+  white-space: pre-wrap;
+}
+
+.confirmDialogActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.confirmDialogCancelBtn {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
 }
 
 /* Подсказка/хинт в панелях. Уменьшен визуальный вес, чтобы не отвлекать. */
 .runtimeHint {
-  font-size: 11px;
-  color: var(--ev-c-text-2);
-  opacity: 0.55;
-  line-height: 1.35;
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
 }
 
 .runtimeList {
@@ -1035,7 +1097,7 @@ code {
   text-align: left;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   font-size: 12px;
   padding: 6px 8px;
   border-radius: 4px;
@@ -1047,15 +1109,15 @@ code {
 }
 
 .runtimeListItem:hover {
-  background: var(--ev-c-accent-soft);
-  border-color: var(--ev-c-gray-2);
-  color: var(--ev-c-text-1);
+  background: var(--accent-muted);
+  border-color: var(--border-default);
+  color: var(--text-primary);
 }
 
 .runtimeListItem.isActive {
-  border-color: var(--ev-c-accent);
-  color: var(--ev-c-text-1);
-  background: var(--ev-c-accent-soft);
+  border-color: var(--accent-default);
+  color: var(--text-primary);
+  background: var(--accent-muted);
 }
 
 /* TemplateLibraryPanel */
@@ -1078,23 +1140,23 @@ code {
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: text;
-  color: var(--ev-c-text-1);
+  color: var(--text-primary);
 }
 
 .templateRowInput {
   width: 100%;
   font-size: 12px;
   font-weight: 600;
-  background: var(--bg-elevated, var(--color-background-soft));
-  color: var(--text-primary, var(--ev-c-text-1));
-  border: 1px solid var(--ev-c-accent);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--accent-default);
   border-radius: 3px;
   padding: 2px 4px;
   outline: none;
 }
 
 .templateRowMeta {
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   font-size: 11px;
   margin-top: 2px;
 }
@@ -1114,7 +1176,7 @@ code {
 .templateRowDeleteBtn {
   background: transparent;
   border: none;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   font-size: 13px;
   cursor: pointer;
   padding: 0 2px;
@@ -1123,7 +1185,7 @@ code {
 }
 
 .templateRowDeleteBtn:hover {
-  color: hsl(0, 80%, 60%);
+  color: var(--status-error);
 }
 
 .templateSaveRow {
@@ -1139,9 +1201,9 @@ code {
   font-size: 12px;
   padding: 3px 6px;
   border-radius: 4px;
-  border: 1px solid var(--ev-c-gray-2);
-  background: var(--color-background-mute);
-  color: var(--ev-c-text-1);
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 .templateSaveBtn {
@@ -1180,9 +1242,9 @@ code {
 .noteRowInput {
   width: 100%;
   font-size: 12px;
-  background: var(--bg-elevated, var(--color-background-soft));
-  color: var(--text-primary, var(--ev-c-text-1));
-  border: 1px solid var(--ev-c-accent);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--accent-default);
   border-radius: 3px;
   padding: 2px 4px;
   outline: none;
@@ -1190,7 +1252,7 @@ code {
 
 .noteRowTextContent {
   font-size: 12px;
-  color: var(--ev-c-text-1);
+  color: var(--text-primary);
   word-break: break-word;
 }
 
@@ -1206,7 +1268,7 @@ code {
 
 .noteRowLinkedNode {
   font-size: 10px;
-  color: var(--ev-c-accent, #4a9eff);
+  color: var(--accent-default);
   flex-shrink: 0;
   cursor: pointer;
   font-family: monospace;
@@ -1218,7 +1280,7 @@ code {
 
 .noteRowCoords {
   font-size: 10px;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   opacity: 0.7;
   flex-shrink: 0;
   cursor: pointer;
@@ -1243,17 +1305,17 @@ code {
 }
 
 .noteRowDeleteBtn {
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
 }
 
 .noteRowDeleteBtn:hover {
-  color: hsl(0, 80%, 60%);
+  color: var(--status-error);
 }
 
 .noteAddBtn {
   background: transparent;
-  border: 1px solid var(--ev-c-gray-3);
-  color: var(--ev-c-text-1);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
   border-radius: 4px;
   width: 22px;
   height: 22px;
@@ -1286,9 +1348,9 @@ code {
   min-height: 120px;
   resize: vertical;
   border-radius: 4px;
-  border: 1px solid var(--border-default, var(--ev-c-gray-3));
-  background: var(--bg-elevated, var(--color-background-soft));
-  color: var(--text-primary, var(--ev-c-text-1));
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
   padding: 8px;
   font-size: 12px;
   line-height: 1.4;
@@ -1303,17 +1365,94 @@ code {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-secondary, var(--ev-c-text-2));
+  font-size: var(--font-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
   margin-bottom: 2px;
+}
+
+.runtimeField--row {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+/* --- Path Points Editor (1.4) --- */
+.pathPointsHeader {
+  margin-top: 4px;
+}
+
+.pathPointRow {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.pathPointIndex {
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 18px;
+}
+
+.pathPointInput {
+  width: 64px;
+}
+
+.pathPointBtn {
+  font-size: 11px;
+  padding: 0 4px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+}
+
+.pathPointBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pathPointBtn--danger {
+  color: var(--status-error);
+}
+
+.pathPointAddBtn {
+  font-size: 12px;
+  margin-top: 2px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: var(--accent-default);
+}
+
+.pathPointsEmpty {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.runtimeHint--subtle {
+  opacity: 0.8;
+}
+
+.projectInfoName {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.projectInfoStats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 8px;
+  font-size: 11px;
+  opacity: 0.8;
 }
 
 .runtimeInput {
   border-radius: 4px;
-  border: 1px solid var(--border-default, var(--ev-c-gray-3));
-  background-color: var(--bg-elevated, var(--color-background-soft));
-  color: var(--text-primary, var(--ev-c-text-1));
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
   width: 100%;
   box-sizing: border-box;
   padding: 6px 8px;
@@ -1327,13 +1466,13 @@ code {
 
 .runtimeInput:hover,
 .runtimeTextarea:hover {
-  background-color: var(--bg-overlay, var(--color-background-mute));
+  background-color: var(--bg-overlay);
 }
 
 .runtimeInput:focus,
 .runtimeTextarea:focus {
-  border-color: var(--accent-default, var(--ev-c-accent));
-  background-color: var(--bg-base, var(--color-background));
+  border-color: var(--accent-default);
+  background-color: var(--bg-base);
   box-shadow: none;
 }
 
@@ -1350,7 +1489,7 @@ select.runtimeInput:focus {
 }
 
 input[type='checkbox'] {
-  accent-color: var(--accent-default, var(--ev-c-accent));
+  accent-color: var(--accent-default);
   cursor: pointer;
   background-color: transparent;
   color-scheme: dark;
@@ -1368,12 +1507,12 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
 }
 
 .runtimeCode {
-  background: var(--color-background-mute);
-  border: 1px solid var(--ev-c-gray-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 8px;
   font-size: 11px;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   overflow: auto;
   max-height: 200px;
 }
@@ -1392,8 +1531,8 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
   padding: 0 6px;
   position: relative;
   z-index: 10;
-  background: var(--color-background-soft);
-  border-bottom: 1px solid var(--ev-c-gray-3);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
   -webkit-app-region: drag;
 }
 
@@ -1412,10 +1551,22 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
   -webkit-app-region: no-drag;
 }
 
+.topMenuBarSavedIndicator {
+  font-size: 10px;
+  color: var(--status-success);
+  margin-right: 12px;
+  font-weight: 600;
+  opacity: 0.8;
+  pointer-events: none;
+  user-select: none;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .topMenuBarIconButton {
   background: transparent;
   border: none;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1430,8 +1581,8 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
 }
 
 .topMenuBarIconButton:hover {
-  background: var(--ev-c-gray-3);
-  color: var(--ev-c-text-1);
+  background: var(--border-subtle);
+  color: var(--text-primary);
 }
 
 .topMenuBarIconButton:disabled {
@@ -1450,7 +1601,7 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   transition:
     background 0.1s,
     color 0.1s;
@@ -1458,8 +1609,8 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
 
 .topMenuBarItem.isActive,
 .topMenuBarItem:hover {
-  background: var(--ev-c-gray-3);
-  color: var(--ev-c-text-1);
+  background: var(--border-subtle);
+  color: var(--text-primary);
 }
 
 .topMenuDropdown {
@@ -1468,8 +1619,8 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
   left: 0;
   margin-top: 2px;
   min-width: 200px;
-  background: var(--color-background-soft);
-  border: 1px solid var(--ev-c-gray-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   padding: 4px;
   z-index: var(--z-menu);
@@ -1488,7 +1639,7 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
 }
 
 .topMenuDropdownItem:hover {
-  background: var(--ev-c-accent-soft);
+  background: var(--accent-muted);
 }
 
 .topMenuDropdownItem.hasSubmenu {
@@ -1517,12 +1668,12 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
 
 .topMenuDropdownLabel {
   font-size: 12px;
-  color: var(--ev-c-text-1);
+  color: var(--text-primary);
 }
 
 .topMenuDropdownShortcut {
   font-size: 11px;
-  color: var(--ev-c-text-3);
+  color: var(--text-muted);
   margin-left: 16px;
 }
 
@@ -1542,14 +1693,14 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
 .creator {
   font-size: 14px;
   line-height: 16px;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   font-weight: 600;
   margin-bottom: 10px;
 }
 
 .text {
   font-size: 28px;
-  color: var(--ev-c-text-1);
+  color: var(--text-primary);
   font-weight: 700;
   line-height: 32px;
   text-align: center;
@@ -1560,7 +1711,7 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
 .tip {
   font-size: 16px;
   line-height: 24px;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
@@ -1605,15 +1756,15 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
   padding: 0 20px;
   line-height: 38px;
   font-size: 14px;
-  border-color: var(--ev-button-alt-border);
-  color: var(--ev-button-alt-text);
-  background-color: var(--ev-button-alt-bg);
+  border-color: transparent;
+  color: var(--text-primary);
+  background-color: var(--bg-elevated);
 }
 
 .action a:hover {
-  border-color: var(--ev-button-alt-hover-border);
-  color: var(--ev-button-alt-hover-text);
-  background-color: var(--ev-button-alt-hover-bg);
+  border-color: transparent;
+  color: var(--text-primary);
+  background-color: var(--bg-overlay);
 }
 
 .versions {
@@ -1633,7 +1784,7 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
 .versions li {
   display: block;
   float: left;
-  border-right: 1px solid var(--ev-c-gray-1);
+  border-right: 1px solid var(--border-strong);
   padding: 0 20px;
   font-size: 14px;
   line-height: 14px;
@@ -1670,8 +1821,8 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
 
 .react-flow__selection {
   /* Keep the drag-to-select box visible, but make it match our theme */
-  background: rgba(var(--ev-c-accent-rgb), 0.15) !important;
-  border: 1px solid var(--ev-c-accent) !important;
+  background: color-mix(in srgb, var(--accent-default) 15%, transparent) !important;
+  border: 1px solid var(--accent-default) !important;
   border-radius: 4px;
 }
 
@@ -1687,7 +1838,7 @@ input.runtimeInput[type='number']::-webkit-outer-spin-button {
   border-radius: 4px;
   background: var(--bg-surface);
   font-size: 12px;
-  color: var(--ev-c-text-1);
+  color: var(--text-primary);
   min-width: 140px;
   max-width: 240px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -1750,13 +1901,13 @@ label.runtimeField:has(.searchable-select-open) {
 
 .customNode.isLiquidGlass {
   /* Temporarily disabled due to massive performance hits on large graphs. GPU struggles to blur 500+ nodes. */
-  border-color: color-mix(in srgb, var(--ev-c-accent) 40%, var(--border-strong));
+  border-color: color-mix(in srgb, var(--accent-default) 40%, var(--border-strong));
   background: color-mix(in srgb, var(--bg-surface) 90%, transparent);
 }
 
 .customNode.isSelected {
-  border-color: var(--ev-c-accent);
-  box-shadow: inset 0 0 0 1px var(--ev-c-accent);
+  border-color: var(--accent-default);
+  box-shadow: inset 0 0 0 1px var(--accent-default);
 }
 
 /* Header wrapping: теперь flex-wrap, чтобы label уходил на новую строку
@@ -1768,7 +1919,7 @@ label.runtimeField:has(.searchable-select-open) {
   min-width: 0;
   padding: 4px 6px;
   border-bottom: 1px solid var(--border-subtle);
-  background: rgba(0, 0, 0, 0.1);
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
 }
 
 /* Цвет категории ноды: задаётся на root .customNode через data-category,
@@ -1842,7 +1993,7 @@ label.runtimeField:has(.searchable-select-open) {
   font-size: 11px;
   padding: 0;
   margin-top: 2px;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   word-break: break-word;
   line-height: 1.3;
   min-width: 0;
@@ -1866,7 +2017,7 @@ label.runtimeField:has(.searchable-select-open) {
   min-width: 0;
   max-width: 100%;
   font-size: 11px;
-  color: var(--ev-c-text-1);
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1890,7 +2041,7 @@ label.runtimeField:has(.searchable-select-open) {
 .edgeTimingBadge {
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
-  color: var(--ev-c-accent);
+  color: var(--accent-default);
   padding: 2px 6px;
   border-radius: 12px;
   font-size: 10px;
@@ -1906,10 +2057,10 @@ label.runtimeField:has(.searchable-select-open) {
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
-  color: var(--ev-c-text-3);
+  color: var(--text-secondary);
   text-align: center;
   gap: 12px;
-  opacity: 0.6;
+  opacity: 0.9;
 }
 
 .inspectorEmptyIcon {
@@ -1919,8 +2070,8 @@ label.runtimeField:has(.searchable-select-open) {
 }
 
 .inspectorEmptyText {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--font-base);
+  font-weight: var(--font-weight-medium);
   max-width: 180px;
   line-height: 1.4;
 }
@@ -1929,9 +2080,9 @@ label.runtimeField:has(.searchable-select-open) {
 .customNodeButton {
   margin-top: 6px;
   width: 100%;
-  border: 1px solid var(--ev-c-gray-2);
+  border: 1px solid var(--border-default);
   background: transparent;
-  color: var(--ev-c-text-1);
+  color: var(--text-primary);
   font-size: 11px;
   padding: 4px 8px;
   border-radius: 4px;
@@ -1942,8 +2093,8 @@ label.runtimeField:has(.searchable-select-open) {
 }
 
 .customNodeButton:hover {
-  background: var(--ev-c-gray-3);
-  border-color: var(--ev-c-gray-1);
+  background: var(--border-subtle);
+  border-color: var(--border-strong);
 }
 
 .customNodeButton:disabled {
@@ -1953,7 +2104,7 @@ label.runtimeField:has(.searchable-select-open) {
 
 .customNodeButton:disabled:hover {
   background: transparent;
-  border-color: var(--ev-c-gray-2);
+  border-color: var(--border-default);
 }
 
 .customNodeButtonRow {
@@ -1996,7 +2147,7 @@ label.runtimeField:has(.searchable-select-open) {
   /* Круглые элегантные порты */
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 10%, transparent);
   transition:
     background 0.15s,
     transform 0.15s,
@@ -2037,22 +2188,22 @@ label.runtimeField:has(.searchable-select-open) {
 
 /* Hover подсветка hit-area */
 .customHandle:hover::after {
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
 }
 
 /* Selected нода — handle'и тоже подсвечены */
 .customNode.isSelected .customHandle::after {
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
 }
 
 .customNode.isSelected .customHandle:hover::after {
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
 }
 
 /* Видимая точка handle'а */
 .customHandle:hover {
-  background: var(--ev-c-accent);
-  border-color: var(--ev-c-black-soft);
+  background: var(--accent-default);
+  border-color: var(--bg-surface);
 }
 
 /* На hover сохраняем исходный translate от React Flow,
@@ -2075,16 +2226,16 @@ label.runtimeField:has(.searchable-select-open) {
 
 /* True handle (branch) */
 .customHandleTrue {
-  background: var(--ev-c-success);
+  background: var(--status-success);
 }
 
 /* False handle (branch) */
 .customHandleFalse {
-  background: var(--ev-c-error);
+  background: var(--status-error);
 }
 
 .customHandleShared {
-  background: var(--ev-c-accent);
+  background: var(--accent-default);
 }
 
 /* ========== /Кастомные ноды ========== */
@@ -2101,18 +2252,18 @@ label.runtimeField:has(.searchable-select-open) {
 /* Кнопки управления холстом (zoom in/out, fit view). */
 .react-flow__controls {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4) !important;
-  border: 1px solid var(--ev-c-gray-2) !important;
+  border: 1px solid var(--border-default) !important;
   border-radius: 8px !important;
   overflow: hidden !important;
-  background: var(--color-background-soft) !important;
+  background: var(--bg-surface) !important;
 }
 
 .react-flow__controls-button {
-  background: var(--color-background-soft) !important;
+  background: var(--bg-surface) !important;
   border: none !important;
-  border-bottom: 1px solid var(--ev-c-gray-3) !important;
-  fill: var(--ev-c-text-2) !important;
-  color: var(--ev-c-text-2) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  fill: var(--text-secondary) !important;
+  color: var(--text-secondary) !important;
   width: 28px !important;
   height: 28px !important;
   padding: 5px !important;
@@ -2122,8 +2273,8 @@ label.runtimeField:has(.searchable-select-open) {
 }
 
 .react-flow__controls-button:hover {
-  background: var(--ev-c-gray-3) !important;
-  fill: var(--ev-c-text-1) !important;
+  background: var(--border-subtle) !important;
+  fill: var(--text-primary) !important;
 }
 
 .react-flow__controls-button:last-child {
@@ -2158,12 +2309,12 @@ label.runtimeField:has(.searchable-select-open) {
    because backdrop-filter blur makes the room background unreadable
    during path editing and actor placement. */
 .roomVisualEditorOverlay.isLiquidGlass {
-  /* blur removed — see comment above */
+  backdrop-filter: none;
 }
 
 /* Рёбра на холсте. */
 .react-flow__edge-path {
-  stroke: var(--ev-c-gray-1) !important;
+  stroke: var(--border-strong) !important;
   stroke-width: 2 !important;
   transition:
     stroke 0.15s,
@@ -2171,12 +2322,12 @@ label.runtimeField:has(.searchable-select-open) {
 }
 
 .react-flow__edge:hover .react-flow__edge-path {
-  stroke: var(--ev-c-text-2) !important;
+  stroke: var(--text-secondary) !important;
   stroke-width: 3 !important;
 }
 
 .react-flow__edge.selected .react-flow__edge-path {
-  stroke: var(--ev-c-accent) !important;
+  stroke: var(--accent-default) !important;
 }
 
 /* Кнопка добавления новой ноды */
@@ -2185,12 +2336,12 @@ label.runtimeField:has(.searchable-select-open) {
   height: 34px;
   border-radius: 8px;
   /* Возвращаем скругление */
-  background: color-mix(in srgb, var(--color-background-soft) 80%, var(--ev-c-accent) 20%);
-  border: 1px solid color-mix(in srgb, var(--ev-c-gray-1) 80%, var(--ev-c-accent) 20%);
-  color: var(--ev-c-accent);
+  background: color-mix(in srgb, var(--bg-surface) 80%, var(--accent-default) 20%);
+  border: 1px solid color-mix(in srgb, var(--border-strong) 80%, var(--accent-default) 20%);
+  color: var(--accent-default);
   /* Менее тяжелая тень */
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--ev-c-text-2) 40%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--text-secondary) 40%, transparent),
     0 4px 10px rgba(0, 0, 0, 0.25);
   display: flex;
   align-items: center;
@@ -2200,13 +2351,13 @@ label.runtimeField:has(.searchable-select-open) {
 }
 
 .actionButtonPlus:hover {
-  background: color-mix(in srgb, var(--color-background-soft) 60%, var(--ev-c-accent) 40%);
-  border-color: var(--ev-c-accent);
-  color: var(--ev-c-text-1);
+  background: color-mix(in srgb, var(--bg-surface) 60%, var(--accent-default) 40%);
+  border-color: var(--accent-default);
+  color: var(--text-primary);
   transform: translateY(-1px);
   /* Фокусный свет + тень */
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--ev-c-text-1) 50%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--text-primary) 50%, transparent),
     0 6px 14px rgba(0, 0, 0, 0.35);
 }
 
@@ -2237,8 +2388,8 @@ label.runtimeField:has(.searchable-select-open) {
 .prefsModal {
   width: 420px;
   max-height: 80vh;
-  background: var(--color-background-soft);
-  border: 1px solid var(--ev-c-gray-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   display: flex;
@@ -2253,19 +2404,19 @@ label.runtimeField:has(.searchable-select-open) {
   align-items: center;
   justify-content: space-between;
   padding: 14px 18px;
-  border-bottom: 1px solid var(--ev-c-gray-3);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .prefsTitle {
   font-size: 14px;
   font-weight: 600;
-  color: var(--ev-c-text-1);
+  color: var(--text-primary);
 }
 
 .prefsCloseBtn {
   background: transparent;
   border: none;
-  color: var(--ev-c-text-3);
+  color: var(--text-muted);
   font-size: 16px;
   cursor: pointer;
   padding: 2px 6px;
@@ -2276,8 +2427,8 @@ label.runtimeField:has(.searchable-select-open) {
 }
 
 .prefsCloseBtn:hover {
-  background: var(--ev-c-gray-3);
-  color: var(--ev-c-text-1);
+  background: var(--border-subtle);
+  color: var(--text-primary);
 }
 
 /* Тело модалки — контент со скроллом. */
@@ -2301,7 +2452,7 @@ label.runtimeField:has(.searchable-select-open) {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--ev-c-text-3);
+  color: var(--text-muted);
   margin-bottom: 2px;
 }
 
@@ -2311,7 +2462,7 @@ label.runtimeField:has(.searchable-select-open) {
   align-items: center;
   justify-content: space-between;
   font-size: 13px;
-  color: var(--ev-c-text-1);
+  color: var(--text-primary);
   gap: 12px;
 }
 
@@ -2322,10 +2473,10 @@ label.runtimeField:has(.searchable-select-open) {
 
 /* Input/select внутри модалки. */
 .prefsInput {
-  background: var(--color-background);
-  border: 1px solid var(--ev-c-gray-3);
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
   border-radius: 6px;
-  color: var(--ev-c-text-1);
+  color: var(--text-primary);
   padding: 5px 8px;
   font-size: 12px;
   min-width: 100px;
@@ -2334,7 +2485,7 @@ label.runtimeField:has(.searchable-select-open) {
 }
 
 .prefsInput:focus {
-  border-color: var(--ev-c-accent);
+  border-color: var(--accent-default);
 }
 
 .prefsInput:disabled {
@@ -2343,20 +2494,20 @@ label.runtimeField:has(.searchable-select-open) {
 
 .prefsInput option,
 .runtimeInput option {
-  background: var(--color-background-mute);
-  color: var(--ev-c-text-1);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 .prefsHint {
   font-size: 11px;
-  color: var(--ev-c-text-3);
+  color: var(--text-muted);
   font-style: italic;
 }
 
 /* ===== Prefs: inline field hint (рядом с контролом) ===== */
 .prefsFieldHint {
   font-size: 10px;
-  color: var(--ev-c-text-3);
+  color: var(--text-muted);
   margin-left: 8px;
   white-space: nowrap;
 }
@@ -2375,7 +2526,7 @@ label.runtimeField:has(.searchable-select-open) {
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--ev-c-gray-3);
+  background: var(--border-subtle);
 }
 
 .prefsSectionSep .prefsSectionTitle {
@@ -2423,39 +2574,39 @@ label.runtimeField:has(.searchable-select-open) {
 }
 
 .prefsAccentSwatchCircle.isActive {
-  border-color: var(--ev-c-text-1);
-  box-shadow: 0 0 0 3px var(--ev-c-accent-soft);
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 3px var(--accent-muted);
   transform: scale(1.12);
 }
 
 .prefsAccentSwatchLabel {
   font-size: 10px;
-  color: var(--ev-c-text-3);
+  color: var(--text-muted);
   line-height: 1;
   white-space: nowrap;
   user-select: none;
 }
 
 .prefsAccentSwatch.isActive .prefsAccentSwatchLabel {
-  color: var(--ev-c-text-1);
+  color: var(--text-primary);
   font-weight: 600;
 }
 
 /* Custom («+») swatch */
 .prefsAccentSwatchCustom .prefsAccentSwatchCircle {
-  background: var(--ev-c-gray-2);
+  background: var(--border-default);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 16px;
   font-weight: 300;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   line-height: 1;
 }
 
 .prefsAccentSwatchCustom.isActive .prefsAccentSwatchCircle {
-  border-color: var(--ev-c-accent);
-  box-shadow: 0 0 0 3px var(--ev-c-accent-soft);
+  border-color: var(--accent-default);
+  box-shadow: 0 0 0 3px var(--accent-muted);
 }
 
 /* Custom HEX color input — скрытый нативный color picker */
@@ -2476,13 +2627,13 @@ label.runtimeField:has(.searchable-select-open) {
   align-items: center;
   justify-content: space-between;
   padding: 12px 18px;
-  border-top: 1px solid var(--ev-c-gray-3);
+  border-top: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
 
 .prefsFooterReset {
   font-size: 11px;
-  color: var(--ev-c-text-3);
+  color: var(--text-muted);
   background: none;
   border: none;
   cursor: pointer;
@@ -2505,17 +2656,17 @@ label.runtimeField:has(.searchable-select-open) {
   padding: 6px 14px;
   border-radius: 6px;
   cursor: pointer;
-  border: 1px solid var(--ev-c-gray-2);
-  background: var(--color-background-mute);
-  color: var(--ev-c-text-1);
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
   transition:
     background 0.12s,
     border-color 0.12s;
 }
 
 .prefsFooterClose:hover {
-  background: var(--ev-c-gray-2);
-  border-color: var(--ev-c-gray-1);
+  background: var(--border-default);
+  border-color: var(--border-strong);
 }
 
 /* ===== Custom Edges (React Flow) ===== */
@@ -2552,7 +2703,7 @@ label.runtimeField:has(.searchable-select-open) {
   width: 100vw;
   height: 100vh;
   padding: 0;
-  background: var(--color-background);
+  background: var(--bg-base);
 }
 
 .roomVisualEditorWindow {
@@ -2638,16 +2789,16 @@ label.runtimeField:has(.searchable-select-open) {
   min-height: 0;
   overflow: auto;
   padding: 12px;
-  border: 1px solid var(--ev-c-gray-3);
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
-  background: var(--color-background);
+  background: var(--bg-base);
 }
 
 /* Кодоподобные значения метаданных читаются лучше в моноширинном стиле. */
 .roomVisualEditorCode {
   max-width: 100%;
   overflow-wrap: anywhere;
-  color: var(--ev-c-text-2);
+  color: var(--text-secondary);
   font-size: 11px;
 }
 
@@ -2670,7 +2821,7 @@ label.runtimeField:has(.searchable-select-open) {
 }
 
 .roomVisualEditorActorMeta {
-  color: var(--ev-c-text-3);
+  color: var(--text-muted);
   font-size: 11px;
 }
 
@@ -2680,14 +2831,14 @@ label.runtimeField:has(.searchable-select-open) {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--ev-c-gray-3);
+  border: 1px solid var(--border-subtle);
   border-radius: 12px;
   background:
     linear-gradient(45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%),
     linear-gradient(-45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%),
     linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.035) 75%),
     linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.035) 75%),
-    var(--color-background);
+    var(--bg-base);
   background-size: 24px 24px;
   background-position:
     0 0,
@@ -2759,7 +2910,7 @@ label.runtimeField:has(.searchable-select-open) {
 
 /* Линия пути должна быть заметной на любых тайлах комнаты. */
 .roomVisualEditorPathLine {
-  stroke: #5ec8ff;
+  stroke: var(--accent-default);
   stroke-linecap: round;
   stroke-linejoin: round;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
@@ -2767,7 +2918,7 @@ label.runtimeField:has(.searchable-select-open) {
 
 /* Preview-сегмент рисуем пунктиром, чтобы его было легко отличить от уже импортируемого path. */
 .roomVisualEditorPathPreviewLine {
-  stroke: rgba(255, 255, 255, 0.92);
+  stroke: color-mix(in srgb, var(--text-primary) 92%, transparent);
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 8 6;
@@ -2776,27 +2927,27 @@ label.runtimeField:has(.searchable-select-open) {
 
 /* Точки пути — основной editable ориентир для пользователя. */
 .roomVisualEditorPathPoint {
-  fill: #ffd166;
-  stroke: #8a5a00;
+  fill: var(--status-warning);
+  stroke: color-mix(in srgb, var(--status-warning) 50%, var(--bg-base));
   stroke-width: 2;
 }
 
 /* Preview-точка показывает, куда придёт следующий pencil сегмент или где сейчас стирает eraser. */
 .roomVisualEditorPathPreviewPoint {
-  fill: rgba(94, 200, 255, 0.28);
-  stroke: #ffffff;
+  fill: color-mix(in srgb, var(--accent-default) 28%, transparent);
+  stroke: var(--text-primary);
   stroke-width: 2;
   stroke-dasharray: 4 3;
 }
 
 .roomVisualEditorPathPreviewPoint.isEraser {
-  fill: rgba(255, 120, 120, 0.18);
-  stroke: #ff7878;
+  fill: color-mix(in srgb, var(--status-error) 18%, transparent);
+  stroke: var(--status-error);
   stroke-width: 2.5;
 }
 
 .roomVisualEditorPathPointLabel {
-  fill: #ffffff;
+  fill: var(--text-inverse);
   font-size: 12px;
   font-weight: 700;
   text-anchor: middle;
@@ -2813,21 +2964,21 @@ label.runtimeField:has(.searchable-select-open) {
 
 .roomVisualEditorGridPattern {
   fill: none;
-  stroke: rgba(170, 225, 255, 0.22);
+  stroke: color-mix(in srgb, var(--accent-default) 22%, transparent);
   stroke-width: 1;
   shape-rendering: crispEdges;
 }
 
 /* Actor markers делаем контрастными и с явным selected state. */
 .roomVisualEditorActorMarker {
-  fill: rgba(88, 255, 158, 0.18);
-  stroke: #58ff9e;
+  fill: color-mix(in srgb, var(--status-success) 18%, transparent);
+  stroke: var(--status-success);
   stroke-width: 2.5;
 }
 
 .roomVisualEditorActorMarker.isSelected {
-  fill: rgba(255, 120, 120, 0.22);
-  stroke: #ff7878;
+  fill: color-mix(in srgb, var(--status-error) 22%, transparent);
+  stroke: var(--status-error);
   stroke-width: 3;
 }
 
@@ -2839,7 +2990,7 @@ label.runtimeField:has(.searchable-select-open) {
 }
 
 .roomVisualEditorActorLabel {
-  fill: #d8ffe8;
+  fill: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
   paint-order: stroke;
@@ -2862,6 +3013,71 @@ label.runtimeField:has(.searchable-select-open) {
 
 /* ========== /Preferences Modal ========== */
 
+/* ========== Toast Hub ========== */
+
+.toastHub {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.toastItem {
+  pointer-events: auto;
+  min-width: 220px;
+  max-width: 380px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  animation: toastIn 200ms ease-out;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.toastBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.toastTitle {
+  font-weight: 700;
+  margin-bottom: 2px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.toastMessage {
+  word-break: break-word;
+}
+
+.toastDismissBtn {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ========== /Toast Hub ========== */
+
 /* ========== Custom Scrollbar ========== */
 
 /* Тонкие тёмные скроллбары для всего приложения. */
@@ -2875,12 +3091,12 @@ label.runtimeField:has(.searchable-select-open) {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--ev-c-gray-2);
+  background: var(--border-default);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--ev-c-gray-1);
+  background: var(--border-strong);
 }
 
 /* ========== /Custom Scrollbar ========== */

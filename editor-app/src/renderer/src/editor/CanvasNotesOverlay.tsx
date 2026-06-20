@@ -341,7 +341,7 @@ const CanvasNoteSticker = React.memo(function CanvasNoteSticker({
             boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
             fontSize: 12,
             lineHeight: 1.4,
-            color: '#1a1a1a',
+            color: 'var(--text-inverse)',
             wordBreak: 'break-word',
             zIndex: 60
           }}

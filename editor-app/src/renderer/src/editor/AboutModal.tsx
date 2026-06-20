@@ -61,7 +61,7 @@ export function AboutModal({
         }
       }}
     >
-      <div className="prefsModal">
+      <div className="prefsModal" role="dialog" aria-modal="true" aria-label={t('app.about', 'About')}>
         <div className="prefsHeader">
           <span className="prefsTitle">
             {t('app.about', 'About')} {t('app.appName', 'Undefscene Editor')}

@@ -82,9 +82,11 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }): Re
           }}
         >
           <div
-            className="prefsModal"
+            className="prefsModal confirmDialog"
             onClick={(e) => e.stopPropagation()}
-            style={{ minWidth: 320, maxWidth: 480 }}
+            role="alertdialog"
+            aria-modal="true"
+            aria-label={state.title ?? t('dialog.confirmTitle', 'Confirm')}
           >
             <div className="prefsHeader">
               <span className="prefsTitle">
@@ -96,33 +98,23 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }): Re
             </div>
 
             <div className="prefsBody">
-              <div className="prefsHint" style={{ fontStyle: 'normal', whiteSpace: 'pre-wrap' }}>
+              <div className="prefsHint confirmDialogMessage">
                 {state.message}
               </div>
 
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+              <div className="confirmDialogActions">
                 <button
                   type="button"
-                  className="runtimeButton"
+                  className="runtimeButton confirmDialogCancelBtn"
                   onClick={() => handleResolve(false)}
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    color: 'var(--ev-c-text-2)'
-                  }}
                 >
                   {state.cancelLabel ?? t('dialog.cancelLabel', 'Cancel')}
                 </button>
                 <button
                   ref={confirmBtnRef}
                   type="button"
-                  className="runtimeButton"
+                  className={`runtimeButton${state.danger ? ' runtimeButton--danger' : ''}`}
                   onClick={() => handleResolve(true)}
-                  style={
-                    state.danger
-                      ? { background: '#b42318', color: '#fff', border: 'none' }
-                      : undefined
-                  }
                 >
                   {state.confirmLabel ?? t('dialog.confirmLabel', 'Confirm')}
                 </button>

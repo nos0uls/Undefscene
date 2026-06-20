@@ -294,7 +294,7 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
   )
 
   return (
-    <div className="runtimeSection">
+    <div className="runtimeSection" role="region" aria-label={t('editor.inspector', 'Inspector')}>
       <div className="runtimeSectionTitle">{t('editor.inspector', 'Inspector')}</div>
       <SceneTitleEditor
         localTitle={localTitle}
@@ -342,26 +342,18 @@ export const InspectorPanel = React.memo(function InspectorPanel(props: Inspecto
       )}
 
       {/* Информация о загруженном проекте: статистика ресурсов и название файла .yyp. */}
-      <div className="runtimeSectionTitle" style={{ marginTop: 8 }}>
+      <div className="runtimeSectionTitle runtimeSectionTitle--spaced">
         {t('editor.project', 'Project')}
       </div>
       {resources ? (
         <div className="runtimeHint">
           {/* Показываем только имя файла проекта, полный путь пользователю не нужен. */}
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>
+          <div className="projectInfoName">
             {resources.yypPath.split(/[\\/]/).pop()}
           </div>
 
           {/* Компактная статистика ресурсов проекта. */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '2px 8px',
-              fontSize: 11,
-              opacity: 0.8
-            }}
-          >
+          <div className="projectInfoStats">
             <span>
               {t('editor.sprites', 'Sprites')}: {resources.sprites.length}
             </span>

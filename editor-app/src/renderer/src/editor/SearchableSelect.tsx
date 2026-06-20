@@ -253,10 +253,10 @@ export function SearchableSelect({
             right: 0,
             maxHeight: 180,
             overflowY: 'auto',
-            background: 'var(--color-background-soft, #1a1f28)',
-            border: '1px solid var(--ev-c-gray-2, #333)',
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-default)',
             borderRadius: 4,
-            zIndex: 100,
+            zIndex: 'var(--z-dropdown)',
             boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
           }}
         >
@@ -268,7 +268,7 @@ export function SearchableSelect({
                 fontSize: 12,
                 cursor: 'pointer',
                 background: i === highlightIndex ? 'rgba(88,166,255,0.15)' : 'transparent',
-                color: opt === value ? 'var(--ev-c-accent, #58a6ff)' : 'var(--ev-c-text-1, #ccc)'
+                color: opt === value ? 'var(--accent-default)' : 'var(--text-primary)'
               }}
               onMouseEnter={() => setHighlightIndex(i)}
               onMouseDown={(e) => {

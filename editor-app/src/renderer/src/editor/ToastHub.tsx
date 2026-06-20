@@ -161,72 +161,30 @@ function ToastRenderer({
   onDismiss: (id: string) => void
 }): React.JSX.Element {
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 16,
-        right: 16,
-        zIndex: 9999,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-        alignItems: 'flex-end',
-        pointerEvents: 'none'
-      }}
-    >
+    <div className="toastHub" role="region" aria-label="Notifications" aria-live="polite">
       {toasts.map((t) => {
         const s = SEVERITY_STYLES[t.severity]
         return (
           <div
             key={t.id}
+            className="toastItem"
             style={{
-              pointerEvents: 'auto',
-              minWidth: 220,
-              maxWidth: 380,
-              padding: '10px 12px',
-              borderRadius: 6,
               background: s.bg,
-              border: `1px solid ${s.border}`,
-              color: 'var(--ev-c-text-1, #c9d1d9)',
-              fontSize: 12,
-              lineHeight: 1.5,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-              animation: 'toastIn 200ms ease-out',
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 8
+              border: `1px solid ${s.border}`
             }}
           >
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="toastBody">
               {t.title && (
-                <div
-                  style={{
-                    fontWeight: 700,
-                    marginBottom: 2,
-                    color: s.text,
-                    fontSize: 11,
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.5
-                  }}
-                >
+                <div className="toastTitle" style={{ color: s.text }}>
                   {t.title}
                 </div>
               )}
-              <div style={{ wordBreak: 'break-word' }}>{t.message}</div>
+              <div className="toastMessage">{t.message}</div>
             </div>
             <button
               type="button"
+              className="toastDismissBtn"
               onClick={() => onDismiss(t.id)}
-              style={{
-                flexShrink: 0,
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--ev-c-text-2, #8b949e)',
-                cursor: 'pointer',
-                fontSize: 14,
-                lineHeight: 1,
-                padding: 2
-              }}
               aria-label="Dismiss"
             >
               ✕
@@ -234,12 +192,6 @@ function ToastRenderer({
           </div>
         )
       })}
-      <style>{`
-        @keyframes toastIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   )
 }

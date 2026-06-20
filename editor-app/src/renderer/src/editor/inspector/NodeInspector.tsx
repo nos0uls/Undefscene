@@ -141,8 +141,7 @@ export const NodeInspector = React.memo(function NodeInspector({
         <AnimatedField key={field.key} visible={isVisible} fieldKey={`${nodeId}-${field.key}`}>
           {field.type === 'checkbox' ? (
             <label
-              className="runtimeField"
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              className="runtimeField runtimeField--row"
             >
               {fieldContent}
               <span>{t('nodes.fields.' + field.key, field.label)}</span>
@@ -252,7 +251,7 @@ export const NodeInspector = React.memo(function NodeInspector({
       {/* Специальная логика для follow_path (points array) */}
       {selectedNode.type === 'follow_path' && (
         <>
-          <div className="runtimeSectionTitle" style={{ marginTop: 4 }}>
+          <div className="runtimeSectionTitle pathPointsHeader">
             {t('editor.pathPoints', 'Path Points')}
           </div>
           {(() => {
@@ -267,15 +266,11 @@ export const NodeInspector = React.memo(function NodeInspector({
             return (
               <>
                 {points.map((pt, i) => (
-                  <div
-                    key={i}
-                    style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 2 }}
-                  >
-                    <span style={{ fontSize: 11, opacity: 0.5, minWidth: 18 }}>#{i}</span>
+                  <div key={i} className="pathPointRow">
+                    <span className="pathPointIndex">#{i}</span>
                     <input
-                      className="runtimeInput"
+                      className="runtimeInput pathPointInput"
                       type="number"
-                      style={{ width: 64 }}
                       placeholder="x"
                       value={pt.x}
                       onChange={(e) => {
@@ -285,9 +280,8 @@ export const NodeInspector = React.memo(function NodeInspector({
                       }}
                     />
                     <input
-                      className="runtimeInput"
+                      className="runtimeInput pathPointInput"
                       type="number"
-                      style={{ width: 64 }}
                       placeholder="y"
                       value={pt.y}
                       onChange={(e) => {
@@ -297,7 +291,7 @@ export const NodeInspector = React.memo(function NodeInspector({
                       }}
                     />
                     <button
-                      style={{ fontSize: 11, padding: '0 4px', cursor: 'pointer' }}
+                      className="pathPointBtn"
                       disabled={i === 0}
                       onClick={() => {
                         const next = [...points]
@@ -308,7 +302,7 @@ export const NodeInspector = React.memo(function NodeInspector({
                       ↑
                     </button>
                     <button
-                      style={{ fontSize: 11, padding: '0 4px', cursor: 'pointer' }}
+                      className="pathPointBtn"
                       disabled={i === points.length - 1}
                       onClick={() => {
                         const next = [...points]
@@ -319,12 +313,7 @@ export const NodeInspector = React.memo(function NodeInspector({
                       ↓
                     </button>
                     <button
-                      style={{
-                        fontSize: 11,
-                        padding: '0 4px',
-                        cursor: 'pointer',
-                        color: 'var(--status-error)'
-                      }}
+                      className="pathPointBtn pathPointBtn--danger"
                       onClick={() => {
                         setPoints(points.filter((_, idx) => idx !== i))
                       }}
@@ -334,7 +323,7 @@ export const NodeInspector = React.memo(function NodeInspector({
                   </div>
                 ))}
                 <button
-                  style={{ fontSize: 12, marginTop: 2, cursor: 'pointer' }}
+                  className="pathPointAddBtn"
                   onClick={() => {
                     const last = points[points.length - 1]
                     setPoints([
@@ -346,7 +335,7 @@ export const NodeInspector = React.memo(function NodeInspector({
                   {t('editor.addPoint', '+ Add Point')}
                 </button>
                 {points.length === 0 && (
-                  <div className="runtimeHint" style={{ opacity: 0.5, fontSize: 11 }}>
+                  <div className="runtimeHint pathPointsEmpty">
                     {t(
                       'editor.noWaypointsYet',
                       'No waypoints yet. Click "+ Add Point" to start.'
@@ -370,13 +359,13 @@ export const NodeInspector = React.memo(function NodeInspector({
         </>
       )}
 
-      <div className="runtimeHint" style={{ opacity: 0.6 }}>
+      <div className="runtimeHint runtimeHint--subtle">
         {t('editor.position', 'Position')}:{' '}
         {selectedNode.position
           ? `${Math.round(selectedNode.position.x)}, ${Math.round(selectedNode.position.y)}`
           : '0, 0'}
       </div>
-      <div className="runtimeHint" style={{ opacity: 0.6 }}>
+      <div className="runtimeHint runtimeHint--subtle">
         {t('editor.connections', 'Connections')}: {incomingCount}{' '}
         {t('editor.connectionsInOut', 'in / out')} {outgoingCount}
       </div>

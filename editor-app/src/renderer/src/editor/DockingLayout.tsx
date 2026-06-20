@@ -223,16 +223,16 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 9999
+            zIndex: 'var(--z-modal-overlay)'
           }}
         >
           <div
             style={{
-              background: 'var(--color-background-soft)',
+              background: 'var(--bg-surface)',
               padding: '16px 24px',
               borderRadius: 8,
               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-              color: 'var(--ev-c-text-1)',
+              color: 'var(--text-primary)',
               fontSize: 14,
               fontWeight: 500
             }}
@@ -407,8 +407,8 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(
                         style={{
                           display: 'flex',
                           gap: 0,
-                          borderBottom: '1px solid var(--ev-c-gray-3)',
-                          background: 'var(--color-background-soft)',
+                          borderBottom: '1px solid var(--border-subtle)',
+                          background: 'var(--bg-surface)',
                           flexShrink: 0
                         }}
                       >
@@ -422,11 +422,11 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(
                               alignItems: 'stretch',
                               background:
                                 panelId === activeId
-                                  ? 'var(--color-background)'
-                                  : 'var(--color-background-soft)',
+                                  ? 'var(--bg-base)'
+                                  : 'var(--bg-surface)',
                               borderBottom:
                                 panelId === activeId
-                                  ? '2px solid var(--ev-c-accent)'
+                                  ? '2px solid var(--accent-default)'
                                   : '2px solid transparent'
                             }}
                           >
@@ -442,8 +442,8 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(
                                 fontWeight: panelId === activeId ? 700 : 400,
                                 color:
                                   panelId === activeId
-                                    ? 'var(--ev-c-text-1)'
-                                    : 'var(--ev-c-text-2)',
+                                    ? 'var(--text-primary)'
+                                    : 'var(--text-secondary)',
                                 background: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
@@ -462,9 +462,9 @@ const DockingLayoutInner = React.memo(function DockingLayoutInner(
                               style={{
                                 width: 28,
                                 border: 'none',
-                                borderLeft: '1px solid var(--ev-c-gray-3)',
+                                borderLeft: '1px solid var(--border-subtle)',
                                 background: 'transparent',
-                                color: 'var(--ev-c-text-2)',
+                                color: 'var(--text-secondary)',
                                 cursor: 'pointer'
                               }}
                             >

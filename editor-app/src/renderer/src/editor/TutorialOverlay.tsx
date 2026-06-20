@@ -209,7 +209,7 @@ export function TutorialOverlay({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    zIndex: 10000,
+    zIndex: 'var(--z-modal-overlay)',
     transition: 'all 0.3s ease',
     pointerEvents: 'none',
     ...clipPathStyle
@@ -217,18 +217,18 @@ export function TutorialOverlay({
 
   const tooltipBoxStyle: React.CSSProperties = {
     position: 'fixed',
-    backgroundColor: 'var(--color-background-soft)',
-    border: '1px solid var(--ev-c-gray-3)',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: 8,
     padding: '20px 24px',
     boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-    color: 'var(--ev-c-text-1)',
+    color: 'var(--text-primary)',
     pointerEvents: 'auto',
     display: 'flex',
     flexDirection: 'column',
     gap: 12,
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    zIndex: 10001,
+    zIndex: 'var(--z-modal)',
     ...tooltipStyle()
   }
 
@@ -239,7 +239,7 @@ export function TutorialOverlay({
         <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent-default)' }}>
           {t(currentStep.title)}
         </div>
-        <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ev-c-text-2)' }}>
+        <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
           {renderContentWithLinks(t(currentStep.content))}
         </div>
 
@@ -252,7 +252,7 @@ export function TutorialOverlay({
             marginTop: 8
           }}
         >
-          <div style={{ fontSize: 11, color: 'var(--ev-c-text-3)' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
             {t('tutorial.escToSkip', language === 'ru' ? 'Esc — пропустить' : 'Esc to skip')}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -265,8 +265,8 @@ export function TutorialOverlay({
               }}
               style={{
                 backgroundColor: 'transparent',
-                color: 'var(--ev-c-text-2)',
-                border: '1px solid var(--ev-c-gray-3)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-subtle)',
                 opacity: stepIndex <= 0 ? 0.4 : 1,
                 cursor: stepIndex <= 0 ? 'not-allowed' : 'pointer'
               }}
@@ -276,7 +276,7 @@ export function TutorialOverlay({
             </button>
 
             {/* Счётчик шагов. */}
-            <div style={{ fontSize: 11, color: 'var(--ev-c-text-3)', userSelect: 'none' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', userSelect: 'none' }}>
               {stepIndex + 1} / {steps.length}
             </div>
 

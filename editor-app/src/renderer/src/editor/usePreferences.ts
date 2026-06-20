@@ -460,10 +460,7 @@ export function getAccentCssVariables(
     '--accent-hover': adjustAccentBrightness(hex, 15),
     '--accent-pressed': adjustAccentBrightness(hex, -10),
     '--accent-muted': `${hex}26`,
-    '--focus-ring': hex,
-    '--ev-c-accent': hex,
-    '--ev-c-accent-soft': `${hex}26`,
-    '--ev-c-accent-hover': adjustAccentBrightness(hex, 15)
+    '--focus-ring': hex
   }
 }
 

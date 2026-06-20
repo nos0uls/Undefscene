@@ -247,7 +247,7 @@ const NoteRow = React.memo(function NoteRow({
           }
           className="noteRowActionBtn noteRowLinkBtn"
           style={{
-            color: note.nodeId ? 'var(--ev-c-accent, #4a9eff)' : 'var(--ev-c-text-2)',
+            color: note.nodeId ? 'var(--accent-default)' : 'var(--text-secondary)',
             cursor: !note.nodeId && !selectedNode ? 'not-allowed' : 'pointer',
             opacity: !note.nodeId && !selectedNode ? 0.35 : 1
           }}
@@ -263,7 +263,7 @@ const NoteRow = React.memo(function NoteRow({
           title={note.pinned ? t('editor.unpinNote', 'Unpin') : t('editor.pinNote', 'Pin')}
           className="noteRowActionBtn noteRowPinBtn"
           style={{
-            color: note.pinned ? 'var(--ev-c-accent)' : 'var(--ev-c-text-2)'
+            color: note.pinned ? 'var(--accent-default)' : 'var(--text-secondary)'
           }}
         >
           {note.pinned ? '\uD83D\uDCCC' : '\uD83D\uDCCD'}
@@ -279,7 +279,7 @@ const NoteRow = React.memo(function NoteRow({
             ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--status-error)'
           }}
           onMouseLeave={(e) => {
-            ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--ev-c-text-2)'
+            ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)'
           }}
         >
           {'\u00D7'}
@@ -345,7 +345,7 @@ export const NotesPanel = React.memo(function NotesPanel({
       <div className="noteFilterChips">
         <FilterChip
           label={t('editor.all', 'All')}
-          color="var(--ev-c-text-2)"
+          color="var(--text-secondary)"
           active={filter === null}
           onClick={() => setFilter(null)}
         />
@@ -415,11 +415,11 @@ function FilterChip({
       style={{
         border: `1px solid ${active ? color : 'transparent'}`,
         background: active ? `${color}22` : 'transparent',
-        color: active ? 'var(--ev-c-text-1)' : 'var(--ev-c-text-2)'
+        color: active ? 'var(--text-primary)' : 'var(--text-secondary)'
       }}
       onMouseEnter={(e) => {
         if (!active) {
-          e.currentTarget.style.borderColor = 'var(--ev-c-gray-3)'
+          e.currentTarget.style.borderColor = 'var(--border-subtle)'
         }
       }}
       onMouseLeave={(e) => {

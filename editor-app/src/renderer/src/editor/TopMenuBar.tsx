@@ -640,20 +640,7 @@ function TopMenuBarInner(props: TopMenuBarProps): React.JSX.Element {
 
       <div className="topMenuBarRight">
         {showSavedIndicator && (
-          <div
-            className="topMenuBarSavedIndicator"
-            style={{
-              fontSize: 10,
-              color: 'var(--ev-c-green)',
-              marginRight: 12,
-              fontWeight: 600,
-              opacity: 0.8,
-              pointerEvents: 'none',
-              userSelect: 'none',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em'
-            }}
-          >
+          <div className="topMenuBarSavedIndicator">
             {t('app.saved', 'Saved')}
           </div>
         )}

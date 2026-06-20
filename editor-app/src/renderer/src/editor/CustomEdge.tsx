@@ -90,7 +90,7 @@ const CustomEdgeInner = memo(function CustomEdgeInner({
   const isActive = selected || hovered
 
   // Цвета: акцентный если выбрано или hover, стандартный иначе.
-  const strokeColor = isActive ? 'var(--ev-c-accent)' : 'var(--edge-default, hsl(220, 10%, 35%))'
+  const strokeColor = isActive ? 'var(--accent-default)' : 'var(--edge-default, hsl(220, 10%, 35%))'
 
   const markerUrl = `url(#${isActive ? `${CUSTOM_EDGE_MARKER_ID}-accent` : CUSTOM_EDGE_MARKER_ID})`
 
@@ -100,7 +100,7 @@ const CustomEdgeInner = memo(function CustomEdgeInner({
     : {}
 
   // Glow через filter при выделении или hover.
-  const glowFilter = isActive ? 'drop-shadow(0 0 3px var(--ev-c-accent))' : undefined
+  const glowFilter = isActive ? 'drop-shadow(0 0 3px var(--accent-default))' : undefined
 
   return (
     <g

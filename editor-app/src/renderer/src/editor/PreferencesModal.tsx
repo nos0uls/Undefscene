@@ -187,7 +187,7 @@ export function PreferencesModal({
         if (e.target === overlayRef.current) onClose()
       }}
     >
-      <div className="prefsModal">
+      <div className="prefsModal" role="dialog" aria-modal="true" aria-label={t('app.preferences', 'Preferences')}>
         {/* Заголовок */}
         <div className="prefsHeader">
           <span className="prefsTitle">{t('app.preferences', 'Preferences')}</span>

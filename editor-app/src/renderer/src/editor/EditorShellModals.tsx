@@ -136,7 +136,7 @@ export function EditorShellModals({
             setNameConflictModal(null)
           }}
         >
-          <div className="prefsModal" onClick={(e) => e.stopPropagation()}>
+          <div className="prefsModal" role="alertdialog" aria-modal="true" aria-label={t('dialog.duplicateNodeNameTitle', 'Duplicate node name')} onClick={(e) => e.stopPropagation()}>
             <div className="prefsHeader">
               <span className="prefsTitle">
                 {t('dialog.duplicateNodeNameTitle', 'Duplicate node name')}

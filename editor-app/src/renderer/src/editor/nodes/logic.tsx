@@ -177,7 +177,7 @@ export const BranchNode = memo(function BranchNode({
       transform: 'translateY(-50%)',
       fontSize: 9,
       fontWeight: 700,
-      color: 'var(--ev-c-success)',
+      color: 'var(--status-success)',
       letterSpacing: '0.04em',
       pointerEvents: 'none',
       userSelect: 'none'
@@ -193,7 +193,7 @@ export const BranchNode = memo(function BranchNode({
       transform: 'translateY(-50%)',
       fontSize: 9,
       fontWeight: 700,
-      color: 'var(--ev-c-error)',
+      color: 'var(--status-error)',
       letterSpacing: '0.04em',
       pointerEvents: 'none',
       userSelect: 'none'

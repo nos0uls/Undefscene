@@ -22,12 +22,12 @@ export const FlowCanvasMiniMap = memo(function FlowCanvasMiniMap({
       <MiniMap
         pannable
         zoomable
-        nodeColor="#7ea4ff"
-        nodeStrokeColor="#4a6fcb"
+        nodeColor="var(--accent-muted)"
+        nodeStrokeColor="var(--accent-default)"
         nodeBorderRadius={2}
         nodeStrokeWidth={1}
-        maskColor="rgba(0, 0, 0, 0.5)"
-        maskStrokeColor="rgba(126, 164, 255, 0.35)"
+        maskColor="color-mix(in srgb, var(--bg-base) 80%, transparent)"
+        maskStrokeColor="var(--accent-default)"
         maskStrokeWidth={1}
         style={RF_MINIMAP_STYLE}
       />

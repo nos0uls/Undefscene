@@ -242,9 +242,9 @@ function FollowPathPreviewComponent(props: FollowPathPreviewProps): React.JSX.El
       style={{
         marginTop: 10,
         padding: 10,
-        border: '1px solid var(--ev-c-gray-3)',
+        border: '1px solid var(--border-subtle)',
         borderRadius: 10,
-        background: 'var(--color-background-soft)'
+        background: 'var(--bg-surface)'
       }}
     >
       <div className="runtimeSectionTitle">{title}</div>
@@ -262,8 +262,8 @@ function FollowPathPreviewComponent(props: FollowPathPreviewProps): React.JSX.El
             style={{
               marginTop: 8,
               borderRadius: 8,
-              background: 'var(--color-background)',
-              border: '1px solid var(--ev-c-gray-3)'
+              background: 'var(--bg-base)',
+              border: '1px solid var(--border-subtle)'
             }}
           >
             <rect
@@ -271,13 +271,13 @@ function FollowPathPreviewComponent(props: FollowPathPreviewProps): React.JSX.El
               y="0"
               width={PREVIEW_WIDTH}
               height={PREVIEW_HEIGHT}
-              fill="var(--color-background)"
+              fill="var(--bg-base)"
             />
 
             {normalizedPoints.length > 1 ? (
               <polyline
                 fill="none"
-                stroke="var(--ev-c-accent)"
+                stroke="var(--accent-default)"
                 strokeWidth="2.5"
                 strokeLinejoin="round"
                 strokeLinecap="round"
@@ -291,8 +291,8 @@ function FollowPathPreviewComponent(props: FollowPathPreviewProps): React.JSX.El
                   cx={pt.x}
                   cy={pt.y}
                   r={index === 0 ? 6 : 5}
-                  fill={index === 0 ? 'var(--ev-c-accent)' : 'var(--color-background-soft)'}
-                  stroke="var(--ev-c-accent)"
+                  fill={index === 0 ? 'var(--accent-default)' : 'var(--bg-surface)'}
+                  stroke="var(--accent-default)"
                   strokeWidth="2"
                 />
                 <text
@@ -300,7 +300,7 @@ function FollowPathPreviewComponent(props: FollowPathPreviewProps): React.JSX.El
                   y={pt.y - 10}
                   textAnchor="middle"
                   fontSize="10"
-                  fill="var(--ev-c-text-2)"
+                  fill="var(--text-secondary)"
                 >
                   {index}
                 </text>

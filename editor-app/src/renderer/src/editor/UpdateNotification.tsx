@@ -136,7 +136,7 @@ function UpdateNotificationInner(): React.JSX.Element | null {
           padding: '2px 6px',
           fontSize: 11,
           background: 'transparent',
-          color: 'var(--ev-c-text-2)',
+          color: 'var(--text-secondary)',
           border: '1px solid rgba(255,255,255,0.1)',
           borderRadius: 4,
           cursor: 'pointer'

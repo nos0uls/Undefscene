@@ -56,7 +56,7 @@ export function WelcomeSetupModal({
         inset: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.55)',
         backdropFilter: 'blur(4px)',
-        zIndex: 9999,
+        zIndex: 'var(--z-modal-overlay)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -65,6 +65,9 @@ export function WelcomeSetupModal({
     >
       <div
         className="prefsModal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Setup"
         style={{ maxWidth: 450, width: '100%', maxHeight: '90vh', overflow: 'auto' }}
       >
         <div className="prefsHeader">
@@ -74,7 +77,7 @@ export function WelcomeSetupModal({
         </div>
 
         <div className="prefsBody" style={{ padding: '20px 24px' }}>
-          <p style={{ marginBottom: 24, color: 'var(--ev-c-text-2)', lineHeight: '1.5' }}>
+          <p style={{ marginBottom: 24, color: 'var(--text-secondary)', lineHeight: '1.5' }}>
             {t('welcome.description', "Let's customize Undefscene for you before we get started.")}
           </p>
 
