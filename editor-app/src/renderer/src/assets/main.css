@@ -14,9 +14,9 @@
   --z-field-open: 1000;
   --z-dock-splitter: 1500;
   --z-floating-panel: 5000;
+  --z-menu: 6000;
   --z-modal-overlay: 10000;
   --z-modal: 10001;
-  --z-menu: 10002;
   --z-toast: 10100;
 }
 
