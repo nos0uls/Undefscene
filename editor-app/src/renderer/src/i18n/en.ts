@@ -259,12 +259,25 @@ export const en = {
     addNodeButtonTitle: 'Add New Node (Middle Click)',
     addNodeAriaLabel: 'Add Node',
     pathSpeedTitle: 'Path movement speed (px/sec)',
-    logsEmptyFilters: 'Enable filters to see logs.',
-    logsNoMatches: 'No matching entries.',
-    configureSeverity: "Configure UF_'{ruleId}' Severity",
-    resetToDefault: 'Reset to Default',
-    ignore: 'Ignore',
-    suggestion: 'Suggestion',
+    logs: {
+      title: 'Logs / Warnings',
+      ariaLabel: 'Validation logs and warnings',
+      emptyFilters: 'Enable filters to see logs.',
+      noMatches: 'No matching entries.',
+      context: {
+        copy: 'Copy',
+        goToNode: 'Go to Node',
+        goToEdge: 'Go to Edge'
+      },
+      severity: {
+        configure: "Configure UF_'{ruleId}' Severity",
+        error: 'Error',
+        warn: 'Warn',
+        suggestion: 'Suggestion',
+        ignore: 'Ignore',
+        resetToDefault: 'Reset to Default'
+      }
+    },
     runtimeJsonHint: 'Technical state (JSON).',
     runtimeJsonContent: 'Content',
     projectCacheReady: 'Project is ready.',

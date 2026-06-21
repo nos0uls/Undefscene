@@ -259,12 +259,25 @@ export const ru = {
     addNodeButtonTitle: 'Добавить новую ноду (СКМ)',
     addNodeAriaLabel: 'Добавить ноду',
     pathSpeedTitle: 'Скорость движения по пути (px/sec)',
-    logsEmptyFilters: 'Включите фильтры, чтобы увидеть логи.',
-    logsNoMatches: 'Ничего не найдено.',
-    configureSeverity: "Настроить серьёзность UF_'{ruleId}'",
-    resetToDefault: 'Сбросить по умолчанию',
-    ignore: 'Игнорировать',
-    suggestion: 'Подсказка',
+    logs: {
+      title: 'Логи / Ошибки',
+      ariaLabel: 'Логи и предупреждения валидации',
+      emptyFilters: 'Включите фильтры, чтобы увидеть логи.',
+      noMatches: 'Ничего не найдено.',
+      context: {
+        copy: 'Копировать',
+        goToNode: 'Перейти к ноде',
+        goToEdge: 'Перейти к связи'
+      },
+      severity: {
+        configure: "Настроить серьёзность UF_'{ruleId}'",
+        error: 'Ошибка',
+        warn: 'Предупреждение',
+        suggestion: 'Подсказка',
+        ignore: 'Игнорировать',
+        resetToDefault: 'Сбросить по умолчанию'
+      }
+    },
     runtimeJsonHint: 'Техническое состояние (JSON).',
     runtimeJsonContent: 'Содержимое',
     projectCacheReady: 'Проект готов.',

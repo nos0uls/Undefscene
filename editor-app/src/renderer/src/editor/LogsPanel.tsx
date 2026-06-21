@@ -199,7 +199,12 @@ export const LogsPanel = React.memo(function LogsPanel({
   const [submenuOpen, setSubmenuOpen] = useState(false)
 
   return (
-    <div className="runtimeSection" role="log" aria-label="Validation logs" style={{ position: 'relative' }}>
+    <div
+      className="runtimeSection"
+      role="log"
+      aria-label={t('editor.logs.title', 'Logs / Warnings')}
+      style={{ position: 'relative' }}
+    >
       <div
         style={{
           display: 'flex',
@@ -235,8 +240,8 @@ export const LogsPanel = React.memo(function LogsPanel({
       {visibleEntries.length === 0 ? (
         <div className="runtimeHint" style={{ color: 'var(--status-success)' }}>
           {!logsFilters.errors && !logsFilters.warnings && !logsFilters.tips
-            ? t('editor.logsEmptyFilters', 'Enable filters to see entries.')
-            : t('editor.logsNoMatches', 'No matching entries.')}
+            ? t('editor.logs.emptyFilters', 'Enable filters to see entries.')
+            : t('editor.logs.noMatches', 'No matching entries.')}
         </div>
       ) : (
         // Windowed-список: монтируем только видимые + overscan ряды,
@@ -308,7 +313,7 @@ export const LogsPanel = React.memo(function LogsPanel({
             onClick={() => handleCopy(contextMenu.entry.message)}
             onMouseEnter={() => setSubmenuOpen(false)}
           >
-            {t('editor.logs.copy', 'Copy')}
+            {t('editor.logs.context.copy', 'Copy')}
           </div>
 
           {/* Перейти к ноде или ребру, если применимо. */}
@@ -324,8 +329,8 @@ export const LogsPanel = React.memo(function LogsPanel({
               onMouseEnter={() => setSubmenuOpen(false)}
             >
               {contextMenu.entry.nodeId
-                ? t('editor.logs.goToNode', 'Go to Node')
-                : t('editor.logs.goToEdge', 'Go to Edge')}
+                ? t('editor.logs.context.goToNode', 'Go to Node')
+                : t('editor.logs.context.goToEdge', 'Go to Edge')}
             </div>
           )}
 
@@ -345,7 +350,7 @@ export const LogsPanel = React.memo(function LogsPanel({
                 }}
               >
                 {t(
-                  'editor.logs.configureSeverity',
+                  'editor.logs.severity.configure',
                   { ruleId: contextMenu.entry.ruleId },
                   'Configure Severity'
                 )}{' '}
@@ -380,7 +385,7 @@ export const LogsPanel = React.memo(function LogsPanel({
                     }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'error')}
                   >
-                    {t('editor.logs.error', 'Error')}
+                    {t('editor.logs.severity.error', 'Error')}
                   </div>
                   <div
                     style={{
@@ -390,7 +395,7 @@ export const LogsPanel = React.memo(function LogsPanel({
                     }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'warn')}
                   >
-                    {t('editor.logs.warn', 'Warn')}
+                    {t('editor.logs.severity.warn', 'Warn')}
                   </div>
                   <div
                     style={{
@@ -400,7 +405,7 @@ export const LogsPanel = React.memo(function LogsPanel({
                     }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'tip')}
                   >
-                    {t('editor.logs.suggestion', 'Suggestion')}
+                    {t('editor.logs.severity.suggestion', 'Suggestion')}
                   </div>
                   <div
                     style={{
@@ -410,7 +415,7 @@ export const LogsPanel = React.memo(function LogsPanel({
                     }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'hidden')}
                   >
-                    {t('editor.logs.ignore', 'Ignore')}
+                    {t('editor.logs.severity.ignore', 'Ignore')}
                   </div>
                   <div
                     style={{
@@ -421,7 +426,7 @@ export const LogsPanel = React.memo(function LogsPanel({
                     }}
                     onClick={() => handleSeverityOverride(contextMenu.entry.ruleId!, 'reset')}
                   >
-                    {t('editor.logs.resetToDefault', 'Reset to Default')}
+                    {t('editor.logs.severity.resetToDefault', 'Reset to Default')}
                   </div>
                 </div>
               )}
