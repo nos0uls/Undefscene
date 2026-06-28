@@ -330,7 +330,9 @@ export function useEditorState(
 
   // Memoized values
   const validationContext: ValidationContext | undefined = useMemo(() => {
-    if (!resources && !engineSettings) return undefined
+    if (!resources && !engineSettings) {
+      return { language: (preferences.language as SupportedLanguage) ?? 'en' }
+    }
     return {
       language: (preferences.language as SupportedLanguage) ?? 'en',
       objects: resources?.objects,

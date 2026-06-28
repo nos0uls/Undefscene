@@ -126,7 +126,6 @@ export const en = {
   editor: {
     yarnPreview: 'Yarn Preview',
     runtimeJson: 'JSON',
-    logs: 'Logs / Warnings',
     actions: 'Actions',
     nodePalette: 'Node Palette',
     paletteSearch: 'Search nodes…',

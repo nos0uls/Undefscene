@@ -126,7 +126,6 @@ export const ru = {
   editor: {
     yarnPreview: 'Превью Yarn',
     runtimeJson: 'JSON',
-    logs: 'Логи / Ошибки',
     actions: 'Действия',
     nodePalette: 'Палитра нод',
     paletteSearch: 'Поиск нод…',
